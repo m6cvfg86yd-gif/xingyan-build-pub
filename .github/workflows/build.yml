@@ -1,0 +1,251 @@
+name: build-ios
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - codex/b682-ai-workspace-only
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - name: 取私有源码
+        uses: actions/checkout@v4
+        with:
+          repository: m6cvfg86yd-gif/xingyan-build-1
+          ref: main
+          token: ${{ secrets.SRC_TOKEN }}
+
+      - name: 选 Xcode（优先 26，没有就用最新可用的）
+        run: |
+          set -e
+          ls -d /Applications/Xcode*.app 2>/dev/null || true
+          PICK="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$PICK" ]; then
+            PICK="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)"
+            echo "⚠️ 这台机器没有 Xcode 26，退回最新的：$PICK"
+          else
+            echo "用上了 Xcode 26：$PICK"
+          fi
+          if [ -z "$PICK" ]; then echo "机器上没有 Xcode"; exit 1; fi
+          sudo xcode-select -s "$PICK" 2>/dev/null || sudo xcode-select -s "$PICK/Contents/Developer"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: 下载 WebRTC 框架
+        run: |
+          set -e
+          if ! curl -L --fail --retry 2 --retry-delay 2 --connect-timeout 15 --max-time 180 -o /tmp/webrtc.zip \
+              https://aa.x8iu.com/webrtc/WebRTC-M153.xcframework.zip; then
+            echo "自家镜像拿不到，回退 GitHub 官方"
+            curl -L --fail --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 900 -o /tmp/webrtc.zip \
+              https://github.com/stasel/WebRTC/releases/download/153.0.0/WebRTC-M153.xcframework.zip
+          fi
+          ls -lh /tmp/webrtc.zip
+          rm -rf WebRTCKit && mkdir -p WebRTCKit
+          unzip -q /tmp/webrtc.zip -d WebRTCKit
+          ls WebRTCKit
+          ls WebRTCKit/WebRTC.xcframework
+          ls WebRTCKit/WebRTC.xcframework/ios-arm64/WebRTC.framework
+
+      - name: 下载 TRTC 音视频 SDK
+        run: |
+          set -e
+          curl -L --fail -o /tmp/trtc.zip \
+            https://liteav.sdk.qcloud.com/download/latest/TXLiteAVSDK_TRTC_iOS_latest.zip
+          rm -rf /tmp/trtc-x TRTCKit && mkdir -p /tmp/trtc-x TRTCKit
+          unzip -q /tmp/trtc.zip -d /tmp/trtc-x
+          for NAME in TXLiteAVSDK_TRTC TXFFmpeg TXSoundTouch; do
+            FW="$(find /tmp/trtc-x -type d -name "$NAME.framework" -path '*ios-arm64_armv7*' | head -1)"
+            if [ -z "$FW" ]; then echo "没找到 $NAME 的设备片"; exit 1; fi
+            cp -R "$FW" TRTCKit/
+            lipo -info "TRTCKit/$NAME.framework/$NAME" || true
+          done
+          ls -la TRTCKit
+
+      - name: 检查英文词典有没有重复 key
+        run: |
+          python3 - <<'PY'
+          import re, collections, sys
+          t = open('Sources/L10n.swift', encoding='utf-8').read()
+          keys = re.findall(r'^\s{8}"((?:[^"\\]|\\.)*)":', t, re.M)
+          dups = [k for k, v in collections.Counter(keys).items() if v > 1]
+          print('L10n keys =', len(keys), ' duplicates =', dups)
+          sys.exit(1 if dups else 0)
+          PY
+
+      - name: 校验核心模块
+        run: bash tools/verify-core.sh
+
+      - name: 编译原生 App
+        id: build
+        run: |
+          set -e
+          BUILDDATE="$(TZ=Asia/Shanghai date '+%m-%d %H:%M')"
+          BUILDNO=$(( 625 + ${{ github.run_number }} ))
+          echo "构建号 = $BUILDNO"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILDNO" Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :BuildDate string $BUILDDATE" Info.plist \
+            || /usr/libexec/PlistBuddy -c "Set :BuildDate $BUILDDATE" Info.plist || true
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          APP="Payload/CHRISChat.app"
+          rm -rf Payload
+          mkdir -p "$APP"
+          cp Info.plist "$APP/Info.plist"
+          cp AppIcon60x60@2x.png "$APP/"
+          cp AppIcon60x60@3x.png "$APP/"
+          cp splash.jpg "$APP/"
+          cp moments-cover.jpg "$APP/"
+          cp levelicons/*.png "$APP/"
+          mkdir -p Assets.xcassets/LaunchBg.colorset
+          cat > Assets.xcassets/Contents.json <<'JSON'
+          { "info": { "version": 1, "author": "xcode" } }
+          JSON
+          cat > Assets.xcassets/LaunchBg.colorset/Contents.json <<'JSON'
+          {
+            "colors": [
+              {
+                "idiom": "universal",
+                "color": {
+                  "color-space": "srgb",
+                  "components": { "red": "0.000", "green": "0.000", "blue": "0.000", "alpha": "1.000" }
+                }
+              }
+            ],
+            "info": { "version": 1, "author": "xcode" }
+          }
+          JSON
+          xcrun actool Assets.xcassets --compile "$APP" --platform iphoneos \
+            --target-device iphone --minimum-deployment-target 16.0 \
+            --output-format human-readable-text > /dev/null 2>&1 \
+            || echo "actool 跳过：启动屏用系统默认底色"
+          ls -la "$APP" | head -20
+          xcrun -sdk iphoneos metal -c Sources/VoiceOrb.metal -o /tmp/VoiceOrb.air
+          xcrun -sdk iphoneos metallib /tmp/VoiceOrb.air -o "$APP/default.metallib"
+          ls -lh "$APP/default.metallib"
+          mkdir -p "$APP/Frameworks"
+          cp -R WebRTCKit/WebRTC.xcframework/ios-arm64/WebRTC.framework "$APP/Frameworks/WebRTC.framework"
+          for NAME in TXLiteAVSDK_TRTC TXFFmpeg TXSoundTouch; do
+            cp -R "TRTCKit/$NAME.framework" "$APP/Frameworks/$NAME.framework"
+            lipo -thin arm64 "$APP/Frameworks/$NAME.framework/$NAME" \
+              -output "$APP/Frameworks/$NAME.framework/$NAME.arm64" || true
+            if [ -f "$APP/Frameworks/$NAME.framework/$NAME.arm64" ]; then
+              mv "$APP/Frameworks/$NAME.framework/$NAME.arm64" "$APP/Frameworks/$NAME.framework/$NAME"
+            fi
+            rm -rf "$APP/Frameworks/$NAME.framework/_CodeSignature"
+            ls -lh "$APP/Frameworks/$NAME.framework/$NAME"
+          done
+          xcrun --sdk iphoneos swiftc \
+            -sdk "$SDK" \
+            -target arm64-apple-ios16.0 \
+            -swift-version 5 \
+            -parse-as-library \
+            -O \
+            -whole-module-optimization \
+            -F "$SDK/System/Library/Frameworks" \
+            -F WebRTCKit/WebRTC.xcframework/ios-arm64 \
+            -F TRTCKit \
+            -o "$APP/CHRIS" \
+            Sources/*.swift \
+            -framework SwiftUI -framework UIKit -framework Foundation \
+            -framework LocalAuthentication -framework AVFoundation \
+            -framework WebRTC \
+            -framework TXLiteAVSDK_TRTC \
+            -framework AudioToolbox -framework CoreTelephony -framework CoreMedia \
+            -framework MediaPlayer \
+            -framework CoreVideo -framework VideoToolbox -framework MetalKit -framework Metal \
+            -framework Accelerate -framework SystemConfiguration -framework ReplayKit \
+            -framework MultipeerConnectivity \
+            -framework CoreGraphics -framework QuartzCore -framework OpenGLES \
+            -framework Security -framework CryptoKit \
+            -Xlinker -dead_strip \
+            -lz -lsqlite3 -lc++ \
+            -Xlinker -rpath -Xlinker @executable_path/Frameworks 2>&1 | tee /tmp/build.log
+          if grep -q "error:" /tmp/build.log; then
+            grep -E "error:" /tmp/build.log | head -40 > build-error.txt
+            echo "==== 编译错误（已存成 artifact）===="
+            cat build-error.txt
+            exit 1
+          fi
+          echo "编译完成，体积："
+          ls -lh "$APP/CHRIS"
+          echo "依赖了哪些动态库："
+          otool -L "$APP/CHRIS" | head -12
+          echo "=== 动态库自检 ==="
+          MISSING=0
+          for BIN in "$APP/CHRIS" "$APP"/Frameworks/*.framework/*; do
+            [ -f "$BIN" ] || continue
+            otool -L "$BIN" | tail -n +2 | awk '{print $1}' | grep '^@rpath/' | while read -r DEP; do
+              NAME="$(basename "$DEP")"
+              if ! ls "$APP"/Frameworks/*/"$NAME" >/dev/null 2>&1; then
+                echo "缺少动态库: $DEP（被 $(basename "$BIN") 依赖）"
+                exit 1
+              fi
+            done || MISSING=1
+          done
+          if [ "$MISSING" != "0" ]; then echo "自检没通过：包里的动态库不全"; exit 1; fi
+          echo "自检通过：包里所有 @rpath 依赖都在"
+
+          for NAME in WebRTC TXLiteAVSDK_TRTC TXFFmpeg TXSoundTouch; do
+            rm -rf "$APP/Frameworks/$NAME.framework/Headers" \
+                   "$APP/Frameworks/$NAME.framework/Modules" \
+                   "$APP/Frameworks/$NAME.framework/PrivateHeaders"
+          done
+          strip -x -S "$APP/CHRIS" || true
+          for NAME in WebRTC TXLiteAVSDK_TRTC TXFFmpeg TXSoundTouch; do
+            [ -f "$APP/Frameworks/$NAME.framework/$NAME" ] && strip -x -S "$APP/Frameworks/$NAME.framework/$NAME" || true
+          done
+          echo "瘦身后："
+          ls -lh "$APP/CHRIS"
+          du -sh "$APP"
+          BJ_STAMP="$(TZ=Asia/Shanghai date '+%Y%m%d%H%M.%S')"
+          echo "包内时间戳 -> $BJ_STAMP（北京时间）"
+          find Payload -exec touch -t "$BJ_STAMP" {} +
+          zip -qry CHRISChat-unsigned.ipa Payload
+          ls -lh CHRISChat-unsigned.ipa
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -in CHRISChat-unsigned.ipa -out Luchat.ipa.enc \
+            -pass pass:"$IPA_PASSWORD"
+          ls -lh Luchat.ipa.enc
+        env:
+          IPA_PASSWORD: ${{ secrets.IPA_PASSWORD }}
+
+      - name: 上传安装包
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: CHRISChat-unsigned-ipa
+          path: Luchat.ipa.enc
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: 发布到 Release（不吃 Actions 产物配额）
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="ipa-$(date -u +%Y%m%d-%H%M%S)"
+          TITLE="iOS 包 $(git log -1 --pretty=%s | cut -c1-60)"
+          gh release create "$TAG" Luchat.ipa.enc \
+            --title "$TITLE" \
+            --notes "自动出包（commit $(git rev-parse --short HEAD)）。文件是加密的 Luchat.ipa.enc，解密见 README / 怎么出包.md。" \
+            --repo "$GITHUB_REPOSITORY"
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName -q '.[].tagName' \
+            | tail -n +4 | while read -r t; do gh release delete "$t" --yes --repo "$GITHUB_REPOSITORY" || true; done
+
+      - name: 上传编译错误
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-error
+          path: build-error.txt
+          if-no-files-found: ignore
+          retention-days: 3
