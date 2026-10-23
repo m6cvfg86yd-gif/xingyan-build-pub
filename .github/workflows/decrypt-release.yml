@@ -1,0 +1,47 @@
+name: decrypt-release
+
+permissions:
+  contents: read
+  actions: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag containing Luchat.ipa.enc
+        required: true
+        type: string
+
+jobs:
+  decrypt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download encrypted IPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p encrypted
+          gh release download "${{ inputs.release_tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern Luchat.ipa.enc \
+            --dir encrypted
+
+      - name: Decrypt IPA
+        env:
+          IPA_PASSWORD: ${{ secrets.IPA_PASSWORD }}
+        run: |
+          set -e
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -in encrypted/Luchat.ipa.enc \
+            -out Luchat.ipa \
+            -pass pass:"$IPA_PASSWORD"
+          test "$(head -c 2 Luchat.ipa)" = "PK"
+          sha256sum Luchat.ipa
+
+      - name: Upload decrypted IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Luchat-decrypted
+          path: Luchat.ipa
+          if-no-files-found: error
+          retention-days: 1
