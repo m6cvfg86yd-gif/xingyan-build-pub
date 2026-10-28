@@ -446,7 +446,8 @@ final class Realtime: ObservableObject {
             ev.callCandidate = text
         }
 
-        let important = ["friend", "call", "transfer", "transferRemind", "toast", "moment", "profile", "pair"]
+        let important = ["ui", "friend", "call", "transfer", "transferRemind",
+                         "toast", "moment", "profile", "pair"]
         if important.contains(ev.type) {
             pending = nil
             tick += 1

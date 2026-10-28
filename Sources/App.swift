@@ -463,6 +463,7 @@ final class AppState: ObservableObject {
         case "ready":
 
             coalesce { [weak self] in
+                await self?.refreshUI(force: true)
                 await self?.loadChats()
                 await self?.syncRecentMessages(chatCount: 20, limit: 50)
             }
@@ -1794,6 +1795,16 @@ struct RootView: View {
             .onChange(of: geo.size.width) { w in L.width = w }
         }
         .task { await app.boot() }
+        .task {
+            // 后台改图标等界面配置时实时事件可能被弱网丢掉；前台定时校准一次。
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                guard !Task.isCancelled else { break }
+                if scenePhase == .active && app.me != nil {
+                    await app.refreshUI()
+                }
+            }
+        }
         .onAppear {
 
             guard !app.splashDone else { return }
