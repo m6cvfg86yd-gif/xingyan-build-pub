@@ -77,9 +77,6 @@ struct NativeTabBar: UIViewRepresentable {
             normalColor: UIColor(OrbitTheme.secondary),
             selectedColor: UIColor(OrbitTheme.jade)
         )
-        if IconOverrides.custom("tab.me") == nil {
-            context.coordinator.loadAvatar(avatarPath, in: bar)
-        }
         refresh(bar)
     }
 
@@ -157,8 +154,7 @@ struct NativeTabBar: UIViewRepresentable {
         private var avatarKey = ""
         private var appliedCustomKeys: [Int: String] = [:]
         private var iconTasks: [Int: Task<Void, Never>] = [:]
-        private let customKeys = ["tab.chat", "tab.contacts", "tab.world", "tab.me"]
-        private let legacyKeys = ["tab.chat", "tab.contacts", "tab.discover", "tab.me"]
+        private let customKeys = ["tab2.chat", "tab2.contacts", "tab2.world", "tab2.me"]
         private let symbols = ["message", "person.2", "safari", "person.crop.circle"]
         private let selectedSymbols = ["message.fill", "person.2.fill", "safari",
                                        "person.crop.circle.fill"]
@@ -177,16 +173,16 @@ struct NativeTabBar: UIViewRepresentable {
             let size = UIConfig.num("tabIcon3", L.tabIconBox)
             for index in 0..<4 {
                 let custom = IconOverrides.custom(customKeys[index])
-                    ?? IconOverrides.custom(legacyKeys[index])
-                if custom == nil {
-                    if appliedCustomKeys.removeValue(forKey: index) != nil {
-                        resetIcon(index, item: items[index])
-                    }
+                let resolved = custom ?? "__default__"
+                guard appliedCustomKeys[index] != resolved else { continue }
+                appliedCustomKeys[index] = resolved
+                iconTasks[index]?.cancel()
+
+                guard let custom else {
+                    applyDefaultIcon(index: index, item: items[index], size: size,
+                                     normalColor: normalColor, selectedColor: selectedColor)
                     continue
                 }
-                guard let custom, appliedCustomKeys[index] != custom else { continue }
-                appliedCustomKeys[index] = custom
-                iconTasks[index]?.cancel()
 
                 if custom.hasPrefix("http") || custom.hasPrefix("/uploads") || custom.hasPrefix("data:") {
                     loadRemoteIcon(custom, index: index, item: items[index], in: bar)
@@ -196,6 +192,27 @@ struct NativeTabBar: UIViewRepresentable {
                                       selectedColor: selectedColor)
                 }
             }
+        }
+
+        private func applyDefaultIcon(index: Int, item: UITabBarItem, size: CGFloat,
+                                      normalColor: UIColor, selectedColor: UIColor) {
+            let normal = renderOrbit(index: index, selected: false, size: size,
+                                     color: normalColor)
+            let selected = renderOrbit(index: index, selected: true, size: size,
+                                       color: selectedColor)
+            item.image = normal.withRenderingMode(.alwaysOriginal)
+            item.selectedImage = selected.withRenderingMode(.alwaysOriginal)
+        }
+
+        private func renderOrbit(index: Int, selected: Bool, size: CGFloat,
+                                 color: UIColor) -> UIImage {
+            let glyph = OrbitTabGlyph(kind: index, selected: selected,
+                                      color: Color(uiColor: color),
+                                      accent: OrbitTheme.gold)
+                .frame(width: size, height: size)
+            let renderer = ImageRenderer(content: glyph)
+            renderer.scale = UIScreen.main.scale
+            return renderer.uiImage ?? UIImage()
         }
 
         private func loadRemoteIcon(_ value: String, index: Int, item: UITabBarItem, in bar: UITabBar) {
@@ -235,12 +252,6 @@ struct NativeTabBar: UIViewRepresentable {
             let renderer = ImageRenderer(content: icon)
             renderer.scale = UIScreen.main.scale
             return renderer.uiImage
-        }
-
-        private func resetIcon(_ index: Int, item: UITabBarItem) {
-            item.image = UIImage(systemName: symbols[index])
-            item.selectedImage = UIImage(systemName: selectedSymbols[index])
-            if index == 3 { avatarKey = "" }
         }
 
         func loadAvatar(_ path: String, in bar: UITabBar) {
