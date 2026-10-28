@@ -644,7 +644,10 @@ private var funcs: [(String, String, Color, String)] {
 
     @ViewBuilder
     private func funcIcon(_ item: (String, String, Color, String), size: CGFloat) -> some View {
-        if let kind = StarOrbitContactKind(rawValue: item.3) {
+        if let custom = IconOverrides.custom("quick." + item.3) {
+            FlexIcon(custom: custom, size: size, color: .white,
+                     symbol: RowIcon.sf(action: item.3, label: item.0))
+        } else if let kind = StarOrbitContactKind(rawValue: item.3) {
             StarOrbitContactIcon(kind: kind, size: size)
         } else {
             FuncIcon(markup: item.1, bg: item.2, size: size,
