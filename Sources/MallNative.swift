@@ -35,6 +35,8 @@ struct DDProduct: Identifiable, Codable, Hashable {
 
     var detailImages: [String]? = nil
 
+    var detail: String? = nil
+
     var services: [String]? = nil
 
     var shopId: String? = nil
@@ -64,9 +66,26 @@ struct DDProduct: Identifiable, Codable, Hashable {
     }
 
     var dict: [String: Any] {
-        ["id": id, "em": em, "img": img ?? "", "title": title,
-         "price": price, "orig": orig, "sold": sold, "grp": grp,
-         "tags": tags, "shop": shop, "cate": cate, "on": live]
+        var d: [String: Any] = [
+            "id": id, "em": em, "img": img ?? "", "title": title,
+            "price": price, "orig": orig, "sold": sold, "grp": grp,
+            "tags": tags, "shop": shop, "cate": cate, "on": live
+        ]
+        if let subtitle, !subtitle.isEmpty { d["subtitle"] = subtitle }
+        if let brand, !brand.isEmpty { d["brand"] = brand }
+        if let rating { d["rating"] = rating }
+        if let sales { d["sales"] = sales }
+        if let params, !params.isEmpty { d["params"] = params }
+        if let detailImages, !detailImages.isEmpty { d["detailImages"] = detailImages }
+        if let detail, !detail.isEmpty { d["detail"] = detail }
+        if let services, !services.isEmpty { d["services"] = services }
+        if let shopId, !shopId.isEmpty { d["shopId"] = shopId }
+        if let variants, !variants.isEmpty {
+            d["variants"] = variants.map {
+                ["name": $0.name, "price": $0.price, "stock": $0.stock]
+            }
+        }
+        return d
     }
 }
 

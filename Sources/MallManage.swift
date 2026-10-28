@@ -774,22 +774,33 @@ struct MallProductSheet: View {
         let name = title.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { app.show(Tr("商品名字不能空")); return }
         saving = true
-        let p = DDProduct(id: product?.id ?? "",
-                          em: em.trimmingCharacters(in: .whitespaces).isEmpty ? "📦"
-                              : em.trimmingCharacters(in: .whitespaces),
-                          img: img.isEmpty ? nil : img,
-                          title: name,
-                          price: Double(price) ?? 0,
-                          orig: Double(orig) ?? 0,
-                          sold: sold.trimmingCharacters(in: .whitespaces).isEmpty ? "0" : sold,
-                          grp: max(2, min(9, Int(grp) ?? 2)),
-                          tags: tags.split(separator: ",")
-                                  .map { $0.trimmingCharacters(in: .whitespaces) }
-                                  .filter { !$0.isEmpty },
-                          shop: shop.trimmingCharacters(in: .whitespaces),
-                          cate: cate.trimmingCharacters(in: .whitespaces).isEmpty ? "其它"
-                                : cate.trimmingCharacters(in: .whitespaces),
-                          on: on)
+        var p = product ?? DDProduct(id: "",
+                                     em: "📦",
+                                     img: nil,
+                                     title: name,
+                                     price: 0,
+                                     orig: 0,
+                                     sold: "0",
+                                     grp: 2,
+                                     tags: [],
+                                     shop: "",
+                                     cate: "其它",
+                                     on: true)
+        p.em = em.trimmingCharacters(in: .whitespaces).isEmpty ? "📦"
+            : em.trimmingCharacters(in: .whitespaces)
+        p.img = img.isEmpty ? nil : img
+        p.title = name
+        p.price = Double(price) ?? 0
+        p.orig = Double(orig) ?? 0
+        p.sold = sold.trimmingCharacters(in: .whitespaces).isEmpty ? "0" : sold
+        p.grp = max(2, min(9, Int(grp) ?? 2))
+        p.tags = tags.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        p.shop = shop.trimmingCharacters(in: .whitespaces)
+        p.cate = cate.trimmingCharacters(in: .whitespaces).isEmpty ? "其它"
+            : cate.trimmingCharacters(in: .whitespaces)
+        p.on = on
         await store.opsSave(p)
         saving = false
         dismiss()
