@@ -2833,6 +2833,9 @@ struct ChatDetailView: View {
         case "location":
             panel = .none
             showLocationMenu = true
+        case "liveshare":
+            panel = .none
+            showLiveLocation = true
         case "gift":
             panel = .gift
             if gifts.isEmpty { Task { gifts = (try? await API.shared.gifts()) ?? [] } }

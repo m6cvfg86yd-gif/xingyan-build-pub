@@ -490,7 +490,7 @@ struct PlusPanel: View {
         case "camera":                   return [C.green, C.green.opacity(0.78)]
         case "video", "videocall":       return [Color(hex: 0xFF8A73), Color(hex: 0xE2432E)]
         case "voice", "voicecall":       return [Color(hex: 0x64B5F6), Color(hex: 0x2A6BC4)]
-        case "location":                 return [Color(hex: 0x4ECDC4), Color(hex: 0x1F8C86)]
+        case "location", "liveshare":    return [Color(hex: 0x4ECDC4), Color(hex: 0x1F8C86)]
         case "redpacket":                return [Color(hex: 0xF4634A), Color(hex: 0xC22A18)]
         case "gift":                     return [Color(hex: 0xFFC85C), Color(hex: 0xE09A18)]
         case "transfer":                 return [Color(hex: 0xFFC24B), Color(hex: 0xE08A0C)]
