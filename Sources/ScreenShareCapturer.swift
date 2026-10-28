@@ -12,7 +12,7 @@ final class ScreenShareCapturer {
     private var lastTimeStampNs: Int64 = 0
 
     func start(source: RTCVideoSource, completion: @escaping (String?) -> Void) {
-        guard RPScreenRecorder.isAvailable else {
+        guard recorder.isAvailable else {
             completion("这台设备暂时不能共享屏幕")
             return
         }
