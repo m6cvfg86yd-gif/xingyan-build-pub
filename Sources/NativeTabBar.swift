@@ -108,7 +108,7 @@ fileprivate final class TabIconLoader: ObservableObject {
         }
     }
 
-    private static func isRaster(_ value: String) -> Bool {
+    fileprivate static func isRaster(_ value: String) -> Bool {
         value.hasPrefix("http") || value.hasPrefix("/uploads") || value.hasPrefix("data:")
     }
 
