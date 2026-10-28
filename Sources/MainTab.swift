@@ -107,10 +107,9 @@ struct MainTabView: View {
 
         .background(C.pageBg.ignoresSafeArea())
         .overlay(alignment: .top) {
-            StarStatusRail(tab: tab)
+            StarTopTint(tab: tab)
                 .zIndex(100)
         }
-
         .overlay(CallOverlay())
 
         .sheet(isPresented: Binding(

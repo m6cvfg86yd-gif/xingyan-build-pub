@@ -315,7 +315,7 @@ struct StarOrbitWorldIcon: View {
     }
 }
 
-struct StarStatusRail: View {
+struct StarTopTint: View {
     let tab: Int
     @Environment(\.colorScheme) private var scheme
 
@@ -329,37 +329,15 @@ struct StarStatusRail: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let inset: CGFloat = 22
-            let lineWidth = max(0, geo.size.width - inset * 2)
-            let x = inset + lineWidth * CGFloat(max(0, min(3, tab))) / 3
-
-            ZStack(alignment: .bottomLeading) {
-                LinearGradient(
-                    colors: [
-                        accent.opacity(scheme == .dark ? 0.15 : 0.08),
-                        accent.opacity(0.025),
-                        Color.clear
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
-                Capsule()
-                    .fill(accent.opacity(scheme == .dark ? 0.24 : 0.20))
-                    .frame(width: lineWidth, height: 0.7)
-                    .padding(.leading, inset)
-                    .padding(.bottom, 1)
-
-                Circle()
-                    .fill(accent)
-                    .frame(width: 3.5, height: 3.5)
-                    .shadow(color: accent.opacity(0.45), radius: 3)
-                    .offset(x: x - 1.75, y: -0.0)
-                    .padding(.bottom, 0)
-                    .animation(.spring(response: 0.30, dampingFraction: 0.84), value: tab)
-            }
-        }
+        LinearGradient(
+            colors: [
+                accent.opacity(scheme == .dark ? 0.15 : 0.08),
+                accent.opacity(0.025),
+                Color.clear
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
         .frame(height: max(30, L.safeTop))
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
