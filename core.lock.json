@@ -23,8 +23,8 @@
     },
     {
       "path": "Sources/CallCenter.swift",
-      "size": 73706,
-      "sha256": "d417aa0b529174771211f76f8c9b0e7892b50cc4edc637775b9891392eaa199a"
+      "size": 77650,
+      "sha256": "d753008a12652da5d7a07a3484ff246a18706c0c1d92bafc4d41886e377d7bf1"
     },
     {
       "path": "Sources/CallView.swift",
@@ -38,8 +38,8 @@
     },
     {
       "path": "Sources/TRTCBridge.swift",
-      "size": 21347,
-      "sha256": "b151f443cba4049874ef30e00022148baf5866b47927b76917e78a7d7c329df0"
+      "size": 21910,
+      "sha256": "9c4c3df4f305d20034b1bd6a2e6acb6fd5867734f469ccb156d25ba708e2a667"
     },
     {
       "path": "Sources/StreamPlayback.swift",
@@ -68,8 +68,8 @@
     },
     {
       "path": "Sources/ChatDetailView.swift",
-      "size": 219873,
-      "sha256": "0a402ddfd91e2117066367125f544688fad01145b55c252f65a9b9f7affc9c85"
+      "size": 220557,
+      "sha256": "9280f461fa824203248c28a2200b344d951e97c7032570d8ac6c6f043cab4bb9"
     },
     {
       "path": "Sources/GroupInfoView.swift",

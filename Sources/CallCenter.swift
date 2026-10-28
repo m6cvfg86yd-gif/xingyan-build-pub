@@ -70,6 +70,7 @@ final class CallCenter: NSObject, ObservableObject {
     @Published private(set) var isVideo = false
     @Published private(set) var muted = false
     @Published private(set) var cameraOff = false
+    @Published private(set) var screenSharing = false
 
     @Published private(set) var speakerOn = false
 
@@ -250,6 +251,8 @@ final class CallCenter: NSObject, ObservableObject {
     private var localVideoTrack: RTCVideoTrack?
     private var videoSource: RTCVideoSource?
     private var capturer: RTCCameraVideoCapturer?
+    private let screenCapturer = ScreenShareCapturer()
+    private var screenSharePending = false
     private var ticker: Timer?
 
     private var micDownTicks = 0
@@ -389,6 +392,106 @@ final class CallCenter: NSObject, ObservableObject {
         sendCall(["action": "media", "media": "video"])
         note("切到视频通话")
         Task { await startTRTCIfPossible() }
+    }
+
+    func requestScreenShare(peerId: String, name: String, avatar: String) {
+        if screenSharing {
+            stopScreenSharing()
+            return
+        }
+        if phase == .idle {
+            screenSharePending = true
+            start(peerId: peerId, name: name, avatar: avatar, video: true)
+            return
+        }
+        guard !isGroupCall else {
+            errorText = "群通话请先以视频通话方式进入"
+            return
+        }
+        screenSharePending = true
+        if phase != .active {
+            tip = "接通后会自动共享屏幕"
+        } else if !isVideo {
+            switchVideo()
+        } else {
+            startScreenSharingNow()
+        }
+    }
+
+    func requestGroupScreenShare(chatId: String, title: String) {
+        if screenSharing {
+            stopScreenSharing()
+            return
+        }
+        if phase == .idle {
+            screenSharePending = true
+            startGroupCall(chatId: chatId, title: title, video: true)
+            return
+        }
+        guard isGroupCall, isVideo else {
+            errorText = "请先进入群视频通话"
+            return
+        }
+        if phase == .active {
+            startScreenSharingNow()
+        } else {
+            screenSharePending = true
+            tip = "接通后会自动共享屏幕"
+        }
+    }
+
+    func toggleScreenSharing() {
+        if screenSharing {
+            stopScreenSharing()
+        } else {
+            screenSharePending = true
+            if phase == .active, isVideo {
+                startScreenSharingNow()
+            }
+        }
+    }
+
+    private func startScreenSharingNow() {
+        guard phase != .idle, isVideo, !screenSharing else { return }
+        screenSharePending = false
+        if usingTRTC {
+            screenSharing = TRTCBridge.shared.startInAppScreenShare()
+            tip = screenSharing ? "正在共享屏幕" : "屏幕共享没启动"
+        } else if let source = videoSource {
+            capturer?.stopCapture()
+            screenCapturer.start(source: source) { [weak self] error in
+                guard let self else { return }
+                self.screenSharing = error == nil
+                self.tip = error == nil ? "正在共享屏幕" : (error ?? "屏幕共享没启动")
+                if let error {
+                    self.errorText = error
+                    self.capturer?.stopCapture()
+                    self.startCapture(source)
+                }
+                self.sendCall(["action": "state", "muted": self.muted,
+                               "camOff": self.cameraOff, "screen": self.screenSharing])
+            }
+        } else {
+            tip = "视频通道还没准备好，请稍后重试"
+        }
+    }
+
+    func stopScreenSharing() {
+        guard screenSharing || screenSharePending else { return }
+        screenSharePending = false
+        screenCapturer.stop()
+        if usingTRTC {
+            TRTCBridge.shared.stopInAppScreenShare()
+        } else if let source = videoSource {
+            capturer?.stopCapture()
+            startCapture(source)
+        }
+        screenSharing = false
+        if phase != .idle {
+            tip = isVideo ? "视频通话中" : "通话中"
+            sendCall(["action": "state", "muted": muted,
+                      "camOff": cameraOff, "screen": false])
+        }
     }
 
     func inviteToCall(_ userId: String) {
@@ -1493,6 +1596,7 @@ final class CallCenter: NSObject, ObservableObject {
     }
 
     private func stopMedia() {
+        screenCapturer.stop()
         capturer?.stopCapture()
         capturer = nil
         blurDelegate = nil
@@ -1503,6 +1607,8 @@ final class CallCenter: NSObject, ObservableObject {
         audioTrack = nil
         localVideoTrack = nil
         videoSource = nil
+        screenSharing = false
+        screenSharePending = false
         remoteVideo = nil
         localVideo = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -1567,6 +1673,8 @@ final class CallCenter: NSObject, ObservableObject {
         muted = false
         micBlocked = false
         cameraOff = false
+        screenSharing = false
+        screenSharePending = false
         minimized = false
         if !wasIdle {
             phase = .idle
@@ -1735,6 +1843,7 @@ extension CallCenter: RTCPeerConnectionDelegate {
                     self.ringTimer?.invalidate()
                     self.ringTimer = nil
                     self.startTimer()
+                    if self.screenSharePending { self.startScreenSharingNow() }
 
                     self.showDialog(self.isVideo ? "视频通话已接通" : "语音通话已接通",
                                     detail: "", auto: 2)
@@ -1812,6 +1921,7 @@ extension CallCenter: RTCPeerConnectionDelegate {
                 self.connectTimer?.invalidate()
                 self.connectTimer = nil
                 self.startTimer()
+                if self.screenSharePending { self.startScreenSharingNow() }
             }
         }
         bridge.onRemoteAudioReady = { [weak self] in
@@ -1875,6 +1985,10 @@ extension CallCenter: RTCPeerConnectionDelegate {
         audioTrack?.isEnabled = false
         localVideoTrack?.isEnabled = false
         capturer?.stopCapture()
+        if screenSharing {
+            screenCapturer.stop()
+            _ = TRTCBridge.shared.startInAppScreenShare()
+        }
 
         /* handOverToTRTC 返回时 PCM 已同步停止，立即拉起 TRTC；
            不再额外等待 300ms，也不再轮询最长 2 秒。 */

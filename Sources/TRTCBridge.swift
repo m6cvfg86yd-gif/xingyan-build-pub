@@ -308,6 +308,22 @@ final class TRTCBridge: NSObject, ObservableObject {
         cloud?.switchCamera()
     }
 
+    @discardableResult
+    func startInAppScreenShare() -> Bool {
+        guard let c = cloud, joined, active, isVideo else { return false }
+        c.stopLocalPreview()
+        _ = c.perform(NSSelectorFromString("startScreenCaptureInApp:"), with: nil)
+        return true
+    }
+
+    func stopInAppScreenShare(resumeCamera: Bool = true) {
+        guard let c = cloud else { return }
+        _ = c.perform(NSSelectorFromString("stopScreenCapture"))
+        if resumeCamera, isVideo, active {
+            c.startLocalPreview(true, view: localView)
+        }
+    }
+
     func setSpeaker(_ on: Bool) {
         speakerOn = on
         applyAudioRoute()

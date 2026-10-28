@@ -2830,6 +2830,19 @@ struct ChatDetailView: View {
         case "camera":
             panel = .none
             showCamera = true
+        case "screenshare":
+            panel = .none
+            if isGroup {
+                CallCenter.shared.requestGroupScreenShare(chatId: chat.id,
+                                                          title: chat.name ?? "")
+            } else if let peer = peerUserId {
+                let peerName = app.contact(for: peer)?.name ?? chat.name
+                CallCenter.shared.requestScreenShare(peerId: peer,
+                                                     name: peerName,
+                                                     avatar: chat.avatar ?? "")
+            } else {
+                app.show(Tr("找不到对方账号，先刷新一下会话"))
+            }
         case "location":
             panel = .none
             showLocationMenu = true
