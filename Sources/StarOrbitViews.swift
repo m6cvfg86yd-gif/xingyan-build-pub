@@ -315,6 +315,46 @@ struct StarOrbitWorldIcon: View {
     }
 }
 
+struct StarStatusRail: View {
+    let tab: Int
+    @Environment(\.colorScheme) private var scheme
+
+    private var accent: Color {
+        switch tab {
+        case 0: return OrbitTheme.jade
+        case 1: return Color.dyn(0x426C7D, 0x82B2C5)
+        case 2: return OrbitTheme.gold
+        default: return Color.dyn(0x5F6C66, 0xA4B9B0)
+        }
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let inset: CGFloat = 22
+            let lineWidth = max(0, geo.size.width - inset * 2)
+            let x = inset + lineWidth * CGFloat(max(0, min(3, tab))) / 3
+
+            ZStack(alignment: .bottomLeading) {
+                Capsule()
+                    .fill(accent.opacity(scheme == .dark ? 0.24 : 0.20))
+                    .frame(width: lineWidth, height: 0.7)
+                    .padding(.leading, inset)
+                    .padding(.bottom, 1)
+
+                Circle()
+                    .fill(accent)
+                    .frame(width: 3.5, height: 3.5)
+                    .shadow(color: accent.opacity(0.45), radius: 3)
+                    .offset(x: x - 1.75, y: 0)
+                    .animation(.spring(response: 0.30, dampingFraction: 0.84), value: tab)
+            }
+        }
+        .frame(height: max(30, L.safeTop))
+        .ignoresSafeArea(edges: .top)
+        .allowsHitTesting(false)
+    }
+}
+
 struct StarTopTint: View {
     let tab: Int
     @Environment(\.colorScheme) private var scheme

@@ -109,6 +109,10 @@ struct MainTabView: View {
         .overlay(alignment: .top) {
             StarTopTint(tab: tab)
                 .zIndex(100)
+            if !app.tabBarHidden {
+                StarStatusRail(tab: tab)
+                    .zIndex(101)
+            }
         }
         .overlay(CallOverlay())
 
