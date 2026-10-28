@@ -188,20 +188,10 @@ struct NativeTabBar: UIViewRepresentable {
 
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
-        appearance.backgroundEffect = UIBlurEffect(
-            style: scheme == .dark ? .systemUltraThinMaterialDark : .systemThinMaterialLight
-        )
-        /* 底栏只使用中性玻璃，不在图标后面铺有色底条。 */
-        if scheme == .dark {
-            /* iOS 26+ 的 Liquid Glass 会接管 UITabBar 自身背景，
-               深色磨砂由外层 TabGlassBackdrop 绘制。 */
-            appearance.backgroundEffect = nil
-            appearance.backgroundColor = .clear
-            appearance.backgroundImage = nil
-        } else {
-            appearance.backgroundColor = .clear
-            appearance.backgroundImage = nil
-        }
+        /* 底栏背景统一使用全局页面色；系统材质会额外叠灰，所以完全关闭。 */
+        appearance.backgroundEffect = nil
+        appearance.backgroundColor = .clear
+        appearance.backgroundImage = nil
         appearance.shadowColor = UIColor.clear
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(OrbitTheme.secondary)
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
@@ -330,36 +320,6 @@ struct NativeTabBar: UIViewRepresentable {
             renderer.scale = UIScreen.main.scale
             return renderer.uiImage ?? UIImage(systemName: selected ? selectedSymbols[index] : symbols[index])
                 ?? UIImage()
-        }
-    }
-}
-
-struct TabGlassBackdrop: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
-        TabGlassBackdropView()
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {}
-
-    private final class TabGlassBackdropView: UIView {
-        private let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
-
-        override init(frame: CGRect) {
-            super.init(frame: frame)
-            isUserInteractionEnabled = false
-            backgroundColor = .clear
-            clipsToBounds = true
-            blur.isUserInteractionEnabled = false
-            addSubview(blur)
-        }
-
-        required init?(coder: NSCoder) {
-            fatalError("init(coder:) has not been implemented")
-        }
-
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            blur.frame = bounds
         }
     }
 }

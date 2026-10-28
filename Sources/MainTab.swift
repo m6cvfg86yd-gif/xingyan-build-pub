@@ -93,15 +93,7 @@ struct MainTabView: View {
                              avatarPath: app.me?.avatarPath ?? "")
                     .frame(height: max(42, L.tabH - 6))
 
-                    .background {
-
-                        if scheme == .dark {
-                            TabGlassBackdrop()
-                        } else if UIConfig.num("tabBarOpaqueBg", 0) > 0 {
-                            Color.dyn(0xFFFFFF, 0x0B1813)
-                                .ignoresSafeArea(edges: .bottom)
-                        }
-                    }
+                    .background(C.pageBg)
 
                     .offset(y: UIConfig.num("tabBarDrop", 0) + (L.compactPhone ? 2 : 8))
                     .transition(.move(edge: .bottom))
