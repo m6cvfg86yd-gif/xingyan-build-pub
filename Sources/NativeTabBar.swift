@@ -85,10 +85,15 @@ struct NativeTabBar: UIViewRepresentable {
         appearance.backgroundEffect = UIBlurEffect(
             style: scheme == .dark ? .systemUltraThinMaterialDark : .systemThinMaterialLight
         )
-        /* 玻璃层保留透光，但压一层浅墨绿，避免深色模式看起来仍是灰黑色。 */
-        appearance.backgroundColor = scheme == .dark
-            ? UIColor(red: 0.035, green: 0.145, blue: 0.112, alpha: 0.64)
-            : UIColor(red: 0.955, green: 0.982, blue: 0.970, alpha: 0.68)
+        /* 深色只染玻璃，不动底栏布局：上浅下深的半透明墨绿渐变。 */
+        if scheme == .dark {
+            appearance.backgroundColor = .clear
+            appearance.backgroundImage = glassGradientImage()
+        } else {
+            appearance.backgroundColor = UIColor(red: 0.955, green: 0.982,
+                                                 blue: 0.970, alpha: 0.68)
+            appearance.backgroundImage = nil
+        }
         appearance.shadowColor = UIColor.clear
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(OrbitTheme.secondary)
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
@@ -101,6 +106,27 @@ struct NativeTabBar: UIViewRepresentable {
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.isTranslucent = true
+    }
+
+    private func glassGradientImage() -> UIImage {
+        let size = CGSize(width: 1, height: 128)
+        return UIGraphicsImageRenderer(size: size).image { context in
+            let colors = [
+                UIColor(red: 0.075, green: 0.290, blue: 0.235, alpha: 0.60).cgColor,
+                UIColor(red: 0.025, green: 0.135, blue: 0.105, alpha: 0.72).cgColor
+            ] as CFArray
+            guard let gradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: colors,
+                locations: [0, 1]
+            ) else { return }
+            context.cgContext.drawLinearGradient(
+                gradient,
+                start: .zero,
+                end: CGPoint(x: 0, y: size.height),
+                options: []
+            )
+        }.resizableImage(withCapInsets: .zero, resizingMode: .stretch)
     }
 
     private func refresh(_ bar: UITabBar) {
