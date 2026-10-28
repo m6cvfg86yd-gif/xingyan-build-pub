@@ -3,6 +3,7 @@ import UIKit
 
 struct HarmonyLoginView: View {
     @EnvironmentObject var app: AppState
+    @Environment(\.colorScheme) private var scheme
     @FocusState private var focus: Field?
 
     private enum Field: Hashable { case phone, code, user, pass }
@@ -54,19 +55,34 @@ struct HarmonyLoginView: View {
         return "获取验证码"
     }
 
+    private var ink: Color { LoginTheme.ink(scheme) }
+    private var subInk: Color { LoginTheme.inkSub(scheme) }
+    private var accent: Color { LoginTheme.accent }
+    private var fieldFill: Color {
+        scheme == .dark ? Color.white.opacity(0.065) : Color.white.opacity(0.72)
+    }
+    private var fieldStroke: Color {
+        scheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.055)
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
-            LinearGradient(colors: [Color(hex: 0xF8FAFF), .white],
-                           startPoint: .top, endPoint: .bottom)
+            LinearGradient(
+                colors: scheme == .dark
+                    ? [Color(hex: 0x081310), Color(hex: 0x101A16)]
+                    : [Color(hex: 0xF8FBF8), Color(hex: 0xEEF3EF)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
                 .ignoresSafeArea()
 
             Circle()
-                .fill(Color(hex: 0x6AA3FF).opacity(0.07))
+                .fill(accent.opacity(scheme == .dark ? 0.10 : 0.065))
                 .frame(width: 260, height: 260)
                 .offset(x: 250, y: -120)
 
             Circle()
-                .fill(Color(hex: 0x9DC3FF).opacity(0.06))
+                .fill(OrbitTheme.gold.opacity(scheme == .dark ? 0.07 : 0.055))
                 .frame(width: 170, height: 170)
                 .offset(x: -85, y: 105)
 
@@ -91,7 +107,7 @@ struct HarmonyLoginView: View {
                 .padding(.bottom, max(24, L.safeBottom))
             }
         }
-        .background(Color.white.ignoresSafeArea())
+        .background(LoginTheme.bg(scheme).ignoresSafeArea())
         .overlay {
             if busy {
                 ZStack {
@@ -99,10 +115,10 @@ struct HarmonyLoginView: View {
                         .ignoresSafeArea()
                     VStack(spacing: 10) {
                         ProgressView()
-                            .tint(Color(hex: 0x1C72F9))
+                            .tint(accent)
                         Text("正在进入星言…")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(hex: 0x4B5565))
+                            .foregroundColor(ink)
                     }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 18)
@@ -146,20 +162,20 @@ struct HarmonyLoginView: View {
                     .font(.system(size: 34, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 86, height: 86)
-                    .background(Color(hex: 0x1C72F9))
+                    .background(accent)
                     .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
                     .frame(width: 86, height: 86)
             }
 
             Text(brandName)
                 .font(.system(size: 34, weight: .bold))
-                .foregroundColor(Color(hex: 0x101828))
+                .foregroundColor(ink)
                 .tracking(3)
                 .padding(.top, 12)
 
             Text(brandSubtitle)
                 .font(.system(size: 14.5))
-                .foregroundColor(Color(hex: 0x8A94A6))
+                .foregroundColor(subInk)
                 .tracking(0.6)
                 .padding(.top, 9)
         }
@@ -170,20 +186,20 @@ struct HarmonyLoginView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("手机号")
                 .font(.system(size: 13.5, weight: .medium))
-                .foregroundColor(Color(hex: 0x0F1626))
+                .foregroundColor(ink)
 
             HStack(spacing: 12) {
                 Text("+86")
                     .font(.system(size: 16.5, weight: .medium))
-                    .foregroundColor(Color(hex: 0x111827))
-                Rectangle().fill(Color(hex: 0xD7DCE6)).frame(width: 0.7, height: 20)
+                    .foregroundColor(ink)
+                Rectangle().fill(fieldStroke).frame(width: 0.7, height: 20)
                 TextField("请输入手机号", text: $phone)
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
                     .focused($focus, equals: .phone)
                     .font(.system(size: 16.5))
-                    .foregroundColor(Color(hex: 0x111827))
-                    .tint(Color(hex: 0x1C72F9))
+                    .foregroundColor(ink)
+                    .tint(accent)
                     .onChange(of: phone) { value in
                         phone = String(value.filter(\.isNumber).prefix(11))
                         message = ""
@@ -191,7 +207,10 @@ struct HarmonyLoginView: View {
             }
             .frame(height: 56)
             .padding(.horizontal, 18)
-            .background(Color(hex: 0xF6F7F9))
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(fieldFill))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(fieldStroke, lineWidth: 0.7))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             if codeSent {
@@ -201,8 +220,8 @@ struct HarmonyLoginView: View {
                         .textContentType(.oneTimeCode)
                         .focused($focus, equals: .code)
                         .font(.system(size: 16.5))
-                        .foregroundColor(Color(hex: 0x111827))
-                        .tint(Color(hex: 0x1C72F9))
+                        .foregroundColor(ink)
+                        .tint(accent)
                         .onChange(of: code) { value in
                             code = String(value.filter(\.isNumber).prefix(6))
                             message = ""
@@ -211,12 +230,15 @@ struct HarmonyLoginView: View {
                         if countdown == 0 { requestCode() }
                     }
                     .font(.system(size: 13.5, weight: .medium))
-                    .foregroundColor(countdown > 0 ? Color(hex: 0xA7AFBE) : Color(hex: 0x1C72F9))
+                    .foregroundColor(countdown > 0 ? subInk : accent)
                     .disabled(countdown > 0)
                 }
                 .frame(height: 56)
                 .padding(.horizontal, 18)
-                .background(Color(hex: 0xF6F7F9))
+                .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(fieldFill))
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(fieldStroke, lineWidth: 0.7))
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
         }
@@ -231,11 +253,14 @@ struct HarmonyLoginView: View {
                 .autocorrectionDisabled()
                 .focused($focus, equals: .user)
                 .font(.system(size: 16.5))
-                .foregroundColor(Color(hex: 0x111827))
-                .tint(Color(hex: 0x1C72F9))
+                .foregroundColor(ink)
+                .tint(accent)
                 .padding(.horizontal, 18)
                 .frame(height: 56)
-                .background(Color(hex: 0xF6F7F9))
+                .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(fieldFill))
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(fieldStroke, lineWidth: 0.7))
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             HStack {
@@ -252,17 +277,20 @@ struct HarmonyLoginView: View {
                 .privacySensitive()
                 .focused($focus, equals: .pass)
                 .font(.system(size: 16.5))
-                .foregroundColor(Color(hex: 0x111827))
-                .tint(Color(hex: 0x1C72F9))
+                .foregroundColor(ink)
+                .tint(accent)
 
                 Button { showPassword.toggle() } label: {
                     Image(systemName: showPassword ? "eye.slash" : "eye")
-                        .foregroundColor(Color(hex: 0xA7AFBE))
+                        .foregroundColor(subInk)
                 }
             }
             .padding(.horizontal, 18)
             .frame(height: 56)
-            .background(Color(hex: 0xF6F7F9))
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(fieldFill))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(fieldStroke, lineWidth: 0.7))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .frame(maxWidth: 332)
@@ -283,7 +311,7 @@ struct HarmonyLoginView: View {
                 }
             }
             .font(.system(size: 13.5))
-            .foregroundColor(Color(hex: 0x7A8699))
+            .foregroundColor(subInk)
             .buttonStyle(.plain)
             .frame(maxWidth: 332)
 
@@ -300,9 +328,9 @@ struct HarmonyLoginView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .background(canPrimary ? Color(hex: 0x1C72F9) : Color(hex: 0x92B6FF))
+                .background(canPrimary ? accent : accent.opacity(0.34))
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .shadow(color: canPrimary ? Color(hex: 0x1C72F9).opacity(0.16) : .clear,
+                .shadow(color: canPrimary ? accent.opacity(0.18) : .clear,
                         radius: 14, y: 7)
             }
             .buttonStyle(.plain)
@@ -312,12 +340,12 @@ struct HarmonyLoginView: View {
             if !message.isEmpty {
                 Text(message)
                     .font(.system(size: 12.5))
-                    .foregroundColor(Color(hex: 0xE5484D))
+                    .foregroundColor(C.red)
                     .frame(maxWidth: 332, alignment: .leading)
             } else if !hint.isEmpty {
                 Text(hint)
                     .font(.system(size: 12.5))
-                    .foregroundColor(Color(hex: 0x6F7D91))
+                    .foregroundColor(subInk)
                     .frame(maxWidth: 332, alignment: .leading)
             }
         }
@@ -328,9 +356,8 @@ struct HarmonyLoginView: View {
             Button { agreed.toggle() } label: {
                 ZStack {
                     Circle()
-                        .fill(agreed ? Color(hex: 0x1C72F9) : Color.white)
-                        .overlay(Circle().stroke(agreed ? Color(hex: 0x1C72F9)
-                                                        : Color(hex: 0xB9C1CE), lineWidth: 1.3))
+                        .fill(agreed ? accent : fieldFill)
+                        .overlay(Circle().stroke(agreed ? accent : fieldStroke, lineWidth: 1.3))
                     if agreed {
                         Image(systemName: "checkmark")
                             .font(.system(size: 10, weight: .bold))
@@ -345,8 +372,8 @@ struct HarmonyLoginView: View {
 
             Text(.init("我已阅读并同意 [《用户协议》](terms://0) 和 [《隐私政策》](terms://1)"))
                 .font(.system(size: 12.2))
-                .foregroundColor(Color(hex: 0x7A8699))
-                .tint(Color(hex: 0x4C7DD8))
+                .foregroundColor(subInk)
+                .tint(accent)
                 .environment(\.openURL, OpenURLAction { url in
                     if url.scheme == "terms" {
                         termsKind = Int(url.host ?? "0") ?? 0

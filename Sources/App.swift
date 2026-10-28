@@ -2989,6 +2989,7 @@ struct UnbanSheet: View {
 struct RegisterSheet: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
 
     private enum Field: Hashable { case phone, code }
 
@@ -3016,10 +3017,12 @@ struct RegisterSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("注册只支持手机号验证码")
-                        .font(.system(size: 22, weight: .semibold))
+                    registrationHero
+
+                    Text("创建你的星言账号")
+                        .font(.system(size: 24, weight: .semibold))
                         .foregroundColor(C.label)
-                    Text("验证后自动生成星言号。星言号可在个人资料里修改，之后登录统一使用绑定手机号。")
+                    Text("手机号验证后自动生成星言号，之后统一用绑定手机号登录。")
                         .font(.system(size: 13))
                         .foregroundColor(C.subLabel)
 
@@ -3062,6 +3065,8 @@ struct RegisterSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(C.navLine, lineWidth: 0.6))
+                    .shadow(color: Color.black.opacity(scheme == .dark ? 0.18 : 0.055),
+                            radius: 12, y: 5)
 
                     if let e = error {
                         Text(e)
@@ -3077,11 +3082,20 @@ struct RegisterSheet: View {
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(canSubmit ? LoginTheme.accent : LoginTheme.disabledGray)
+                        .background(canSubmit ? LoginTheme.accent : LoginTheme.disabledGray.opacity(0.75))
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSubmit)
+
+                    HStack(spacing: 7) {
+                        Image(systemName: "lock.shield.fill")
+                        Text("验证码仅用于本次注册 · 加密传输")
+                    }
+                    .font(.system(size: 11.5))
+                    .foregroundColor(C.subLabel)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 3)
                 }
                 .padding(20)
             }
@@ -3102,6 +3116,43 @@ struct RegisterSheet: View {
 
     private var canRequestCode: Bool {
         validPhone && countdown == 0 && !busy
+    }
+
+    private var registrationHero: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .stroke(OrbitTheme.jade.opacity(0.28), lineWidth: 1)
+                    .frame(width: 58, height: 58)
+                Circle()
+                    .trim(from: 0.12, to: 0.78)
+                    .stroke(OrbitTheme.gold,
+                            style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+                    .frame(width: 68, height: 68)
+                    .rotationEffect(.degrees(-28))
+                Image(systemName: "sparkles")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(OrbitTheme.jade)
+            }
+            .frame(width: 72, height: 72)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("加入星言")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(C.label)
+                Text("真实、克制、只属于你的通讯空间")
+                    .font(.system(size: 12.5))
+                    .foregroundColor(C.subLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .stroke(C.navLine, lineWidth: 0.6))
+        .padding(.bottom, 2)
     }
 
     private func requestCode() {
