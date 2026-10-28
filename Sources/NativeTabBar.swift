@@ -191,16 +191,15 @@ struct NativeTabBar: UIViewRepresentable {
         appearance.backgroundEffect = UIBlurEffect(
             style: scheme == .dark ? .systemUltraThinMaterialDark : .systemThinMaterialLight
         )
-        /* 深色只染玻璃，不动底栏布局：上浅下深的半透明墨绿渐变。 */
+        /* 底栏只使用中性玻璃，不在图标后面铺有色底条。 */
         if scheme == .dark {
-            /* iOS 26+ 的 Liquid Glass 会接管 UITabBar 自身背景。
-               深色渐变由外层 TabGlassBackdrop 真正绘制，这里保持完全透明。 */
+            /* iOS 26+ 的 Liquid Glass 会接管 UITabBar 自身背景，
+               深色磨砂由外层 TabGlassBackdrop 绘制。 */
             appearance.backgroundEffect = nil
             appearance.backgroundColor = .clear
             appearance.backgroundImage = nil
         } else {
-            appearance.backgroundColor = UIColor(red: 0.955, green: 0.982,
-                                                 blue: 0.970, alpha: 0.68)
+            appearance.backgroundColor = .clear
             appearance.backgroundImage = nil
         }
         appearance.shadowColor = UIColor.clear
@@ -344,7 +343,6 @@ struct TabGlassBackdrop: UIViewRepresentable {
 
     private final class TabGlassBackdropView: UIView {
         private let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
-        private let tint = CAGradientLayer()
 
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -353,14 +351,6 @@ struct TabGlassBackdrop: UIViewRepresentable {
             clipsToBounds = true
             blur.isUserInteractionEnabled = false
             addSubview(blur)
-
-            tint.colors = [
-                UIColor(red: 0.075, green: 0.290, blue: 0.235, alpha: 0.60).cgColor,
-                UIColor(red: 0.025, green: 0.135, blue: 0.105, alpha: 0.74).cgColor
-            ]
-            tint.startPoint = CGPoint(x: 0.5, y: 0)
-            tint.endPoint = CGPoint(x: 0.5, y: 1)
-            layer.addSublayer(tint)
         }
 
         required init?(coder: NSCoder) {
@@ -370,7 +360,6 @@ struct TabGlassBackdrop: UIViewRepresentable {
         override func layoutSubviews() {
             super.layoutSubviews()
             blur.frame = bounds
-            tint.frame = bounds
         }
     }
 }
