@@ -107,8 +107,7 @@ struct DDCategoryTab: View {
                     }
 
                     DDWaterfallGrid(cells: list.map { p -> (view: AnyView, h: CGFloat) in
-                        (view: AnyView(Button { onOpen(p) } label: { DDProductCard(product: p) }
-                            .buttonStyle(.plain)),
+                        (view: AnyView(DDProductCard(product: p, onOpen: { onOpen(p) })),
                          h: DDWaterfallGrid.estimate(p))
                     }, spacing: 10)
 

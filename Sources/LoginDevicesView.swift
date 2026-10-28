@@ -189,6 +189,15 @@ struct LoginDevicesView: View {
         return Date().timeIntervalSince1970 - ms / 1000 < 30 * 24 * 3600
     }
 
+    private func isIPAddress(_ value: String) -> Bool {
+        let parts = value.split(separator: ".")
+        if parts.count == 4,
+           parts.allSatisfy({ Int($0).map { $0 >= 0 && $0 <= 255 } == true }) {
+            return true
+        }
+        return value.contains(":") && !value.contains("%")
+    }
+
     private func title(_ d: API.LoginDevice) -> String {
         let model = (d.model ?? "").trimmingCharacters(in: .whitespaces)
         if !model.isEmpty { return model }
@@ -196,7 +205,12 @@ struct LoginDevicesView: View {
         let name = raw.isEmpty ? "" : (raw.removingPercentEncoding ?? raw)
         if !name.trimmingCharacters(in: .whitespaces).isEmpty { return name }
         let dev = (d.device ?? "").trimmingCharacters(in: .whitespaces)
-        return dev.isEmpty ? Tr("未知设备") : dev
+        if dev.isEmpty || isIPAddress(dev) {
+            let kind = (d.kind ?? "").trimmingCharacters(in: .whitespaces)
+            return (kind == "tablet" ? Tr("平板") : (kind == "desktop" ? Tr("电脑") : Tr("手机")))
+                + " · " + Tr("历史登录设备")
+        }
+        return dev
     }
 
     private func deviceSub(_ d: API.LoginDevice) -> String {
@@ -263,8 +277,8 @@ struct DevicesFaqView: View {
          "删掉记录以后，那台设备下次登录要重新做安全验证。想让它立刻下线，"
          + "最稳的办法是改一次登录密码。"),
         ("为什么同一个手机出现好几条？",
-         "App 卸了重装、或者换了登录方式，都会算成一台新设备 —— 设备名同一个，"
-         + "但底下那条记录是新的。")
+         "新版本会保留稳定的设备标识，一般不会重复。若还看到多条旧记录，"
+         + "多半是早期版本只留下 IP 的历史设备，可以在「编辑」里清理。")
     ]
 
     var body: some View {

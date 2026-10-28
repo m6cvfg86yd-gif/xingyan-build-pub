@@ -41,7 +41,7 @@ struct NewsFeedView: View {
             if items.isEmpty { await load(tab) }
         }
         .onChange(of: refreshToken) { _ in Task { await load(tab) } }
-        .sheet(item: $web) { w in
+        .fullScreenCover(item: $web) { w in
             SafariSheet(url: w.url).ignoresSafeArea()
         }
     }

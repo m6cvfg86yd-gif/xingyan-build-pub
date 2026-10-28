@@ -19,6 +19,8 @@ final class AppState: ObservableObject {
     /// 左滑隐藏/删除请求还没落库时，先挡住轮询把旧会话行加回来。
     private var locallyHiddenChats: Set<String> = []
     private var locallyHiddenAt: [String: Date] = [:]
+    /// 刚读过的会话会短暂挡住分片旧快照，避免服务端尚未追上阅读游标时红点闪回。
+    private var locallyReadAt: [String: Date] = [:]
     private var suspiciousChatDropCount = 0
 
     init() {
@@ -763,6 +765,7 @@ final class AppState: ObservableObject {
         }
 
         AppLog.info("启动 " + AppInfo.build + " · " + AppInfo.deviceKind + " · " + API.shared.server)
+        Task { await API.shared.touchCurrentDevice() }
         await LocalNotify.refresh()
         await loadHomeDataParallel()
     }
@@ -906,6 +909,11 @@ final class AppState: ObservableObject {
                 locallyHiddenChats.remove(id)
             }
         }
+        Array(locallyReadAt.keys).forEach { id in
+            if now.timeIntervalSince(locallyReadAt[id] ?? .distantPast) > 120 {
+                locallyReadAt[id] = nil
+            }
+        }
         let visibleFresh = fresh.filter { !locallyHiddenChats.contains($0.id) }
         var current: [String: Chat] = [:]
         for chat in chats { current[chat.id] = chat }
@@ -917,6 +925,16 @@ final class AppState: ObservableObject {
             }
             guard let local = optimisticChats[server.id] ?? current[server.id] else { return server }
             var out = mergeServerChat(server, local: local)
+            /* 阅读请求发出后，其他分片可能还会短暂返回同一条消息的未读快照。
+               只压掉“最后一条完全相同”的旧计数；真正的新消息仍会正常亮红点。 */
+            if let readAt = locallyReadAt[server.id],
+               now.timeIntervalSince(readAt) < 120,
+               local.unreadCount == 0,
+               server.lastMessage?.id == local.lastMessage?.id,
+               out.unreadCount > 0 {
+                out.unread = 0
+                out.flagged = false
+            }
             /* 实时消息先把未读数加上，随后 400ms 的列表刷新可能拿到尚未追上
                阅读游标的旧快照。短时间内必须保留本地较大的未读数，否则红点会闪一下消失。 */
             if let stamp, now.timeIntervalSince(stamp) < 90,
@@ -1009,6 +1027,7 @@ final class AppState: ObservableObject {
     func markChatReadLocally(_ chatId: String) {
         optimisticChats[chatId] = nil
         optimisticAt[chatId] = nil
+        locallyReadAt[chatId] = Date()
         if let i = chats.firstIndex(where: { $0.id == chatId }) {
             var c = chats[i]
             c.unread = 0
@@ -1020,6 +1039,9 @@ final class AppState: ObservableObject {
 
     func setChatUnreadLocally(_ chatId: String, unread: Int?, flagged: Bool?) {
         guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
+        if (unread ?? 0) > 0 || flagged == true {
+            locallyReadAt[chatId] = nil
+        }
         chats[index].unread = unread
         chats[index].flagged = flagged
         syncIconBadge()
