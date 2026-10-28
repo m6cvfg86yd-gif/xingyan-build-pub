@@ -3353,7 +3353,7 @@ struct ChatDetailView: View {
                 let from = uploadFrom
                 guard let up = await MediaTool.upload(file, onProgress: { p in
                     DispatchQueue.main.async { sendProgress = from + p * (1 - from) }
-                }, skipServerTranscode: !original) else {
+                }, skipServerTranscode: true) else {
                     uploading = false
                     sendingMedia = ""
                     sendingPreview = nil
@@ -3405,7 +3405,7 @@ struct ChatDetailView: View {
                     let from = uploadFrom
                     guard let vurl = await MediaTool.upload(file, onProgress: { p in
                         DispatchQueue.main.async { sendProgress = from + p * (1 - from) }
-                    }, skipServerTranscode: !original) else { throw APIError.message("实况上传失败") }
+                    }, skipServerTranscode: true) else { throw APIError.message("实况上传失败") }
 
                     LocalStore.keepOriginal(vurl, from: file)
                     let body: [String: Any] = ["image": iurl, "video": vurl]
