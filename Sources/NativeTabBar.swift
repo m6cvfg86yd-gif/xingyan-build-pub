@@ -81,24 +81,15 @@ struct NativeTabBar: UIViewRepresentable {
         bar.unselectedItemTintColor = UIColor(OrbitTheme.secondary)
 
         let appearance = UITabBarAppearance()
-        if L.iOS27OrLater {
-            appearance.configureWithDefaultBackground()
-            if scheme == .dark {
-                appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-                appearance.backgroundColor = UIColor(red: 0.043,
-                                                     green: 0.105,
-                                                     blue: 0.082,
-                                                     alpha: 0.93)
-            }
-        } else {
-            appearance.configureWithTransparentBackground()
-            appearance.backgroundEffect = UIBlurEffect(
-                style: scheme == .dark ? .systemThinMaterialDark : .systemThinMaterialLight
-            )
-            appearance.backgroundColor = scheme == .dark
-                ? UIColor(red: 0.043, green: 0.105, blue: 0.082, alpha: 0.82)
-                : UIColor.white.withAlphaComponent(0.76)
-        }
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = UIBlurEffect(
+            style: scheme == .dark ? .systemUltraThinMaterialDark : .systemThinMaterialLight
+        )
+        /* 玻璃层保留透光，但压一层浅墨绿，避免深色模式看起来仍是灰黑色。 */
+        appearance.backgroundColor = scheme == .dark
+            ? UIColor(red: 0.035, green: 0.145, blue: 0.112, alpha: 0.64)
+            : UIColor(red: 0.955, green: 0.982, blue: 0.970, alpha: 0.68)
+        appearance.shadowColor = UIColor.clear
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(OrbitTheme.secondary)
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor(OrbitTheme.secondary)
@@ -109,6 +100,7 @@ struct NativeTabBar: UIViewRepresentable {
         ]
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
+        bar.isTranslucent = true
     }
 
     private func refresh(_ bar: UITabBar) {
