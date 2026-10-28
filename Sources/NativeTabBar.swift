@@ -162,16 +162,20 @@ struct NativeTabBar: UIViewRepresentable {
             bar.selectedItem = item
         }
         let size = UIConfig.num("tabIcon3", L.tabIconBox)
-        let customIcons = (0..<4).compactMap {
+        var imagePaths = (0..<4).compactMap {
             context.coordinator.customIcon($0)
         }
-        iconLoader.prepare(customIcons)
+        if context.coordinator.customIcon(3) == nil && !avatarPath.isEmpty {
+            imagePaths.append(avatarPath)
+        }
+        iconLoader.prepare(imagePaths)
         context.coordinator.applyIcons(
             in: bar,
             loader: iconLoader,
             revision: iconLoader.revision,
             size: size,
             scheme: scheme == .dark ? "dark" : "light",
+            avatarPath: context.coordinator.customIcon(3) == nil ? avatarPath : "",
             normalColor: UIColor(OrbitTheme.secondary),
             selectedColor: UIColor(OrbitTheme.jade)
         )
@@ -254,6 +258,7 @@ struct NativeTabBar: UIViewRepresentable {
 
         fileprivate func applyIcons(in bar: UITabBar, loader: TabIconLoader, revision: Int,
                                     size: CGFloat, scheme: String,
+                                    avatarPath: String,
                                     normalColor: UIColor, selectedColor: UIColor) {
             guard let items = bar.items, items.count == 4 else { return }
             let styleKey = "\(revision)|\(size)|\(scheme)"
@@ -264,11 +269,13 @@ struct NativeTabBar: UIViewRepresentable {
 
             for index in 0..<4 {
                 let custom = customIcon(index)
-                let iconKey = "\(styleKey)|\(custom ?? "__default__")"
+                let avatarKey = index == 3 ? avatarPath : ""
+                let iconKey = "\(styleKey)|\(custom ?? "__default__")|\(avatarKey)"
                 guard appliedIconKeys[index] != iconKey else { continue }
 
                 let rendered = renderedIcon(custom: custom, index: index, size: size,
                                             loader: loader,
+                                            avatarPath: avatarPath,
                                             normalColor: normalColor,
                                             selectedColor: selectedColor)
                 items[index].image = rendered.normal.withRenderingMode(.alwaysOriginal)
@@ -279,10 +286,16 @@ struct NativeTabBar: UIViewRepresentable {
 
         private func renderedIcon(custom: String?, index: Int, size: CGFloat,
                                   loader: TabIconLoader,
+                                  avatarPath: String,
                                   normalColor: UIColor,
                                   selectedColor: UIColor) -> (normal: UIImage, selected: UIImage) {
             if let custom, TabIconLoader.isRaster(custom), let raster = loader.image(for: custom) {
                 return (raster, raster)
+            }
+            if index == 3, custom == nil, !avatarPath.isEmpty,
+               let avatar = loader.image(for: avatarPath) {
+                let circled = circularAvatar(avatar)
+                return (circled, circled)
             }
 
             let normal = render(custom: custom, index: index, selected: false, size: size,
@@ -290,6 +303,14 @@ struct NativeTabBar: UIViewRepresentable {
             let selected = render(custom: custom, index: index, selected: true, size: size,
                                   color: selectedColor)
             return (normal, selected)
+        }
+
+        private func circularAvatar(_ image: UIImage) -> UIImage {
+            let size = CGSize(width: 25, height: 25)
+            return UIGraphicsImageRenderer(size: size).image { _ in
+                UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).addClip()
+                image.draw(in: CGRect(origin: .zero, size: size))
+            }
         }
 
         private func render(custom: String?, index: Int, selected: Bool, size: CGFloat,
