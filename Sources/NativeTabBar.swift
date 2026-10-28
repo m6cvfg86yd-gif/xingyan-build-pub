@@ -162,8 +162,8 @@ struct NativeTabBar: UIViewRepresentable {
             bar.selectedItem = item
         }
         let size = UIConfig.num("tabIcon3", L.tabIconBox)
-        let customIcons = context.coordinator.customKeys.compactMap {
-            IconOverrides.custom($0)
+        let customIcons = (0..<4).compactMap {
+            context.coordinator.customIcon($0)
         }
         iconLoader.prepare(customIcons)
         context.coordinator.applyIcons(
@@ -232,6 +232,7 @@ struct NativeTabBar: UIViewRepresentable {
     final class Coordinator: NSObject, UITabBarDelegate {
         var selection: Binding<Int>
         fileprivate let customKeys = ["tab2.chat", "tab2.contacts", "tab2.world", "tab2.me"]
+        private let legacyKeys = ["tab.chat", "tab.contacts", "tab.discover", "tab.me"]
         private let symbols = ["message", "person.2", "safari", "person.crop.circle"]
         private let selectedSymbols = ["message.fill", "person.2.fill", "safari",
                                        "person.crop.circle.fill"]
@@ -247,6 +248,10 @@ struct NativeTabBar: UIViewRepresentable {
             selection.wrappedValue = index
         }
 
+        fileprivate func customIcon(_ index: Int) -> String? {
+            IconOverrides.custom(customKeys[index]) ?? IconOverrides.custom(legacyKeys[index])
+        }
+
         fileprivate func applyIcons(in bar: UITabBar, loader: TabIconLoader, revision: Int,
                                     size: CGFloat, scheme: String,
                                     normalColor: UIColor, selectedColor: UIColor) {
@@ -258,7 +263,7 @@ struct NativeTabBar: UIViewRepresentable {
             }
 
             for index in 0..<4 {
-                let custom = IconOverrides.custom(customKeys[index])
+                let custom = customIcon(index)
                 let iconKey = "\(styleKey)|\(custom ?? "__default__")"
                 guard appliedIconKeys[index] != iconKey else { continue }
 
