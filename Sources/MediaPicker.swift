@@ -420,16 +420,8 @@ enum MediaTool {
 
     static func compress(_ url: URL, onProgress: ((Double) -> Void)? = nil) async -> URL? {
         let asset = AVURLAsset(url: url)
-        let secs = (try? await asset.load(.duration))?.seconds ?? 10
-        var longSide = 0
-        if let track = try? await asset.loadTracks(withMediaType: .video).first,
-           let size = try? await track.load(.naturalSize) {
-            longSide = Int(max(abs(size.width), abs(size.height)))
-        }
-        let preset = (secs > 45 || longSide > 1920)
-            ? AVAssetExportPreset960x540
-            : AVAssetExportPreset1280x720
-        guard let export = AVAssetExportSession(asset: asset, presetName: preset) else {
+        guard let export = AVAssetExportSession(asset: asset,
+                                                presetName: AVAssetExportPreset1280x720) else {
             return nil
         }
         let out = FileManager.default.temporaryDirectory
@@ -438,8 +430,10 @@ enum MediaTool {
         export.outputURL = out
         export.outputFileType = .mp4
         export.shouldOptimizeForNetworkUse = true
+        export.fileLengthLimit = 16 * 1024 * 1024
 
         let t0 = Date()
+        let secs = (try? await asset.load(.duration))?.seconds ?? 10
         let guessSpan = max(1.5, min(60, secs * 0.5))
         let poll = Task {
             while !Task.isCancelled {
