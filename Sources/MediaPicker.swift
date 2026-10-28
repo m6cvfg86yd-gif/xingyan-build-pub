@@ -410,7 +410,9 @@ enum MediaTool {
             longSide = Int(max(abs(sz.width), abs(sz.height)))
         }
 
-        if size > 0, size <= 8 * 1024 * 1024, secs > 0, secs <= 60, longSide > 0, longSide <= 1280 {
+        if size > 0, size <= 4 * 1024 * 1024,
+           secs > 0, secs <= 45,
+           longSide > 0, longSide <= 960 {
             return false
         }
         return true
@@ -418,7 +420,10 @@ enum MediaTool {
 
     static func compress(_ url: URL, onProgress: ((Double) -> Void)? = nil) async -> URL? {
         let asset = AVURLAsset(url: url)
-        guard let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else { return nil }
+        guard let export = AVAssetExportSession(asset: asset,
+                                                presetName: AVAssetExportPreset960x540) else {
+            return nil
+        }
         let out = FileManager.default.temporaryDirectory
             .appendingPathComponent("chris-send-\(UUID().uuidString).mp4")
         try? FileManager.default.removeItem(at: out)
@@ -479,7 +484,9 @@ struct MediaSendSheet: View {
                 if isLive {
                     toggleRow(Tr("实况"), sub: Tr("打开后对方长按可以看这段动效（两边都是 iPhone 才有效）"), on: $liveOn)
                 }
-                toggleRow(Tr("原图"), sub: Tr("不压缩，画质最好但发得慢、对方加载慢"), on: $originalOn)
+                toggleRow(Tr("原视频"),
+                          sub: Tr("不压缩，画质最好但发送和加载都会慢很多"),
+                          on: $originalOn)
 
                 HStack(spacing: 12) {
                     Button { dismiss() } label: {
