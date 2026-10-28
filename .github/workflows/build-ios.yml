@@ -9,6 +9,7 @@ on:
     branches:
       - main
       - codex/b682-ai-workspace-only
+      - codex/oct28-unified-commercial
 
 jobs:
   build:
