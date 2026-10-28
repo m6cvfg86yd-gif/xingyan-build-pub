@@ -8,37 +8,30 @@ final class StatusBarStyle: ObservableObject {
     private var light = false
 
     func set(light want: Bool) {
-        if Thread.isMainThread {
-            apply(light: want)
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.apply(light: want)
-            }
-        }
-    }
-
-    private func apply(light want: Bool) {
         if want == light && (want == false || window != nil) { return }
         light = want
-        if want {
-            if window == nil {
-                guard let scene = UIApplication.shared.connectedScenes
-                    .compactMap({ $0 as? UIWindowScene })
-                    .first(where: { $0.activationState == .foregroundActive })
-                    ?? UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
-                else { return }
-                let next = UIWindow(windowScene: scene)
-                next.windowLevel = .statusBar
-                next.backgroundColor = .clear
-                next.isUserInteractionEnabled = false
-                next.rootViewController = LightStatusVC()
-                window = next
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if want {
+                if self.window == nil {
+                    guard let scene = UIApplication.shared.connectedScenes
+                        .compactMap({ $0 as? UIWindowScene })
+                        .first(where: { $0.activationState == .foregroundActive })
+                        ?? UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
+                    else { return }
+                    let w = UIWindow(windowScene: scene)
+                    w.windowLevel = .statusBar
+                    w.backgroundColor = .clear
+                    w.isUserInteractionEnabled = false
+                    w.rootViewController = LightStatusVC()
+                    self.window = w
+                }
+                self.window?.isHidden = false
+                self.window?.rootViewController?.setNeedsStatusBarAppearanceUpdate()
+            } else {
+                self.window?.isHidden = true
+                self.window?.rootViewController?.setNeedsStatusBarAppearanceUpdate()
             }
-            window?.isHidden = false
-            window?.rootViewController?.setNeedsStatusBarAppearanceUpdate()
-        } else {
-            window?.isHidden = true
-            window?.rootViewController?.setNeedsStatusBarAppearanceUpdate()
         }
     }
 
