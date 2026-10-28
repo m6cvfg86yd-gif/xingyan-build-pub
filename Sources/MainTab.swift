@@ -14,6 +14,7 @@ struct MainTabView: View {
     @ObservedObject private var mallSheet = MallSheet.shared
 
     @ObservedObject private var realNameGate = RealNameGate.shared
+    @Environment(\.colorScheme) private var scheme
 
     private var unreadTotal: Int {
 
@@ -109,6 +110,12 @@ struct MainTabView: View {
         .overlay(alignment: .top) {
             StarStatusRail(tab: tab)
                 .zIndex(100)
+        }
+        .onAppear {
+            StatusBarStyle.shared.set(light: scheme == .dark)
+        }
+        .onChange(of: scheme) { value in
+            StatusBarStyle.shared.set(light: value == .dark)
         }
 
         .overlay(CallOverlay())

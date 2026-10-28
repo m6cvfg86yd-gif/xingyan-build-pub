@@ -357,7 +357,6 @@ struct StarStatusRail: View {
                     .shadow(color: accent.opacity(0.45), radius: 3)
                     .offset(x: x - 1.75, y: -0.0)
                     .padding(.bottom, 0)
-                    .animation(.spring(response: 0.30, dampingFraction: 0.84), value: tab)
             }
         }
         .frame(height: max(30, L.safeTop))
