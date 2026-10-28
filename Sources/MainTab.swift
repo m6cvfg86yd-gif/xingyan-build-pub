@@ -14,6 +14,7 @@ struct MainTabView: View {
     @ObservedObject private var mallSheet = MallSheet.shared
 
     @ObservedObject private var realNameGate = RealNameGate.shared
+    @Environment(\.colorScheme) private var scheme
 
     private var unreadTotal: Int {
 
@@ -94,7 +95,10 @@ struct MainTabView: View {
 
                     .background {
 
-                        if UIConfig.num("tabBarOpaqueBg", 0) > 0 {
+                        if scheme == .dark {
+                            TabGlassBackdrop()
+                                .ignoresSafeArea(edges: .bottom)
+                        } else if UIConfig.num("tabBarOpaqueBg", 0) > 0 {
                             Color.dyn(0xFFFFFF, 0x0B1813)
                                 .ignoresSafeArea(edges: .bottom)
                         }

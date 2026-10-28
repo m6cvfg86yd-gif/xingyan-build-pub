@@ -91,8 +91,11 @@ struct NativeTabBar: UIViewRepresentable {
         )
         /* 深色只染玻璃，不动底栏布局：上浅下深的半透明墨绿渐变。 */
         if scheme == .dark {
+            /* iOS 26+ 的 Liquid Glass 会接管 UITabBar 自身背景。
+               深色渐变由外层 TabGlassBackdrop 真正绘制，这里保持完全透明。 */
+            appearance.backgroundEffect = nil
             appearance.backgroundColor = .clear
-            appearance.backgroundImage = glassGradientImage()
+            appearance.backgroundImage = nil
         } else {
             appearance.backgroundColor = UIColor(red: 0.955, green: 0.982,
                                                  blue: 0.970, alpha: 0.68)
@@ -110,27 +113,6 @@ struct NativeTabBar: UIViewRepresentable {
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.isTranslucent = true
-    }
-
-    private func glassGradientImage() -> UIImage {
-        let size = CGSize(width: 1, height: 128)
-        return UIGraphicsImageRenderer(size: size).image { context in
-            let colors = [
-                UIColor(red: 0.075, green: 0.290, blue: 0.235, alpha: 0.60).cgColor,
-                UIColor(red: 0.025, green: 0.135, blue: 0.105, alpha: 0.72).cgColor
-            ] as CFArray
-            guard let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: colors,
-                locations: [0, 1]
-            ) else { return }
-            context.cgContext.drawLinearGradient(
-                gradient,
-                start: .zero,
-                end: CGPoint(x: 0, y: size.height),
-                options: []
-            )
-        }.resizableImage(withCapInsets: .zero, resizingMode: .stretch)
     }
 
     private func refresh(_ bar: UITabBar) {
@@ -288,6 +270,46 @@ struct NativeTabBar: UIViewRepresentable {
             let rendered = avatar.withRenderingMode(.alwaysOriginal)
             item.image = rendered
             item.selectedImage = rendered
+        }
+    }
+}
+
+struct TabGlassBackdrop: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        TabGlassBackdropView()
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    private final class TabGlassBackdropView: UIView {
+        private let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+        private let tint = CAGradientLayer()
+
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            isUserInteractionEnabled = false
+            backgroundColor = .clear
+            clipsToBounds = true
+            blur.isUserInteractionEnabled = false
+            addSubview(blur)
+
+            tint.colors = [
+                UIColor(red: 0.075, green: 0.290, blue: 0.235, alpha: 0.60).cgColor,
+                UIColor(red: 0.025, green: 0.135, blue: 0.105, alpha: 0.74).cgColor
+            ]
+            tint.startPoint = CGPoint(x: 0.5, y: 0)
+            tint.endPoint = CGPoint(x: 0.5, y: 1)
+            layer.addSublayer(tint)
+        }
+
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            blur.frame = bounds
+            tint.frame = bounds
         }
     }
 }
