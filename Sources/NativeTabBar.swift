@@ -370,8 +370,8 @@ struct TabGlassBackdrop: UIViewRepresentable {
             addSubview(blur)
 
             tint.colors = [
-                UIColor(red: 0.075, green: 0.290, blue: 0.235, alpha: 0.60).cgColor,
-                UIColor(red: 0.025, green: 0.135, blue: 0.105, alpha: 0.74).cgColor
+                UIColor(red: 0.110, green: 0.110, blue: 0.110, alpha: 0.64).cgColor,
+                UIColor(red: 0.075, green: 0.075, blue: 0.075, alpha: 0.82).cgColor
             ]
             tint.startPoint = CGPoint(x: 0.5, y: 0)
             tint.endPoint = CGPoint(x: 0.5, y: 1)
