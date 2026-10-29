@@ -202,10 +202,18 @@ struct NativeTabBar: UIViewRepresentable {
 
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
-        /* 图标区和底部安全区必须使用同一个页面色，避免出现两段不同底色。 */
-        appearance.backgroundEffect = nil
-        appearance.backgroundColor = UIColor(C.pageBg)
-        appearance.backgroundImage = nil
+        appearance.backgroundEffect = UIBlurEffect(
+            style: scheme == .dark ? .systemUltraThinMaterialDark : .systemThinMaterialLight
+        )
+        if scheme == .dark {
+            appearance.backgroundEffect = nil
+            appearance.backgroundColor = .clear
+            appearance.backgroundImage = nil
+        } else {
+            appearance.backgroundColor = UIColor(red: 0.955, green: 0.982,
+                                                 blue: 0.970, alpha: 0.68)
+            appearance.backgroundImage = nil
+        }
         appearance.shadowColor = UIColor.clear
         let normalTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.secondary),
@@ -221,7 +229,7 @@ struct NativeTabBar: UIViewRepresentable {
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedTitle
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
-        bar.isTranslucent = false
+        bar.isTranslucent = true
     }
 
     private func refresh(_ bar: UITabBar) {
@@ -338,6 +346,46 @@ struct NativeTabBar: UIViewRepresentable {
             renderer.scale = UIScreen.main.scale
             return renderer.uiImage ?? UIImage(systemName: selected ? selectedSymbols[index] : symbols[index])
                 ?? UIImage()
+        }
+    }
+}
+
+struct TabGlassBackdrop: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        TabGlassBackdropView()
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    private final class TabGlassBackdropView: UIView {
+        private let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+        private let tint = CAGradientLayer()
+
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            isUserInteractionEnabled = false
+            backgroundColor = .clear
+            clipsToBounds = true
+            blur.isUserInteractionEnabled = false
+            addSubview(blur)
+
+            tint.colors = [
+                UIColor(red: 0.075, green: 0.290, blue: 0.235, alpha: 0.60).cgColor,
+                UIColor(red: 0.025, green: 0.135, blue: 0.105, alpha: 0.74).cgColor
+            ]
+            tint.startPoint = CGPoint(x: 0.5, y: 0)
+            tint.endPoint = CGPoint(x: 0.5, y: 1)
+            layer.addSublayer(tint)
+        }
+
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            blur.frame = bounds
+            tint.frame = bounds
         }
     }
 }

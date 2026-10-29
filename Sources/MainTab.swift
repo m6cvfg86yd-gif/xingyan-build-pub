@@ -92,19 +92,19 @@ struct MainTabView: View {
                              momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
                              meDot: app.showDot("me", auto: false),
                              avatarPath: app.me?.avatarPath ?? "")
-                    .frame(height: L.tabH)
+                    .frame(height: max(42, L.tabH - 6))
 
-                    .background(C.pageBg)
+                    .background {
+                        if scheme == .dark {
+                            TabGlassBackdrop()
+                        } else if UIConfig.num("tabBarOpaqueBg", 0) > 0 {
+                            Color.dyn(0xFFFFFF, 0x0B1813)
+                                .ignoresSafeArea(edges: .bottom)
+                        }
+                    }
 
-                    .offset(y: UIConfig.num("tabBarDrop", 0))
+                    .offset(y: UIConfig.num("tabBarDrop", 0) + (L.compactPhone ? 2 : 8))
                     .transition(.move(edge: .bottom))
-            }
-
-            if !app.tabBarHidden && L.safeBottom > 0 {
-                C.pageBg
-                    .frame(height: L.safeBottom + 1)
-                    .ignoresSafeArea(edges: .bottom)
-                    .allowsHitTesting(false)
             }
         }
 
