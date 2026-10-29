@@ -878,7 +878,7 @@ struct ChatsView: View {
             .accessibilityLabel(Tr("切换账号"))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("星言")
+                Text(app.me?.name ?? "星言")
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(OrbitTheme.ink)
                     .lineLimit(1)
@@ -1357,10 +1357,6 @@ struct ChatsView: View {
     @ViewBuilder private var chatsCardBackground: some View {
         RoundedRectangle(cornerRadius: chatsCardRadius, style: .continuous)
             .fill(OrbitTheme.raised)
-            .overlay(
-                RoundedRectangle(cornerRadius: chatsCardRadius, style: .continuous)
-                    .stroke(OrbitTheme.divider, lineWidth: 0.7)
-            )
             .shadow(color: Color.black.opacity(scheme == .dark ? 0.22 : 0.07),
                     radius: 16, x: 0, y: 7)
     }
@@ -1410,11 +1406,6 @@ struct ChatsView: View {
                                 .background { chatsCardBackground }
                                 .clipShape(RoundedRectangle(cornerRadius: chatsCardRadius,
                                                             style: .continuous))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: chatsCardRadius,
-                                                     style: .continuous)
-                                   .stroke(OrbitTheme.divider, lineWidth: 0.7)
-                                }
                                 .padding(.horizontal, chatsCardInset)
                                 .padding(.top, 6)
                                 .padding(.bottom, 10)

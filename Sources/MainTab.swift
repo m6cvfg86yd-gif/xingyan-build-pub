@@ -110,15 +110,10 @@ struct MainTabView: View {
 
         .background(C.pageBg.ignoresSafeArea())
         .overlay(alignment: .top) {
-            StarTopTint(tab: tab)
+            StarStatusRail(tab: tab)
                 .zIndex(100)
         }
-        .overlay(alignment: .top) {
-            if !app.tabBarHidden {
-                StarStatusRail(tab: tab)
-                    .zIndex(101)
-            }
-        }
+
         .overlay(CallOverlay())
 
         .sheet(isPresented: Binding(

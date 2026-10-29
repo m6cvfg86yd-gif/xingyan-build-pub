@@ -335,6 +335,16 @@ struct StarStatusRail: View {
             let x = inset + lineWidth * CGFloat(max(0, min(3, tab))) / 3
 
             ZStack(alignment: .bottomLeading) {
+                LinearGradient(
+                    colors: [
+                        accent.opacity(scheme == .dark ? 0.15 : 0.08),
+                        accent.opacity(0.025),
+                        Color.clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
                 Capsule()
                     .fill(accent.opacity(scheme == .dark ? 0.24 : 0.20))
                     .frame(width: lineWidth, height: 0.7)
