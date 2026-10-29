@@ -288,6 +288,13 @@ struct NativeTabBar: UIViewRepresentable {
                 let iconKey = "\(styleKey)|\(custom ?? "__default__")|\(avatarKey)"
                 guard appliedIconKeys[index] != iconKey else { continue }
 
+                if index < 3, custom == nil {
+                    items[index].image = UIImage(systemName: symbols[index])
+                    items[index].selectedImage = UIImage(systemName: selectedSymbols[index])
+                    appliedIconKeys[index] = iconKey
+                    continue
+                }
+
                 let rendered = renderedIcon(custom: custom, index: index, size: size,
                                             loader: loader,
                                             avatarPath: avatarPath,
