@@ -52,6 +52,7 @@ fileprivate final class TabIconLoader: ObservableObject {
     private var images: [String: UIImage] = [:]
     private var inFlight: Set<String> = []
     private var failed: Set<String> = []
+    private var preparedVersion = -1
 
     private init() {}
 
@@ -62,7 +63,11 @@ fileprivate final class TabIconLoader: ObservableObject {
         return cached
     }
 
-    func prepare(_ values: [String]) {
+    func prepare(_ values: [String], version: Int) {
+        if version != preparedVersion {
+            preparedVersion = version
+            failed.subtract(values)
+        }
         for value in values where Self.isRaster(value) {
             if images[value] != nil || inFlight.contains(value) || failed.contains(value) {
                 continue
@@ -176,7 +181,7 @@ struct NativeTabBar: UIViewRepresentable {
         if context.coordinator.customIcon(3) == nil && !avatarPath.isEmpty {
             imagePaths.append(avatarPath)
         }
-        iconLoader.prepare(imagePaths)
+        iconLoader.prepare(imagePaths, version: uiVersion)
         context.coordinator.applyIcons(
             in: bar,
             loader: iconLoader,
