@@ -2488,6 +2488,38 @@ enum AccountStore {
         return Keychain.get("token." + username) ?? ""
     }
 
+    /// 用户修改星言号后，本机账号列表和钥匙串必须一起迁移；
+    /// 否则旧星言号会留在切号页，新星言号又可能找不到原登录态。
+    @discardableResult
+    static func rename(from oldUsername: String, to newUsername: String,
+                       nickname: String, avatar: String, token: String) -> [SavedAccount] {
+        let old = oldUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        let new = newUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !new.isEmpty else { return load() }
+
+        let previousToken = old.isEmpty ? "" : tokenFor(old)
+        var list = load().filter {
+            $0.username.caseInsensitiveCompare(old) != .orderedSame &&
+            $0.username.caseInsensitiveCompare(new) != .orderedSame
+        }
+        list.insert(SavedAccount(username: new, nickname: nickname, avatar: avatar), at: 0)
+        saveList(list)
+
+        if !old.isEmpty, old.caseInsensitiveCompare(new) != .orderedSame {
+            Keychain.remove("token." + old)
+            UserDefaults.standard.removeObject(forKey: "chris.lastUserJSON." + old.lowercased())
+        }
+        let migratedToken = token.isEmpty ? previousToken : token
+        if !migratedToken.isEmpty {
+            Keychain.set(migratedToken, for: "token." + new)
+        }
+        return Array(list.prefix(maxCount))
+    }
+
+    private static func tokenFor(_ username: String) -> String {
+        Keychain.get("token." + username) ?? ""
+    }
+
     static func remove(username: String) {
         saveList(load().filter { $0.username != username })
         Keychain.remove("token." + username)

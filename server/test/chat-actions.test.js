@@ -125,7 +125,20 @@ async function main() {
     const alice = await login(base, 'alice_smoke');
     const bob = await login(base, 'bob_smoke');
 
-    let response = await call(base, alice.cookie, 'POST', '/api/friends/request', {
+    let response = await call(base, alice.cookie, 'PATCH', '/api/me', {
+      username: 'alice_renamed'
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.user.username, 'alice_renamed');
+    response = await call(base, '', 'POST', '/api/login', {
+      username: 'alice_smoke',
+      password: PASSWORD
+    });
+    assert.equal(response.status, 401, '旧星言号仍然可以登录');
+    const aliceRenamed = await login(base, 'alice_renamed');
+    assert.equal(aliceRenamed.user.username, 'alice_renamed');
+
+    response = await call(base, alice.cookie, 'POST', '/api/friends/request', {
       username: 'bob_smoke',
       message: '接口烟测'
     });

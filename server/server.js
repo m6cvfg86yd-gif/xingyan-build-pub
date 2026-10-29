@@ -1090,6 +1090,9 @@ function publicUser(u) {
     alipayQr: u.alipayQr || '',          // 支付宝收款码图片（谁都能看，方便付款）
     bot: !!u.bot,
     botName: u.bot ? u.nickname : '',
+    usernameUpdatedAt: u.usernameUpdatedAt || '',
+    usernameChangesUsed: usernameChangeTimes(u).length,
+    usernameChangesRemaining: Math.max(0, 2 - usernameChangeTimes(u).length),
     /* 这个人的 App 里要不要多出「管理」入口（App 内部管理音乐/图标用） */
     ops: !!u.ops,
     /* 状态收到的赞（谁赞的 + 赞了几个）——「朋友的状态」那一页要显示 */
@@ -5476,6 +5479,26 @@ const findUser = (id) => db.users.find((u) => u.id === id) || null;
 function findUserByName(username) {
   const key = String(username || '').toLowerCase();
   return db.users.find((u) => u.username.toLowerCase() === key) || null;
+}
+
+/* 星言号滚动一年最多修改 2 次。优先使用 usernameChangeLog；
+   老账号只有 usernameUpdatedAt 时，把它当作最近一次修改。 */
+const USERNAME_CHANGE_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
+function usernameChangeTimes(user) {
+  const cutoff = Date.now() - USERNAME_CHANGE_WINDOW_MS;
+  const times = [];
+  if (user && Array.isArray(user.usernameChangeLog)) {
+    user.usernameChangeLog.forEach((value) => {
+      const at = Date.parse(String(value || ''));
+      if (!Number.isNaN(at) && at > cutoff) times.push(at);
+    });
+  }
+  if (times.length === 0 && user && user.usernameUpdatedAt) {
+    const at = Date.parse(String(user.usernameUpdatedAt || ''));
+    if (!Number.isNaN(at) && at > cutoff) times.push(at);
+  }
+  times.sort((a, b) => a - b);
+  return times.slice(-2);
 }
 
 function friendshipBetween(a, b) {
@@ -15857,6 +15880,31 @@ async function handleApi(req, res, pathname, query) {
       const v = safeImageRef(str(body.alipayQr, 2000));
       if (v === null) return fail(res, 422, '收款码只能用 App 上传的图片');
       user.alipayQr = v;
+    }
+    /* 改星言号：滚动 365 天最多 2 次。改名后登录索引直接使用新星言号。 */
+    if (body.username !== undefined) {
+      const nextName = str(body.username, 24).trim();
+      if (!/^[A-Za-z0-9_]{3,24}$/.test(nextName)) {
+        return fail(res, 422, '星言号要 3-24 位字母、数字或下划线');
+      }
+      if (nextName !== String(user.username || '')) {
+        const changes = usernameChangeTimes(user);
+        if (changes.length >= 2) {
+          const can = new Date(changes[0] + USERNAME_CHANGE_WINDOW_MS);
+          return fail(res, 429, '星言号一年最多修改2次，下次可改：'
+            + can.getFullYear() + '年' + (can.getMonth() + 1) + '月' + can.getDate() + '日');
+        }
+        if (findUserByName(nextName)) return fail(res, 409, '这个星言号已经有人用了');
+        user.username = nextName;
+        user.usernameUpdatedAt = now();
+        const at = Date.now();
+        const history = changes.concat([at])
+          .filter((value) => value > at - USERNAME_CHANGE_WINDOW_MS);
+        user.usernameChangeLog = history.slice(-2).map((value) => new Date(value).toISOString());
+        const remaining = Math.max(0, 2 - user.usernameChangeLog.length);
+        sysNotice(user.id, '你的星言号已改成 ' + nextName + '，一年内还可修改 ' + remaining + ' 次。',
+          '安全提醒', 'security');
+      }
     }
     if (body.phone !== undefined) {
       const next = str(body.phone, 20).replace(/[^0-9+]/g, '');

@@ -726,6 +726,7 @@ final class AppState: ObservableObject {
 
     func rememberLastUser() {
         guard let me = me else { return }
+        let previousUsername = UserDefaults.standard.string(forKey: "chris.activeUsername") ?? ""
         lastAvatar = me.avatar ?? ""
         lastName = me.nickname ?? me.username ?? ""
         UserDefaults.standard.set(lastAvatar, forKey: "chris.lastAvatar")
@@ -734,6 +735,15 @@ final class AppState: ObservableObject {
         if let d = try? JSONEncoder().encode(me), let s = String(data: d, encoding: .utf8) {
             UserDefaults.standard.set(s, forKey: "chris.lastUserJSON")
             if let username = me.username, !username.isEmpty {
+                if !previousUsername.isEmpty,
+                   previousUsername.caseInsensitiveCompare(username) != .orderedSame,
+                   AppState.cachedUser(username: previousUsername)?.id == me.id {
+                    accounts = AccountStore.rename(from: previousUsername,
+                                                   to: username,
+                                                   nickname: me.nickname ?? username,
+                                                   avatar: me.avatar ?? "",
+                                                   token: API.shared.token)
+                }
                 UserDefaults.standard.set(s, forKey: "chris.lastUserJSON." + username.lowercased())
                 UserDefaults.standard.set(username, forKey: "chris.activeUsername")
             }
