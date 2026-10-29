@@ -107,35 +107,8 @@ struct SearchPage: View {
     var body: some View {
         ZStack(alignment: .bottom) {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(C.searchIcon)
-                    TextField(Tr("搜索"), text: $q)
-                        .font(pf(14.5))
-                        .focused($focused)
-                        .submitLabel(.search)
-                        .onSubmit { remember(key) }
-                    if !key.isEmpty {
-                        Button { q = "" } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 15)).foregroundColor(C.searchIcon)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .frame(height: 36)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(C.searchBg))
-
-                Button { dismiss() } label: {
-                    Text(Tr("取消")).font(pf(16)).foregroundColor(C.label)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            searchHeader
+            searchField
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -143,10 +116,7 @@ struct SearchPage: View {
                         scopeRow
                         if !history.isEmpty { historyBlock }
                         if !hot.isEmpty { suggestBlock }
-                        Text(Tr("输入关键词就能搜会话、联系人和群聊"))
-                            .font(pf(12.5)).foregroundColor(C.subLabel)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 30)
+                        idleHint
                     } else {
                         scopeRow
                         if !matchedTools.isEmpty { toolBlock }
@@ -155,18 +125,19 @@ struct SearchPage: View {
                         if !contacts.isEmpty { contactBlock }
                         if directChats.isEmpty && groups.isEmpty && contacts.isEmpty
                             && matchedTools.isEmpty {
-                            Text(Tr("没有找到 ") + "「\(key)」")
-                                .font(pf(14)).foregroundColor(C.subLabel)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 40)
+                            emptyResult
                         }
                     }
                     Color.clear.frame(height: 24)
                 }
             }
-            .background(C.pageBg)
+            .background(Color.clear)
         }
-        .background(C.pageBg.ignoresSafeArea())
+        .background(OrbitTheme.canvas.ignoresSafeArea())
+        .background(alignment: .top) {
+            searchAura
+                .ignoresSafeArea(edges: .top)
+        }
 
         GeometryReader { g in
             if voiceBall, kbHeight > 1, !inputMethodChanging {
@@ -228,45 +199,192 @@ struct SearchPage: View {
         }
     }
 
-    private var toolBlock: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(Tr("官方工具")).font(pf(13)).foregroundColor(C.subLabel)
-                .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 6)
-            ForEach(matchedTools) { tool in
-                Button {
-                    remember(key)
-                    switch tool.id {
-                    case "ai": showAI = true
-                    case "browser": showBrowser = true
-                    default: showDrop = true
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: tool.symbol)
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(C.green)
-                            .frame(width: 40, height: 40)
-                            .background(C.cardBg)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(tool.title).font(pf(16)).foregroundColor(C.label)
-                            Text(tool.subtitle).font(pf(12.5)).foregroundColor(C.subLabel)
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(C.subLabel)
-                    }
-                    .padding(.horizontal, 14).frame(height: 62)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                HairLine(inset: 66)
+    private var searchHeader: some View {
+        HStack(spacing: 12) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.ink)
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(OrbitTheme.field))
+                    .overlay(Circle().stroke(OrbitTheme.divider, lineWidth: 0.7))
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Tr("星轨搜索"))
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.ink)
+                Text(Tr("人脉、消息与官方工具，一次找到"))
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(OrbitTheme.secondary)
+            }
+            Spacer(minLength: 8)
+            if !key.isEmpty {
+                Text("\(resultCount)")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(OrbitTheme.jade)
+                    .padding(.horizontal, 9)
+                    .frame(height: 24)
+                    .background(Capsule().fill(OrbitTheme.jadeSoft))
             }
         }
-        .background(C.cardBg)
-        .padding(.top, 10)
+        .padding(.horizontal, 12)
+        .padding(.top, L.safeTop + 4)
+        .padding(.bottom, 10)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(OrbitTheme.jade)
+            TextField(Tr("搜索人、消息与官方工具"), text: $q)
+                .font(.system(size: 15))
+                .foregroundStyle(OrbitTheme.ink)
+                .focused($focused)
+                .submitLabel(.search)
+                .onSubmit { remember(key) }
+            if !key.isEmpty {
+                Button { q = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(OrbitTheme.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 48)
+        .background {
+            GlassBackground(shape: RoundedRectangle(cornerRadius: 16, style: .continuous),
+                            opacity: 0.78,
+                            edgeAlpha: 0.42,
+                            shadow: true,
+                            seed: 0.31,
+                            native: true,
+                            tint: OrbitTheme.jadeSoft.opacity(0.34))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(OrbitTheme.jade.opacity(focused ? 0.58 : 0.24), lineWidth: 1)
+        }
+        .padding(.horizontal, 12)
+        .animation(.easeOut(duration: 0.18), value: focused)
+    }
+
+    private var searchAura: some View {
+        ZStack(alignment: .topTrailing) {
+            LinearGradient(colors: [OrbitTheme.jade.opacity(0.15), Color.clear],
+                           startPoint: .top, endPoint: .bottom)
+                .frame(height: 190)
+            Circle()
+                .stroke(OrbitTheme.jade.opacity(0.12), lineWidth: 0.8)
+                .frame(width: 250, height: 250)
+                .offset(x: 108, y: -142)
+            Circle()
+                .stroke(OrbitTheme.gold.opacity(0.10), lineWidth: 0.7)
+                .frame(width: 168, height: 168)
+                .offset(x: 148, y: -112)
+            Circle()
+                .fill(OrbitTheme.gold)
+                .frame(width: 4, height: 4)
+                .offset(x: -98, y: 94)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var resultCount: Int {
+        matchedTools.count + directChats.count + groups.count + contacts.count
+    }
+
+    private var idleHint: some View {
+        StarOrbitCard {
+            VStack(spacing: 10) {
+                StarOrbitIconBadge(symbol: "sparkles", accent: OrbitTheme.jade, size: 48)
+                Text(Tr("从一个关键词进入你的星轨"))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.ink)
+                Text(Tr("可以搜会话、联系人、群聊，也能直达小星 AI、浏览器和文件快传。"))
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(OrbitTheme.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 26)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 16)
+    }
+
+    private var emptyResult: some View {
+        StarOrbitCard {
+            VStack(spacing: 9) {
+                StarOrbitIconBadge(symbol: "moon.stars", accent: OrbitTheme.gold, size: 48)
+                Text(Tr("这条星轨上暂时没有结果"))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.ink)
+                Text("「\(key)」")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(OrbitTheme.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 28)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 16)
+    }
+
+    private var toolBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            OrbitSectionLabel(text: Tr("官方工具"), count: matchedTools.count)
+                .padding(.horizontal, 16)
+            StarOrbitCard {
+                VStack(spacing: 0) {
+                    ForEach(Array(matchedTools.enumerated()), id: \.element.id) { index, tool in
+                        Button {
+                            remember(key)
+                            switch tool.id {
+                            case "ai": showAI = true
+                            case "browser": showBrowser = true
+                            default: showDrop = true
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                StarOrbitIconBadge(symbol: tool.symbol,
+                                                   accent: OrbitTheme.jade,
+                                                   size: 40)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(tool.title)
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundStyle(OrbitTheme.ink)
+                                    Text(tool.subtitle)
+                                        .font(.system(size: 12.5))
+                                        .foregroundStyle(OrbitTheme.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(OrbitTheme.tertiary)
+                            }
+                            .padding(.horizontal, 14).frame(height: 66)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if index < matchedTools.count - 1 {
+                            Rectangle().fill(OrbitTheme.divider)
+                                .frame(height: 0.7).padding(.leading, 66)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+        }
+        .padding(.top, 12)
     }
 
     private func beginInputMethodTransition() {
@@ -287,77 +405,90 @@ struct SearchPage: View {
                 ForEach(scopes, id: \.0) { s in
                     let on = (scope == s.0)
                     Button { scope = s.0 } label: {
-                        HStack(spacing: 5) {
+                        HStack(spacing: 6) {
                             Image(systemName: s.2).font(.system(size: 12, weight: .medium))
-                            Text(Tr(s.1)).font(pf(13))
+                            Text(Tr(s.1)).font(.system(size: 12.5, weight: .medium))
                         }
-                        .foregroundColor(on ? .white : C.subLabel)
-                        .padding(.horizontal, 12).frame(height: 30)
-                        .background(Capsule().fill(on ? C.green : C.cardBg))
+                        .foregroundStyle(on ? AnyShapeStyle(Color.white)
+                                            : AnyShapeStyle(OrbitTheme.secondary))
+                        .padding(.horizontal, 13).frame(height: 33)
+                        .background {
+                            Capsule().fill(on
+                                ? AnyShapeStyle(LinearGradient(
+                                    colors: [OrbitTheme.jadeDeep, OrbitTheme.jade],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing))
+                                : AnyShapeStyle(OrbitTheme.field))
+                        }
+                        .overlay {
+                            Capsule().stroke(on ? Color.clear : OrbitTheme.divider,
+                                             lineWidth: 0.7)
+                        }
+                        .shadow(color: on ? OrbitTheme.jade.opacity(0.18) : .clear,
+                                radius: 7, y: 3)
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
     }
 
     private var historyBlock: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(Tr("搜索历史")).font(pf(13)).foregroundColor(C.subLabel)
-                Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                OrbitSectionLabel(text: Tr("最近搜索"))
                 Button {
                     SearchHistory.clear()
                     withAnimation(.easeOut(duration: 0.18)) { history = [] }
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     Image(systemName: "trash")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(C.subLabel)
-                        .frame(width: 28, height: 28)
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(OrbitTheme.tertiary)
+                        .frame(width: 26, height: 26)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 8)
-
-            ChipFlow(spacing: 10, lineSpacing: 10) {
-                ForEach(history, id: \.self) { r in
-                    chip(r, icon: "clock.arrow.circlepath") {
-                        remember(r)
-                        q = r
+            .padding(.horizontal, 16)
+            StarOrbitCard {
+                ChipFlow(spacing: 9, lineSpacing: 9) {
+                    ForEach(history, id: \.self) { r in
+                        chip(r, icon: "clock.arrow.circlepath") {
+                            remember(r)
+                            q = r
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.bottom, 6)
+            .padding(.horizontal, 12)
         }
-        .background(C.cardBg)
-        .padding(.top, 10)
+        .padding(.top, 12)
     }
 
     private var suggestBlock: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(Tr("猜你想搜"))
-                .font(pf(13)).foregroundColor(C.subLabel)
-                .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 8)
-            ChipFlow(spacing: 10, lineSpacing: 10) {
-                ForEach(hot, id: \.self) { w in
-                    chip(w) {
-                        remember(w)
-                        q = w
+        VStack(alignment: .leading, spacing: 8) {
+            OrbitSectionLabel(text: Tr("猜你想搜"), count: hot.count)
+                .padding(.horizontal, 16)
+            StarOrbitCard {
+                ChipFlow(spacing: 9, lineSpacing: 9) {
+                    ForEach(hot, id: \.self) { w in
+                        chip(w) {
+                            remember(w)
+                            q = w
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.bottom, 6)
+            .padding(.horizontal, 12)
         }
-        .background(C.cardBg)
-        .padding(.top, 10)
+        .padding(.top, 12)
     }
 
     private func chip(_ text: String, icon: String? = nil, _ tap: @escaping () -> Void) -> some View {
@@ -366,75 +497,112 @@ struct SearchPage: View {
                 if let icon = icon {
                     Image(systemName: icon)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(C.subLabel)
+                        .foregroundStyle(OrbitTheme.tertiary)
                 }
-                Text(Tr(text)).font(pf(14)).foregroundColor(C.label).lineLimit(1)
+                Text(Tr(text))
+                    .font(.system(size: 13.5, weight: .medium))
+                    .foregroundStyle(OrbitTheme.ink)
+                    .lineLimit(1)
             }
             .padding(.horizontal, 13)
             .frame(height: 34)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.dyn(0xEDEDF0, 0x2C2C31)))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.dyn(0xD5D5DA, 0x3A3A40), lineWidth: 0.8))
+            .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(OrbitTheme.fieldRaised))
+            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(OrbitTheme.divider, lineWidth: 0.8))
         }
         .buttonStyle(.plain)
     }
 
     private func sectionBlock(_ title: String, _ list: [Chat], isGroup: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(title).font(pf(13)).foregroundColor(C.subLabel)
-                .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 6)
-            ForEach(list) { c in
-                Button {
-                    remember(key)
-                    onOpenChat?(c)
-                    dismiss()
-                } label: {
-                    HStack(spacing: 12) {
-                        Avatar(path: chatAvatar(c), size: 40, radius: isGroup ? 6 : 4)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(chatTitle(c)).font(pf(16)).foregroundColor(C.label)
-                            if let p = c.lastMessage?.preview, !p.isEmpty {
-                                Text(p).font(pf(12.5)).foregroundColor(C.subLabel).lineLimit(1)
+        VStack(alignment: .leading, spacing: 8) {
+            OrbitSectionLabel(text: title, count: list.count)
+                .padding(.horizontal, 16)
+            StarOrbitCard {
+                VStack(spacing: 0) {
+                    ForEach(Array(list.enumerated()), id: \.element.id) { index, c in
+                        Button {
+                            remember(key)
+                            onOpenChat?(c)
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 12) {
+                                Avatar(path: chatAvatar(c), size: 42, radius: isGroup ? 12 : 11)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(chatTitle(c))
+                                        .font(.system(size: 15.5, weight: .semibold))
+                                        .foregroundStyle(OrbitTheme.ink)
+                                    if let p = c.lastMessage?.preview, !p.isEmpty {
+                                        Text(p)
+                                            .font(.system(size: 12.5))
+                                            .foregroundStyle(OrbitTheme.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(OrbitTheme.tertiary)
                             }
+                            .padding(.horizontal, 14).frame(height: 64)
+                            .contentShape(Rectangle())
                         }
-                        Spacer(minLength: 0)
+                        .buttonStyle(.plain)
+                        if index < list.count - 1 {
+                            Rectangle().fill(OrbitTheme.divider)
+                                .frame(height: 0.7).padding(.leading, 68)
+                        }
                     }
-                    .padding(.horizontal, 14).frame(height: 60)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                HairLine(inset: 66)
             }
+            .padding(.horizontal, 12)
         }
-        .background(C.cardBg)
-        .padding(.top, 10)
+        .padding(.top, 12)
     }
 
     private var contactBlock: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(Tr("联系人")).font(pf(13)).foregroundColor(C.subLabel)
-                .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 6)
-            ForEach(contacts) { u in
-                Button {
-                    remember(key)
-                    onOpenUser?(u)
-                    dismiss()
-                } label: {
-                    HStack(spacing: 12) {
-                        Avatar(path: u.avatarPath, size: 40, radius: 4)
-                        Text(u.name).font(pf(16)).foregroundColor(C.label)
-                        Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 8) {
+            OrbitSectionLabel(text: Tr("联系人"), count: contacts.count)
+                .padding(.horizontal, 16)
+            StarOrbitCard {
+                VStack(spacing: 0) {
+                    ForEach(Array(contacts.enumerated()), id: \.element.id) { index, u in
+                        Button {
+                            remember(key)
+                            onOpenUser?(u)
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 12) {
+                                Avatar(path: u.avatarPath, size: 42, radius: 12)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(u.name)
+                                        .font(.system(size: 15.5, weight: .semibold))
+                                        .foregroundStyle(OrbitTheme.ink)
+                                    if let username = u.username, !username.isEmpty {
+                                        Text("@" + username)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(OrbitTheme.secondary)
+                                    }
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(OrbitTheme.tertiary)
+                            }
+                            .padding(.horizontal, 14).frame(height: 64)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if index < contacts.count - 1 {
+                            Rectangle().fill(OrbitTheme.divider)
+                                .frame(height: 0.7).padding(.leading, 68)
+                        }
                     }
-                    .padding(.horizontal, 14).frame(height: 60)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                HairLine(inset: 66)
             }
+            .padding(.horizontal, 12)
         }
-        .background(C.cardBg)
-        .padding(.top, 10)
+        .padding(.top, 12)
     }
 
     private func remember(_ text: String) {
