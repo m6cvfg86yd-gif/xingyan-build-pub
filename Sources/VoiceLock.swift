@@ -21,12 +21,18 @@ enum VoiceLockStore {
         Keychain.set(t.map { String(format: "%.4f", $0) }.joined(separator: ","), for: printKey)
         Keychain.set(user, for: userKey)
         Keychain.set("1", for: onKey)
+        changed()
     }
 
     static func disable() {
         Keychain.remove(printKey)
         Keychain.remove(userKey)
         Keychain.remove(onKey)
+        changed()
+    }
+
+    private static func changed() {
+        NotificationCenter.default.post(name: .chrisUIPrefsChanged, object: nil)
     }
 
     static var minScore: Double { Double(UIConfig.num("voiceMinScore", 0.42)) }

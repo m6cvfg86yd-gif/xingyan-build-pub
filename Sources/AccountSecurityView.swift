@@ -7,6 +7,8 @@ struct AccountSecurityView: View {
 
     @State private var realNameText = ""
     @State private var hasPay = false
+    @State private var gestureOn = GestureStore.enabled
+    @State private var voiceOn = VoiceLockStore.enabled
     @State private var showChangePwd = false
     @State private var confirmLogoutOthers = false
 
@@ -59,11 +61,11 @@ struct AccountSecurityView: View {
                 }
                 NavigationLink(value: "gesture") {
                     LabeledContent(Tr("安全锁（手势密码）"),
-                                   value: GestureStore.enabled ? Tr("已开启") : Tr("未开启"))
+                                   value: gestureOn ? Tr("已开启") : Tr("未开启"))
                 }
                 NavigationLink(value: "voicelock") {
                     LabeledContent(Tr("声音锁"),
-                                   value: VoiceLockStore.enabled ? Tr("已开启") : Tr("未开启"))
+                                   value: voiceOn ? Tr("已开启") : Tr("未开启"))
                 }
                 NavigationLink(value: "score") {
                     Text(Tr("安全分"))
@@ -90,13 +92,12 @@ struct AccountSecurityView: View {
         .sheet(isPresented: $showSafety) {
             AccountSafetyCenterView().environmentObject(app)
         }
-        .task {
-            if let m = try? await API.shared.me() {
-                app.me = m
-            }
-            let rn = await API.shared.realNameStatus()
-            realNameText = rn.verified ? Tr("已实名") : Tr("未实名")
-            hasPay = await API.shared.hasPayPassword()
+        .onAppear {
+            refreshLocalStatus()
+            Task { await refreshAccountStatus() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .chrisUIPrefsChanged)) { _ in
+            refreshLocalStatus()
         }
         .confirmationDialog(Tr("退出其他设备？"), isPresented: $confirmLogoutOthers, titleVisibility: .visible) {
             Button(Tr("退出"), role: .destructive) {
@@ -110,6 +111,21 @@ struct AccountSecurityView: View {
             }
             Button(Tr("取消"), role: .cancel) { }
         }
+    }
+
+    private func refreshLocalStatus() {
+        gestureOn = GestureStore.enabled
+        voiceOn = VoiceLockStore.enabled
+    }
+
+    private func refreshAccountStatus() async {
+        if let m = try? await API.shared.me() {
+            app.me = m
+        }
+        let rn = await API.shared.realNameStatus()
+        realNameText = rn.verified ? Tr("已实名") : Tr("未实名")
+        hasPay = await API.shared.hasPayPassword()
+        refreshLocalStatus()
     }
 
     private func row(_ title: String, _ value: String, chevron: Bool) -> some View {

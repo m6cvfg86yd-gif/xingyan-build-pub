@@ -160,6 +160,7 @@ struct PayPasswordView: View {
         Task {
             do {
                 try await API.shared.setPayPassword(code, current: oldPwd)
+                NotificationCenter.default.post(name: .chrisUIPrefsChanged, object: nil)
                 busy = false
                 app.show(hasPwd ? "支付密码改好了" : "支付密码设好了")
                 dismiss()

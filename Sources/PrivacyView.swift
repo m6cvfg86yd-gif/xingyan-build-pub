@@ -63,15 +63,13 @@ struct PrivacyView: View {
     }
 
     private func row(_ title: String, _ value: Binding<Bool>, _ key: String) -> some View {
-        Toggle(isOn: Binding(
-                get: { value.wrappedValue },
-                set: { v in
-                    value.wrappedValue = v
-                    Task { await API.shared.setPrivacy(key, v) }
-                }
-            )) {
-                Text(title)
+        Toggle(title, isOn: Binding(
+            get: { value.wrappedValue },
+            set: { v in
+                value.wrappedValue = v
+                Task { await API.shared.setPrivacy(key, v) }
             }
+        ))
     }
 }
 
@@ -148,20 +146,27 @@ struct NotifyView: View {
         .onChange(of: muteOn) { on in
             if on { n.muteStart = "22:00"; n.muteEnd = "07:00" }
             else { n.muteStart = ""; n.muteEnd = "" }
-            Task { await API.shared.setNotify(["muteStart": n.muteStart, "muteEnd": n.muteEnd]) }
+            Task {
+                await API.shared.setNotify([
+                    "muteStart": n.muteStart,
+                    "muteEnd": n.muteEnd
+                ])
+                LocalNotify.settings = n
+            }
         }
     }
 
     private func row(_ title: String, _ value: Binding<Bool>, _ key: String) -> some View {
-        Toggle(isOn: Binding(
-                get: { value.wrappedValue },
-                set: { v in
-                    value.wrappedValue = v
-                    Task { await API.shared.setNotify([key: v]) }
+        Toggle(title, isOn: Binding(
+            get: { value.wrappedValue },
+            set: { v in
+                value.wrappedValue = v
+                Task {
+                    await API.shared.setNotify([key: v])
+                    LocalNotify.settings = n
                 }
-            )) {
-                Text(title)
             }
+        ))
     }
 
     static func hhmm(_ d: Date) -> String {
@@ -325,7 +330,7 @@ struct LanguageView: View {
     }
 }
 
-struct PrivacySettings {
+struct PrivacySettings: Equatable {
     var needVerify = true
     var strangerMoments = false
     var addByWx = true
@@ -336,7 +341,7 @@ struct PrivacySettings {
     var momentsRange = "all"
 }
 
-struct NotifySettings {
+struct NotifySettings: Equatable {
     var on = true
     var sound = true
     var vibrate = true

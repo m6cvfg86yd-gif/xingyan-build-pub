@@ -24,6 +24,32 @@ struct SearchPage: View {
     @State private var kbHeight: CGFloat = 0
     @State private var inputMethodChanging = false
     @State private var inputMethodChangeToken = 0
+    @State private var showAI = false
+    @State private var showBrowser = false
+    @State private var showDrop = false
+
+    private struct OfficialTool: Identifiable {
+        let id: String
+        let title: String
+        let subtitle: String
+        let symbol: String
+        let keywords: String
+    }
+
+    private let officialTools: [OfficialTool] = [
+        OfficialTool(id: "ai", title: "小星 AI",
+                     subtitle: "星言助手 · 问答、创作、联网搜索",
+                     symbol: "sparkles",
+                     keywords: "小星 AI ai 人工智能 星言助手 小星助手 官方助手 语音 问答 创作 搜索 助手 官方工具 工具"),
+        OfficialTool(id: "browser", title: "内置浏览器",
+                     subtitle: "在星言里搜索和打开网页",
+                     symbol: "safari",
+                     keywords: "内置浏览器 浏览器 网页 网站 打开网页 搜索 官方工具 工具"),
+        OfficialTool(id: "drop", title: "文件快传",
+                     subtitle: "面对面传照片、视频和文件",
+                     symbol: "dot.radiowaves.left.and.right",
+                     keywords: "文件快传 快传 文件 传文件 文件传输 面对面 传输 官方工具 工具")
+    ]
 
     private let scopes: [(String, String, String)] = [
         ("all", "全部", "magnifyingglass"),
@@ -63,6 +89,15 @@ struct SearchPage: View {
     }
     private var groups: [Chat] { scope == "all" || scope == "group" ? chats.filter { $0.type == "group" } : [] }
     private var directChats: [Chat] { scope == "group" ? [] : chats.filter { $0.type != "group" } }
+    private var matchedTools: [OfficialTool] {
+        guard !key.isEmpty else { return [] }
+        let needle = key.lowercased()
+        return officialTools.filter {
+            $0.title.lowercased().contains(needle)
+                || $0.subtitle.lowercased().contains(needle)
+                || $0.keywords.lowercased().contains(needle)
+        }
+    }
     private var contacts: [User] {
         if key.isEmpty || scope == "chat" || scope == "group" { return [] }
         return app.contacts.filter { ($0.nickname ?? "").localizedCaseInsensitiveContains(key)
@@ -114,10 +149,12 @@ struct SearchPage: View {
                             .padding(.top, 30)
                     } else {
                         scopeRow
+                        if !matchedTools.isEmpty { toolBlock }
                         if !directChats.isEmpty { sectionBlock(Tr("聊天记录"), directChats, isGroup: false) }
                         if !groups.isEmpty { sectionBlock(Tr("群聊"), groups, isGroup: true) }
                         if !contacts.isEmpty { contactBlock }
-                        if directChats.isEmpty && groups.isEmpty && contacts.isEmpty {
+                        if directChats.isEmpty && groups.isEmpty && contacts.isEmpty
+                            && matchedTools.isEmpty {
                             Text(Tr("没有找到 ") + "「\(key)」")
                                 .font(pf(14)).foregroundColor(C.subLabel)
                                 .frame(maxWidth: .infinity)
@@ -177,6 +214,59 @@ struct SearchPage: View {
             beginInputMethodTransition()
         }
         .onDisappear { dictation.stop() }
+        .fullScreenCover(isPresented: $showAI) {
+            PluginsView().environmentObject(app)
+        }
+        .fullScreenCover(isPresented: $showBrowser) {
+            InAppBrowserView()
+        }
+        .fullScreenCover(isPresented: $showDrop) {
+            FaceToFaceFileSheet(rows: [],
+                                avatar: app.me?.avatarPath ?? "",
+                                name: app.me?.name ?? "")
+                .environmentObject(app)
+        }
+    }
+
+    private var toolBlock: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(Tr("官方工具")).font(pf(13)).foregroundColor(C.subLabel)
+                .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 6)
+            ForEach(matchedTools) { tool in
+                Button {
+                    remember(key)
+                    switch tool.id {
+                    case "ai": showAI = true
+                    case "browser": showBrowser = true
+                    default: showDrop = true
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: tool.symbol)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(C.green)
+                            .frame(width: 40, height: 40)
+                            .background(C.cardBg)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(tool.title).font(pf(16)).foregroundColor(C.label)
+                            Text(tool.subtitle).font(pf(12.5)).foregroundColor(C.subLabel)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(C.subLabel)
+                    }
+                    .padding(.horizontal, 14).frame(height: 62)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                HairLine(inset: 66)
+            }
+        }
+        .background(C.cardBg)
+        .padding(.top, 10)
     }
 
     private func beginInputMethodTransition() {

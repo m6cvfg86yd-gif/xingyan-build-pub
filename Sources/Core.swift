@@ -492,10 +492,16 @@ func pf(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
 enum CareMode {
     static var on: Bool { UserDefaults.standard.bool(forKey: "chris.careMode") }
     static var scale: CGFloat { on ? 1.18 : 1.0 }
-    static func set(_ v: Bool) { UserDefaults.standard.set(v, forKey: "chris.careMode") }
+    static func set(_ v: Bool) {
+        UserDefaults.standard.set(v, forKey: "chris.careMode")
+        NotificationCenter.default.post(name: .chrisUIPrefsChanged, object: nil)
+    }
 
     static var speakText: Bool { UserDefaults.standard.bool(forKey: "chris.careSpeak") }
-    static func setSpeak(_ v: Bool) { UserDefaults.standard.set(v, forKey: "chris.careSpeak") }
+    static func setSpeak(_ v: Bool) {
+        UserDefaults.standard.set(v, forKey: "chris.careSpeak")
+        NotificationCenter.default.post(name: .chrisUIPrefsChanged, object: nil)
+    }
 }
 
 func pfExact(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {

@@ -1138,6 +1138,8 @@ struct SettingsView: View {
     @State private var showProfileEdit = false
 
     @State private var showDiag = false
+    @State private var momentsOn = MomentsPref.isOn
+    @State private var careOn = CareMode.on
 
     @State private var query = ""
     @State private var searchActive = false
@@ -1171,8 +1173,9 @@ struct SettingsView: View {
                             Text(Tr("朋友圈")).font(pf(16)).foregroundColor(C.label)
                             Spacer(minLength: 0)
                             Toggle("", isOn: Binding(
-                                get: { MomentsPref.isOn },
+                                get: { momentsOn },
                                 set: { v in
+                                    momentsOn = v
                                     MomentsPref.set(v)
                                     app.show(v ? Tr("朋友圈已开启：去「发现」里就能看到")
                                                : Tr("朋友圈已关闭"))
@@ -1303,6 +1306,14 @@ struct SettingsView: View {
             }.value
             storageText = used
         }
+        .onAppear {
+            momentsOn = MomentsPref.isOn
+            careOn = CareMode.on
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .chrisUIPrefsChanged)) { _ in
+            momentsOn = MomentsPref.isOn
+            careOn = CareMode.on
+        }
         .confirmationDialog(Tr("确定退出登录？"), isPresented: $confirmLogout, titleVisibility: .visible) {
             Button(Tr("退出登录"), role: .destructive) {
                 busy = true
@@ -1376,7 +1387,7 @@ struct SettingsView: View {
                               keywords: "登录设备 设备 手机 电脑 退出设备", key: "devices"),
             SettingSearchItem(title: Tr("未成年人模式"), sub: "",
                               keywords: "未成年人 青少年 防沉迷 伞 模式", key: "teen"),
-            SettingSearchItem(title: Tr("关怀模式"), sub: CareMode.on ? Tr("已开启") : Tr("未开启"),
+            SettingSearchItem(title: Tr("关怀模式"), sub: careOn ? Tr("已开启") : Tr("未开启"),
                               keywords: "关怀 大字 字号 老年人 模式", key: "care"),
             SettingSearchItem(title: Tr("通知"), sub: "",
                               keywords: "新消息 通知 提醒 铃声 震动 免打扰", key: "notify"),

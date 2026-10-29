@@ -21,9 +21,19 @@ enum GestureStore {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    static func set(_ pattern: String) { Keychain.set(hash(pattern), for: key) }
+    static func set(_ pattern: String) {
+        Keychain.set(hash(pattern), for: key)
+        changed()
+    }
     static func verify(_ pattern: String) -> Bool { Keychain.get(key) == hash(pattern) }
-    static func clear() { Keychain.remove(key) }
+    static func clear() {
+        Keychain.remove(key)
+        changed()
+    }
+
+    private static func changed() {
+        NotificationCenter.default.post(name: .chrisUIPrefsChanged, object: nil)
+    }
 }
 
 struct PatternPad: View {

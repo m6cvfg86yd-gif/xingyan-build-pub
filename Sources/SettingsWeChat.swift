@@ -153,6 +153,7 @@ struct MoreSettingsView: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var showDiag = false
+    @State private var careOn = CareMode.on
 
     var body: some View {
         VStack(spacing: 0) {
@@ -163,7 +164,7 @@ struct MoreSettingsView: View {
                         SettingRowLink(title: Tr("未成年人模式"), key: "teen")
                         HairLine(inset: 16)
                         SettingRowLink(title: Tr("关怀模式"),
-                                       value: CareMode.on ? Tr("已开启") : Tr("未开启"),
+                                       value: careOn ? Tr("已开启") : Tr("未开启"),
                                        key: "care")
                         HairLine(inset: 16)
                         SettingRowLink(title: Tr("我的等级"), key: "level")
@@ -191,7 +192,10 @@ struct MoreSettingsView: View {
         .sheet(isPresented: $showDiag) {
             DiagView().environmentObject(app)
         }
-
+        .onAppear { careOn = CareMode.on }
+        .onReceive(NotificationCenter.default.publisher(for: .chrisUIPrefsChanged)) { _ in
+            careOn = CareMode.on
+        }
     }
 }
 
