@@ -86,6 +86,7 @@ struct MainTabView: View {
 
             if !app.tabBarHidden {
                 NativeTabBar(selection: $tab,
+                             uiVersion: app.uiVersion,
                              badge: app.showDot("chats", auto: unreadTotal > 0) ? unreadTotal : 0,
                              contactsDot: app.showDot("contacts", auto: app.friendRequests > 0),
                              momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),

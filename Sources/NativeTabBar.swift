@@ -126,6 +126,7 @@ struct NativeTabBar: UIViewRepresentable {
     @Binding var selection: Int
     @Environment(\.colorScheme) private var scheme
     @StateObject private var iconLoader = TabIconLoader.shared
+    let uiVersion: Int
     let badge: Int
     let contactsDot: Bool
     let momentsDot: Bool
@@ -158,6 +159,13 @@ struct NativeTabBar: UIViewRepresentable {
     func updateUIView(_ bar: UITabBar, context: Context) {
         context.coordinator.selection = $selection
         applyColors(bar)
+        let titles = [C.tabText0, C.tabText1, C.tabText2, C.tabText3]
+        if let items = bar.items, items.count == titles.count {
+            for index in titles.indices where items[index].title != titles[index] {
+                items[index].title = titles[index]
+            }
+            bar.setNeedsLayout()
+        }
         if let item = bar.items?[safe: selection], bar.selectedItem !== item {
             bar.selectedItem = item
         }
@@ -173,6 +181,7 @@ struct NativeTabBar: UIViewRepresentable {
             in: bar,
             loader: iconLoader,
             revision: iconLoader.revision,
+            uiVersion: uiVersion,
             size: size,
             scheme: scheme == .dark ? "dark" : "light",
             avatarPath: context.coordinator.customIcon(3) == nil ? avatarPath : "",
@@ -246,11 +255,11 @@ struct NativeTabBar: UIViewRepresentable {
         }
 
         fileprivate func applyIcons(in bar: UITabBar, loader: TabIconLoader, revision: Int,
-                                    size: CGFloat, scheme: String,
+                                    uiVersion: Int, size: CGFloat, scheme: String,
                                     avatarPath: String,
                                     normalColor: UIColor, selectedColor: UIColor) {
             guard let items = bar.items, items.count == 4 else { return }
-            let styleKey = "\(revision)|\(size)|\(scheme)"
+            let styleKey = "\(uiVersion)|\(revision)|\(size)|\(scheme)"
             if styleKey != appliedStyleKey {
                 appliedStyleKey = styleKey
                 appliedIconKeys.removeAll(keepingCapacity: true)
