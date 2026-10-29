@@ -1125,7 +1125,6 @@ final class CallCenter: NSObject, ObservableObject {
             tip = isVideo ? "邀请你视频通话…" : "邀请你语音通话…"
             phase = .incoming
             startRingTimeout()
-            Task { await startTRTCIfPossible() }
 
             if UIApplication.shared.applicationState != .active {
                 LocalNotify.incomingCall(callId: callId, peerName: peerName, video: isVideo)
@@ -1888,13 +1887,15 @@ extension CallCenter: RTCPeerConnectionDelegate {
 
     private func startTRTCIfPossible() async {
 
-        guard !trtcJoined, !usingTRTC, !callId.isEmpty else { return }
+        // 被叫必须停在响铃页，等用户明确接听后才能进媒体房间。
+        // 提前进房会让双方被 onPeerChanged 误判成“已接通”，接听按钮随之消失。
+        guard phase != .incoming, !trtcJoined, !usingTRTC, !callId.isEmpty else { return }
         let bridge = TRTCBridge.shared
         bridge.onJoined = { [weak self] ok in
             guard let self = self else { return }
             guard ok else { return }
 
-            guard self.phase != .idle, !self.callId.isEmpty else { return }
+            guard self.phase != .idle, self.phase != .incoming, !self.callId.isEmpty else { return }
             self.trtcJoined = true
             self.note("TRTC 已进房（等对端）")
 
@@ -1975,7 +1976,7 @@ extension CallCenter: RTCPeerConnectionDelegate {
     }
 
     private func switchMediaToTRTC() {
-        guard !usingTRTC, phase != .idle, !callId.isEmpty else { return }
+        guard !usingTRTC, phase != .idle, phase != .incoming, !callId.isEmpty else { return }
         usingTRTC = true
         note(isVideo ? "对端也在腾讯云房间里 → 媒体切到 TRTC ✓"
                      : "对端也在腾讯云房间里 → 语音切到 TRTC ✓")
