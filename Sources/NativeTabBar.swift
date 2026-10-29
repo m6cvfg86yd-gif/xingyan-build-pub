@@ -188,7 +188,7 @@ struct NativeTabBar: UIViewRepresentable {
 
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
-        /* 底栏背景统一使用全局页面色；系统材质会额外叠灰，所以完全关闭。 */
+        /* 浅色和深色都统一使用全局页面色，关闭系统材质避免多叠一层灰。 */
         appearance.backgroundEffect = nil
         appearance.backgroundColor = .clear
         appearance.backgroundImage = nil

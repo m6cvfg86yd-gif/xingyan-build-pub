@@ -98,6 +98,13 @@ struct MainTabView: View {
                     .offset(y: UIConfig.num("tabBarDrop", 0) + (L.compactPhone ? 2 : 8))
                     .transition(.move(edge: .bottom))
             }
+
+            if !app.tabBarHidden && L.safeBottom > 0 {
+                C.pageBg
+                    .frame(height: L.safeBottom + 1)
+                    .ignoresSafeArea(edges: .bottom)
+                    .allowsHitTesting(false)
+            }
         }
 
         .background(C.pageBg.ignoresSafeArea())
