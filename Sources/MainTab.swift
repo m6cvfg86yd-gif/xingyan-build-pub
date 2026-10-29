@@ -92,11 +92,11 @@ struct MainTabView: View {
                              momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
                              meDot: app.showDot("me", auto: false),
                              avatarPath: app.me?.avatarPath ?? "")
-                    .frame(height: max(42, L.tabH - 6))
+                    .frame(height: L.tabH)
 
                     .background(C.pageBg)
 
-                    .offset(y: UIConfig.num("tabBarDrop", 0) + (L.compactPhone ? 2 : 8))
+                    .offset(y: UIConfig.num("tabBarDrop", 0))
                     .transition(.move(edge: .bottom))
             }
 

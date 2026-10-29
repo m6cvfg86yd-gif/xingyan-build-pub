@@ -202,22 +202,26 @@ struct NativeTabBar: UIViewRepresentable {
 
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
-        /* 浅色和深色都统一使用全局页面色，关闭系统材质避免多叠一层灰。 */
+        /* 图标区和底部安全区必须使用同一个页面色，避免出现两段不同底色。 */
         appearance.backgroundEffect = nil
-        appearance.backgroundColor = .clear
+        appearance.backgroundColor = UIColor(C.pageBg)
         appearance.backgroundImage = nil
         appearance.shadowColor = UIColor.clear
+        let normalTitle: [NSAttributedString.Key: Any] = [
+            .foregroundColor: UIColor(OrbitTheme.secondary),
+            .font: UIFont.systemFont(ofSize: 10.5, weight: .medium)
+        ]
+        let selectedTitle: [NSAttributedString.Key: Any] = [
+            .foregroundColor: UIColor(OrbitTheme.jade),
+            .font: UIFont.systemFont(ofSize: 10.5, weight: .semibold)
+        ]
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(OrbitTheme.secondary)
-        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor(OrbitTheme.secondary)
-        ]
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = normalTitle
         appearance.stackedLayoutAppearance.selected.iconColor = UIColor(OrbitTheme.jade)
-        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(OrbitTheme.jade)
-        ]
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedTitle
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
-        bar.isTranslucent = true
+        bar.isTranslucent = false
     }
 
     private func refresh(_ bar: UITabBar) {
