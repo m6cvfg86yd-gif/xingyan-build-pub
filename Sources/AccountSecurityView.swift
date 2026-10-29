@@ -187,6 +187,9 @@ struct ChangePasswordSheet: View {
         Task {
             do {
                 try await API.shared.changePassword(current: current, new: next)
+                // 服务端会返回新的当前设备会话令牌；立即写回本机账号，
+                // 否则切号页仍保存旧令牌，要退出页面/重开 App 才恢复正常。
+                app.rememberLastUser()
                 busy = false
                 dismiss()
                 app.show(Tr("密码已修改"))

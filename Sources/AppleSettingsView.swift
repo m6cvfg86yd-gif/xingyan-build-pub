@@ -6,6 +6,7 @@ struct AppleSettingsView: View {
     @State private var confirmLogout = false
     @State private var busy = false
     @State private var showQR = false
+    @State private var momentsOn = MomentsPref.isOn
 
     private var accountSubtitle: String {
         let phone = (app.me?.phone ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -105,8 +106,9 @@ struct AppleSettingsView: View {
 
             Section(header: Text(Tr("聊天与通话"))) {
                 Toggle(isOn: Binding(
-                    get: { MomentsPref.isOn },
+                    get: { momentsOn },
                     set: { value in
+                        momentsOn = value
                         MomentsPref.set(value)
                         app.show(value ? Tr("朋友圈已开启")
                                         : Tr("朋友圈已关闭"))
@@ -245,6 +247,10 @@ struct AppleSettingsView: View {
         .navigationTitle(Tr("设置"))
         .navigationBarTitleDisplayMode(.large)
         .hidesTabBar()
+        .onAppear { momentsOn = MomentsPref.isOn }
+        .onReceive(NotificationCenter.default.publisher(for: .chrisUIPrefsChanged)) { _ in
+            momentsOn = MomentsPref.isOn
+        }
         .sheet(isPresented: $showQR) {
             NavigationStack {
                 MyQRView()

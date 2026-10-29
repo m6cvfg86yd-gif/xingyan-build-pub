@@ -4648,6 +4648,7 @@ const LOGIN_MAX = 8;                    // 单账号
 const LOGIN_IP_MAX = 30;                // 单 IP（防止换账号扫）
 
 function loginBlocked(key) {
+  if (riskOff()) return 0;
   const rec = LOGIN_FAILS.get(key);
   if (!rec) return 0;
   if (rec.until && rec.until > Date.now()) return Math.ceil((rec.until - Date.now()) / 1000);
@@ -4656,6 +4657,7 @@ function loginBlocked(key) {
   return 0;
 }
 function noteLoginFail(key) {
+  if (riskOff()) return;
   const now = Date.now();
   const rec = LOGIN_FAILS.get(key);
   secStateDirty = true;
@@ -13910,12 +13912,12 @@ async function handleApi(req, res, pathname, query) {
     const ip = clientInfo(req).ip;
     const kUser = 'u:' + rawName.toLowerCase();
     const kIp = 'ip:' + ip;
-    const wait = Math.max(loginBlocked(kUser), loginBlocked(kIp));
+    /* 密码错误只锁当前账号，不做 IP 级连坐：一个账号输错不能把同一网络下其他账号一起锁住。 */
+    const wait = loginBlocked(kUser);
     if (wait) return fail(res, 429, '密码错误次数太多，请 ' + Math.ceil(wait / 60) + ' 分钟后再试');
     const user = findUserByName(rawName);
     if (!user || !verifyPassword(user, String(body.password || ''))) {
       noteLoginFail(kUser);
-      noteLoginFail(kIp);
       return fail(res, 401, '用户名或密码不正确');
     }
     if (user.banned) return fail(res, 403, banMsg(user));
