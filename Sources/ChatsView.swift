@@ -197,18 +197,6 @@ struct ChatRow: View {
                             height: L.v(11.5, 3.2, 13))
                     .fixedSize()
 
-                if chat.type == "group" || (chat.memberCount ?? 0) > 2 {
-                    let count = chat.memberCount ?? chat.memberIds?.count ?? 0
-                    if count > 0 {
-                        Text("\(count)人")
-                            .font(.system(size: 9.5, weight: .semibold))
-                            .foregroundStyle(OrbitTheme.tertiary)
-                            .padding(.horizontal, 5)
-                            .frame(height: 17)
-                            .background(Capsule().fill(OrbitTheme.field))
-                    }
-                }
-
             }
             mentionPreview
                 .font(.system(size: 12.5))

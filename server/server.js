@@ -5460,6 +5460,7 @@ function currentUser(req) {
   if (!data) return null;
   const user = db.users.find((u) => u.id === data.sub) || null;
   if (!user) return null;
+  if (readDeletionLedger().ids.has(deletionUserKey(user.id))) return null;
   // 会话版本对不上说明密码改过 / 在其他设备点了「退出其他设备」
   if ((data.v || 0) !== (user.tokenVersion || 0)) return null;
   /* 手机单点登录：手机令牌里的 ps 必须等于账号当前的手机会话号。
@@ -9802,6 +9803,138 @@ function remainingUploadReferences() {
   return refs;
 }
 
+const ACCOUNT_DELETIONS_FILE = path.join(DATA_DIR, 'account-deletions.json');
+let deletionSnapshotCache = { at: 0, mtimeMs: -1, size: -1, ids: new Set(), events: [] };
+let lastReconciledDeletionSignature = '';
+
+function deletionUserKey(userId) {
+  return crypto.createHmac('sha256', String(db.secret || 'chris'))
+    .update('deleted-account:' + String(userId || ''))
+    .digest('hex');
+}
+
+function readDeletionLedger() {
+  const nowMs = Date.now();
+  if (nowMs - deletionSnapshotCache.at < 100) return deletionSnapshotCache;
+  let mtimeMs = -1;
+  let size = -1;
+  try {
+    const stat = fs.statSync(ACCOUNT_DELETIONS_FILE);
+    mtimeMs = stat.mtimeMs;
+    size = stat.size;
+  } catch (err) { /* 第一次还没有文件 */ }
+  if (mtimeMs === deletionSnapshotCache.mtimeMs
+      && size === deletionSnapshotCache.size) {
+    deletionSnapshotCache.at = nowMs;
+    return deletionSnapshotCache;
+  }
+  const raw = readJson(ACCOUNT_DELETIONS_FILE, { events: [] });
+  const events = Array.isArray(raw.events) ? raw.events.filter((one) => one && one.key) : [];
+  deletionSnapshotCache = {
+    at: nowMs, mtimeMs, size, events, ids: new Set(events.map((one) => one.key))
+  };
+  return deletionSnapshotCache;
+}
+
+function saveDeletionLedger(events) {
+  writeJson(ACCOUNT_DELETIONS_FILE, {
+    version: 1,
+    events: events.filter((one) => one && one.key).slice(-5000)
+  });
+  deletionSnapshotCache.at = 0;
+}
+
+function markAccountDeletion(userId, status, chats) {
+  const ledger = readJson(ACCOUNT_DELETIONS_FILE, { events: [] });
+  const events = Array.isArray(ledger.events) ? ledger.events : [];
+  const at = now();
+  const key = deletionUserKey(userId);
+  const existing = events.find((one) => one.key === key);
+  const row = {
+    key,
+    at: (existing && existing.at) || at,
+    updatedAt: at,
+    status,
+    chats: Array.isArray(chats) ? Array.from(new Set(chats.filter(Boolean))).slice(0, 10000) : ((existing && existing.chats) || [])
+  };
+  if (existing) Object.assign(existing, row);
+  else events.push(row);
+  saveDeletionLedger(events);
+}
+
+function reconcileDeletionMemory() {
+  const snapshot = readDeletionLedger();
+  const ids = snapshot.ids;
+  if (!ids.size) return;
+  const last = snapshot.events[snapshot.events.length - 1] || {};
+  const signature = [
+    snapshot.mtimeMs, snapshot.size, snapshot.events.length,
+    last.updatedAt || '', last.status || ''
+  ].join('|');
+  if (signature === lastReconciledDeletionSignature) return;
+  const affectedChats = new Set();
+  snapshot.events.forEach((one) => (one.chats || []).forEach((id) => affectedChats.add(String(id))));
+
+  db.users = db.users.filter((u) => !ids.has(deletionUserKey(u.id)));
+  db.friendships = db.friendships.filter((f) =>
+    !ids.has(deletionUserKey(f.fromId)) && !ids.has(deletionUserKey(f.toId)));
+  db.moments = db.moments.filter((moment) => !ids.has(deletionUserKey(moment.authorId))).map((moment) => {
+    if (Array.isArray(moment.likes)) {
+      moment.likes = moment.likes.filter((like) => like && !ids.has(deletionUserKey(like.userId)));
+    }
+    if (Array.isArray(moment.comments)) {
+      moment.comments = moment.comments.filter((comment) =>
+        comment && !ids.has(deletionUserKey(comment.userId)));
+    }
+    return moment;
+  });
+  db.chats = db.chats.filter((chat) => {
+    if (!Array.isArray(chat.memberIds)
+        || !chat.memberIds.some((id) => ids.has(deletionUserKey(id)))) return true;
+    affectedChats.add(chat.id);
+    chat.memberIds = chat.memberIds.filter((id) => !ids.has(deletionUserKey(id)));
+    return chat.type === 'group' && chat.memberIds.length >= 2;
+  });
+  Object.keys(db.reads || {}).forEach((id) => {
+    if (ids.has(deletionUserKey(id))) delete db.reads[id];
+  });
+  Object.keys(db.momentViews || {}).forEach((id) => {
+    if (ids.has(deletionUserKey(id))) delete db.momentViews[id];
+  });
+  Object.keys(db.momentNoticeSeen || {}).forEach((id) => {
+    if (ids.has(deletionUserKey(id))) delete db.momentNoticeSeen[id];
+  });
+  if (db.cleared) {
+    Object.keys(db.cleared).forEach((id) => {
+      if (ids.has(deletionUserKey(id))) delete db.cleared[id];
+    });
+  }
+  if (db.delivered) {
+    Object.keys(db.delivered).forEach((id) => {
+      if (ids.has(deletionUserKey(id))) delete db.delivered[id];
+    });
+  }
+  db.momentNotices = db.momentNotices.filter((n) =>
+    !ids.has(deletionUserKey(n.fromUserId)) && !ids.has(deletionUserKey(n.toUserId)));
+  db.security.logins = db.security.logins.filter((row) =>
+    !ids.has(deletionUserKey(row.userId)));
+  db.security.events = db.security.events.filter((row) =>
+    !ids.has(deletionUserKey(row.userId)));
+  affectedChats.forEach((chatId) => messageCache.delete(chatId));
+  friendSetCache.clear();
+  memberCache = null;
+  friendMetaCache = null;
+  bizCache = null;
+  nearbyCache = null;
+  stickerUserCache = null;
+  pushCache = null;
+  lastReconciledDeletionSignature = signature;
+}
+
+setInterval(() => {
+  try { reconcileDeletionMemory(); } catch (err) { /* 单次同步失败下一次继续 */ }
+}, 250).unref();
+
 /**
  * 账号注销的数据清理入口。
  * 用户可删除的资料、聊天、媒体、朋友圈和关系立即删除；
@@ -9811,16 +9944,19 @@ function purgeAccountData(userId) {
   const target = db.users.find((u) => u.id === userId);
   if (!target) return false;
 
+  markAccountDeletion(userId, 'pending', []);
   const ownedUploads = new Set();
   collectUploadReferences(target, ownedUploads);
   closeUserConnections(userId);
 
+  const affectedChats = [];
   const keptChats = [];
   for (const chat of db.chats.slice()) {
     if (!Array.isArray(chat.memberIds) || !chat.memberIds.includes(userId)) {
       keptChats.push(chat);
       continue;
     }
+    affectedChats.push(chat.id);
     const before = loadMessages(chat.id);
     const after = [];
     before.forEach((message) => {
@@ -9914,6 +10050,7 @@ function purgeAccountData(userId) {
     if (stillUsed.has(name)) return;
     try { fs.unlinkSync(path.join(UPLOAD_DIR, name)); } catch (err) { /* 文件可能已不存在 */ }
   });
+  markAccountDeletion(userId, 'done', affectedChats);
   return true;
 }
 
