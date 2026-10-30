@@ -6,10 +6,15 @@ private final class CompactDotTabBar: UITabBar {
         didSet { setNeedsLayout() }
     }
 
+    var clearsNativeBackdrop = false {
+        didSet { updateNativeBackdropVisibility() }
+    }
+
     private var dotViews: [Int: UIView] = [:]
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        updateNativeBackdropVisibility()
         let slot = bounds.width / 4
         for index in 0..<4 {
             let dot = dotViews[index] ?? {
@@ -28,6 +33,16 @@ private final class CompactDotTabBar: UITabBar {
             let centerX = slot * (CGFloat(index) + 0.5)
             dot.frame = CGRect(x: centerX + 9.5, y: 3.5, width: 8, height: 8)
             bringSubviewToFront(dot)
+        }
+    }
+
+    private func updateNativeBackdropVisibility() {
+        /* iOS 26/27 会保留一层原生 TabBar 背板。深色只隐藏这层，
+           不覆盖图标内容；外层 TabGlassBackdrop 继续负责玻璃效果。 */
+        for child in subviews {
+            let typeName = String(describing: type(of: child))
+            guard typeName.contains("BarBackground") else { continue }
+            child.isHidden = clearsNativeBackdrop
         }
     }
 }
@@ -208,11 +223,16 @@ struct NativeTabBar: UIViewRepresentable {
         if scheme == .dark {
             appearance.backgroundEffect = nil
             appearance.backgroundColor = .clear
-            appearance.backgroundImage = nil
+            appearance.backgroundImage = UIImage()
+            bar.backgroundImage = UIImage()
+            bar.shadowImage = UIImage()
+            bar.backgroundColor = .clear
         } else {
             appearance.backgroundColor = UIColor(red: 0.955, green: 0.982,
                                                  blue: 0.970, alpha: 0.68)
             appearance.backgroundImage = nil
+            bar.backgroundImage = nil
+            bar.shadowImage = nil
         }
         appearance.shadowColor = UIColor.clear
         let normalTitle: [NSAttributedString.Key: Any] = [
@@ -230,6 +250,9 @@ struct NativeTabBar: UIViewRepresentable {
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.isTranslucent = true
+        if let bar = bar as? CompactDotTabBar {
+            bar.clearsNativeBackdrop = scheme == .dark
+        }
     }
 
     private func refresh(_ bar: UITabBar) {
@@ -365,7 +388,7 @@ struct TabGlassBackdrop: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {}
 
     private final class TabGlassBackdropView: UIView {
-        private let blur = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+        private let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
         private let tint = CAGradientLayer()
 
         override init(frame: CGRect) {
@@ -391,9 +414,7 @@ struct TabGlassBackdrop: UIViewRepresentable {
 
         override func layoutSubviews() {
             super.layoutSubviews()
-            /* 系统 Material 自带边缘亮带。只使用纯模糊，并把模糊层
-               向边缘外扩，由玻璃容器裁切，保留磨砂但去掉背板色条。 */
-            blur.frame = bounds.insetBy(dx: 0, dy: -6)
+            blur.frame = bounds
             tint.frame = bounds
         }
     }

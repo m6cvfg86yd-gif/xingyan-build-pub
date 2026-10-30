@@ -209,11 +209,6 @@ struct ChatRow: View {
                     }
                 }
 
-                if chat.pinned == true {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 8.5))
-                        .foregroundStyle(OrbitTheme.gold)
-                }
             }
             mentionPreview
                 .font(.system(size: 12.5))
@@ -256,8 +251,7 @@ struct ChatRow: View {
 
     private var idlePreview: String {
         if chat.type == "group" {
-            let count = chat.memberCount ?? chat.memberIds?.count ?? 0
-            return count > 0 ? "\(count) 人群聊" : "群聊"
+            return "群聊"
         }
         if chat.bot == "qqnews" { return "看看今天的热点" }
         if chat.showsOfficialMark { return "查看官方内容" }
