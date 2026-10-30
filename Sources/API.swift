@@ -673,6 +673,9 @@ private struct ContactsPayload: Decodable {
 
     var added: [User]?
 }
+private struct PhoneContactMatchesPayload: Decodable {
+    var users: [User]?
+}
 private struct MePayload: Decodable { var user: User? }
 private struct UserPayload: Decodable { var user: User? }
 private struct LoginPayload: Decodable { var user: User? }
@@ -4599,6 +4602,15 @@ private struct StarredPayload: Decodable {
     func contacts() async throws -> [User] {
         let payload: ContactsPayload = try await get("/api/contacts", as: ContactsPayload.self)
         return payload.friends
+    }
+
+    func matchPhoneContacts(salt: Data, hashes: [String]) async throws -> [User] {
+        let payload: PhoneContactMatchesPayload = try await post(
+            "/api/contacts/phone-match",
+            ["salt": salt.base64EncodedString(), "hashes": hashes],
+            as: PhoneContactMatchesPayload.self
+        )
+        return payload.users ?? []
     }
 
     func contactsFull() async throws -> (friends: [User], incoming: [User]) {

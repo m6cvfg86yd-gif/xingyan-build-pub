@@ -4272,6 +4272,7 @@ function openMessage(chatId, line) {
 function saveMessagesFile(chatId, list) {
   const body = list.map((m) => sealMessage(chatId, m)).join('\n');
   fs.writeFileSync(messagesFile(chatId), body ? body + '\n' : '', 'utf8');
+  messageCache.delete(chatId);
 }
 
 /** 启动时把还留在磁盘上的明文消息文件改成密文（一次性、可重复跑） */
@@ -4316,10 +4317,23 @@ function migrateMessagesToEncrypted() {
 }
 
 function loadMessages(chatId) {
-  if (messageCache.has(chatId)) return messageCache.get(chatId);
   const file = messagesFile(chatId);
+  const nowMs = Date.now();
+  const cached = messageCache.get(chatId);
+  if (cached && nowMs - cached.at < 250) return cached.list;
+  let mtimeMs = -1;
+  let size = -1;
+  try {
+    const stat = fs.statSync(file);
+    mtimeMs = stat.mtimeMs;
+    size = stat.size;
+  } catch (err) { /* 文件不存在按空会话处理 */ }
+  if (cached && cached.mtimeMs === mtimeMs && cached.size === size) {
+    cached.at = nowMs;
+    return cached.list;
+  }
   const list = [];
-  if (fs.existsSync(file)) {
+  if (mtimeMs >= 0) {
     const lines = fs.readFileSync(file, 'utf8').split('\n');
     for (const line of lines) {
       const t = line.trim();
@@ -4328,18 +4342,29 @@ function loadMessages(chatId) {
     }
   }
   const trimmed = list.slice(-MAX_CACHE);
-  messageCache.set(chatId, trimmed);
+  messageCache.set(chatId, { at: nowMs, mtimeMs, size, list: trimmed });
+  if (messageCache.size > 8000) messageCache.delete(messageCache.keys().next().value);
   return trimmed;
 }
 
 function appendMessage(chatId, message) {
-  fs.appendFileSync(messagesFile(chatId), sealMessage(chatId, message) + '\n', 'utf8');
-  // loadMessages 会重新读文件（里面已经有这条了），所以这里只在缓存里没有时才补一次，
-  // 否则同一条系统消息会在内存里出现两遍（发公告、面对面建群时都能看到）
-  const list = loadMessages(chatId);
-  const last = list[list.length - 1];
-  if (!last || last.id !== message.id) list.push(message);   // 只看尾巴，几万条也不拖慢
-  if (list.length > MAX_CACHE) list.splice(0, list.length - MAX_CACHE);
+  const file = messagesFile(chatId);
+  fs.appendFileSync(file, sealMessage(chatId, message) + '\n', 'utf8');
+  const cached = messageCache.get(chatId);
+  if (!cached) {
+    loadMessages(chatId);
+    return;
+  }
+  if (!cached.list.some((one) => one.id === message.id)) cached.list.push(message);
+  if (cached.list.length > MAX_CACHE) cached.list.splice(0, cached.list.length - MAX_CACHE);
+  try {
+    const stat = fs.statSync(file);
+    cached.mtimeMs = stat.mtimeMs;
+    cached.size = stat.size;
+    cached.at = Date.now();
+  } catch (err) {
+    messageCache.delete(chatId);
+  }
 }
 
 /* 会话自身 seq 是批量落盘的，进程若在 1.5 秒窗口内重启，可能比消息文件慢。
@@ -4649,6 +4674,21 @@ function verifyPasswordHashed(user, password) {
 const LOGIN_FAILS = new Map();          // key -> { n, first, until }
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_MAX = 8;                    // 单账号
+
+const PHONE_MATCH_HITS = new Map();
+const PHONE_MATCH_WINDOW_MS = 10 * 60 * 1000;
+const PHONE_MATCH_MAX = 20;
+function phoneMatchRateAllow(key) {
+  const nowMs = Date.now();
+  let row = PHONE_MATCH_HITS.get(key);
+  if (!row || nowMs - row.at > PHONE_MATCH_WINDOW_MS) {
+    row = { at: nowMs, n: 0 };
+    PHONE_MATCH_HITS.set(key, row);
+  }
+  row.n += 1;
+  if (PHONE_MATCH_HITS.size > 5000) PHONE_MATCH_HITS.clear();
+  return row.n <= PHONE_MATCH_MAX;
+}
 const LOGIN_IP_MAX = 30;                // 单 IP（防止换账号扫）
 
 function loginBlocked(key) {
@@ -9981,7 +10021,6 @@ function purgeAccountData(userId) {
       continue;
     }
     saveMessagesFile(chat.id, after);
-    messageCache.set(chat.id, after);
     keptChats.push(chat);
     if (chat.type === 'group' && chat.avatarAuto) {
       try { refreshGroupAvatar(chat); } catch (err) { /* 头像重建失败不影响注销 */ }
@@ -16612,6 +16651,43 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
 
+  if (parts[0] === 'contacts' && parts[1] === 'phone-match' && method === 'POST') {
+    if (!phoneMatchRateAllow(user.id + ':' + clientInfo(req).ip)) {
+      return fail(res, 429, '手机联系人匹配太频繁，请稍后再试');
+    }
+    const body = await readBody(req);
+    const saltText = str(body.salt, 200);
+    let salt = null;
+    try { salt = Buffer.from(saltText, 'base64'); } catch (err) { salt = null; }
+    if (!salt || salt.length < 16 || salt.length > 64) {
+      return fail(res, 422, '匹配令牌不合法');
+    }
+    const hashes = Array.isArray(body.hashes)
+      ? body.hashes.map((one) => String(one || '').toLowerCase())
+        .filter((one) => /^[a-f0-9]{64}$/.test(one)).slice(0, 2000)
+      : [];
+    if (!hashes.length) return fail(res, 422, '没有可匹配的手机联系人');
+    const wanted = new Set(hashes);
+    const friendSet = friendSetCached(user.id);
+    const users = [];
+    for (const candidate of db.users) {
+      if (!candidate || candidate.id === user.id || candidate.bot
+          || candidate.banned || candidate.frozen) continue;
+      const phone = normalizePhone(candidate.phone);
+      if (!/^\d{7,15}$/.test(phone) || !userPrivacy(candidate).addByPhone) continue;
+      const digest = crypto.createHmac('sha256', salt).update(phone).digest('hex');
+      if (!wanted.has(digest)) continue;
+      const f = friendshipBetween(user.id, candidate.id);
+      users.push(Object.assign(publicUserBrief(candidate, user.id, friendSet), {
+        relation: !f ? 'none' : (f.status === 'accepted' ? 'friend'
+          : (f.fromId === user.id ? 'requested' : 'incoming'))
+      }));
+      if (users.length >= 500) break;
+    }
+    ok(res, { users });
+    return;
+  }
+
   if (parts[0] === 'contacts' && method === 'GET') {
     const online = onlineUserIds();
     /* 公众号**不算好友**：微信里它们只出现在「通讯录 → 公众号」和会话列表，
@@ -21828,6 +21904,7 @@ async function handleOps(req, res, parts, query) {
       '3. 为提供音视频、AI、推送和支付功能，必要信息会由相应服务商处理，具体见隐私政策。',
       '4. 修改密码或注销账号后，相关登录令牌会立即失效。'].join('\n'),
     privacy: ['星言仅在提供功能所需范围内处理账号与安全、资料与内容、位置、实名交易和诊断信息。',
+      '手机联系人只在你主动点击并授权后读取，号码经随机令牌生成不可逆匹配值，号码原文不上传、不保存。',
       '音视频使用腾讯云 TRTC；AI 功能启用时使用 DeepSeek；推送使用 Apple APNs；支付使用支付宝或后台配置的支付/短信服务。',
       '我们不会出售个人信息，也不会用于跨 App 广告追踪。',
       '人脸活体检测在本机完成，不上传人脸照片。',

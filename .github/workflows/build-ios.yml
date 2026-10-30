@@ -82,6 +82,7 @@ jobs:
           node server/test/chat-actions.test.js
           node server/test/account-deletion.test.js
           node server/test/account-deletion-shards.test.js
+          node server/test/phone-contacts.test.js
 
       - name: 校验核心模块
         run: bash tools/verify-core.sh

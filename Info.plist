@@ -30,6 +30,7 @@
 	<key>NSSpeechRecognitionUsageDescription</key><string>星言需要使用语音识别，用于语音转文字、AI 对话和声音锁</string>
   <key>NSPhotoLibraryUsageDescription</key><string>星言需要访问你选择的照片和视频以便发送内容</string>
   <key>NSPhotoLibraryAddUsageDescription</key><string>星言需要把图片或视频保存到相册</string>
+  <key>NSContactsUsageDescription</key><string>星言仅在你主动查找手机联系人时读取电话号码，号码不会上传原文或保存</string>
   <key>NSLocalNetworkUsageDescription</key><string>星言需要使用本地网络接收面对面的照片、视频和文件</string>
   <key>NSBonjourServices</key>
   <array>

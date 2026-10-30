@@ -147,6 +147,31 @@ async function main() {
     const alice = await login(shardA.base, 'shard_alice');
     const bob = await login(shardB.base, 'shard_bob');
 
+    response = await call(shardB.base, bob.cookie, 'GET',
+      '/api/chats/' + chatId + '/messages?limit=50');
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    response = await call(shardA.base, alice.cookie, 'POST',
+      '/api/chats/' + chatId + '/messages',
+      { kind: 'text', content: '跨分片新消息', clientId: 'shard-new-message' });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    const sentId = response.data.message.id;
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    response = await call(shardB.base, bob.cookie, 'GET',
+      '/api/chats/' + chatId + '/messages?limit=50');
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.ok((response.data.messages || []).some((message) => message.id === sentId),
+      '其他分片没有刷新到新消息');
+
+    response = await call(shardA.base, alice.cookie, 'POST',
+      '/api/messages/' + sentId + '/recall', { chatId });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    response = await call(shardB.base, bob.cookie, 'GET',
+      '/api/chats/' + chatId + '/messages?limit=50');
+    const recalled = (response.data.messages || []).find((message) => message.id === sentId);
+    assert.ok(recalled && recalled.recalled === true,
+      '其他分片仍返回撤回前的消息');
+
     response = await call(shardA.base, alice.cookie, 'POST', '/api/me/delete', { confirm: '注销' });
     assert.equal(response.status, 200, JSON.stringify(response.data));
     assert.equal(response.data.deleted, true);

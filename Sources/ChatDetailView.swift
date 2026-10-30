@@ -1481,6 +1481,12 @@ struct ChatDetailView: View {
                 burnAway(ev.burnIds)
             }
 
+            if ev.type == "recall", ev.chatId == chat.id, !ev.messageId.isEmpty,
+               let index = messages.firstIndex(where: { $0.id == ev.messageId }) {
+                messages[index].recalled = true
+                rebuildIndex()
+            }
+
             if ev.type == "message", ev.chatId == chat.id, let message = ev.message {
                 upsertVisibleMessage(message)
                 if let seq = message.seq { Realtime.shared.ackDelivery(chatId: chat.id, seq: seq) }
@@ -1489,6 +1495,15 @@ struct ChatDetailView: View {
                 pushTask?.cancel()
                 pushTask = Task {
                     try? await Task.sleep(nanoseconds: 250_000_000)
+                    if Task.isCancelled { return }
+                    await load(initial: false)
+                }
+            }
+
+            if ["recall", "transfer", "redpacket"].contains(ev.type), ev.chatId == chat.id {
+                pushTask?.cancel()
+                pushTask = Task {
+                    try? await Task.sleep(nanoseconds: 120_000_000)
                     if Task.isCancelled { return }
                     await load(initial: false)
                 }
