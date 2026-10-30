@@ -168,6 +168,15 @@ async function main() {
     assert.ok(!fs.existsSync(path.join(dataDir, 'uploads', uploadName)));
     assert.ok(!fs.existsSync(path.join(dataDir, 'messages', chatId + '.jsonl')));
 
+    response = await call(shardB.base, bob.cookie, 'POST', '/api/me/delete', { confirm: '注销' });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    const deletionRows = fs.readFileSync(path.join(dataDir, 'account-deletions.jsonl'), 'utf8')
+      .split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    assert.equal(new Set(deletionRows.map((row) => row.key)).size, 2,
+      '并发注销墓碑互相覆盖');
+    assert.ok(deletionRows.every((row) => !row.userId),
+      '注销墓碑不能保存原始用户 ID');
+
     console.log('account-deletion-shards: passed');
   } finally {
     await stopServer(shardA && shardA.child);

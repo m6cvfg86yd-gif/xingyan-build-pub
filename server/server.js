@@ -6982,6 +6982,12 @@ function handleClientMessage(user, socket, raw) {
   let msg;
   try { msg = JSON.parse(raw); } catch (err) { return; }
   if (!msg || typeof msg.type !== 'string') return;
+  const liveUser = findUser(user.id);
+  if (!liveUser || readDeletionLedger().ids.has(deletionUserKey(user.id))) {
+    try { socket.close(); } catch (err) { /* already closed */ }
+    return;
+  }
+  user = liveUser;
 
   /* 单条连接的信令频率限制：正常聊天/通话每秒撑死几十条，
      有人拿一条连接猛刷（比如穷举 callId、刷屏）就直接断开。 */
@@ -9803,7 +9809,7 @@ function remainingUploadReferences() {
   return refs;
 }
 
-const ACCOUNT_DELETIONS_FILE = path.join(DATA_DIR, 'account-deletions.json');
+const ACCOUNT_DELETIONS_FILE = path.join(DATA_DIR, 'account-deletions.jsonl');
 let deletionSnapshotCache = { at: 0, mtimeMs: -1, size: -1, ids: new Set(), events: [] };
 let lastReconciledDeletionSignature = '';
 
@@ -9815,7 +9821,7 @@ function deletionUserKey(userId) {
 
 function readDeletionLedger() {
   const nowMs = Date.now();
-  if (nowMs - deletionSnapshotCache.at < 100) return deletionSnapshotCache;
+  if (nowMs - deletionSnapshotCache.at < 50) return deletionSnapshotCache;
   let mtimeMs = -1;
   let size = -1;
   try {
@@ -9828,28 +9834,30 @@ function readDeletionLedger() {
     deletionSnapshotCache.at = nowMs;
     return deletionSnapshotCache;
   }
-  const raw = readJson(ACCOUNT_DELETIONS_FILE, { events: [] });
-  const events = Array.isArray(raw.events) ? raw.events.filter((one) => one && one.key) : [];
+  const latest = new Map();
+  try {
+    const lines = fs.readFileSync(ACCOUNT_DELETIONS_FILE, 'utf8').split('\n');
+    lines.forEach((line) => {
+      if (!line.trim()) return;
+      try {
+        const one = JSON.parse(line);
+        if (!one || !one.key) return;
+        const old = latest.get(one.key);
+        latest.set(one.key, Object.assign({}, old || {}, one));
+      } catch (err) { /* 跳过损坏行 */ }
+    });
+  } catch (err) { /* 第一次还没有文件 */ }
+  const events = Array.from(latest.values());
   deletionSnapshotCache = {
     at: nowMs, mtimeMs, size, events, ids: new Set(events.map((one) => one.key))
   };
   return deletionSnapshotCache;
 }
 
-function saveDeletionLedger(events) {
-  writeJson(ACCOUNT_DELETIONS_FILE, {
-    version: 1,
-    events: events.filter((one) => one && one.key).slice(-5000)
-  });
-  deletionSnapshotCache.at = 0;
-}
-
 function markAccountDeletion(userId, status, chats) {
-  const ledger = readJson(ACCOUNT_DELETIONS_FILE, { events: [] });
-  const events = Array.isArray(ledger.events) ? ledger.events : [];
   const at = now();
   const key = deletionUserKey(userId);
-  const existing = events.find((one) => one.key === key);
+  const existing = readDeletionLedger().events.find((one) => one.key === key);
   const row = {
     key,
     at: (existing && existing.at) || at,
@@ -9857,9 +9865,10 @@ function markAccountDeletion(userId, status, chats) {
     status,
     chats: Array.isArray(chats) ? Array.from(new Set(chats.filter(Boolean))).slice(0, 10000) : ((existing && existing.chats) || [])
   };
-  if (existing) Object.assign(existing, row);
-  else events.push(row);
-  saveDeletionLedger(events);
+  fs.appendFileSync(ACCOUNT_DELETIONS_FILE, JSON.stringify(row) + '\n', {
+    encoding: 'utf8', mode: 0o600
+  });
+  deletionSnapshotCache.at = 0;
 }
 
 function reconcileDeletionMemory() {
@@ -9933,7 +9942,7 @@ function reconcileDeletionMemory() {
 
 setInterval(() => {
   try { reconcileDeletionMemory(); } catch (err) { /* 单次同步失败下一次继续 */ }
-}, 250).unref();
+}, 100).unref();
 
 /**
  * 账号注销的数据清理入口。
@@ -9944,19 +9953,20 @@ function purgeAccountData(userId) {
   const target = db.users.find((u) => u.id === userId);
   if (!target) return false;
 
-  markAccountDeletion(userId, 'pending', []);
+  const affectedChats = db.chats
+    .filter((chat) => Array.isArray(chat.memberIds) && chat.memberIds.includes(userId))
+    .map((chat) => chat.id);
+  markAccountDeletion(userId, 'pending', affectedChats);
   const ownedUploads = new Set();
   collectUploadReferences(target, ownedUploads);
   closeUserConnections(userId);
 
-  const affectedChats = [];
   const keptChats = [];
   for (const chat of db.chats.slice()) {
     if (!Array.isArray(chat.memberIds) || !chat.memberIds.includes(userId)) {
       keptChats.push(chat);
       continue;
     }
-    affectedChats.push(chat.id);
     const before = loadMessages(chat.id);
     const after = [];
     before.forEach((message) => {
