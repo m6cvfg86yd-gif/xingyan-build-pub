@@ -470,12 +470,6 @@ struct TabBar: View {
                     startPoint: .top, endPoint: .bottom
                 )
                 OrbitTheme.jade.opacity(0.07)
-                VStack(spacing: 0) {
-                    Rectangle()
-                        .fill(Color(hex: 0xD8EEE5).opacity(0.34))
-                        .frame(height: 0.5)
-                    Spacer(minLength: 0)
-                }
             })
         }
         let fill = UIConfig.colorIfSet("tabBarColor")
