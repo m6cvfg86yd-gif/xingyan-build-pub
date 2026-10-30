@@ -151,7 +151,7 @@ enum StarOrbitContactKind: String {
         switch self {
         case .newFriends: return OrbitTheme.jade
         case .groups: return Color.dyn(0x315E78, 0x78AFC8)
-        case .tags: return OrbitTheme.gold
+        case .tags: return OrbitTheme.jade
         case .official, .service: return Color.dyn(0x5E6579, 0xAAB4D0)
         }
     }
@@ -498,7 +498,7 @@ struct StarOrbitTagsView: View {
                         title: Tr("标签"),
                         subtitle: Tr("把重要的人放进你的星轨，关系会更清晰"),
                         symbol: "tag.fill",
-                        accent: OrbitTheme.gold,
+                        accent: OrbitTheme.jade,
                         metrics: [
                             StarOrbitMetric(value: "\(groups.count)", label: Tr("个标签")),
                             StarOrbitMetric(value: "\(groups.reduce(0) { $0 + $1.users.count })", label: Tr("次标注"))
@@ -543,7 +543,7 @@ struct StarOrbitTagsView: View {
     private func tagCard(_ group: StarTagGroup) -> some View {
         StarOrbitCard {
             HStack(spacing: 13) {
-                StarOrbitIconBadge(symbol: "tag.fill", accent: OrbitTheme.gold)
+                StarOrbitIconBadge(symbol: "tag.fill", accent: OrbitTheme.jade)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(group.name)
                         .font(.system(size: 16.5, weight: .semibold))
@@ -555,7 +555,7 @@ struct StarOrbitTagsView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                StarOrbitTrailingPill(text: "\(group.users.count)", accent: OrbitTheme.gold)
+                StarOrbitTrailingPill(text: "\(group.users.count)", accent: OrbitTheme.jade)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(OrbitTheme.tertiary)
@@ -568,7 +568,7 @@ struct StarOrbitTagsView: View {
 
     private var emptyState: some View {
         VStack(spacing: 12) {
-            StarOrbitIconBadge(symbol: "sparkles", accent: OrbitTheme.gold, size: 54)
+            StarOrbitIconBadge(symbol: "sparkles", accent: OrbitTheme.jade, size: 54)
             Text(Tr("还没有标签"))
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(OrbitTheme.ink)
@@ -602,7 +602,7 @@ struct StarOrbitTagDetailView: View {
                         title: tag,
                         subtitle: Tr("同一星轨上的联系人"),
                         symbol: "point.3.connected.trianglepath.dotted",
-                        accent: OrbitTheme.gold,
+                        accent: OrbitTheme.jade,
                         metrics: [StarOrbitMetric(value: "\(users.count)", label: Tr("位联系人"))]
                     )
                     .padding(.horizontal, 12)

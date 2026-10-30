@@ -86,7 +86,7 @@ private var funcs: [(String, String, Color, String)] {
         (Tr("新的朋友"), I.newFriends, Color(hex: 0x2C6E5E), "newFriends"),
         (Tr("群聊"), I.groups, Color(hex: 0x315E78), "groups"),
         (Tr("仅聊天的朋友"), I.chatOnly, Color(hex: 0x8E8E99), "chatOnly"),
-        (Tr("标签"), I.tag, Color(hex: 0xB27C37), "tags"),
+        (Tr("标签"), I.tag, OrbitTheme.jadeDeep, "tags"),
         (Tr("公众号"), I.service, Color(hex: 0x5E6579), "officialAccounts")
     ]
 }
