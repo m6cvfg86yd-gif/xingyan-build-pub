@@ -1452,10 +1452,22 @@ enum APIError: LocalizedError {
 }
 
 enum ServerTrustPolicy {
+    private static let pinnedCertificate: Set<String> = [
+        "ec0d5e4e90c5d76c40142e4c122b6f89af557bd58ac5de97e9ff81fc1f7683b5"
+    ]
+
     static func canAccept(_ trust: SecTrust, host: String) -> Bool {
         guard API.trustedHost(host) else { return false }
 
-        return SecTrustEvaluateWithError(trust, nil)
+        let count = SecTrustGetCertificateCount(trust)
+        return (0..<max(0, count)).contains { index in
+            guard let certificate = SecTrustGetCertificateAtIndex(trust, index) else { return false }
+            let data = SecCertificateCopyData(certificate) as Data
+            let digest = SHA256.hash(data: data)
+                .map { String(format: "%02x", $0) }
+                .joined()
+            return pinnedCertificate.contains(digest)
+        }
     }
 }
 
@@ -1503,12 +1515,12 @@ final class API {
 
     private(set) var token: String = ""
 
-    private(set) var server: String = "aa.x8iu.com"
+    private(set) var server: String = "103.233.254.147"
 
     private(set) var backups: [String] = API.builtinBackups
 
     static let trustedHosts: Set<String> = [
-        "aa.x8iu.com"
+        "103.233.254.147"
     ]
     static func trustedHost(_ s: String) -> Bool {
         var h = s.lowercased()
@@ -1548,7 +1560,7 @@ final class API {
     }
 
     static let builtinBackups: [String] = [
-        "aa.x8iu.com:5443"
+        "103.233.254.147:5443"
     ]
 
     private var lastRotate = Date.distantPast
@@ -1570,9 +1582,9 @@ final class API {
         let legacyServers: Set<String> = [
 
             "192.168.2.7:5443", "192.168.2.7", "206.187.208.79",
-            "103.233.254.147", "103.233.254.147:5443",
             "43.242.194.89", "43.242.194.89:5443", "43.242.194.89:8443",
-            "u.598218.xyz", "u.598218.xyz:5443"
+            "u.598218.xyz", "u.598218.xyz:5443",
+            "aa.x8iu.com", "aa.x8iu.com:443", "aa.x8iu.com:5443"
         ]
         if let saved = UserDefaults.standard.string(forKey: "chris.server"),
            !saved.isEmpty,
