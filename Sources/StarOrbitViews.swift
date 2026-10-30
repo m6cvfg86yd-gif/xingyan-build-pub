@@ -345,12 +345,6 @@ struct StarStatusRail: View {
                     endPoint: .bottom
                 )
 
-                Capsule()
-                    .fill(accent.opacity(scheme == .dark ? 0.24 : 0.20))
-                    .frame(width: lineWidth, height: 0.7)
-                    .padding(.leading, inset)
-                    .padding(.bottom, 1)
-
                 Circle()
                     .fill(accent)
                     .frame(width: 3.5, height: 3.5)
