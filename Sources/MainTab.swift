@@ -96,7 +96,12 @@ struct MainTabView: View {
 
                     .background {
                         if scheme == .dark {
-                            TabGlassBackdrop()
+                            ZStack {
+                                Color(hex: 0x191919)
+                                    .ignoresSafeArea(edges: .bottom)
+                                TabGlassBackdrop()
+                                    .ignoresSafeArea(edges: .bottom)
+                            }
                         } else if UIConfig.num("tabBarOpaqueBg", 0) > 0 {
                             Color.dyn(0xFFFFFF, 0x0B1813)
                                 .ignoresSafeArea(edges: .bottom)
