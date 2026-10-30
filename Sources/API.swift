@@ -1465,11 +1465,12 @@ enum ServerTrustPolicy {
             return SecTrustEvaluateWithError(trust, nil)
         }
 
-        guard let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate] else {
-            return false
-        }
-
-        return chain.contains { certificate in
+        let count = SecTrustGetCertificateCount(trust)
+        guard count > 0 else { return false }
+        return (0..<count).contains { index in
+            guard let certificate = SecTrustGetCertificateAtIndex(trust, index) else {
+                return false
+            }
             let data = SecCertificateCopyData(certificate) as Data
             let digest = SHA256.hash(data: data)
                 .map { String(format: "%02x", $0) }
@@ -1572,7 +1573,6 @@ final class API {
     static let builtinBackups: [String] = [
         "43.242.194.89:5443",
         "103.233.254.147:5443",
-        "43.242.194.89:8443",
         "u.598218.xyz"
     ]
 
@@ -1597,7 +1597,7 @@ final class API {
             "192.168.2.7:5443", "192.168.2.7", "206.187.208.79",
             "aa.x8iu.com", "aa.x8iu.com:5443",
             "103.233.254.147", "103.233.254.147:5443",
-            "43.242.194.89:5443"
+            "43.242.194.89:5443", "43.242.194.89:8443"
         ]
         if let saved = UserDefaults.standard.string(forKey: "chris.server"),
            !saved.isEmpty,

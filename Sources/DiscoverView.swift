@@ -184,7 +184,8 @@ struct DiscoverView: View {
 
     private var grouped: [[DiscoverItem]] {
 
-        let visible = MomentsPref.isOn ? items : items.filter { $0.action != "moments" }
+        let clean = items.filter { !Self.isLegacyEntry($0) }
+        let visible = MomentsPref.isOn ? clean : clean.filter { $0.action != "moments" }
         var out: [[DiscoverItem]] = []
         var last: Int? = nil
         for it in visible {
@@ -198,15 +199,16 @@ struct DiscoverView: View {
     private func loadItems() async {
         if let list = try? await API.shared.discover(), !list.isEmpty {
 
-            items = list
+            items = list.filter { !Self.isLegacyEntry($0) }
             loaded = true
         } else if items.isEmpty {
 
-            items = DiscoverItem.builtin
+            items = DiscoverItem.builtin.filter { !Self.isLegacyEntry($0) }
         }
     }
 
     private func open(_ item: DiscoverItem) {
+        guard !Self.isLegacyEntry(item) else { return }
         switch item.action ?? "soon" {
         case "moments": path.append("moments")
         case "news": path.append("news")
@@ -235,6 +237,15 @@ struct DiscoverView: View {
             .fill(OrbitTheme.divider)
             .frame(height: 0.5)
             .padding(.leading, L.menuLineInset)
+    }
+
+    private static func isLegacyEntry(_ item: DiscoverItem) -> Bool {
+        let legacyIDs: Set<String> = ["d03", "d05", "d06", "d08", "d10"]
+        let legacyActions: Set<String> = [
+            "nearby", "shake", "bottle", "live", "look", "games", "miniapps"
+        ]
+        return legacyIDs.contains(item.id)
+            || legacyActions.contains((item.action ?? "").lowercased())
     }
 }
 
