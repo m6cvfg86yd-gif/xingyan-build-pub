@@ -123,8 +123,8 @@ struct PhoneContactsView: View {
         state = .requesting
         errorText = ""
         let granted = await withCheckedContinuation { continuation in
-            CNContactStore().requestAccess(for: .contacts) { ok in
-                continuation.resume(returning: ok)
+            CNContactStore().requestAccess(for: .contacts) { allowed, _ in
+                continuation.resume(returning: allowed)
             }
         }
         guard granted else {
