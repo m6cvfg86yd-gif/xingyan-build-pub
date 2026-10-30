@@ -1453,7 +1453,9 @@ enum APIError: LocalizedError {
 
 enum ServerTrustPolicy {
     private static let pinnedCertificate: Set<String> = [
-        "c3e72ccf02acda9d4dd335d653408ab5776150c66afb1b518640d0ce6d52c095"
+        "c3e72ccf02acda9d4dd335d653408ab5776150c66afb1b518640d0ce6d52c095",
+        "ec0d5e4e90c5d76c40142e4c122b6f89af557bd58ac5de97e9ff81fc1f7683b5",
+        "238b85a0099c65b970477d5724f1a1d475ce5058cffe4efa8733899bdb863c47"
     ]
 
     static func canAccept(_ trust: SecTrust, host: String) -> Bool {
@@ -1521,12 +1523,13 @@ final class API {
 
     private(set) var token: String = ""
 
-    private(set) var server: String = "43.242.194.89"
+    private(set) var server: String = "103.233.254.147"
 
     private(set) var backups: [String] = API.builtinBackups
 
     static let trustedHosts: Set<String> = [
         "43.242.194.89",
+        "103.233.254.147",
         "u.598218.xyz"
     ]
     static func trustedHost(_ s: String) -> Bool {
@@ -1568,6 +1571,7 @@ final class API {
 
     static let builtinBackups: [String] = [
         "43.242.194.89:5443",
+        "103.233.254.147:5443",
         "43.242.194.89:8443",
         "u.598218.xyz"
     ]
@@ -1694,7 +1698,10 @@ final class API {
         switch e.code {
         case .timedOut, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed,
              .networkConnectionLost, .notConnectedToInternet, .dataNotAllowed,
-             .secureConnectionFailed, .serverCertificateUntrusted:
+             .secureConnectionFailed, .serverCertificateUntrusted,
+             .serverCertificateHasBadDate, .serverCertificateHasUnknownRoot,
+             .serverCertificateNotYetValid, .clientCertificateRejected,
+             .appTransportSecurityRequiresSecureConnection:
             return true
         default:
             return false
