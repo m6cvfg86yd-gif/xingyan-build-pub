@@ -41,6 +41,7 @@
   <key>NSMotionUsageDescription</key><string>星言仅在摇一摇时读取运动数据，不会记录你的运动轨迹</string>
   <key>NSAppTransportSecurity</key>
   <dict>
+    <key>NSAllowsArbitraryLoads</key><true/>
     <key>NSAllowsLocalNetworking</key><true/>
   </dict>
   <key>LSApplicationQueriesSchemes</key>
