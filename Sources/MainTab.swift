@@ -92,7 +92,7 @@ struct MainTabView: View {
                              momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
                              meDot: app.showDot("me", auto: false),
                              avatarPath: app.me?.avatarPath ?? "")
-                    .frame(height: max(42, L.tabH - 6))
+                    .frame(height: max(49, L.tabH - 6))
 
                     .background {
                         if scheme == .dark {

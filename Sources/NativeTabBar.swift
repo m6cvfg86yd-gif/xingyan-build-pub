@@ -209,6 +209,8 @@ struct NativeTabBar: UIViewRepresentable {
             selectedColor: UIColor(OrbitTheme.jade)
         )
         refresh(bar)
+        bar.setNeedsLayout()
+        bar.layoutIfNeeded()
     }
 
     private func applyColors(_ bar: UITabBar) {
