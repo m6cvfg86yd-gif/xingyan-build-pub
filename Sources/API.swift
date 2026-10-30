@@ -1524,7 +1524,7 @@ final class API {
 
     private(set) var token: String = ""
 
-    private(set) var server: String = "43.242.194.89"
+    private(set) var server: String = "103.233.254.147"
 
     private(set) var backups: [String] = API.builtinBackups
 
