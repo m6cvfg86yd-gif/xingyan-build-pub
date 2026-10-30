@@ -581,7 +581,12 @@ struct MomentsView: View {
 
         .navigationDestination(isPresented: $showGroupPage) {
             if let g = groupPage {
-                MomentGroupPage(title: g.title, moments: g.moments)
+                MomentGroupPage(title: g.title, moments: g.moments, onDeleted: {
+                    Task {
+                        await reload()
+                        await app.loadMoments()
+                    }
+                })
             }
         }
 
@@ -924,7 +929,8 @@ struct MomentsView: View {
             onOpenVideo: { url in momentVideo = url },
             onOpenAvatar: { user in cardUser = user },
             onLike: { like(moment) },
-            onMore: { actionMoment = moment }
+            onMore: { actionMoment = moment },
+            onDelete: { remove(moment) }
         )
     }
 
@@ -1829,7 +1835,10 @@ struct MomentGroup: Identifiable {
 struct MomentGroupPage: View {
     let title: String
     let moments: [Moment]
+    var onDeleted: (() -> Void)? = nil
+    @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @State private var visibleMoments: [Moment] = []
     @State private var viewerPaths: [String] = []
     @State private var viewerIndex: Int?
 
@@ -1839,10 +1848,13 @@ struct MomentGroupPage: View {
                 NavBar(title: title, back: { dismiss() })
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(Array(moments.enumerated()), id: \.element.id) { i, m in
-                            MomentRow(moment: m, onOpenImage: { p in open(p, in: m) })
+                        ForEach(Array(visibleMoments.enumerated()), id: \.element.id) { i, m in
+                            MomentRow(moment: m,
+                                      onOpenImage: { p in open(p, in: m) },
+                                      myId: app.me?.id ?? "",
+                                      onDeleteMoment: { delete(m) })
                                 .padding(.horizontal, L.momentPadH)
-                            if i < moments.count - 1 {
+                            if i < visibleMoments.count - 1 {
                                 HairLine(inset: L.momentPadH + L.momentAvatar + 9)
                             }
                         }
@@ -1863,6 +1875,9 @@ struct MomentGroupPage: View {
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
+        .onAppear {
+            if visibleMoments.isEmpty { visibleMoments = moments }
+        }
     }
 
     private func open(_ path: String, in m: Moment) {
@@ -1870,6 +1885,18 @@ struct MomentGroupPage: View {
         guard !all.isEmpty else { return }
         viewerPaths = all
         viewerIndex = all.firstIndex(of: path) ?? 0
+    }
+
+    private func delete(_ moment: Moment) {
+        Task {
+            if let error = await API.shared.deleteMoment(id: moment.id) {
+                app.show(error)
+            } else {
+                visibleMoments.removeAll { $0.id == moment.id }
+                app.show(Tr("已删除"))
+                onDeleted?()
+            }
+        }
     }
 }
 
@@ -1900,6 +1927,7 @@ struct MomentRow: View {
     @State private var heartBurst = false
 
     @State private var showActions = false
+    @State private var deleteMoment = false
 
     private var images: [String] { moment.images ?? [] }
     var body: some View {
@@ -1948,7 +1976,13 @@ struct MomentRow: View {
                     Spacer()
 
                     Button {
-                        withAnimation(.easeOut(duration: 0.14)) { showActions.toggle() }
+                        if onDeleteMoment != nil {
+                            deleteMoment = true
+                        } else if let onMore {
+                            onMore()
+                        } else {
+                            withAnimation(.easeOut(duration: 0.14)) { showActions.toggle() }
+                        }
                     } label: {
                         HStack(spacing: 2.6) {
                             ForEach(0..<3, id: \.self) { _ in
@@ -2073,6 +2107,12 @@ struct MomentRow: View {
                 deletingComment = nil
             }
             Button(Tr("取消"), role: .cancel) { deletingComment = nil }
+        }
+        .alert(Tr("删除这条朋友圈？"), isPresented: $deleteMoment) {
+            Button(Tr("取消"), role: .cancel) { }
+            Button(Tr("删除"), role: .destructive) { onDeleteMoment?() }
+        } message: {
+            Text(Tr("删除后无法恢复。"))
         }
     }
 

@@ -10,10 +10,12 @@ struct MomentNoteCard: View {
     let onOpenAvatar: (User) -> Void
     let onLike: () -> Void
     let onMore: () -> Void
+    var onDelete: (() -> Void)? = nil
 
     @EnvironmentObject private var app: AppState
     @State private var heartBounce = false
     @State private var imageMenu = false
+    @State private var deleteMoment = false
     @State private var likedOverride: Bool?
 
     private var images: [String] { moment.images ?? [] }
@@ -85,6 +87,12 @@ struct MomentNoteCard: View {
             Button(Tr("保存图片")) { saveFirstImage() }
             Button(Tr("查看评论")) { onOpenComments() }
             Button(Tr("取消"), role: .cancel) { }
+        }
+        .alert(Tr("删除这条朋友圈？"), isPresented: $deleteMoment) {
+            Button(Tr("取消"), role: .cancel) { }
+            Button(Tr("删除"), role: .destructive) { onDelete?() }
+        } message: {
+            Text(Tr("删除后无法恢复。"))
         }
         .onChange(of: moment.likedByMe) { _ in likedOverride = nil }
     }
@@ -234,7 +242,13 @@ struct MomentNoteCard: View {
             Spacer(minLength: 0)
 
             if moment.mine == true {
-                Button(action: onMore) {
+                Button {
+                    if onDelete != nil {
+                        deleteMoment = true
+                    } else {
+                        onMore()
+                    }
+                } label: {
                     HStack(spacing: 2.2) {
                         ForEach(0..<3, id: \.self) { _ in
                             Circle()
