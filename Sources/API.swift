@@ -1608,9 +1608,11 @@ final class API {
 
         if let saved = Keychain.get("token") {
             token = saved
+            UserDefaults.standard.removeObject(forKey: "chris.token")
         } else if let saved = UserDefaults.standard.string(forKey: "chris.token") {
             token = saved
             Keychain.set(saved, for: "token")
+            UserDefaults.standard.removeObject(forKey: "chris.token")
         }
     }
 
@@ -1718,7 +1720,6 @@ final class API {
 
     func setToken(_ value: String) {
         token = value
-        UserDefaults.standard.set(value, forKey: "chris.token")
         Keychain.set(value, for: "token")
     }
 
