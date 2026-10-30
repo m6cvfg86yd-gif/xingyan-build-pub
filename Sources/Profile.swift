@@ -313,8 +313,13 @@ struct NewFriendsView: View {
     @State private var loading = true
     @State private var keyword = ""
     @State private var busy: Set<String> = []
+    @State private var confirmClearFriends = false
+    @State private var clearingFriends = false
 
     @State private var locallyAccepted: [String: User] = [:]
+    private var clearableFriends: [User] {
+        app.contacts.filter { $0.bot != true && $0.relation != "self" }
+    }
 
     private func hit(_ u: User) -> Bool {
         if keyword.isEmpty { return true }
@@ -348,6 +353,17 @@ struct NewFriendsView: View {
                     NavigationLink(value: "addFriend") { addFriendRow }
                         .buttonStyle(MenuPressStyle())
                         .padding(.horizontal, 12)
+
+                    if !clearableFriends.isEmpty {
+                        Button {
+                            confirmClearFriends = true
+                        } label: {
+                            clearFriendsRow
+                        }
+                        .buttonStyle(MenuPressStyle())
+                        .padding(.horizontal, 12)
+                        .disabled(clearingFriends)
+                    }
 
                     if loading && incoming.isEmpty && outgoing.isEmpty && added.isEmpty {
                         HStack { Spacer(); ProgressView(); Spacer() }
@@ -418,6 +434,16 @@ struct NewFriendsView: View {
         .onChange(of: app.localOutgoingFriendRequests) { _ in
             mergeLocalOutgoing()
         }
+        .confirmationDialog(Tr("清除所有已添加好友？"),
+                            isPresented: $confirmClearFriends,
+                            titleVisibility: .visible) {
+            Button(Tr("清除") + " \(clearableFriends.count) " + Tr("位好友"), role: .destructive) {
+                clearAllAddedFriends()
+            }
+            Button(Tr("取消"), role: .cancel) { }
+        } message: {
+            Text(Tr("将解除双方好友关系，并从当前账号移除单聊入口和本机记录。机器人、系统号和群聊会保留，此操作不可撤销。"))
+        }
     }
 
     private var orbitHeader: some View {
@@ -458,6 +484,53 @@ struct NewFriendsView: View {
         .background(OrbitTheme.cardBackground())
         .clipShape(OrbitTheme.card)
         .contentShape(Rectangle())
+    }
+
+    private var clearFriendsRow: some View {
+        HStack(spacing: L.ctGap) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous).fill(C.red)
+                Image(systemName: "person.badge.minus")
+                    .font(.system(size: 18))
+                    .foregroundColor(.white)
+            }
+            .frame(width: L.ctIcon, height: L.ctIcon)
+            Text(Tr("清除已添加的好友"))
+                .font(pf(L.ctNameSize))
+                .foregroundColor(C.red)
+            Spacer(minLength: 0)
+            if clearingFriends {
+                ProgressView().scaleEffect(0.72)
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13))
+                    .foregroundColor(C.subLabel)
+            }
+        }
+        .padding(.leading, L.ctPadL)
+        .padding(.trailing, 16)
+        .frame(height: L.ctRowH)
+        .background(OrbitTheme.cardBackground())
+        .clipShape(OrbitTheme.card)
+        .contentShape(Rectangle())
+    }
+
+    private func clearAllAddedFriends() {
+        guard !clearingFriends else { return }
+        clearingFriends = true
+        app.show(Tr("正在清除好友…"))
+        Task { @MainActor in
+            let result = await API.shared.clearAddedFriends()
+            await app.loadContacts()
+            await app.loadChats()
+            await load()
+            clearingFriends = false
+            if let error = result.error {
+                app.show(Tr("清除失败：") + error)
+            } else {
+                app.show(Tr("已清除") + " \(result.removed) " + Tr("位好友"))
+            }
+        }
     }
 
     private func sectionHeader(_ t: String, count: Int? = nil) -> some View {

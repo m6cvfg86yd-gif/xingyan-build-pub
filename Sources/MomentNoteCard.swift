@@ -243,8 +243,11 @@ struct MomentNoteCard: View {
                         }
                     }
                     .frame(width: 28, height: 28)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(Tr("更多"))
             }
         }
     }

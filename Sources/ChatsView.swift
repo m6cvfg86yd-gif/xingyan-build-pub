@@ -197,18 +197,6 @@ struct ChatRow: View {
                             height: L.v(11.5, 3.2, 13))
                     .fixedSize()
 
-                if chat.type == "group" || (chat.memberCount ?? 0) > 2 {
-                    let count = chat.memberCount ?? chat.memberIds?.count ?? 0
-                    if count > 0 {
-                        Text("\(count)人")
-                            .font(.system(size: 9.5, weight: .semibold))
-                            .foregroundStyle(OrbitTheme.tertiary)
-                            .padding(.horizontal, 5)
-                            .frame(height: 17)
-                            .background(Capsule().fill(OrbitTheme.field))
-                    }
-                }
-
             }
             mentionPreview
                 .font(.system(size: 12.5))
@@ -721,17 +709,17 @@ struct ChatsView: View {
         if count > 0 {
             Group {
                 if item == .all {
-                    Circle().fill(OrbitTheme.jade).frame(width: 7, height: 7)
+                    Circle().fill(C.red).frame(width: 7, height: 7)
                 } else {
                     Text(count > 99 ? "99+" : "\(count)")
                         .font(pfExact(9, .semibold))
-                        .foregroundColor(OrbitTheme.jade)
+                        .foregroundColor(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .padding(.horizontal, count > 9 ? 4 : 3)
                         .frame(minWidth: 15)
                         .frame(height: 15)
-                        .background(Capsule().fill(OrbitTheme.jadeSoft))
+                        .background(Capsule().fill(C.red))
                 }
             }
             .overlay {
@@ -781,16 +769,8 @@ struct ChatsView: View {
                                     .font(.system(size: 8.5, weight: .bold))
                                     .padding(.horizontal, count > 9 ? 4 : 3)
                                     .frame(height: 15)
-                                    .background(
-                                        Capsule().fill(
-                                            chatFilter == item
-                                            ? OrbitTheme.jade
-                                            : OrbitTheme.fieldRaised
-                                        )
-                                    )
-                                    .foregroundStyle(chatFilter == item
-                                                     ? Color.white
-                                                     : OrbitTheme.tertiary)
+                                    .background(Capsule().fill(C.red))
+                                    .foregroundStyle(Color.white)
                             }
                         }
                         .foregroundStyle(chatFilter == item
@@ -1572,7 +1552,7 @@ struct ChatsView: View {
             }
 
             .background(chatsPageFill.ignoresSafeArea(edges: .bottom))
-            .sheet(isPresented: $showSearch) {
+            .fullScreenCover(isPresented: $showSearch) {
                 SearchPage(onOpenChat: { c in path.append(c) })
                     .environmentObject(app)
             }

@@ -59,7 +59,7 @@ struct OrbitUnreadBadge: View {
             .minimumScaleFactor(0.7)
             .padding(.horizontal, count > 9 ? 4 : 0)
             .frame(minWidth: 18, minHeight: 18)
-            .background(Capsule().fill(muted ? OrbitTheme.fieldRaised : OrbitTheme.jade))
+            .background(Capsule().fill(muted ? OrbitTheme.fieldRaised : C.red))
             .overlay(Capsule().stroke(OrbitTheme.raised, lineWidth: 1.4))
     }
 }

@@ -1970,8 +1970,11 @@ struct MomentRow: View {
                                     .fill(C.cardBg.opacity(0.32))
                             }
                         }
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(Tr("更多"))
                 }
                 .padding(.top, 10)
 

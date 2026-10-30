@@ -3352,7 +3352,10 @@ struct ChatDetailView: View {
                 let wh = await MediaTool.aspect(file)
                 let from = uploadFrom
                 guard let up = await MediaTool.upload(file, onProgress: { p in
-                    DispatchQueue.main.async { sendProgress = from + p * (1 - from) }
+                    DispatchQueue.main.async {
+                        sendProgress = from + p * (1 - from)
+                        if p >= 0.999 { sendingMedia = Tr("服务器处理中…") }
+                    }
                 }, skipServerTranscode: true) else {
                     uploading = false
                     sendingMedia = ""
@@ -3594,20 +3597,11 @@ struct ChatDetailView: View {
         let ok = url.startAccessingSecurityScopedResource()
         defer { if ok { url.stopAccessingSecurityScopedResource() } }
 
-        let staged: URL
-        do {
-            staged = try await Task.detached(priority: .userInitiated) {
-                try FileUploadStaging.copyToTemporary(url)
-            }.value
-        } catch {
-            app.show(Tr("读不到这个文件：") + url.lastPathComponent)
-            return
-        }
-        defer { try? FileManager.default.removeItem(at: staged.deletingLastPathComponent()) }
-
-        let values = try? staged.resourceValues(forKeys: [.fileSizeKey, .nameKey])
+        // AnyFilePicker 已经用 asCopy 把文件放进了 App 可读的本地副本，
+        // 这里直接流式上传，避免大文件在发送前再整份复制一次。
+        let values = try? url.resourceValues(forKeys: [.fileSizeKey, .nameKey])
         let sizeBytes = values?.fileSize ?? 0
-        let name = values?.name ?? staged.lastPathComponent
+        let name = values?.name ?? url.lastPathComponent
         if sizeBytes > 100 * 1024 * 1024 {
             app.show(Tr("这个文件超过 100MB，先压缩一下再发"))
             return
@@ -3616,11 +3610,11 @@ struct ChatDetailView: View {
             app.show(Tr("读不到这个文件"))
             return
         }
-        let sourceMime = UTType(filenameExtension: staged.pathExtension)?.preferredMIMEType
+        let sourceMime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
             ?? "application/octet-stream"
         do {
             let uploadedURL = try await API.shared.uploadBinaryFile(
-                staged, mime: "application/octet-stream", skipTranscode: true, onProgress: { _ in })
+                url, mime: "application/octet-stream", skipTranscode: true, onProgress: { _ in })
             let body: [String: Any] = [
                 "url": uploadedURL,
                 "name": name,

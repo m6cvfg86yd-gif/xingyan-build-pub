@@ -230,7 +230,7 @@ struct SearchPage: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.top, L.safeTop + 4)
+        .padding(.top, 4)
         .padding(.bottom, 10)
     }
 

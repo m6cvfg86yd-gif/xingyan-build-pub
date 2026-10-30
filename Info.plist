@@ -30,6 +30,7 @@
 	<key>NSSpeechRecognitionUsageDescription</key><string>CHRIS聊天 需要使用语音识别，让你能跟 AI 助手说话、发送语音转文字，以及用声音锁读出数字登录</string>
   <key>NSPhotoLibraryUsageDescription</key><string>CHRIS聊天 需要访问相册以便发送图片</string>
   <key>NSPhotoLibraryAddUsageDescription</key><string>CHRIS聊天 需要把图片保存到相册</string>
+  <key>NSContactsUsageDescription</key><string>星言仅在你主动选择一个手机联系人后，将所选号码用于一次性账号查询；不会批量读取或上传其他联系人</string>
   <key>NSLocalNetworkUsageDescription</key><string>CHRIS聊天 需要使用本地网络接收面对面的照片、视频和文件</string>
   <key>NSBonjourServices</key>
   <array>
@@ -82,4 +83,3 @@
 	</array>
 </dict>
 </plist>
-
