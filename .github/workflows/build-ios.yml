@@ -169,6 +169,7 @@ jobs:
             -framework MultipeerConnectivity \
             -framework CoreGraphics -framework QuartzCore -framework OpenGLES \
             -framework Security -framework CryptoKit \
+            -framework Contacts \
             -Xlinker -dead_strip \
             -lz -lsqlite3 -lc++ \
             -Xlinker -rpath -Xlinker @executable_path/Frameworks 2>&1 | tee /tmp/build.log
