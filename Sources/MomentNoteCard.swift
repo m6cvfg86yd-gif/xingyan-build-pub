@@ -121,7 +121,7 @@ struct MomentNoteCard: View {
                     }
                     Spacer(minLength: 0)
                     if images.count > 1 {
-                        capsule("1/\(images.count)")
+                        capsule("\(images.count) " + Tr("张"))
                     }
                 }
                 Spacer(minLength: 0)
