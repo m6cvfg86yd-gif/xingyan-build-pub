@@ -68,6 +68,7 @@ struct ContactsView: View {
     @State private var bubbleTask: Task<Void, Never>?
     @State private var plusMenu = false
     @State private var showScan = false
+    @State private var showPhoneContacts = false
     @State private var confirmClearFriends = false
     @State private var clearingFriends = false
 
@@ -344,6 +345,10 @@ private var funcs: [(String, String, Color, String)] {
                         colors: [C.green, C.green.opacity(0.78)]) { path.append("newGroup") },
             NavPlusItem(title: Tr("添加朋友"), symbol: "person.badge.plus",
                         colors: [Color(hex: 0x64B5F6), Color(hex: 0x2A6BC4)]) { path.append("addFriend") },
+            NavPlusItem(title: Tr("手机联系人"), symbol: "person.text.rectangle",
+                        colors: [Color(hex: 0x69A18F), Color(hex: 0x315E78)]) {
+                showPhoneContacts = true
+            },
             NavPlusItem(title: Tr("扫一扫"), symbol: "qrcode.viewfinder",
                         colors: [C.green, C.green.opacity(0.78)]) { showScan = true },
             NavPlusItem(title: Tr("清除已添加好友"), symbol: "person.badge.minus",
@@ -357,6 +362,12 @@ private var funcs: [(String, String, Color, String)] {
         ])
         .fullScreenCover(isPresented: $showScan) {
             ScannerView { text in handleScanned(text, app: app) }
+        }
+        .sheet(isPresented: $showPhoneContacts) {
+            PhoneContactsView { user in
+                path.append(user)
+            }
+            .environmentObject(app)
         }
 
         .fullScreenCover(isPresented: $showSearch) {

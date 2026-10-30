@@ -673,6 +673,9 @@ private struct ContactsPayload: Decodable {
 
     var added: [User]?
 }
+private struct PhoneContactMatchesPayload: Decodable {
+    var users: [User]?
+}
 private struct MePayload: Decodable { var user: User? }
 private struct UserPayload: Decodable { var user: User? }
 private struct LoginPayload: Decodable { var user: User? }
@@ -1449,28 +1452,10 @@ enum APIError: LocalizedError {
 }
 
 enum ServerTrustPolicy {
-    private static let pinnedCertificate: Set<String> = [
-        "c3e72ccf02acda9d4dd335d653408ab5776150c66afb1b518640d0ce6d52c095"
-    ]
-
     static func canAccept(_ trust: SecTrust, host: String) -> Bool {
         guard API.trustedHost(host) else { return false }
 
-        if API.isLocalHost(host) {
-            return SecTrustEvaluateWithError(trust, nil)
-        }
-
-        guard let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate] else {
-            return false
-        }
-
-        return chain.contains { certificate in
-            let data = SecCertificateCopyData(certificate) as Data
-            let digest = SHA256.hash(data: data)
-                .map { String(format: "%02x", $0) }
-                .joined()
-            return pinnedCertificate.contains(digest)
-        }
+        return SecTrustEvaluateWithError(trust, nil)
     }
 }
 
@@ -1518,13 +1503,12 @@ final class API {
 
     private(set) var token: String = ""
 
-    private(set) var server: String = "43.242.194.89"
+    private(set) var server: String = "aa.x8iu.com"
 
     private(set) var backups: [String] = API.builtinBackups
 
     static let trustedHosts: Set<String> = [
-        "43.242.194.89",
-        "u.598218.xyz"
+        "aa.x8iu.com"
     ]
     static func trustedHost(_ s: String) -> Bool {
         var h = s.lowercased()
@@ -1564,9 +1548,7 @@ final class API {
     }
 
     static let builtinBackups: [String] = [
-        "43.242.194.89:5443",
-        "43.242.194.89:8443",
-        "u.598218.xyz"
+        "aa.x8iu.com:5443"
     ]
 
     private var lastRotate = Date.distantPast
@@ -1588,9 +1570,9 @@ final class API {
         let legacyServers: Set<String> = [
 
             "192.168.2.7:5443", "192.168.2.7", "206.187.208.79",
-            "aa.x8iu.com", "aa.x8iu.com:5443",
             "103.233.254.147", "103.233.254.147:5443",
-            "43.242.194.89:5443"
+            "43.242.194.89", "43.242.194.89:5443", "43.242.194.89:8443",
+            "u.598218.xyz", "u.598218.xyz:5443"
         ]
         if let saved = UserDefaults.standard.string(forKey: "chris.server"),
            !saved.isEmpty,
@@ -4598,6 +4580,15 @@ private struct StarredPayload: Decodable {
     func contacts() async throws -> [User] {
         let payload: ContactsPayload = try await get("/api/contacts", as: ContactsPayload.self)
         return payload.friends
+    }
+
+    func matchPhoneContacts(salt: Data, hashes: [String]) async throws -> [User] {
+        let payload: PhoneContactMatchesPayload = try await post(
+            "/api/contacts/phone-match",
+            ["salt": salt.base64EncodedString(), "hashes": hashes],
+            as: PhoneContactMatchesPayload.self
+        )
+        return payload.users ?? []
     }
 
     func contactsFull() async throws -> (friends: [User], incoming: [User]) {

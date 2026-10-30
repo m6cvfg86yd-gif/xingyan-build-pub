@@ -4647,6 +4647,21 @@ const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_MAX = 8;                    // 单账号
 const LOGIN_IP_MAX = 30;                // 单 IP（防止换账号扫）
 
+const PHONE_MATCH_HITS = new Map();
+const PHONE_MATCH_WINDOW_MS = 10 * 60 * 1000;
+const PHONE_MATCH_MAX = 20;
+function phoneMatchRateAllow(key) {
+  const nowMs = Date.now();
+  let row = PHONE_MATCH_HITS.get(key);
+  if (!row || nowMs - row.at > PHONE_MATCH_WINDOW_MS) {
+    row = { at: nowMs, n: 0 };
+    PHONE_MATCH_HITS.set(key, row);
+  }
+  row.n += 1;
+  if (PHONE_MATCH_HITS.size > 5000) PHONE_MATCH_HITS.clear();
+  return row.n <= PHONE_MATCH_MAX;
+}
+
 function loginBlocked(key) {
   if (riskOff()) return 0;
   const rec = LOGIN_FAILS.get(key);
@@ -16314,6 +16329,43 @@ async function handleApi(req, res, pathname, query) {
         });
       });
     ok(res, { users: list });
+    return;
+  }
+
+  if (parts[0] === 'contacts' && parts[1] === 'phone-match' && method === 'POST') {
+    if (!phoneMatchRateAllow(user.id + ':' + clientInfo(req).ip)) {
+      return fail(res, 429, '手机联系人匹配太频繁，请稍后再试');
+    }
+    const body = await readBody(req);
+    const saltText = str(body.salt, 200);
+    let salt = null;
+    try { salt = Buffer.from(saltText, 'base64'); } catch (err) { salt = null; }
+    if (!salt || salt.length < 16 || salt.length > 64) {
+      return fail(res, 422, '匹配令牌不合法');
+    }
+    const hashes = Array.isArray(body.hashes)
+      ? body.hashes.map((one) => String(one || '').toLowerCase())
+        .filter((one) => /^[a-f0-9]{64}$/.test(one)).slice(0, 2000)
+      : [];
+    if (!hashes.length) return fail(res, 422, '没有可匹配的手机联系人');
+    const wanted = new Set(hashes);
+    const friendSet = friendSetCached(user.id);
+    const users = [];
+    for (const candidate of db.users) {
+      if (!candidate || candidate.id === user.id || candidate.bot
+          || candidate.banned || candidate.frozen) continue;
+      const phone = normalizePhone(candidate.phone);
+      if (!/^\d{7,15}$/.test(phone) || !userPrivacy(candidate).addByPhone) continue;
+      const digest = crypto.createHmac('sha256', salt).update(phone).digest('hex');
+      if (!wanted.has(digest)) continue;
+      const f = friendshipBetween(user.id, candidate.id);
+      users.push(Object.assign(publicUserBrief(candidate, user.id, friendSet), {
+        relation: !f ? 'none' : (f.status === 'accepted' ? 'friend'
+          : (f.fromId === user.id ? 'requested' : 'incoming'))
+      }));
+      if (users.length >= 500) break;
+    }
+    ok(res, { users });
     return;
   }
 
