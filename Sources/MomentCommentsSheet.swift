@@ -35,6 +35,9 @@ struct MomentCommentsSheet: View {
     private var images: [String] { live.images ?? [] }
     private var comments: [MomentComment] { live.comments ?? [] }
     private var likes: [MomentLike] { live.likes ?? [] }
+    private var previewHeight: CGFloat {
+        min(280, max(220, (L.width - 32) * 0.66))
+    }
 
     var body: some View {
         NavigationStack {
@@ -222,7 +225,7 @@ struct MomentCommentsSheet: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 176)
+            .frame(height: previewHeight)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .contentShape(Rectangle())
             .simultaneousGesture(
@@ -273,7 +276,7 @@ struct MomentCommentsSheet: View {
                     .allowsHitTesting(false)
                 }
             }
-            .frame(height: 176)
+            .frame(height: previewHeight)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .padding(.top, 12)
             .onTapGesture {
