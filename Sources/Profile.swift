@@ -315,6 +315,7 @@ struct NewFriendsView: View {
     @State private var busy: Set<String> = []
     @State private var confirmClearFriends = false
     @State private var clearingFriends = false
+    @State private var pendingRemoveFriend: User?
 
     @State private var locallyAccepted: [String: User] = [:]
     private var clearableFriends: [User] {
@@ -393,8 +394,12 @@ struct NewFriendsView: View {
                         sectionHeader(Tr("已添加"), count: shownAdded.count)
                             .padding(.horizontal, 16)
                         ForEach(shownAdded) { user in
-                            doneRow(user)
-                                .background(OrbitTheme.cardBackground())
+                            SwipeDeleteFriendRow(
+                                user: user,
+                                note: noteOf(user),
+                                onOpen: { openChat(user) },
+                                onDelete: { pendingRemoveFriend = user }
+                            )
                                 .padding(.horizontal, 12)
                         }
                     }
@@ -443,6 +448,18 @@ struct NewFriendsView: View {
             Button(Tr("取消"), role: .cancel) { }
         } message: {
             Text(Tr("将解除双方好友关系，并从当前账号移除单聊入口和本机记录。机器人、系统号和群聊会保留，此操作不可撤销。"))
+        }
+        .alert(Tr("删除这位好友？"), isPresented: Binding(
+            get: { pendingRemoveFriend != nil },
+            set: { if !$0 { pendingRemoveFriend = nil } }
+        )) {
+            Button(Tr("取消"), role: .cancel) { pendingRemoveFriend = nil }
+            Button(Tr("删除"), role: .destructive) {
+                if let user = pendingRemoveFriend { removeAddedFriend(user) }
+                pendingRemoveFriend = nil
+            }
+        } message: {
+            Text(Tr("将解除双方好友关系，并从当前账号移除单聊入口和本机记录。此操作不可撤销。"))
         }
     }
 
@@ -593,7 +610,31 @@ struct NewFriendsView: View {
         .padding(.trailing, 16)
         .frame(height: 68)
         .contentShape(Rectangle())
-        .onTapGesture { openChat(user) }
+    }
+
+    private func removeAddedFriend(_ user: User) {
+        guard !busy.contains(user.id) else { return }
+        busy.insert(user.id)
+        Task { @MainActor in
+            if let error = await API.shared.removeFriend(userId: user.id) {
+                busy.remove(user.id)
+                app.show(Tr("删除失败：") + error)
+                return
+            }
+
+            let removedChatIds = app.chats.filter {
+                ($0.type ?? "direct") == "direct" && ($0.memberIds ?? []).contains(user.id)
+            }.map(\.id)
+            added.removeAll { $0.id == user.id }
+            locallyAccepted.removeValue(forKey: user.id)
+            app.applyFriendRemoved(userId: user.id)
+            for chatId in removedChatIds { app.forgetChatHistory(chatId, notify: false) }
+            await app.loadContacts()
+            await app.loadChats()
+            await load()
+            busy.remove(user.id)
+            app.show(Tr("已删除好友"))
+        }
     }
 
     private func waitingRow(_ user: User) -> some View {
@@ -706,6 +747,140 @@ struct NewFriendsView: View {
 
             await load()
         }
+    }
+}
+
+private struct SwipeDeleteFriendRow: View {
+    let user: User
+    let note: String
+    var onOpen: () -> Void
+    var onDelete: () -> Void
+
+    @State private var offset: CGFloat = 0
+    @State private var startOffset: CGFloat = 0
+    @State private var crossedOpen = false
+
+    private let rowHeight: CGFloat = 68
+    private let deleteWidth: CGFloat = 80
+    private let haptic = UIImpactFeedbackGenerator(style: .light)
+
+    private var swipeAnimation: Animation {
+        .interactiveSpring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)
+    }
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            rowContent
+                .frame(height: rowHeight)
+                .background(OrbitTheme.cardBackground())
+                .offset(x: offset)
+                .contentShape(Rectangle())
+                .zIndex(1)
+
+            Button {
+                close()
+                onDelete()
+            } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 17, weight: .medium))
+                    Text(Tr("删除"))
+                        .font(pf(14, .medium))
+                        .lineLimit(1)
+                }
+                .foregroundColor(.white)
+                .frame(width: deleteWidth, height: rowHeight)
+                .background(C.red)
+            }
+            .buttonStyle(.plain)
+            .frame(width: max(0, -offset), height: rowHeight, alignment: .trailing)
+            .clipped()
+            .allowsHitTesting(offset < -1)
+            .zIndex(2)
+        }
+        .frame(height: rowHeight)
+        .background(OrbitTheme.cardBackground())
+        .clipShape(OrbitTheme.card)
+        .overlay(alignment: .leading) {
+            GeometryReader { geo in
+                RowSwipeCatcher(
+                    onTap: { _ in
+                        if offset != 0 {
+                            close()
+                        } else {
+                            onOpen()
+                        }
+                    },
+                    onBegan: {
+                        startOffset = offset
+                        crossedOpen = -offset > deleteWidth * 0.42
+                        NotificationCenter.default.post(name: .chrisRowSwipe, object: user.id)
+                    },
+                    onChanged: { dx in
+                        var next = startOffset + dx
+                        if next > 0 {
+                            next = min(8, next * 0.22)
+                        } else if next < -deleteWidth {
+                            next = -(deleteWidth + min(42, (-next - deleteWidth) * 0.28))
+                        }
+                        offset = next
+
+                        let nowOpen = -offset > deleteWidth * 0.42
+                        if nowOpen != crossedOpen {
+                            crossedOpen = nowOpen
+                            haptic.impactOccurred(intensity: nowOpen ? 0.55 : 0.32)
+                        }
+                    },
+                    onEnded: { _, velocity in
+                        let shouldOpen: Bool
+                        if velocity <= -420 {
+                            shouldOpen = true
+                        } else if velocity >= 420 {
+                            shouldOpen = false
+                        } else {
+                            shouldOpen = -offset > deleteWidth * 0.42
+                        }
+                        if shouldOpen { haptic.impactOccurred() }
+                        withAnimation(swipeAnimation) {
+                            offset = shouldOpen ? -deleteWidth : 0
+                        }
+                    }
+                )
+                .frame(width: max(0, geo.size.width + offset), height: geo.size.height)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .chrisRowSwipe)) { note in
+            if let id = note.object as? String, id != user.id {
+                close()
+            }
+        }
+    }
+
+    private var rowContent: some View {
+        HStack(spacing: L.ctGap) {
+            Avatar(path: user.avatarPath, size: L.ctAvatar, radius: 6)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(user.name)
+                    .font(pf(L.ctNameSize))
+                    .foregroundColor(C.label)
+                    .lineLimit(1)
+                Text(note)
+                    .font(pf(13))
+                    .foregroundColor(C.subLabel)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Text(Tr("已添加"))
+                .font(pf(14))
+                .foregroundColor(C.subLabel)
+        }
+        .padding(.leading, L.ctPadL)
+        .padding(.trailing, 16)
+    }
+
+    private func close() {
+        guard offset != 0 else { return }
+        withAnimation(swipeAnimation) { offset = 0 }
     }
 }
 
