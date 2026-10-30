@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import CoreLocation
+import UIKit
 
 struct DiscoverView: View {
 
@@ -2082,6 +2083,7 @@ struct MomentRow: View {
                 MomentImageGrid(images: images,
                                 avail: L.width - L.momentPadH * 2 - L.momentAvatar - 9,
                                 sizes: moment.imageSizes ?? [:],
+                                foldKey: moment.id,
                                 onTap: { i in if i < images.count { onOpenImage?(images[i]) } })
             }
         }
@@ -2249,10 +2251,21 @@ struct MomentImageGrid: View {
     var avail: CGFloat
 
     var sizes: [String: [Int]] = [:]
+    var foldKey: String? = nil
     var onTap: (Int) -> Void
 
+    @State private var expanded = false
+    @State private var restoredFold = false
+
     private let gap: CGFloat = 6
-    private let radius: CGFloat = 4
+    private let radius: CGFloat = 7
+
+    private var foldsLongAlbum: Bool { images.count > 4 }
+    private var shownCount: Int {
+        foldsLongAlbum && !expanded ? min(3, images.count) : images.count
+    }
+    private var moreCount: Int { max(0, images.count - shownCount) }
+    private var collageWidth: CGFloat { min(avail, 304) }
 
     var body: some View {
         if images.count == 1 {
@@ -2261,30 +2274,141 @@ struct MomentImageGrid: View {
                               knownSize: (sz != nil && sz!.count == 2 && sz![1] > 0)
                                   ? CGSize(width: CGFloat(sz![0]), height: CGFloat(sz![1])) : nil) { onTap(0) }
         } else {
-            let cols = (images.count == 2 || images.count == 4) ? 2 : 3
-            let maxW = avail * (cols == 2 ? (images.count == 4 ? 0.52 : 0.62) : 0.74)
-            let cell = (maxW - gap * CGFloat(cols - 1)) / CGFloat(cols)
-            let rows = stride(from: 0, to: images.count, by: cols).map { start in
-                Array(start..<min(start + cols, images.count))
+            VStack(alignment: .leading, spacing: 6) {
+                collage(count: shownCount)
+                    .frame(width: collageWidth, alignment: .leading)
+
+                if foldsLongAlbum {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+                            expanded.toggle()
+                        }
+                        persistFold()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: expanded ? "chevron.up" : "square.grid.2x2")
+                                .font(.system(size: 10.5, weight: .semibold))
+                            Text(expanded ? Tr("收起照片") : Tr("查看全部") + " \(images.count) " + Tr("张"))
+                                .font(pf(12.5, .medium))
+                        }
+                        .foregroundColor(C.link)
+                        .padding(.vertical, 5)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .onAppear {
+                guard !restoredFold else { return }
+                restoredFold = true
+                expanded = storedFold
+            }
+            .animation(.easeInOut(duration: 0.18), value: shownCount)
+        }
+    }
+
+    @ViewBuilder
+    private func collage(count: Int) -> some View {
+        switch count {
+        case 2:
+            let side = (collageWidth - gap) / 2
+            HStack(spacing: gap) {
+                tile(0, width: side, height: side)
+                tile(1, width: side, height: side)
+            }
+
+        case 3:
+            let mainW = (collageWidth - gap) * 0.64
+            let mainH = collageWidth * 0.44
+            let smallW = collageWidth - mainW - gap
+            HStack(spacing: gap) {
+                tile(0, width: mainW, height: mainH)
+                VStack(spacing: gap) {
+                    tile(1, width: smallW, height: (mainH - gap) / 2)
+                    tile(2, width: smallW, height: (mainH - gap) / 2, more: moreCount)
+                }
+            }
+
+        case 4:
+            let side = (min(collageWidth, 286) - gap) / 2
+            VStack(alignment: .leading, spacing: gap) {
+                HStack(spacing: gap) {
+                    tile(0, width: side, height: side)
+                    tile(1, width: side, height: side)
+                }
+                HStack(spacing: gap) {
+                    tile(2, width: side, height: side)
+                    tile(3, width: side, height: side, more: moreCount)
+                }
+            }
+
+        case 5:
+            let mainH = collageWidth * 0.43
+            let rightW = collageWidth * 0.29
+            let bottomH = collageWidth * 0.24
+            let leftW = collageWidth - rightW - gap
+            let bottomW = (leftW - gap * 2) / 3
+            HStack(spacing: gap) {
+                VStack(spacing: gap) {
+                    tile(0, width: leftW, height: mainH)
+                    HStack(spacing: gap) {
+                        tile(2, width: bottomW, height: bottomH)
+                        tile(3, width: bottomW, height: bottomH)
+                        tile(4, width: bottomW, height: bottomH)
+                    }
+                }
+                tile(1, width: rightW, height: mainH + gap + bottomH)
+            }
+
+        default:
+            let cell = (collageWidth - gap * 2) / 3
+            let rows = stride(from: 0, to: count, by: 3).map { start in
+                Array(start..<min(start + 3, count))
             }
             VStack(alignment: .leading, spacing: gap) {
-                ForEach(rows.indices, id: \.self) { r in
+                ForEach(rows.indices, id: \.self) { row in
                     HStack(spacing: gap) {
-                        ForEach(rows[r], id: \.self) { i in
-                            Button { onTap(i) } label: {
-
-                                RemoteImage(path: images[i], icon: "photo", maxSide: 720)
-                                    .frame(width: cell, height: cell)
-                                    .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
+                        ForEach(rows[row], id: \.self) { index in
+                            tile(index, width: cell, height: cell,
+                                 more: index == count - 1 ? moreCount : 0)
                         }
-                        if rows[r].count < cols { Spacer(minLength: 0) }
+                        if rows[row].count < 3 { Spacer(minLength: 0) }
                     }
                 }
             }
         }
+    }
+
+    private func tile(_ index: Int, width: CGFloat, height: CGFloat, more: Int = 0) -> some View {
+        Button { onTap(index) } label: {
+            RemoteImage(path: images[index], icon: "photo", maxSide: 900)
+                .frame(width: width, height: height)
+                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+                .overlay(alignment: .bottomTrailing) {
+                    if more > 0 {
+                        Text("+\(more)")
+                            .font(pf(16, .semibold))
+                            .foregroundColor(.white)
+                            .frame(minWidth: 29, minHeight: 29)
+                            .padding(.horizontal, 3)
+                            .background(Circle().fill(Color.black.opacity(0.48)))
+                            .padding(7)
+                    }
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var storedFold: Bool {
+        guard let foldKey, !foldKey.isEmpty else { return false }
+        return AlbumFold.isOpen("moment:" + foldKey)
+    }
+
+    private func persistFold() {
+        guard let foldKey, !foldKey.isEmpty else { return }
+        AlbumFold.setOpen("moment:" + foldKey, expanded)
     }
 }
 

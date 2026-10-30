@@ -607,6 +607,8 @@ enum L10n {
         "已取消关注": "Unfollowed",
         "关注失败，稍后再试": "Could not follow, try again",
         "相册": "Album",
+        "查看全部": "View all",
+        "收起照片": "Collapse photos",
         "识别中…": "Scanning…",
         "这张图读不出来，换一张试试": "Couldn't read that image, try another",
         "这张图里没找到二维码，换一张试试": "No QR code found in that image, try another",
