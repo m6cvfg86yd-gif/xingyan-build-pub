@@ -15,7 +15,6 @@ struct MomentCommentsSheet: View {
     @State private var replyToName = ""
     @State private var sending = false
     @State private var deleting: MomentComment?
-    @State private var previewIndex = 0
     @State private var fullViewerIndex: Int?
     @State private var videoURL: URL?
     @State private var imageActions = false
@@ -201,43 +200,21 @@ struct MomentCommentsSheet: View {
     @ViewBuilder
     private var momentPreview: some View {
         if !images.isEmpty {
-            TabView(selection: Binding(
-                get: { previewIndex },
-                set: { previewIndex = $0 }
-            )) {
-                ForEach(Array(images.enumerated()), id: \.offset) { index, path in
-                    ZStack(alignment: .topLeading) {
-                        RemoteImage(path: path, icon: "photo", maxSide: 1280)
-                        if images.count > 1 {
-                            Text("\(index + 1)/\(images.count)")
-                                .font(pf(10, .medium))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                                .background(Capsule().fill(Color.black.opacity(0.42)))
-                                .padding(9)
-                        }
-                    }
-                    .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 176)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .contentShape(Rectangle())
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.45).onEnded { _ in
-                    if images.indices.contains(previewIndex) {
-                        actionPath = images[previewIndex]
-                    } else {
-                        actionPath = images.first ?? ""
-                    }
-                    imageActions = true
-                }
-            )
-            .onTapGesture {
-                fullViewerIndex = previewIndex
-            }
+            MomentImageGrid(images: images,
+                            avail: L.width - 32,
+                            sizes: live.imageSizes ?? [:],
+                            foldKey: live.id,
+                            onTap: { index in
+                                fullViewerIndex = index
+                            },
+                            onLongPress: { index in
+                                if images.indices.contains(index) {
+                                    actionPath = images[index]
+                                } else {
+                                    actionPath = images.first ?? ""
+                                }
+                                imageActions = true
+                            })
             .padding(.top, 12)
         } else if let raw = live.video, !raw.isEmpty {
             ZStack {

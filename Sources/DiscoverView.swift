@@ -2253,6 +2253,7 @@ struct MomentImageGrid: View {
     var sizes: [String: [Int]] = [:]
     var foldKey: String? = nil
     var onTap: (Int) -> Void
+    var onLongPress: ((Int) -> Void)? = nil
 
     @State private var expanded = false
     @State private var restoredFold = false
@@ -2401,6 +2402,11 @@ struct MomentImageGrid: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                onLongPress?(index)
+            }
+        )
     }
 
     private var storedFold: Bool {
