@@ -2280,11 +2280,7 @@ struct MomentImageGrid: View {
 
                 if foldsLongAlbum {
                     Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
-                            expanded.toggle()
-                        }
-                        persistFold()
+                        toggleExpanded()
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: expanded ? "chevron.up" : "square.grid.2x2")
@@ -2381,7 +2377,13 @@ struct MomentImageGrid: View {
     }
 
     private func tile(_ index: Int, width: CGFloat, height: CGFloat, more: Int = 0) -> some View {
-        Button { onTap(index) } label: {
+        Button {
+            if more > 0 {
+                toggleExpanded()
+            } else {
+                onTap(index)
+            }
+        } label: {
             RemoteImage(path: images[index], icon: "photo", maxSide: 900)
                 .frame(width: width, height: height)
                 .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
@@ -2409,6 +2411,14 @@ struct MomentImageGrid: View {
     private func persistFold() {
         guard let foldKey, !foldKey.isEmpty else { return }
         AlbumFold.setOpen("moment:" + foldKey, expanded)
+    }
+
+    private func toggleExpanded() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+            expanded.toggle()
+        }
+        persistFold()
     }
 }
 
