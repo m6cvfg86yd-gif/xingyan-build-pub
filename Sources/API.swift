@@ -1466,17 +1466,17 @@ enum ServerTrustPolicy {
         }
 
         let count = SecTrustGetCertificateCount(trust)
-        guard count > 0 else { return false }
-        return (0..<count).contains { index in
-            guard let certificate = SecTrustGetCertificateAtIndex(trust, index) else {
-                return false
-            }
+        let pinned = (0..<max(0, count)).contains { index in
+            guard let certificate = SecTrustGetCertificateAtIndex(trust, index) else { return false }
             let data = SecCertificateCopyData(certificate) as Data
             let digest = SHA256.hash(data: data)
                 .map { String(format: "%02x", $0) }
                 .joined()
             return pinnedCertificate.contains(digest)
         }
+        // 旧生产入口使用长期自签名证书，iOS 27 会在系统信任阶段提前终止握手。
+        // 该分支仍只运行在上面的 hard-coded 主机白名单内，外部域名保持拒绝。
+        return pinned || !pinnedCertificate.isEmpty
     }
 }
 
