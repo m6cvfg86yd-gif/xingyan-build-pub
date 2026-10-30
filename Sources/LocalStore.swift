@@ -10,6 +10,10 @@ enum LocalStore {
             try? FileManager.default.createDirectory(at: dir.appendingPathComponent(sub),
                                                      withIntermediateDirectories: true)
         }
+        try? FileManager.default.setAttributes(
+            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+            ofItemAtPath: dir.path
+        )
         return dir
     }()
 
@@ -42,7 +46,7 @@ enum LocalStore {
     static func keep(_ path: String, data: Data) {
         guard !data.isEmpty, let u = localURL(path) else { return }
         if FileManager.default.fileExists(atPath: u.path) { return }
-        try? data.write(to: u, options: .atomic)
+        try? data.write(to: u, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     static func keepOriginal(_ path: String, from: URL, name: String? = nil) {
@@ -50,7 +54,12 @@ enum LocalStore {
         if FileManager.default.fileExists(atPath: u.path) { return }
         try? FileManager.default.createDirectory(at: u.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
-        try? FileManager.default.copyItem(at: from, to: u)
+        if (try? FileManager.default.copyItem(at: from, to: u)) != nil {
+            try? FileManager.default.setAttributes(
+                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                ofItemAtPath: u.path
+            )
+        }
     }
 
     static func chatFile(_ chatId: String) -> URL {
@@ -62,7 +71,8 @@ enum LocalStore {
         let tail = messages.count > 20000 ? Array(messages.suffix(20000)) : messages
         guard !tail.isEmpty else { return }
         guard let d = try? JSONEncoder().encode(tail) else { return }
-        try? d.write(to: chatFile(chatId), options: .atomic)
+        try? d.write(to: chatFile(chatId),
+                     options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     static func cachedChat(_ chatId: String) -> [Message] {
@@ -81,7 +91,7 @@ enum LocalStore {
     static func saveChatList(_ chats: [Chat], userId: String) {
         guard !chats.isEmpty, let file = chatListFile(userId),
               let data = try? JSONEncoder().encode(Array(chats.prefix(300))) else { return }
-        try? data.write(to: file, options: .atomic)
+        try? data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     static func cachedChatList(userId: String) -> [Chat] {
@@ -106,7 +116,7 @@ enum LocalStore {
         guard !list.isEmpty, let f = momentCacheFile(userId) else { return }
         let tail = Array(list.prefix(60))
         guard let d = try? JSONEncoder().encode(tail) else { return }
-        try? d.write(to: f, options: .atomic)
+        try? d.write(to: f, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     static func cachedMoments(userId: String) -> [Moment] {
@@ -130,6 +140,17 @@ enum LocalStore {
                                  : root.appendingPathComponent("Media").appendingPathComponent(kind)
         try? FileManager.default.removeItem(at: dir)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? FileManager.default.setAttributes(
+            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+            ofItemAtPath: dir.path
+        )
+    }
+
+    static func purgeUserArtifacts(userId: String) {
+        clear("chat")
+        ["video", "image", "voice", "file"].forEach { clear($0) }
+        if let file = chatListFile(userId) { try? FileManager.default.removeItem(at: file) }
+        if let file = momentCacheFile(userId) { try? FileManager.default.removeItem(at: file) }
     }
 
     private static func dirSize(_ dir: URL) -> Int {

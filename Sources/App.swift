@@ -1513,6 +1513,27 @@ final class AppState: ObservableObject {
         syncIconBadge()
     }
 
+    func purgeDeletedAccountLocally(userId: String, username: String) {
+        LocalStore.purgeUserArtifacts(userId: userId)
+        let keyUser = username.lowercased()
+        for key in UserDefaults.standard.dictionaryRepresentation().keys {
+            let lower = key.lowercased()
+            if lower.contains(keyUser) || (!userId.isEmpty && key.contains(userId)) {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        if !username.isEmpty {
+            AccountStore.remove(username: username)
+            accounts = AccountStore.load()
+        }
+        if lastName.caseInsensitiveCompare(username) == .orderedSame {
+            lastName = ""
+            lastAvatar = ""
+            UserDefaults.standard.removeObject(forKey: "chris.lastName")
+            UserDefaults.standard.removeObject(forKey: "chris.lastAvatar")
+        }
+    }
+
     func quickLogin(token: String? = nil, username: String? = nil,
                     switchingAccount: Bool = false) async -> Bool {
         let nextToken = token?.trimmingCharacters(in: .whitespacesAndNewlines) ?? API.shared.token

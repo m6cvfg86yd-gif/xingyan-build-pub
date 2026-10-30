@@ -40,7 +40,7 @@ const BIND_HOST = process.env.CHRIS_LOCAL_ONLY === '1' ? HOST : '0.0.0.0';
 const COOKIE_NAME = 'chris_chat_session';
 const ADMIN_COOKIE = 'chris_chat_admin';
 const ADMIN_FILE_NAME = 'admin.json';
-const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'chris888';
+const DEFAULT_ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /* 普通用户的登录态：默认 180 天，别动不动就掉登录。
    要改就改 data/security.json 里的 sessionDays（1~3650）。 */
@@ -2516,6 +2516,10 @@ if (fs.existsSync(adminFile)) {
     } catch (err) { adminAuth = null; }
   }
   if (!adminAuth) {
+    if (!DEFAULT_ADMIN_PASSWORD) {
+      console.error('首次启动必须设置环境变量 ADMIN_PASSWORD，已拒绝使用固定默认密码启动');
+      process.exit(1);
+    }
     adminAuth = makeSecretRecord(DEFAULT_ADMIN_PASSWORD);
     fs.writeFileSync(adminFile, JSON.stringify(adminAuth, null, 2), 'utf8');
     adminJustCreated = true;
@@ -9770,6 +9774,149 @@ function closeUserConnections(userId) {
   notifyPresence(userId, false);
 }
 
+function collectUploadReferences(value, out) {
+  if (value == null) return;
+  if (typeof value === 'string') {
+    const re = /\/uploads\/([A-Za-z0-9._-]+)/g;
+    let match = null;
+    while ((match = re.exec(value))) out.add(match[1]);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((one) => collectUploadReferences(one, out));
+    return;
+  }
+  if (typeof value === 'object') {
+    Object.keys(value).forEach((key) => collectUploadReferences(value[key], out));
+  }
+}
+
+function remainingUploadReferences() {
+  const refs = new Set();
+  collectUploadReferences(db.users, refs);
+  collectUploadReferences(db.chats, refs);
+  collectUploadReferences(db.moments, refs);
+  (db.chats || []).forEach((chat) => {
+    try { collectUploadReferences(loadMessages(chat.id), refs); } catch (err) { /* 忽略损坏的单会话 */ }
+  });
+  return refs;
+}
+
+/**
+ * 账号注销的数据清理入口。
+ * 用户可删除的资料、聊天、媒体、朋友圈和关系立即删除；
+ * 交易、财务和安全审计仅保留法律要求的最小记录，并解除与登录账号的关联。
+ */
+function purgeAccountData(userId) {
+  const target = db.users.find((u) => u.id === userId);
+  if (!target) return false;
+
+  const ownedUploads = new Set();
+  collectUploadReferences(target, ownedUploads);
+  closeUserConnections(userId);
+
+  const keptChats = [];
+  for (const chat of db.chats.slice()) {
+    if (!Array.isArray(chat.memberIds) || !chat.memberIds.includes(userId)) {
+      keptChats.push(chat);
+      continue;
+    }
+    const before = loadMessages(chat.id);
+    const after = [];
+    before.forEach((message) => {
+      if (message.senderId === userId) collectUploadReferences(message, ownedUploads);
+      else after.push(message);
+    });
+    const direct = chat.type === 'direct';
+    chat.memberIds = chat.memberIds.filter((id) => id !== userId);
+    if (direct || chat.memberIds.length < 2) {
+      try { fs.unlinkSync(messagesFile(chat.id)); } catch (err) { /* 文件可能已不存在 */ }
+      messageCache.delete(chat.id);
+      continue;
+    }
+    saveMessagesFile(chat.id, after);
+    messageCache.set(chat.id, after);
+    keptChats.push(chat);
+    if (chat.type === 'group' && chat.avatarAuto) {
+      try { refreshGroupAvatar(chat); } catch (err) { /* 头像重建失败不影响注销 */ }
+    }
+  }
+  db.chats = keptChats;
+
+  const keptMoments = [];
+  db.moments.forEach((moment) => {
+    if (moment.authorId === userId) {
+      collectUploadReferences(moment, ownedUploads);
+      return;
+    }
+    if (Array.isArray(moment.likes)) {
+      moment.likes = moment.likes.filter((like) => like && like.userId !== userId);
+    }
+    if (Array.isArray(moment.comments)) {
+      moment.comments = moment.comments.filter((comment) => comment && comment.userId !== userId);
+    }
+    keptMoments.push(moment);
+  });
+  db.moments = keptMoments;
+
+  db.friendships = db.friendships.filter((f) => f.fromId !== userId && f.toId !== userId);
+  delete db.reads[userId];
+  if (db.cleared) delete db.cleared[userId];
+  delete db.momentViews[userId];
+  delete db.momentNoticeSeen[userId];
+  db.momentNotices = db.momentNotices.filter((n) => n.fromUserId !== userId && n.toUserId !== userId);
+  if (db.delivered) delete db.delivered[userId];
+  db.security.logins = db.security.logins.filter((row) => row.userId !== userId);
+  db.security.events = db.security.events.filter((row) => row.userId !== userId);
+  db.users = db.users.filter((u) => u.id !== userId);
+
+  const friendMeta = readFriendMeta();
+  if (friendMeta.byOwner) {
+    delete friendMeta.byOwner[userId];
+    Object.keys(friendMeta.byOwner).forEach((ownerId) => {
+      if (friendMeta.byOwner[ownerId]) delete friendMeta.byOwner[ownerId][userId];
+    });
+  }
+
+  const push = readPush();
+  if (push.tokens) delete push.tokens[userId];
+  const members = readMemberDb();
+  if (members.users) delete members.users[userId];
+  const biz = readBizAll();
+  if (biz.accounts) delete biz.accounts[userId];
+  const nearby = loadNearby();
+  delete nearby[userId];
+  const reminders = loadReminders().filter((row) => row.userId !== userId);
+  const orders = loadOrders().filter((row) => row.userId !== userId);
+  const cardsFile = path.join(DATA_DIR, 'cards.json');
+  const cards = readJson(cardsFile, { cards: [] });
+  if (Array.isArray(cards.cards)) cards.cards = cards.cards.filter((row) => row.userId !== userId);
+
+  saveUsers();
+  saveChats();
+  saveMoments();
+  saveMomentViews();
+  saveMomentNotices();
+  saveReads();
+  saveDelivered();
+  saveSecurity();
+  saveFriendMeta();
+  savePush();
+  saveMemberDb();
+  saveBizAll();
+  saveNearby(nearby);
+  saveReminders(reminders);
+  saveOrders(orders);
+  writeJson(cardsFile, cards);
+
+  const stillUsed = remainingUploadReferences();
+  ownedUploads.forEach((name) => {
+    if (stillUsed.has(name)) return;
+    try { fs.unlinkSync(path.join(UPLOAD_DIR, name)); } catch (err) { /* 文件可能已不存在 */ }
+  });
+  return true;
+}
+
 /* ================================================================
    封禁 / 解封：一处收口，保证每种入口封出来都一样有效
    以前只在后台「用户账号」里改了个字段，被封的人手里那台手机
@@ -10972,17 +11119,7 @@ async function handleAdmin(req, res, parts, query) {
   if (sub === 'users' && method === 'DELETE') {
     const target = findUser(parts[2]);
     if (!target) return fail(res, 404, '用户不存在');
-    closeUserConnections(target.id);
-    db.users = db.users.filter((u) => u.id !== target.id);
-    db.friendships = db.friendships.filter((f) => f.fromId !== target.id && f.toId !== target.id);
-    db.moments = db.moments.filter((m) => m.authorId !== target.id);
-    db.chats = db.chats
-      .filter((c) => !(c.type === 'direct' && c.memberIds.includes(target.id)))
-      .map((c) => Object.assign(c, { memberIds: c.memberIds.filter((id) => id !== target.id) }))
-      .filter((c) => c.memberIds.length >= 2);
-    delete db.reads[target.id];
-    delete db.momentViews[target.id];
-    saveUsers(); saveFriendships(); saveMoments(); saveChats(); saveReads(); saveMomentViews();
+    purgeAccountData(target.id);
     ok(res, { deleted: true, username: target.username });
     return;
   }
@@ -14014,6 +14151,17 @@ async function handleApi(req, res, pathname, query) {
       '冻结自己的账号', user.username, user.frozenReason);
     ok(res, { frozen: true, reason: user.frozenReason });
     return;
+  }
+
+  if (parts[0] === 'me' && parts[1] === 'delete' && method === 'POST') {
+    const body = await readBody(req);
+    if (String(body.confirm || '').trim() !== '注销') {
+      return fail(res, 422, '请输入「注销」确认');
+    }
+    const deleted = purgeAccountData(user.id);
+    if (!deleted) return fail(res, 409, '账号已经不存在');
+    return ok(res, { deleted: true },
+      { 'Set-Cookie': sessionCookie('', 0) });
   }
 
   if (parts[0] === 'ops' && parts[1] === 'account' && method === 'POST') {
@@ -21528,18 +21676,15 @@ async function handleOps(req, res, parts, query) {
     /* App 登录页用的（手机号登录那条蓝色、禁用色） */
     accent2: '#007AFF', disabledAccent: '#B2E4C8', disabledGray: '#C7C7CC', pageBg: '',
     /* 用户协议 / 隐私政策全文（后台可编辑） */
-    terms: ['1. 本应用是自建的即时通讯软件，账号与数据都保存在你自己的服务器上。',
-      '2. 请勿使用本应用传播违法违规内容；一经发现，管理员有权封禁账号。',
-      '3. 你的昵称、头像、朋友圈等资料仅用于本应用内的展示，不会提供给第三方。',
-      '4. 聊天内容保存在你自己的服务器数据库中，用于在登录设备之间同步。',
-      '5. 修改密码后，之前的登录令牌会立即失效，需要重新登录。',
-      '6. 如不同意以上条款，请不要使用本应用。'].join('\n'),
-    privacy: ['1. 我们收集的信息：昵称、头像、地区、个性签名，以及你主动发送的消息与图片。',
-      '2. 信息用途：仅用于在本应用内展示和在你的登录设备之间同步。',
-      '3. 存储位置：全部保存在你自己的服务器上，不会上传到任何第三方服务。',
-      '4. 分享范围：你的朋友圈对好友可见；聊天内容仅你与对方可见。',
-      '5. 你的权利：可以随时修改资料、换头像、清空聊天记录，或要求管理员删除账号。',
-      '6. 安全措施：账号密码加密存储、登录令牌加密签名、后台操作全程审计。'].join('\n')
+    terms: ['1. 星言用于个人和团队即时通信，请勿传播违法、侵权或骚扰内容。',
+      '2. 你对发送的内容和上传的文件负责；管理员可依法处理举报并限制违规账号。',
+      '3. 为提供音视频、AI、推送和支付功能，必要信息会由相应服务商处理，具体见隐私政策。',
+      '4. 修改密码或注销账号后，相关登录令牌会立即失效。'].join('\n'),
+    privacy: ['星言仅在提供功能所需范围内处理账号与安全、资料与内容、位置、实名交易和诊断信息。',
+      '音视频使用腾讯云 TRTC；AI 功能启用时使用 DeepSeek；推送使用 Apple APNs；支付使用支付宝或后台配置的支付/短信服务。',
+      '我们不会出售个人信息，也不会用于跨 App 广告追踪。',
+      '人脸活体检测在本机完成，不上传人脸照片。',
+      '账号注销后，可删除数据会立即清理；依法必须保留的交易、财务和安全审计记录会在法定期限内保存。'].join('\n')
   };
   /* 红点提醒：后台逐个位置设置 */
   if (sub === 'badges' && method === 'GET') {

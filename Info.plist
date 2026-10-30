@@ -6,8 +6,8 @@
   <key>CFBundleExecutable</key><string>CHRIS</string>
   <key>CFBundleIdentifier</key><string>com.chris.chatnative</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-  <key>CFBundleName</key><string>Luchat</string>
-  <key>CFBundleDisplayName</key><string>Luchat</string>
+  <key>CFBundleName</key><string>星言</string>
+  <key>CFBundleDisplayName</key><string>星言</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>1</string>
@@ -24,23 +24,23 @@
   <key>UISupportedInterfaceOrientations</key>
   <array><string>UIInterfaceOrientationPortrait</string></array>
   <key>UIViewControllerBasedStatusBarAppearance</key><true/>
-  <key>NSFaceIDUsageDescription</key><string>CHRIS聊天 需要面容 ID 让你刷脸登录</string>
-  <key>NSMicrophoneUsageDescription</key><string>CHRIS聊天 需要使用麦克风进行语音聊天和语音通话</string>
-  <key>NSCameraUsageDescription</key><string>CHRIS聊天 需要使用摄像头拍照和视频通话</string>
-	<key>NSSpeechRecognitionUsageDescription</key><string>CHRIS聊天 需要使用语音识别，让你能跟 AI 助手说话、发送语音转文字，以及用声音锁读出数字登录</string>
-  <key>NSPhotoLibraryUsageDescription</key><string>CHRIS聊天 需要访问相册以便发送图片</string>
-  <key>NSPhotoLibraryAddUsageDescription</key><string>CHRIS聊天 需要把图片保存到相册</string>
-  <key>NSLocalNetworkUsageDescription</key><string>CHRIS聊天 需要使用本地网络接收面对面的照片、视频和文件</string>
+  <key>NSFaceIDUsageDescription</key><string>星言需要使用面容 ID 帮助你安全解锁账号</string>
+  <key>NSMicrophoneUsageDescription</key><string>星言需要使用麦克风进行语音消息和音视频通话</string>
+  <key>NSCameraUsageDescription</key><string>星言需要使用摄像头拍照、扫码、身份核验和视频通话</string>
+	<key>NSSpeechRecognitionUsageDescription</key><string>星言需要使用语音识别，用于语音转文字、AI 对话和声音锁</string>
+  <key>NSPhotoLibraryUsageDescription</key><string>星言需要访问你选择的照片和视频以便发送内容</string>
+  <key>NSPhotoLibraryAddUsageDescription</key><string>星言需要把图片或视频保存到相册</string>
+  <key>NSLocalNetworkUsageDescription</key><string>星言需要使用本地网络接收面对面的照片、视频和文件</string>
   <key>NSBonjourServices</key>
   <array>
     <string>_xydrop._tcp</string>
     <string>_xydrop._udp</string>
   </array>
-  <key>NSLocationWhenInUseUsageDescription</key><string>CHRIS聊天 需要用位置来显示「附近的人」（只在你看这个页面时用一次，不会一直跟踪）</string>
-  <key>NSMotionUsageDescription</key><string>CHRIS聊天 需要读取运动数据来实现「摇一摇」（摇手机找人，不会记录你的运动）</string>
+  <key>NSLocationWhenInUseUsageDescription</key><string>星言仅在你使用附近、位置共享或地址功能时获取位置</string>
+  <key>NSMotionUsageDescription</key><string>星言仅在摇一摇时读取运动数据，不会记录你的运动轨迹</string>
   <key>NSAppTransportSecurity</key>
   <dict>
-    <key>NSAllowsArbitraryLoads</key><true/>
+    <key>NSAllowsLocalNetworking</key><true/>
   </dict>
   <key>LSApplicationQueriesSchemes</key>
   <array>
@@ -59,8 +59,6 @@
       <array><string>AppIcon60x60</string></array>
     </dict>
   </dict>
-	<key>UIFileSharingEnabled</key>
-	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>CFBundleDocumentTypes</key>
@@ -82,4 +80,3 @@
 	</array>
 </dict>
 </plist>
-

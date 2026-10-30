@@ -140,7 +140,7 @@ echo "SHA256: $(shasum -a 256 "$OUT" | awk '{print $1}')"
 echo
 echo "本地这一份：$(pwd)/$OUT（未签名，用爱思助手自己签）"
 
-UPLOAD_KEY="xy-mac-4f12cded"
+UPLOAD_KEY="${XY_MAC_UPLOAD_KEY:-}"
 if [ -n "$UPLOAD_KEY" ] && [ -f "$OUT" ]; then
   echo "=== 7) 回传到服务器（aa.x8iu.com）… ==="
   curl -sS --max-time 600 -X POST --data-binary "@$OUT" \

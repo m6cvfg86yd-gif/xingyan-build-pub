@@ -1065,7 +1065,7 @@ struct AboutView: View {
                         .frame(height: 52)
                     }
 
-                    Text(Tr("自建即时通讯：账号、聊天记录、朋友圈都存在你自己的服务器上，不上传第三方。"))
+                    Text(Tr("星言为通信功能处理账号、内容和设备信息；音视频、AI、推送和支付会使用明确披露的服务商。"))
                         .font(pf(12.5))
                         .foregroundColor(C.subLabel)
                         .multilineTextAlignment(.center)
@@ -1117,7 +1117,7 @@ struct AboutView: View {
     private var icp: String { UIConfig.text("appIcp", "").trimmingCharacters(in: .whitespaces) }
     private var supportEmail: String { UIConfig.text("supportEmail", "").trimmingCharacters(in: .whitespaces) }
     private var supportHours: String { UIConfig.text("supportHours", "10:00–22:00") }
-    private var privacyUpdated: String { UIConfig.text("privacyUpdated", "2026-10-17") }
+    private var privacyUpdated: String { UIConfig.text("privacyUpdated", "2026-10-30") }
 
     private var hero: some View {
         VStack(spacing: 9) {
@@ -1190,23 +1190,24 @@ struct AboutView: View {
     }
 
     private var collectText: String {
-        Tr("只收集提供服务所必需的信息，且都存放在你自己的服务器上：")
+        Tr("星言仅在提供服务所必需的范围内处理以下信息：")
         + Tr("\n\n1. 账号：手机号 / 星言号 —— 登录、找回密码、安全验证")
-        + Tr("\n2. 资料：昵称、头像、性别、地区 —— 展示给好友（不填也能用）")
-        + Tr("\n3. 内容：聊天记录、图片/视频/语音/文件、朋友圈、收藏 —— 同步到你自己的设备")
-        + Tr("\n4. 设备：设备型号、系统版本、推送令牌 —— 登录设备管理、消息推送")
-        + Tr("\n5. 权限：相机、麦克风、相册、通讯录、定位、通知 —— 只在对应功能里用，可随时在系统设置关掉")
-        + Tr("\n6. 交易：商城订单、收货地址、支付记录 —— 下单、发货、售后与对账")
-        + Tr("\n\n以上信息不会卖给或提供给第三方；注销后按「数据删除与导出」处理。")
+        + Tr("\n2. 资料：昵称、头像、性别、地区、签名 —— 展示给好友和服务内可见对象")
+        + Tr("\n3. 内容：聊天、图片、视频、语音、文件、朋友圈、收藏 —— 消息同步和内容展示")
+        + Tr("\n4. 设备与安全：设备型号、系统版本、设备标识、IP、推送令牌、登录记录 —— 设备管理、风控和通知")
+        + Tr("\n5. 位置：仅在使用附近、位置消息或实时共享时获取")
+        + Tr("\n6. 实名与交易：实名姓名、证件哈希/掩码、银行卡后四位、订单、账单 —— 钱包、支付、售后和依法留存")
+        + Tr("\n7. 诊断：崩溃、性能和必要的操作日志 —— 稳定性和故障排查")
+        + Tr("\n\n第三方处理：腾讯云 TRTC（音视频）、DeepSeek（启用 AI 时）、Apple APNs（推送）、支付宝及后台配置的支付/短信服务。我们不会出售个人信息或用于跨 App 广告追踪。")
     }
 
     private var dataDelText: String {
         Tr("注销与数据删除规则：")
         + Tr("\n\n1. 在「关于我们 → 注销账号」输入「注销」即可注销，不需要联系客服。")
         + Tr("\n2. 注销后账号立即无法登录，所有设备登录状态失效。")
-        + Tr("\n3. 数据保留 7 天（便于反悔时联系客服恢复），7 天后按保留策略清除。")
-        + Tr("\n4. 订单、支付、发票等依法需留存的交易记录，按法律法规要求的期限保存。")
-        + Tr("\n5. 想导出或提前删除数据：用「联系我们」里的客服邮箱提交，15 个工作日内处理。")
+        + Tr("\n3. 账号资料、聊天、媒体、朋友圈、收藏和关系数据会立即清理，无法恢复。")
+        + Tr("\n4. 订单、支付、发票和安全审计等依法必须留存的信息，只在法定期限内保留并限制访问。")
+        + Tr("\n5. 如需在注销前导出聊天记录，请先使用「聊天记录迁移与备份」功能。")
     }
 
     @State private var showFeature = false
@@ -1222,12 +1223,10 @@ struct AboutView: View {
     }
 
     private var privacyText: String {
-        Tr("我们只收集提供服务所必需的信息，并且都保存在你自己的服务器上：")
-            + Tr("\n· 账号：手机号 / 用户名，用来登录和找回")
-            + Tr("\n· 资料：昵称、头像、性别、地区（不填也能用）")
-            + Tr("\n· 内容：聊天记录、朋友圈、收藏 —— 只在你的服务器上，用于同步给你自己的设备")
-            + Tr("\n· 权限：相机 / 麦克风 / 相册 / 通讯录 / 定位，只在对应功能里用，可随时在系统设置里关掉")
-            + Tr("\n\n我们不会把这些信息卖给或提供给第三方；注销账号后服务器上的数据按你的选择删除。")
+        Tr("星言仅在提供功能所需的范围内处理账号、资料、聊天和媒体、设备与安全、位置、实名交易和诊断信息。")
+            + Tr("\n\n相机、麦克风和相册仅在你拍照、发语音、视频通话或选图时使用；位置仅在使用附近、位置消息或实时共享时使用。人脸活体检测在本机完成，不上传人脸照片。")
+            + Tr("\n\n音视频使用腾讯云 TRTC，AI 功能启用时使用 DeepSeek，推送使用 Apple APNs，支付使用支付宝或后台配置的支付服务。我们不会出售个人信息或用于跨 App 广告追踪。")
+            + Tr("\n\n账号注销后，可删除数据会立即清理；依法必须保留的交易和安全审计记录会在法定期限内保存。")
     }
 
     private func aboutRow(_ title: String) -> some View {
@@ -1280,9 +1279,9 @@ struct DeleteAccountView: View {
 
     private let lines: [String] = [
         "账号立即无法登录，所有设备的登录状态失效",
-        "聊天记录、朋友圈、收藏等数据保留 7 天后清除",
+        "聊天记录、朋友圈、收藏、关系和媒体数据立即清理，无法恢复",
         "订单 / 支付 / 发票等依法需留存的记录按法定期限保存",
-        "7 天内反悔可以联系客服恢复"
+        "如需保留聊天记录，请先使用聊天记录迁移与备份"
     ]
 
     var body: some View {
@@ -1315,8 +1314,12 @@ struct DeleteAccountView: View {
                             let ok = await API.shared.deleteAccount(confirm: "注销")
                             busy = false
                             if ok {
+                                if let userId = app.me?.id,
+                                   let username = app.me?.username, !userId.isEmpty {
+                                    app.purgeDeletedAccountLocally(userId: userId, username: username)
+                                }
                                 app.show(Tr("账号已注销"))
-                                await app.logout()
+                                await app.logout(keepSavedAccount: false)
                                 dismiss()
                             } else {
                                 app.show(Tr("注销失败，检查网络后再试"))

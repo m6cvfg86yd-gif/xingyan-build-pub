@@ -113,6 +113,7 @@ async function main() {
         DATA_DIR: dataDir,
         PORT: String(port),
         TURN_PORT: String(turnPort),
+        ADMIN_PASSWORD: 'test-admin-password',
         CHRIS_LOCAL_ONLY: '1'
       }),
       stdio: ['ignore', 'pipe', 'pipe'],

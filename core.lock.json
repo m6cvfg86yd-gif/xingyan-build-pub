@@ -8,8 +8,8 @@
     },
     {
       "path": "Sources/App.swift",
-      "size": 144946,
-      "sha256": "19ebae720003ec34499cf405fb379dc06b17105f4a08fd0caaeb3bafc5597753"
+      "size": 145832,
+      "sha256": "4fb08595fe3dc858d198a81948007359a492d2bdbe8e34b4efa0c050e6a193a1"
     },
     {
       "path": "Sources/Realtime.swift",
@@ -48,13 +48,13 @@
     },
     {
       "path": "Sources/Keychain.swift",
-      "size": 1566,
-      "sha256": "eb7ee8dc834acee01af28933156e2a6218bb0ecdea3c85fba7e9503c54a2e451"
+      "size": 1580,
+      "sha256": "e9961649a52ee32d3c4c3e138008fae019b535f2d74d1916c5185ee165025a37"
     },
     {
       "path": "Sources/LocalStore.swift",
-      "size": 21524,
-      "sha256": "de36470552229e89baa53e62860be3092f81b151a7978f579e6c0f6dd242f599"
+      "size": 22680,
+      "sha256": "4bd14faccb0323d62374a44e4a5692b984727aa61ec2b04fbfe3e620bb6a45be"
     },
     {
       "path": "Sources/MsgFrameKey.swift",

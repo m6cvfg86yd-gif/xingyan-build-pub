@@ -171,21 +171,6 @@ struct RealNameView: View {
                         faceOK = true
                         DiagLog.shared.note("实名认证：人脸核身通过")
 
-                        let shot = FaceLiveness.shared.shot ?? ""
-                        let n = name, ic = idCard
-                        Task {
-
-                            var dist: Double? = nil
-                            if !shot.isEmpty, let av = app.me?.avatarPath, !av.isEmpty,
-                               let u = API.shared.assetURL(av), let d = try? await API.shared.assetData(u) {
-                                dist = await FaceMatch.distance(shot: shot, avatar: d)
-                            }
-                            let up = await API.shared.faceSubmit(image: shot, name: n, idCard: ic, dist: dist)
-                            if up {
-                                app.show(Tr("已传后台做人脸比对；结果在「我 → 设置 → 安全分」里看"))
-                            }
-                        }
-
                         if info?.verified == true {
                             app.show(Tr("人脸核身通过 ✅"))
                         } else {

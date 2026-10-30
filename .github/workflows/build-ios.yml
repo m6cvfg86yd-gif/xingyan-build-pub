@@ -80,6 +80,7 @@ jobs:
         run: |
           node server/test/security-vault.test.js
           node server/test/chat-actions.test.js
+          node server/test/account-deletion.test.js
 
       - name: 校验核心模块
         run: bash tools/verify-core.sh
