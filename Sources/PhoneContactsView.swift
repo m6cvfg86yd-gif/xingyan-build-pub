@@ -168,20 +168,6 @@ struct PhoneContactsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    if let contact = inviteContact {
-                        Button {
-                            invite(contact)
-                        } label: {
-                            Label(Tr("发短信邀请") + " " + contact.name,
-                                  systemImage: "message.fill")
-                                .font(pf(15, .semibold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 46)
-                                .background(Capsule().fill(C.green))
-                        }
-                        .buttonStyle(.plain)
-                    }
                 }
                 .padding(14)
                 .padding(.bottom, max(20, L.safeBottom))
@@ -189,6 +175,20 @@ struct PhoneContactsView: View {
         }
         .background(C.pageBg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .alert(Tr("这个号码还没有注册星言"), isPresented: Binding(
+            get: { inviteContact != nil },
+            set: { if !$0 { inviteContact = nil } }
+        )) {
+            Button(Tr("取消"), role: .cancel) { inviteContact = nil }
+            Button(Tr("发短信邀请")) {
+                if let contact = inviteContact { invite(contact) }
+                inviteContact = nil
+            }
+        } message: {
+            if let contact = inviteContact {
+                Text(contact.name + "  " + contact.phone + "\n" + Tr("现在给对方发一条短信邀请吗？"))
+            }
+        }
     }
 
     private func loadContacts() async {
