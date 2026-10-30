@@ -615,6 +615,9 @@ struct NewFriendsView: View {
     private func removeAddedFriend(_ user: User) {
         guard !busy.contains(user.id) else { return }
         busy.insert(user.id)
+        let removedChatIds = app.chats.filter {
+            ($0.type ?? "direct") == "direct" && ($0.memberIds ?? []).contains(user.id)
+        }.map(\.id)
         Task { @MainActor in
             if let error = await API.shared.removeFriend(userId: user.id) {
                 busy.remove(user.id)
@@ -622,9 +625,6 @@ struct NewFriendsView: View {
                 return
             }
 
-            let removedChatIds = app.chats.filter {
-                ($0.type ?? "direct") == "direct" && ($0.memberIds ?? []).contains(user.id)
-            }.map(\.id)
             added.removeAll { $0.id == user.id }
             locallyAccepted.removeValue(forKey: user.id)
             app.applyFriendRemoved(userId: user.id)
