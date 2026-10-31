@@ -250,17 +250,6 @@ struct NativeTabBar: UIViewRepresentable {
         appearance.stackedLayoutAppearance.selected.iconColor = UIColor(OrbitTheme.jade)
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedTitle
         if scheme == .dark {
-            let itemAppearances = [
-                appearance.stackedLayoutAppearance,
-                appearance.inlineLayoutAppearance,
-                appearance.compactInlineLayoutAppearance
-            ]
-            for item in itemAppearances {
-                item.normal.backgroundColor = .clear
-                item.normal.backgroundImage = UIImage()
-                item.selected.backgroundColor = .clear
-                item.selected.backgroundImage = UIImage()
-            }
             appearance.selectionIndicatorImage = UIImage()
             bar.selectionIndicatorImage = UIImage()
         }
