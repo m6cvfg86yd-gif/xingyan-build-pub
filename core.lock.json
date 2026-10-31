@@ -23,8 +23,8 @@
     },
     {
       "path": "Sources/CallCenter.swift",
-      "size": 80792,
-      "sha256": "d8a1020c1ccc257772d6eb7ab7d3ea9aa210c2d3b51df11d57d109f981d0ea3e"
+      "size": 80797,
+      "sha256": "1159faa91338bc4a18f4a534e4122624293828255d98eb1ca317cc405335885e"
     },
     {
       "path": "Sources/GroupAudioPipe.swift",
@@ -78,8 +78,8 @@
     },
     {
       "path": "Sources/GroupInfoView.swift",
-      "size": 70216,
-      "sha256": "71b1ca655fc80dbb779c75fed4be5bdeeacf515118afb76e6dbda0a049a8a7ae"
+      "size": 70204,
+      "sha256": "43d34d5c989d3198ebecb0e3454ca3b3659e05e4d9c1ad87dd6442a033f6bcb3"
     },
     {
       "path": "Sources/OtherLogin.swift",

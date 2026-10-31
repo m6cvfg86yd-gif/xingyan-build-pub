@@ -1441,7 +1441,7 @@ final class CallCenter: NSObject, ObservableObject {
                     if self.usingTRTC {
                         TRTCBridge.shared.recoverAudioAfterNetworkChange()
                     } else {
-                        voicePipeRepair()
+                        self.voicePipeRepair()
                     }
                 }
                 Task { @MainActor [weak self] in

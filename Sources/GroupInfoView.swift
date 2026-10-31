@@ -775,13 +775,13 @@ struct GroupInfoView: View {
             ChatInfoDivider()
             ChatInfoTextRow(title: Tr("群语音通话"),
                             subtitle: Tr("和群里的人一起语音")) {
-                CallCenter.shared.startGroupCall(chatId: chat.id, title: chat.name ?? "")
+                CallCenter.shared.startGroupCall(chatId: chat.id, title: chat.name)
                 dismiss()
             }
             ChatInfoDivider()
             ChatInfoTextRow(title: Tr("群视频通话"),
                             subtitle: Tr("和群里的人一起视频")) {
-                CallCenter.shared.startGroupCall(chatId: chat.id, title: chat.name ?? "", video: true)
+                CallCenter.shared.startGroupCall(chatId: chat.id, title: chat.name, video: true)
                 dismiss()
             }
             ChatInfoDivider()
