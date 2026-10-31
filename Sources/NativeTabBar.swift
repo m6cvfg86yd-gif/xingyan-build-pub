@@ -253,11 +253,13 @@ struct NativeTabBar: UIViewRepresentable {
             appearance.selectionIndicatorImage = UIImage()
             bar.selectionIndicatorImage = UIImage()
         }
-        if #available(iOS 26.0, *), #unavailable(iOS 27.0) {
-            let offset = UIOffset(horizontal: 0, vertical: 8)
-            appearance.stackedLayoutAppearance.selected.titlePositionAdjustment = offset
-            appearance.inlineLayoutAppearance.selected.titlePositionAdjustment = offset
-            appearance.compactInlineLayoutAppearance.selected.titlePositionAdjustment = offset
+        if #available(iOS 26.0, *) {
+            if #unavailable(iOS 27.0) {
+                let offset = UIOffset(horizontal: 0, vertical: 8)
+                appearance.stackedLayoutAppearance.selected.titlePositionAdjustment = offset
+                appearance.inlineLayoutAppearance.selected.titlePositionAdjustment = offset
+                appearance.compactInlineLayoutAppearance.selected.titlePositionAdjustment = offset
+            }
         }
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
