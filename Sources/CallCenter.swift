@@ -346,6 +346,7 @@ final class CallCenter: NSObject, ObservableObject {
         phase = .outgoing
         startRingTimeout()
         Ringtone.shared.startRingback()
+        Realtime.shared.start()
         Task { await beginMedia() }
 
         Task { await startTRTCIfPossible() }
@@ -1129,6 +1130,9 @@ final class CallCenter: NSObject, ObservableObject {
                let invite = lastOutgoingInvite {
                 Realtime.shared.sendJSON(invite)
             }
+            if phase == .idle, pendingPushTask == nil, !API.shared.token.isEmpty {
+                recoverPendingCall(expectedCallId: "", answer: false)
+            }
             if phase != .idle, phase != .active, ev.callActive == false {
                 finish(tip: "通话已结束")
             }
@@ -1487,6 +1491,11 @@ final class CallCenter: NSObject, ObservableObject {
 
         if !isVideo {
             if iAmCaller, phase == .outgoing {
+                if !Realtime.shared.ready {
+                    tip = "正在建立通话连接…"
+                    _ = await Realtime.shared.waitUntilReady(timeout: 6)
+                    guard phase == .outgoing else { return }
+                }
                 sendCall(["action": "invite", "toUserId": peerId, "media": "audio"])
                 tip = "正在呼叫…"
                 return

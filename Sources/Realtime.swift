@@ -91,6 +91,7 @@ final class Realtime: ObservableObject {
 
     @Published private(set) var event = PushEvent()
     @Published private(set) var connected = false
+    @Published private(set) var ready = false
 
     private var socket: URLSessionWebSocketTask?
     private var socketToken = ""
@@ -246,6 +247,7 @@ final class Realtime: ObservableObject {
 
     private func onSocketDown(lanOnly: Bool) async {
         connected = false
+        ready = false
         AppLog.info("实时长连接断了（第 " + String(failCount + 1) + " 次），准备重连", net: true)
 
         if Date().timeIntervalSince(socketUpAt) > 10 { failCount = 0 }
@@ -270,8 +272,21 @@ final class Realtime: ObservableObject {
         socket.send(.string(text)) { _ in }
     }
 
+    func waitUntilReady(timeout: TimeInterval) async -> Bool {
+        let token = API.shared.token
+        guard !token.isEmpty else { return false }
+        let deadline = Date().addingTimeInterval(max(0.5, timeout))
+        while Date() < deadline {
+            if ready, connected, socketToken == token { return true }
+            if !connected || socketToken != token { start() }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        return ready && connected && socketToken == token
+    }
+
     func stop() {
         socketToken = ""
+        ready = false
         heartbeat?.cancel()
         heartbeat = nil
         loop?.cancel()
@@ -333,7 +348,10 @@ final class Realtime: ObservableObject {
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         var ev = PushEvent()
         ev.type = (obj["type"] as? String) ?? ""
-        if ev.type == "ready" { API.shared.markOnline() }
+        if ev.type == "ready" {
+            ready = true
+            API.shared.markOnline()
+        }
         ev.action = (obj["action"] as? String) ?? ""
         ev.userId = (obj["userId"] as? String) ?? ""
         ev.chatId = (obj["chatId"] as? String) ?? ""
