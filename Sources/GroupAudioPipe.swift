@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreMedia
 import Foundation
 import UIKit
 
@@ -260,7 +261,7 @@ final class GroupAudioPipe: NSObject, AVCaptureAudioDataOutputSampleBufferDelega
         pending.append(Data(bytes: channel[0], count: Int(outputBuffer.frameLength) * 2))
         let frameBytes = frameSamples * 2
         while pending.count >= frameBytes {
-            let chunk = pending.prefix(frameBytes)
+            let chunk = Data(pending.prefix(frameBytes))
             pending.removeFirst(frameBytes)
             framesOut += 1
             sequence &+= 1

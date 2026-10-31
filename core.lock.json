@@ -28,8 +28,8 @@
     },
     {
       "path": "Sources/GroupAudioPipe.swift",
-      "size": 10284,
-      "sha256": "e4de31ab14414237092421fb6d3413e80aaba0a6f664b8533b800a0ccfe16136"
+      "size": 10307,
+      "sha256": "4fe421344b23598c13c3e9ff13526af8d5a9c3bf9e8f551b21710027259840f4"
     },
     {
       "path": "Sources/CallView.swift",
