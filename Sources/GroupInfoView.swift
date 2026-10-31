@@ -88,10 +88,10 @@ struct GroupInfoView: View {
                                 .foregroundColor(C.subLabel)
                             Spacer(minLength: 0)
 
-                            PanelCircleButton(symbol: "plus") { showAdd = true }
+                            ChatInfoTextButton(title: Tr("添加")) { showAdd = true }
                             if isOwner {
-                                PanelCircleButton(symbol: removing ? "checkmark" : "minus",
-                                                  tint: removing ? C.green : C.label) {
+                                ChatInfoTextButton(title: Tr(removing ? "完成" : "管理"),
+                                                   color: removing ? C.green : C.subLabel) {
                                     withAnimation(.easeOut(duration: 0.15)) { removing.toggle() }
                                 }
                             }
@@ -101,10 +101,11 @@ struct GroupInfoView: View {
                         .padding(.bottom, 6)
                         memberCard
                     }
-                    PanelSectionTitle(text: Tr("群聊设置"))
+                    ChatInfoSectionTitle(text: Tr("群聊设置"))
                     infoCard
                     switchCard
-                    PanelSectionTitle(text: Tr("危险操作"))
+                    groupToolCard
+                    ChatInfoSectionTitle(text: Tr("操作"))
                     dangerCard
                 }
                 .padding(.horizontal, 14)
@@ -485,7 +486,7 @@ struct GroupInfoView: View {
     }
 
     private var headCard: some View {
-        PanelHeroCard(glow: C.green) {
+        GroupCard {
             HStack(spacing: 14) {
                 Group {
                     if (chat.avatar ?? "").isEmpty {
@@ -498,25 +499,20 @@ struct GroupInfoView: View {
                 }
                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(Color.white.opacity(0.35), lineWidth: 0.8))
-                .shadow(color: Color.black.opacity(0.3), radius: 8, y: 3)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(chat.name)
-                        .font(pf(18, .semibold))
-                        .foregroundColor(.white)
+                        .font(pf(17, .semibold))
+                        .foregroundColor(C.label)
                         .lineLimit(1)
                     Text(memberLine)
                         .font(pf(12.5))
-                        .foregroundColor(.white.opacity(0.62))
+                        .foregroundColor(C.subLabel)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
-
-            HStack(spacing: 9) {
-                PanelPill(symbol: "qrcode", title: Tr("群二维码"), colors: PanelTint.teal) { showQR = true }
-                PanelPill(symbol: "magnifyingglass", title: Tr("查找记录"), colors: PanelTint.blue) { showSearch = true }
-                Spacer(minLength: 0)
-            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 15)
         }
     }
 
@@ -548,12 +544,12 @@ struct GroupInfoView: View {
                                         kickMode = "kick"
                                         kickTarget = u
                                     } label: {
-                                        Image(systemName: "minus.circle.fill")
-                                            .font(.system(size: 20))
-                                            .foregroundColor(C.red)
-                                            .background(Circle().fill(Color.white))
-                                            .overlay(Circle().stroke(Color.white, lineWidth: 1.2))
-                                            .shadow(color: Color.black.opacity(0.18), radius: 2, y: 1)
+                                        Text(Tr("移出"))
+                                            .font(pf(9.5, .medium))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 7)
+                                            .frame(height: 20)
+                                            .background(Capsule().fill(C.red))
                                     }
                                     .buttonStyle(.plain)
                                     .offset(x: -6, y: -6)
@@ -614,8 +610,8 @@ struct GroupInfoView: View {
                                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                                         .fill(Color.dyn(0xF2F2F2, 0x2C2C31))
                                         .frame(width: 52, height: 52)
-                                    Image(systemName: "person.2.fill")
-                                        .font(.system(size: 19, weight: .medium))
+                                    Text(Tr("更多"))
+                                        .font(pf(11.5, .medium))
                                         .foregroundColor(C.subLabel)
                                 }
                             }
@@ -634,13 +630,13 @@ struct GroupInfoView: View {
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                                     .stroke(C.hairline, lineWidth: 1)
                                     .frame(width: 52, height: 52)
-                                Image(systemName: "plus")
-                                    .font(.system(size: 20, weight: .light))
+                                Text(Tr("添加"))
+                                    .font(pf(11.5, .medium))
                                     .foregroundColor(C.subLabel)
                             }
                         }
                         .buttonStyle(.plain)
-                        Text(Tr("加人")).font(pf(10.5)).foregroundColor(C.subLabel)
+                        Text(Tr("成员")).font(pf(10.5)).foregroundColor(C.subLabel)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -662,56 +658,34 @@ struct GroupInfoView: View {
     }
 
     private var infoCard: some View {
-        PanelCard(solid: true) {
-            PanelRow(symbol: "pencil", colors: PanelTint.blue,
-                     title: Tr("群聊名称"), value: chat.name) {
+        GroupCard {
+            ChatInfoTextRow(title: Tr("群聊名称"), value: chat.name) {
                 nameDraft = chat.name
                 if isOwner { showRename = true }
                 else { app.show(Tr("只有群主能改群名称")) }
             }
-            PanelDivider()
-
-            PanelRow(symbol: "character.cursor.ibeam", colors: PanelTint.purple,
-                     title: Tr("我在本群的昵称"),
-                     value: myAlias.isEmpty ? Tr("未设置") : myAlias) {
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("我在本群的昵称"),
+                            value: myAlias.isEmpty ? Tr("未设置") : myAlias) {
                 editAlias(nil)
             }
-            PanelDivider()
-            PanelRow(symbol: "megaphone.fill", colors: PanelTint.orange,
-                     title: Tr("群公告"),
-                     subtitle: announce.isEmpty ? nil : announce,
-                     value: announce.isEmpty ? Tr("未设置") : nil) {
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("群公告"),
+                            subtitle: announce.isEmpty ? nil : announce,
+                            value: announce.isEmpty ? Tr("未设置") : nil) {
                 announceDraft = announce
                 showAnnounce = true
             }
-            PanelDivider()
-            PanelRow(symbol: "crown.fill", colors: PanelTint.orange,
-                     title: Tr("群主"), value: ownerName, chevron: false) { }
-
-            PanelDivider()
-            PanelRow(symbol: "phone.arrow.up.right.fill", colors: PanelTint.green,
-                     title: Tr("群语音通话"),
-                     value: Tr("和群里的人一起语音")) {
-                CallCenter.shared.startGroupCall(chatId: chat.id, title: chat.name ?? "")
-                dismiss()
-            }
-
-            PanelDivider()
-            PanelRow(symbol: "video.fill", colors: PanelTint.green,
-                     title: Tr("群视频通话"),
-                     value: Tr("和群里的人一起视频")) {
-                CallCenter.shared.startGroupCall(chatId: chat.id, title: chat.name ?? "", video: true)
-                dismiss()
-            }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("群主"), value: ownerName) { }
         }
     }
 
     private var switchCard: some View {
-        PanelCard(solid: true) {
-            PanelToggleRow(symbol: "pin.fill", colors: PanelTint.orange,
-                           title: Tr("置顶聊天"),
-                           subtitle: pinned ? Tr("已置顶，会排在会话列表最上面") : nil,
-                           isOn: pinned) { v in
+        GroupCard {
+            ChatInfoToggleRow(title: Tr("置顶聊天"),
+                              subtitle: pinned ? Tr("已置顶，会排在会话列表最上面") : nil,
+                              isOn: pinned) { v in
                 pinned = v
                 app.applyPinnedLocally(chatId: chat.id, pinned: v)
                 Task {
@@ -726,17 +700,11 @@ struct GroupInfoView: View {
                     await app.loadChats()
                 }
             }
-            PanelDivider()
-
-            PanelRow(symbol: "photo.on.rectangle.angled", colors: PanelTint.purple,
-                     title: Tr("设置当前聊天背景")) { showGroupBg = true }
             if isOwner {
-                PanelDivider()
-
-                PanelToggleRow(symbol: "speaker.slash.fill", colors: PanelTint.red,
-                               title: Tr("全员禁言"),
-                               subtitle: muteAll ? Tr("已开启，群里只有你能发言") : nil,
-                               isOn: muteAll) { v in
+                ChatInfoDivider()
+                ChatInfoToggleRow(title: Tr("全员禁言"),
+                                  subtitle: muteAll ? Tr("已开启，群里只有你能发言") : nil,
+                                  isOn: muteAll) { v in
                     muteAll = v
                     Task {
                         if let err = await API.shared.setMuteAll(chatId: chat.id, on: v) {
@@ -746,12 +714,10 @@ struct GroupInfoView: View {
                     }
                 }
             }
-            PanelDivider()
-
-            PanelToggleRow(symbol: "bell.slash.fill", colors: PanelTint.gray,
-                           title: Tr("消息免打扰"),
-                           subtitle: muted ? Tr("这个群来消息不响也不弹") : nil,
-                           isOn: muted) { v in
+            ChatInfoDivider()
+            ChatInfoToggleRow(title: Tr("消息免打扰"),
+                              subtitle: muted ? Tr("这个群来消息不响也不弹") : nil,
+                              isOn: muted) { v in
                 muted = v
                 app.applyMutedLocally(chatId: chat.id, muted: v)
                 Task {
@@ -766,15 +732,11 @@ struct GroupInfoView: View {
                     await app.loadChats()
                 }
             }
-            PanelDivider()
-
-            PanelToggleRow(symbol: "flame.fill", colors: PanelTint.orange,
-                           title: Tr("阅后即焚"),
-                           subtitle: burn ? Tr("群里发的消息，看过 20 秒后自动消失") : nil,
-                           isOn: burn) { v in
-
+            ChatInfoDivider()
+            ChatInfoToggleRow(title: Tr("阅后即焚"),
+                              subtitle: burn ? Tr("群里发的消息，看过 20 秒后自动消失") : nil,
+                              isOn: burn) { v in
                 if v {
-
                     faceForBurn = true
                 } else {
                     burn = false
@@ -800,13 +762,35 @@ struct GroupInfoView: View {
                 }
                 .environmentObject(app)
             }
-            PanelDivider()
-            PanelRow(symbol: "exclamationmark.bubble.fill", colors: PanelTint.gray,
-                     title: Tr("投诉群聊"),
-                     value: Tr("违法违规、诈骗或骚扰")) {
+        }
+    }
+
+    private var groupToolCard: some View {
+        GroupCard {
+            ChatInfoTextRow(title: Tr("群二维码")) { showQR = true }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("查找聊天记录")) { showSearch = true }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("设置当前聊天背景")) { showGroupBg = true }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("群语音通话"),
+                            subtitle: Tr("和群里的人一起语音")) {
+                CallCenter.shared.startGroupCall(chatId: chat.id, title: chat.name ?? "")
+                dismiss()
+            }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("群视频通话"),
+                            subtitle: Tr("和群里的人一起视频")) {
+                CallCenter.shared.startGroupCall(chatId: chat.id, title: chat.name ?? "", video: true)
+                dismiss()
+            }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("投诉群聊"),
+                            subtitle: Tr("违法违规、诈骗或骚扰")) {
                 showComplaint = true
             }
         }
+        .padding(.top, 10)
     }
 
     private func loadNextMemberBatch() {
@@ -824,14 +808,13 @@ struct GroupInfoView: View {
     }
 
     private var dangerCard: some View {
-        PanelCard(solid: true) {
-            PanelDangerRow(symbol: "eraser.fill", title: Tr("清空聊天记录")) { confirmClear = true }
-            PanelDivider()
-            PanelDangerRow(symbol: "trash.fill", title: Tr("删除该聊天")) { deleteChat() }
-            PanelDivider()
-
-            PanelDangerRow(symbol: "rectangle.portrait.and.arrow.right",
-                           title: isOwner ? "解散并退出群聊" : "退出群聊") { confirmQuit = true }
+        GroupCard {
+            ChatInfoTextRow(title: Tr("清空聊天记录"), destructive: true) { confirmClear = true }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("删除该聊天"), destructive: true) { deleteChat() }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: isOwner ? "解散并退出群聊" : "退出群聊",
+                            destructive: true) { confirmQuit = true }
         }
     }
 }
@@ -868,31 +851,26 @@ struct GroupComplaintView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 12) {
                     GroupCard {
-                        HStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.shield.fill")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundColor(C.red)
-                                .frame(width: 44, height: 44)
-                                .background(C.red.opacity(0.10))
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(groupName)
-                                    .font(pf(16, .medium))
-                                    .foregroundColor(C.label)
-                                    .lineLimit(1)
-                                Text(Tr("投诉会提交给安全团队审核，群成员不会看到"))
-                                    .font(pf(12))
-                                    .foregroundColor(C.subLabel)
-                                    .lineLimit(2)
-                            }
-                            Spacer(minLength: 0)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(Tr("投诉对象"))
+                                .font(pf(12.5, .medium))
+                                .foregroundColor(C.subLabel)
+                            Text(groupName)
+                                .font(pf(17, .semibold))
+                                .foregroundColor(C.label)
+                                .lineLimit(2)
+                            Text(Tr("投诉信息仅用于安全审核，群成员不会看到。"))
+                                .font(pf(12.5))
+                                .foregroundColor(C.subLabel)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 13)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(Tr("投诉类型"))
+                        Text(Tr("问题类型"))
                             .font(pf(13, .medium))
                             .foregroundColor(C.subLabel)
                             .padding(.leading, 4)
@@ -907,13 +885,15 @@ struct GroupComplaintView: View {
                                             .font(pf(15.5))
                                             .foregroundColor(C.label)
                                         Spacer(minLength: 0)
-                                        Image(systemName: reason == reasons[index]
-                                              ? "checkmark.circle.fill" : "circle")
-                                            .font(.system(size: 19))
+                                        Text(reason == reasons[index] ? Tr("已选择") : Tr("选择"))
+                                            .font(pf(12.5, reason == reasons[index] ? .medium : .regular))
                                             .foregroundColor(reason == reasons[index] ? C.green : C.subLabel)
                                     }
                                     .padding(.horizontal, 16)
                                     .frame(height: 48)
+                                    .background(reason == reasons[index]
+                                        ? C.green.opacity(0.06)
+                                        : Color.clear)
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
@@ -922,14 +902,14 @@ struct GroupComplaintView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(Tr("补充说明"))
+                        Text(Tr("事实说明"))
                             .font(pf(13, .medium))
                             .foregroundColor(C.subLabel)
                             .padding(.leading, 4)
                         GroupCard {
                             ZStack(alignment: .topLeading) {
                                 if detail.isEmpty {
-                                    Text(Tr("请描述具体情况，选填"))
+                                    Text(Tr("请说明发生时间、具体行为和相关聊天内容，选填"))
                                         .font(pf(14))
                                         .foregroundColor(C.subLabel.opacity(0.75))
                                         .padding(.horizontal, 15)
@@ -953,11 +933,21 @@ struct GroupComplaintView: View {
                         }
                     }
 
-                    Text(Tr("请如实提交投诉。恶意投诉不会影响群聊正常使用，但会被记录。"))
-                        .font(pf(12))
-                        .foregroundColor(C.subLabel)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 4)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(Tr("提交须知"))
+                            .font(pf(13, .semibold))
+                            .foregroundColor(C.label)
+                        Text(Tr("· 请如实提供可核实的信息，安全团队会结合聊天记录审核。"))
+                        Text(Tr("· 审核期间可能需要补充说明，请留意系统通知。"))
+                        Text(Tr("· 恶意投诉或重复提交不实信息会被记录。"))
+                        Text(Tr("· 除执法或安全审核需要外，不会向被投诉方披露投诉人身份。"))
+                    }
+                    .font(pf(12.5))
+                    .foregroundColor(C.subLabel)
+                    .lineSpacing(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+                    .padding(.top, 2)
                 }
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
@@ -1185,11 +1175,11 @@ struct DirectChatInfoView: View {
                     if chat.sysTeam == true {
                         teamSimpleIntro
                     } else {
-                        PanelSectionTitle(text: Tr("聊天设置"))
+                        ChatInfoSectionTitle(text: Tr("聊天设置"))
                         switchCard
-                        PanelSectionTitle(text: Tr("常用"))
+                        ChatInfoSectionTitle(text: Tr("常用"))
                         toolCard
-                        PanelSectionTitle(text: Tr("危险操作"))
+                        ChatInfoSectionTitle(text: Tr("操作"))
                         dangerCard
                     }
                 }
@@ -1287,17 +1277,16 @@ struct DirectChatInfoView: View {
     }
 
     private var peerCard: some View {
-        PanelHeroCard(glow: C.green) {
+        GroupCard {
             HStack(spacing: 12) {
                 Avatar(path: peer?.avatarPath ?? "", size: 60, radius: 14, level: peer?.qqLevel ?? 0)
                     .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(Color.white.opacity(0.35), lineWidth: 0.8))
-                    .shadow(color: Color.black.opacity(0.3), radius: 8, y: 3)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Text(peer?.name ?? chat.name)
-                            .font(pf(18, .semibold))
-                            .foregroundColor(.white)
+                            .font(pf(17, .semibold))
+                            .foregroundColor(C.label)
                             .lineLimit(1)
                         if let lv = peer?.qqLevel, lv > 0 {
                             QQLevelBadge(level: lv, size: 13, maxIcons: 2).fixedSize()
@@ -1306,83 +1295,26 @@ struct DirectChatInfoView: View {
                     if let un = peer?.username, !un.isEmpty {
                         Text(Tr("星言号") + "：" + un)
                             .font(pf(12.5))
-                            .foregroundColor(.white.opacity(0.62))
+                            .foregroundColor(C.subLabel)
                             .lineLimit(1)
 
                             .copyOnLongPress(un) { app.show($0) }
                     }
                 }
                 Spacer(minLength: 0)
-                Chevron(size: 9, line: 1.6, color: .white.opacity(0.45))
             }
             .contentShape(Rectangle())
-
             .onTapGesture { if peer != nil { showCard = true } }
-
-            HStack(spacing: 9) {
-                PanelPill(symbol: "phone.fill", title: Tr("语音通话"), colors: PanelTint.green) { start(video: false) }
-                PanelPill(symbol: "video.fill", title: Tr("视频通话"), colors: PanelTint.blue) { start(video: true) }
-                Spacer(minLength: 0)
-            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 15)
         }
     }
 
     private var switchCard: some View {
-        PanelCard(solid: true) {
-            PanelToggleRow(symbol: "bell.slash.fill", colors: PanelTint.gray,
-                           title: Tr("消息免打扰"),
-                           subtitle: muted ? Tr("这个人来消息不响也不弹") : nil,
-                           isOn: muted) { v in
-                muted = v
-                app.applyMutedLocally(chatId: chat.id, muted: v)
-                Task {
-                    guard let now = await API.shared.setMuted(chatId: chat.id, muted: v) else {
-                        muted = !v
-                        app.applyMutedLocally(chatId: chat.id, muted: !v)
-                        app.show(Tr("免打扰设置失败"))
-                        return
-                    }
-                    muted = now
-                    app.applyMutedLocally(chatId: chat.id, muted: now)
-                    await app.loadChats()
-                }
-            }
-            PanelDivider()
-
-            PanelToggleRow(symbol: "flame.fill", colors: PanelTint.orange,
-                           title: Tr("阅后即焚"),
-                           subtitle: burn ? Tr("这个人发的消息，看过 20 秒后自动消失") : nil,
-                           isOn: burn) { v in
-                if v {
-                    faceForBurn = true
-                } else {
-                    burn = false
-                    Task {
-                        _ = await API.shared.setChatBurn(chatId: chat.id, on: false)
-                        await app.loadChats()
-                    }
-                }
-            }
-            .sheet(isPresented: $faceForBurn) {
-                FaceVerifyFlowView { ok in
-                    faceForBurn = false
-                    if ok {
-                        burn = true
-                        Task {
-                            burn = await API.shared.setChatBurn(chatId: chat.id, on: true)
-                            await app.loadChats()
-                            app.show(Tr("人脸验证通过，阅后即焚已打开"))
-                        }
-                    } else {
-                        app.show(Tr("人脸验证没通过，阅后即焚先保持关闭"))
-                    }
-                }
-                .environmentObject(app)
-            }
-            PanelToggleRow(symbol: "pin.fill", colors: PanelTint.orange,
-                           title: Tr("置顶聊天"),
-                           subtitle: pinned ? Tr("已置顶，会排在会话列表最上面") : nil,
-                           isOn: pinned) { v in
+        GroupCard {
+            ChatInfoToggleRow(title: Tr("置顶聊天"),
+                              subtitle: pinned ? Tr("已置顶，会排在会话列表最上面") : nil,
+                              isOn: pinned) { v in
                 pinned = v
                 app.applyPinnedLocally(chatId: chat.id, pinned: v)
                 Task {
@@ -1397,7 +1329,54 @@ struct DirectChatInfoView: View {
                     await app.loadChats()
                 }
             }
-            PanelDivider()
+            ChatInfoDivider()
+            ChatInfoToggleRow(title: Tr("消息免打扰"),
+                              subtitle: muted ? Tr("这个人来消息不响也不弹") : nil,
+                              isOn: muted) { v in
+                muted = v
+                app.applyMutedLocally(chatId: chat.id, muted: v)
+                Task {
+                    guard let now = await API.shared.setMuted(chatId: chat.id, muted: v) else {
+                        muted = !v
+                        app.applyMutedLocally(chatId: chat.id, muted: !v)
+                        app.show(Tr("免打扰设置失败"))
+                        return
+                    }
+                    muted = now
+                    app.applyMutedLocally(chatId: chat.id, muted: now)
+                    await app.loadChats()
+                }
+            }
+            ChatInfoDivider()
+            ChatInfoToggleRow(title: Tr("阅后即焚"),
+                              subtitle: burn ? Tr("这个人发的消息，看过 20 秒后自动消失") : nil,
+                              isOn: burn) { v in
+                if v {
+                    faceForBurn = true
+                } else {
+                    burn = false
+                    Task {
+                        _ = await API.shared.setChatBurn(chatId: chat.id, on: false)
+                        await app.loadChats()
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $faceForBurn) {
+            FaceVerifyFlowView { ok in
+                faceForBurn = false
+                if ok {
+                    burn = true
+                    Task {
+                        burn = await API.shared.setChatBurn(chatId: chat.id, on: true)
+                        await app.loadChats()
+                        app.show(Tr("人脸验证通过，阅后即焚已打开"))
+                    }
+                } else {
+                    app.show(Tr("人脸验证没通过，阅后即焚先保持关闭"))
+                }
+            }
+            .environmentObject(app)
         }
     }
 
@@ -1422,50 +1401,39 @@ struct DirectChatInfoView: View {
     private var sysQuickBar: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
                             GridItem(.flexible(), spacing: 10)], spacing: 10) {
-            sysQuickButton(symbol: "wrench.and.screwdriver.fill",
-                           title: Tr("自助工具"),
-                           sub: Tr("改密码 · 登录设备"),
-                           color: C.green) { sysPage = .tools }
-            sysQuickButton(symbol: "headphones",
-                           title: Tr("帮助中心"),
-                           sub: Tr("常见问题 · 工单"),
-                           color: Color(hex: 0x2F73C9)) { sysPage = .support }
-            sysQuickButton(symbol: "lock.shield.fill",
-                           title: Tr("安全中心"),
-                           sub: Tr("冻结 · 解冻 · 解封"),
-                           color: Color(hex: 0xB27C37)) { sysPage = .safety }
-            sysQuickButton(symbol: "bubble.left.and.text.bubble.right.fill",
-                           title: Tr("意见反馈"),
-                           sub: Tr("提交问题 · 看回复"),
-                           color: Color(hex: 0x7A5AF8)) { sysPage = .feedback }
+            sysQuickButton(title: Tr("自助工具"),
+                           sub: Tr("改密码 · 登录设备")
+                           ) { sysPage = .tools }
+            sysQuickButton(title: Tr("帮助中心"),
+                           sub: Tr("常见问题 · 工单")
+                           ) { sysPage = .support }
+            sysQuickButton(title: Tr("安全中心"),
+                           sub: Tr("冻结 · 解冻 · 解封")
+                           ) { sysPage = .safety }
+            sysQuickButton(title: Tr("意见反馈"),
+                           sub: Tr("提交问题 · 看回复")
+                           ) { sysPage = .feedback }
         }
     }
 
-    private func sysQuickButton(symbol: String, title: String, sub: String,
-                                color: Color, action: @escaping () -> Void) -> some View {
+    private func sysQuickButton(title: String, sub: String,
+                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: symbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(color)
-                    .frame(width: 34, height: 34)
-                    .background(color.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(pf(13.5, .semibold))
-                        .foregroundColor(C.label)
-                        .lineLimit(1)
-                    Text(sub)
-                        .font(pf(9.5))
-                        .foregroundColor(C.subLabel)
-                        .lineLimit(1)
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(pf(14, .semibold))
+                    .foregroundColor(C.label)
+                    .lineLimit(1)
+                Text(sub)
+                    .font(pf(10.5))
+                    .foregroundColor(C.subLabel)
+                    .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 9)
+            .padding(.horizontal, 13)
+            .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: 58)
             .background(C.cardBg)
             .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
             .contentShape(Rectangle())
@@ -1498,22 +1466,24 @@ struct DirectChatInfoView: View {
     }
 
     private var toolCard: some View {
-        PanelCard(solid: true) {
-            PanelRow(symbol: "magnifyingglass", colors: PanelTint.blue,
-                     title: Tr("查找聊天记录")) { showSearch = true }
-            PanelDivider()
-            PanelRow(symbol: "photo.on.rectangle.angled", colors: PanelTint.purple,
-                     title: Tr("设置当前聊天背景")) {
+        GroupCard {
+            ChatInfoTextRow(title: Tr("语音通话")) { start(video: false) }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("视频通话")) { start(video: true) }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("查找聊天记录")) { showSearch = true }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("设置当前聊天背景")) {
                 showChatBg = true
             }
         }
     }
 
     private var dangerCard: some View {
-        PanelCard(solid: true) {
-            PanelDangerRow(symbol: "eraser.fill", title: Tr("清空聊天记录")) { confirmClear = true }
-            PanelDivider()
-            PanelDangerRow(symbol: "trash.fill", title: Tr("删除该聊天")) { confirmDelete = true }
+        GroupCard {
+            ChatInfoTextRow(title: Tr("清空聊天记录"), destructive: true) { confirmClear = true }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("删除该聊天"), destructive: true) { confirmDelete = true }
         }
     }
 
@@ -1648,5 +1618,110 @@ struct GroupAddMembersView: View {
             onDone(r.added)
             dismiss()
         }
+    }
+}
+
+private struct ChatInfoSectionTitle: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(pf(12.5))
+            .foregroundColor(C.subLabel)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
+            .padding(.top, 14)
+            .padding(.bottom, 7)
+    }
+}
+
+private struct ChatInfoTextRow: View {
+    let title: String
+    var subtitle: String? = nil
+    var value: String? = nil
+    var destructive = false
+    var tap: () -> Void
+
+    var body: some View {
+        Button(action: tap) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(pf(16))
+                        .foregroundColor(destructive
+                            ? Color.dyn(0xE03A3A, 0xFF6B6B)
+                            : C.label)
+                        .lineLimit(1)
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(pf(12.5))
+                            .foregroundColor(C.subLabel)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 10)
+                if let value, !value.isEmpty {
+                    Text(value)
+                        .font(pf(14.5))
+                        .foregroundColor(C.subLabel)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 52)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ChatInfoToggleRow: View {
+    let title: String
+    var subtitle: String? = nil
+    let isOn: Bool
+    let onChange: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(pf(16))
+                    .foregroundColor(C.label)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(pf(12.5))
+                        .foregroundColor(C.subLabel)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 8)
+            Toggle("", isOn: Binding(get: { isOn }, set: onChange))
+                .labelsHidden()
+                .tint(C.green)
+        }
+        .padding(.horizontal, 16)
+        .frame(minHeight: 52)
+    }
+}
+
+private struct ChatInfoDivider: View {
+    var body: some View { HairLine(inset: 16) }
+}
+
+private struct ChatInfoTextButton: View {
+    let title: String
+    var color: Color = C.green
+    let tap: () -> Void
+
+    var body: some View {
+        Button(action: tap) {
+            Text(title)
+                .font(pf(13.5, .medium))
+                .foregroundColor(color)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+        }
+        .buttonStyle(.plain)
     }
 }
