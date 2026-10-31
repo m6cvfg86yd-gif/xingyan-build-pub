@@ -252,6 +252,12 @@ struct NativeTabBar: UIViewRepresentable {
         if scheme == .dark {
             appearance.selectionIndicatorImage = UIImage()
             bar.selectionIndicatorImage = UIImage()
+            if #available(iOS 26.0, *), #unavailable(iOS 27.0) {
+                let offset = UIOffset(horizontal: 0, vertical: 8)
+                appearance.stackedLayoutAppearance.selected.titlePositionAdjustment = offset
+                appearance.inlineLayoutAppearance.selected.titlePositionAdjustment = offset
+                appearance.compactInlineLayoutAppearance.selected.titlePositionAdjustment = offset
+            }
         }
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
@@ -294,6 +300,17 @@ struct NativeTabBar: UIViewRepresentable {
         func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
             guard let index = tabBar.items?.firstIndex(where: { $0 === item }) else { return }
             selection.wrappedValue = index
+            stabilizeLayout(tabBar)
+        }
+
+        private func stabilizeLayout(_ bar: UITabBar) {
+            bar.setNeedsLayout()
+            UIView.performWithoutAnimation { bar.layoutIfNeeded() }
+            DispatchQueue.main.async { [weak bar] in
+                guard let bar else { return }
+                bar.setNeedsLayout()
+                UIView.performWithoutAnimation { bar.layoutIfNeeded() }
+            }
         }
 
         fileprivate func customIcon(_ index: Int) -> String? {
