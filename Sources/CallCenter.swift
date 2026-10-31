@@ -260,6 +260,9 @@ final class CallCenter: NSObject, ObservableObject {
     private var ringTimer: Timer?
 
     private var connectTimer: Timer?
+    private var inviteRetryTask: Task<Void, Never>?
+    private var lastOutgoingInvite: [String: Any]?
+    private var inviteAcked = false
     private var pendingGroupInviteUserId = ""
     private var sub: AnyCancellable?
 
@@ -323,6 +326,7 @@ final class CallCenter: NSObject, ObservableObject {
         resetIfStale()
         guard phase == .idle else { errorText = "正在通话中"; return }
         guard !peerId.isEmpty else { errorText = "找不到对方账号"; return }
+        resetInviteRetry()
         dismissDialog()
         minimized = false
         self.peerId = peerId
@@ -1006,7 +1010,46 @@ final class CallCenter: NSObject, ObservableObject {
             msg["ownerId"] = callOwnerId
         }
         body.forEach { msg[$0.key] = $0.value }
+        let action = (body["action"] as? String) ?? ""
+        if action == "invite", iAmCaller {
+            lastOutgoingInvite = msg
+            inviteAcked = false
+            startInviteRetry()
+        }
         Realtime.shared.sendJSON(msg)
+    }
+
+    private func startInviteRetry() {
+        guard inviteRetryTask == nil else { return }
+        inviteRetryTask = Task { @MainActor [weak self] in
+            let delays: [UInt64] = [1_500_000_000, 3_000_000_000,
+                                    6_000_000_000, 10_000_000_000]
+            for delay in delays {
+                try? await Task.sleep(nanoseconds: delay)
+                guard let self = self, !Task.isCancelled,
+                      self.iAmCaller, !self.inviteAcked,
+                      self.phase == .outgoing,
+                      let invite = self.lastOutgoingInvite else { return }
+                if Realtime.shared.connected {
+                    self.note("通话邀请尚未确认，自动补发")
+                    Realtime.shared.sendJSON(invite)
+                }
+            }
+            self?.inviteRetryTask = nil
+        }
+    }
+
+    private func resetInviteRetry() {
+        inviteRetryTask?.cancel()
+        inviteRetryTask = nil
+        lastOutgoingInvite = nil
+        inviteAcked = false
+    }
+
+    private func acknowledgeInvite() {
+        inviteAcked = true
+        inviteRetryTask?.cancel()
+        inviteRetryTask = nil
     }
 
     private func startServerAudioIfVoice() {
@@ -1082,12 +1125,17 @@ final class CallCenter: NSObject, ObservableObject {
             return
         }
         if ev.type == "ready" {
+            if phase == .outgoing, iAmCaller, !inviteAcked,
+               let invite = lastOutgoingInvite {
+                Realtime.shared.sendJSON(invite)
+            }
             if phase != .idle, phase != .active, ev.callActive == false {
                 finish(tip: "通话已结束")
             }
             return
         }
         if ev.type == "call-error" {
+            if ev.callId == callId { acknowledgeInvite() }
             if !ev.callError.isEmpty { errorText = ev.callError }
 
             if ev.callId == callId, phase != .active {
@@ -1101,6 +1149,9 @@ final class CallCenter: NSObject, ObservableObject {
             if let c = netWaiters.removeValue(forKey: ev.callPeerId) { c.resume(returning: ev.callSameNetwork) }
         case "incoming":
 
+            if ev.callId == callId, !iAmCaller, !callId.isEmpty {
+                return
+            }
             if phase != .idle { resetIfStale() }
             guard phase == .idle else {
                 let why = "自动拒绝来电 phase=\(phase) callId=\(callId) pipe=\(CallAudioPipe.shared.isRunning)"
@@ -1134,6 +1185,7 @@ final class CallCenter: NSObject, ObservableObject {
 
         case "ringing":
             guard ev.callId == callId else { return }
+            acknowledgeInvite()
             tip = isVideo ? "正在等待对方接受邀请…" : "正在呼叫…"
 
         case "state":
@@ -1239,6 +1291,7 @@ final class CallCenter: NSObject, ObservableObject {
 
         case "accepted":
             guard ev.callId == callId else { return }
+            acknowledgeInvite()
             Ringtone.shared.stop()
             startConnectWatch()
             if isVideo {
@@ -1290,6 +1343,7 @@ final class CallCenter: NSObject, ObservableObject {
 
         case "end":
             if ev.callId == callId || callId.isEmpty {
+                acknowledgeInvite()
                 let why: String
                 switch ev.callReason {
                 case "rejected":     why = "对方已拒绝"
@@ -1656,6 +1710,7 @@ final class CallCenter: NSObject, ObservableObject {
         usingTRTC = false
         trtcJoined = false
         stopMedia()
+        resetInviteRetry()
 
         if !diag.isEmpty {
             let line = (iAmCaller ? "主叫" : "被叫") + (isVideo ? " 视频" : " 语音")
