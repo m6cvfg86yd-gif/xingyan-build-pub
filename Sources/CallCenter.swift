@@ -856,6 +856,7 @@ final class CallCenter: NSObject, ObservableObject {
 
     private func startGroupAudio() {
         guard !serverAudioOn else { return }
+        CallAudioPipe.shared.prepareForGroupCall()
         serverAudioOn = true
         audioTrack?.isEnabled = false
 

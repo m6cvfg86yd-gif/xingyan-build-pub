@@ -27,8 +27,8 @@ final class CallAudioPipe: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
     private let audioOut = AVCaptureAudioDataOutput()
     private let captureQueue = DispatchQueue(label: "chris.call.capture")
 
-    private let player = AVAudioEngine()
-    private let playerNode = AVAudioPlayerNode()
+    private var player = AVAudioEngine()
+    private var playerNode = AVAudioPlayerNode()
     private var playerReady = false
 
     private var wired = false
@@ -46,6 +46,8 @@ final class CallAudioPipe: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
     private var repairing = false
     private let repairQueue = DispatchQueue(label: "chris.call.repair")
     private var observers: [NSObjectProtocol] = []
+    private var groupPlaybackRecovery = false
+    private var lastGroupPlaybackRebuild = Date.distantPast
 
     private var pendingFrames: [Data] = []
 
@@ -216,6 +218,8 @@ final class CallAudioPipe: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
     }
 
     func prepareForNewCall() {
+        groupPlaybackRecovery = false
+        resetHandOver()
         stop()
         lastError = ""
         outSeq = 0
@@ -234,6 +238,12 @@ final class CallAudioPipe: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
         pendingFrames.removeAll()
         queuedUntil = Date.distantPast
         latencyPeak = 0
+    }
+
+    func prepareForGroupCall() {
+        resetHandOver()
+        prepareForNewCall()
+        groupPlaybackRecovery = true
     }
 
     func stop() {
@@ -448,6 +458,28 @@ final class CallAudioPipe: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
         startPlaybackOnQueue()
     }
 
+    private func rebuildGroupPlaybackOnQueue() {
+        guard !handedOver, started, groupPlaybackRecovery else { return }
+        let now = Date()
+        if now.timeIntervalSince(lastGroupPlaybackRebuild) < 0.8 {
+            startPlaybackOnQueue()
+            return
+        }
+        lastGroupPlaybackRebuild = now
+        framesInFlight = 0
+        playerReady = false
+        playerNode.stop()
+        player.stop()
+        if wired {
+            player.disconnectNodeOutput(playerNode)
+            player.detach(playerNode)
+        }
+        player = AVAudioEngine()
+        playerNode = AVAudioPlayerNode()
+        wired = false
+        startPlaybackOnQueue()
+    }
+
     private func configureSession() {
         let session = AVAudioSession.sharedInstance()
         do {
@@ -626,7 +658,13 @@ final class CallAudioPipe: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
             return
         }
 
-        if !(playerReady && player.isRunning && playerNode.isPlaying) { startPlaybackOnQueue() }
+        if !(playerReady && player.isRunning && playerNode.isPlaying) {
+            if groupPlaybackRecovery {
+                rebuildGroupPlaybackOnQueue()
+            } else {
+                startPlaybackOnQueue()
+            }
+        }
         guard !handedOver, playerReady, player.isRunning, playerNode.isPlaying,
               let fmt = playFormat else {
             framesDropped += 1
