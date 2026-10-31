@@ -298,7 +298,7 @@ final class CallCenter: NSObject, ObservableObject {
                     if self.usingTRTC {
                         TRTCBridge.shared.retryMicrophone()
                     } else {
-                        CallAudioPipe.shared.repairAudioNow()
+                        self.voicePipeRepair()
                     }
                     self.note("麦克风权限已开，重新抢麦")
                 }
@@ -317,7 +317,7 @@ final class CallCenter: NSObject, ObservableObject {
         if usingTRTC {
             TRTCBridge.shared.retryMicrophone()
         } else {
-            CallAudioPipe.shared.repairAudioNow()
+            voicePipeRepair()
         }
     }
 
@@ -528,7 +528,9 @@ final class CallCenter: NSObject, ObservableObject {
                 try? await Task.sleep(nanoseconds: 300_000_000)
                 if Task.isCancelled { break }
                 guard phase.isBusy, isGroupCall else { continue }
-                let lv = Double(CallAudioPipe.shared.lastLevel)
+                let lv = Double(isGroupCall
+                    ? GroupAudioPipe.shared.lastLevel
+                    : CallAudioPipe.shared.lastLevel)
                 if abs(lv - lastLevelSent) < 0.02 { continue }
                 lastLevelSent = lv
                 sendCall(["action": "level", "level": max(0, min(1, lv))])
@@ -843,8 +845,8 @@ final class CallCenter: NSObject, ObservableObject {
             TRTCBridge.shared.stopMeetingViews()
             TRTCBridge.shared.stop()
         }
-        CallAudioPipe.shared.onFrame = nil
-        CallAudioPipe.shared.stop()
+        GroupAudioPipe.shared.onFrame = nil
+        GroupAudioPipe.shared.stop()
         serverAudioOn = false
         isGroupCall = false
         roomId = ""
@@ -856,7 +858,6 @@ final class CallCenter: NSObject, ObservableObject {
 
     private func startGroupAudio() {
         guard !serverAudioOn else { return }
-        CallAudioPipe.shared.prepareForGroupCall()
         serverAudioOn = true
         audioTrack?.isEnabled = false
 
@@ -879,13 +880,13 @@ final class CallCenter: NSObject, ObservableObject {
     }
 
     private func beginGroupAudioCapture() {
-        CallAudioPipe.shared.onFrame = { [weak self] data in
+        GroupAudioPipe.shared.onFrame = { [weak self] data in
             guard let self = self, !self.muted, !self.roomId.isEmpty else { return }
             Realtime.shared.sendJSON(["type": "call", "action": "group-audio",
                                       "roomId": self.roomId,
                                       "data": data.base64EncodedString()])
         }
-        CallAudioPipe.shared.start()
+        GroupAudioPipe.shared.start()
         reportMicState(prefix: "群语音麦克风")
     }
 
@@ -1292,7 +1293,7 @@ final class CallCenter: NSObject, ObservableObject {
 
         case "group-audio":
             guard isGroupCall, let b64 = ev.callAudioData, let d = Data(base64Encoded: b64) else { return }
-            CallAudioPipe.shared.play(d)
+            GroupAudioPipe.shared.play(d)
 
         case "accepted":
             guard ev.callId == callId else { return }
@@ -1440,7 +1441,7 @@ final class CallCenter: NSObject, ObservableObject {
                     if self.usingTRTC {
                         TRTCBridge.shared.recoverAudioAfterNetworkChange()
                     } else {
-                        CallAudioPipe.shared.repairAudioNow()
+                        voicePipeRepair()
                     }
                 }
                 Task { @MainActor [weak self] in
@@ -1701,9 +1702,13 @@ final class CallCenter: NSObject, ObservableObject {
         connectTimer = nil
         pendingGroupInviteUserId = ""
 
-        if !wasIdle || seconds > 0 { diag.append(CallAudioPipe.shared.playDiag) }
+        if !wasIdle || seconds > 0 {
+            diag.append(isGroupCall ? GroupAudioPipe.shared.playDiag : CallAudioPipe.shared.playDiag)
+        }
         CallAudioPipe.shared.onFrame = nil
         CallAudioPipe.shared.stop()
+        GroupAudioPipe.shared.onFrame = nil
+        GroupAudioPipe.shared.stop()
         serverAudioOn = false
 
         stopProximity()
@@ -1816,7 +1821,8 @@ final class CallCenter: NSObject, ObservableObject {
 
     private func checkMicAlive() {
         guard phase != .idle, !isVideo, !usingTRTC else { return }
-        if CallAudioPipe.shared.isRunning {
+        let running = isGroupCall ? GroupAudioPipe.shared.isRunning : CallAudioPipe.shared.isRunning
+        if running {
             micDownTicks = 0
             if micBlocked { micBlocked = false }
         } else {
@@ -1836,6 +1842,14 @@ final class CallCenter: NSObject, ObservableObject {
                 }
                 self.finish(tip: self.iAmCaller ? "对方无应答" : "未接听")
             }
+        }
+    }
+
+    private func voicePipeRepair() {
+        if isGroupCall {
+            GroupAudioPipe.shared.repairAudioNow()
+        } else {
+            CallAudioPipe.shared.repairAudioNow()
         }
     }
 }

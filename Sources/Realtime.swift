@@ -241,7 +241,11 @@ final class Realtime: ObservableObject {
               action == "audio" || action == "group-audio",
               let b64 = o["data"] as? String,
               let ad = Data(base64Encoded: b64) else { return false }
-        CallAudioPipe.shared.play(ad)
+        if action == "group-audio" {
+            GroupAudioPipe.shared.play(ad)
+        } else {
+            CallAudioPipe.shared.play(ad)
+        }
         return true
     }
 

@@ -13,18 +13,23 @@
     },
     {
       "path": "Sources/Realtime.swift",
-      "size": 18503,
-      "sha256": "a0a7fbfa442187e286c9cec5bdc620a9f37e6603ced6f1e1469f23ae9baffc38"
+      "size": 18614,
+      "sha256": "2557991a3fa43b0223b2959515d8867b16b34eaac327e33c4dd0f4a2e70c4dd8"
     },
     {
       "path": "Sources/CallAudio.swift",
-      "size": 27872,
-      "sha256": "43d47c855e95921117a8ca74d9c9df0b2175aa971e315f218622b43c3d30ef74"
+      "size": 26757,
+      "sha256": "40948fb750ccef12892e3beb775f6896291a24578b3c6c0be59c74ac34a9fad8"
     },
     {
       "path": "Sources/CallCenter.swift",
-      "size": 80382,
-      "sha256": "d9e52753daacd4d122366bc0fe5afbb1c1a927c5575b39172625ef7bb0fa037d"
+      "size": 80792,
+      "sha256": "d8a1020c1ccc257772d6eb7ab7d3ea9aa210c2d3b51df11d57d109f981d0ea3e"
+    },
+    {
+      "path": "Sources/GroupAudioPipe.swift",
+      "size": 10284,
+      "sha256": "e4de31ab14414237092421fb6d3413e80aaba0a6f664b8533b800a0ccfe16136"
     },
     {
       "path": "Sources/CallView.swift",
