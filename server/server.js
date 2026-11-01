@@ -15844,6 +15844,19 @@ async function handleApi(req, res, pathname, query) {
   }
 
   /* 收藏：GET 列表 / POST 加一条 / DELETE 删一条 */
+  async function persistFavoriteChange() {
+    try {
+      if (typeof fanoutUserRow === 'function') await fanoutUserRow(user);
+    } catch (err) {
+      console.error('[收藏同步] 分片广播失败：' + err.message);
+    }
+    try {
+      if (typeof saveUsersNow === 'function') saveUsersNow();
+      else saveUsers();
+    } catch (err) {
+      saveUsers();
+    }
+  }
   if (parts[0] === 'favorites' && method === 'GET') {
     /* 置顶的排最前面，其余按时间倒序（微信收藏就是这样；pinned 是 2026-10-12 加的） */
     const list = (Array.isArray(user.favorites) ? user.favorites.slice() : [])
@@ -15871,7 +15884,7 @@ async function handleApi(req, res, pathname, query) {
     };
     user.favorites.unshift(fav);
     if (user.favorites.length > 300) user.favorites.length = 300;
-    saveUsers();
+    await persistFavoriteChange();
     ok(res, { favorite: fav, count: user.favorites.length });
     return;
   }
@@ -15891,7 +15904,7 @@ async function handleApi(req, res, pathname, query) {
     if (body.title !== undefined) one.title = str(body.title, 60);
     if (body.pinned !== undefined) one.pinned = !!body.pinned;
     one.updatedAt = now();
-    saveUsers();
+    await persistFavoriteChange();
     ok(res, { favorite: one });
     return;
   }
@@ -15900,7 +15913,7 @@ async function handleApi(req, res, pathname, query) {
     if (!Array.isArray(user.favorites)) user.favorites = [];
     const before = user.favorites.length;
     user.favorites = user.favorites.filter((f) => f.id !== id);
-    saveUsers();
+    await persistFavoriteChange();
     ok(res, { deleted: before !== user.favorites.length });
     return;
   }

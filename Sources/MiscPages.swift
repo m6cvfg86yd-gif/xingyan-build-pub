@@ -215,10 +215,7 @@ struct FavoritesView: View {
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         if let fid = item["id"] as? String {
                             Button(role: .destructive) {
-                                Task {
-                                    await API.shared.deleteFavorite(fid)
-                                    await load()
-                                }
+                                removeFavorite(fid)
                             } label: {
                                 Label(Tr("删除"), systemImage: "trash")
                             }
@@ -256,10 +253,7 @@ struct FavoritesView: View {
                                       systemImage: (item["pinned"] as? Bool) == true ? "pin.slash" : "pin")
                             }
                             Button(role: .destructive) {
-                                Task {
-                                    await API.shared.deleteFavorite(i)
-                                    await load()
-                                }
+                                removeFavorite(i)
                             } label: {
                                 Label(Tr("删除"), systemImage: "trash")
                             }
@@ -414,6 +408,14 @@ struct FavoritesView: View {
     private func load() async {
         items = await API.shared.favorites()
         loading = false
+    }
+
+    private func removeFavorite(_ id: String) {
+        items.removeAll { (($0["id"] as? String) ?? "") == id }
+        Task {
+            await API.shared.deleteFavorite(id)
+            await load()
+        }
     }
 
     private func saveImage(_ img: UIImage) {
