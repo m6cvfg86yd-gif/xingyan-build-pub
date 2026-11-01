@@ -20,6 +20,11 @@ const os = require('os');
 const { spawnSync, spawn } = require('child_process');
 const zlib = require('zlib');
 const ws = require('./lib/ws');
+const {
+  isOpsUser,
+  isOpsWebAuthPath,
+  isProtectedOpsPath
+} = require('./lib/app-ops');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -322,15 +327,14 @@ function saveWalletRules(next) {
 
 function readWalletOps() {
   if (walletOpsCache) return walletOpsCache;
-  let raw = {};
-  try { raw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, WALLET_OPS_FILE), 'utf8')); } catch (e) { raw = {}; }
+  const raw = readSecureJsonStore(WALLET_OPS_FILE, { ops: [] });
   walletOpsCache = { ops: Array.isArray(raw.ops) ? raw.ops : [] };
   return walletOpsCache;
 }
 
 function saveWalletOps() {
   if (!walletOpsCache) return;
-  try { writeJson(path.join(DATA_DIR, WALLET_OPS_FILE), walletOpsCache); } catch (e) { }
+  try { writeSecureJsonStore(WALLET_OPS_FILE, walletOpsCache); } catch (e) { }
 }
 
 /** 记一条零钱操作（充值 / 提现），账单里也会显示 */
@@ -1094,7 +1098,7 @@ function publicUser(u) {
     usernameChangesUsed: usernameChangeTimes(u).length,
     usernameChangesRemaining: Math.max(0, 2 - usernameChangeTimes(u).length),
     /* 这个人的 App 里要不要多出「管理」入口（App 内部管理音乐/图标用） */
-    ops: !!u.ops,
+    ops: isOpsUser(u),
     /* 状态收到的赞（谁赞的 + 赞了几个）——「朋友的状态」那一页要显示 */
     moodLikes: Array.isArray(u.moodLikes) ? u.moodLikes.slice(-80) : [],
     moodLikeCount: Array.isArray(u.moodLikes) ? u.moodLikes.length : 0,
@@ -1390,12 +1394,12 @@ const DEFAULT_PLUS_ITEMS = [
   { id: 'p13', label: '卡券', icon: 'coupon', action: 'coupon', enabled: true },
   { id: 'p14', label: '群接龙', icon: 'chain', action: 'none', enabled: false },
   { id: 'p15', label: '群投票', icon: 'vote', action: 'none', enabled: false },
-  { id: 'p16', label: '投屏', icon: 'screen', action: 'none', enabled: false }
+  { id: 'p16', label: '共享屏幕', icon: 'screen', action: 'screenshare', enabled: true }
 ];
 const PLUS_ICONS = ['photo', 'camera', 'video', 'location', 'redpacket', 'gift', 'transfer', 'voice',
   'favorite', 'card', 'file', 'music', 'coupon', 'chain', 'vote', 'screen', 'star', 'heart', 'link', 'none'];
 const PLUS_ACTIONS = ['photo', 'camera', 'videocall', 'location', 'redpacket', 'gift', 'transfer', 'voice',
-  'favorite', 'card', 'file', 'music', 'coupon', 'none'];
+  'favorite', 'card', 'file', 'music', 'coupon', 'screenshare', 'none'];
 
 /* ---------------- 聊天输入栏那排「快捷按钮」+ 那个「＋」按钮的外观 ----------------
    用户要求：快捷按钮要能**管理**（增删、排序、改名、开关），
@@ -2457,6 +2461,92 @@ function openPii(v) {
     return Buffer.concat([d.update(ct), d.final()]).toString('utf8');
   } catch (err) { return ''; }
 }
+
+const SECURE_STORE_VERSION = 1;
+function secureStoreKey(name) {
+  return crypto.createHmac('sha256', String(db.secret || 'chris'))
+    .update('store:' + name).digest();
+}
+function sealSecureStoreValue(name, value) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', secureStoreKey(name), iv);
+  cipher.setAAD(Buffer.from('store:' + name, 'utf8'));
+  const plain = Buffer.from(JSON.stringify(value), 'utf8');
+  const ct = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return {
+    enc: SECURE_STORE_VERSION,
+    iv: iv.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64'),
+    ct: ct.toString('base64')
+  };
+}
+function openSecureStoreValue(name, stored) {
+  if (!stored || typeof stored !== 'object' || stored.enc !== SECURE_STORE_VERSION) {
+    return stored;
+  }
+  try {
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      secureStoreKey(name),
+      Buffer.from(String(stored.iv || ''), 'base64')
+    );
+    decipher.setAAD(Buffer.from('store:' + name, 'utf8'));
+    decipher.setAuthTag(Buffer.from(String(stored.tag || ''), 'base64'));
+    const plain = Buffer.concat([
+      decipher.update(Buffer.from(String(stored.ct || ''), 'base64')),
+      decipher.final()
+    ]);
+    return JSON.parse(plain.toString('utf8'));
+  } catch (err) {
+    throw new Error('敏感数据文件解密失败：' + name);
+  }
+}
+function readSecureJsonStore(name, fallback) {
+  const file = path.join(DATA_DIR, name);
+  const stored = readJson(file, null);
+  if (stored == null) return fallback;
+  const value = openSecureStoreValue(name, stored);
+  if (!stored || stored.enc !== SECURE_STORE_VERSION) {
+    try { writeSecureJsonStore(name, value); } catch (err) {
+      console.log('[数据加密] ' + name + ' 暂时无法迁移：' + err.message);
+    }
+  }
+  return value;
+}
+function writeSecureJsonStore(name, value) {
+  writeJson(path.join(DATA_DIR, name), sealSecureStoreValue(name, value));
+}
+function migrateSecureJsonl(name) {
+  const file = path.join(DATA_DIR, name);
+  if (!fs.existsSync(file)) return;
+  const lines = fs.readFileSync(file, 'utf8').split('\n').filter((line) => line.trim());
+  if (!lines.length) return;
+  let legacy = false;
+  const sealed = lines.map((line) => {
+    const parsed = JSON.parse(line);
+    if (parsed && parsed.enc === SECURE_STORE_VERSION) return JSON.stringify(parsed);
+    legacy = true;
+    return JSON.stringify(sealSecureStoreValue(name, parsed));
+  });
+  if (!legacy) return;
+  const tmp = file + '.' + process.pid + '.seal.tmp';
+  fs.writeFileSync(tmp, sealed.join('\n') + '\n', 'utf8');
+  fs.renameSync(tmp, file);
+}
+function sealBankCardFields(card) {
+  if (!card || typeof card !== 'object') return card;
+  const out = Object.assign({}, card);
+  if (typeof out.number === 'string' && out.number) out.number = sealPii(out.number);
+  if (typeof out.holder === 'string' && out.holder) out.holder = sealPii(out.holder);
+  return out;
+}
+function openBankCardFields(card) {
+  if (!card || typeof card !== 'object') return card;
+  const out = Object.assign({}, card);
+  if (typeof out.number === 'string' && out.number) out.number = openPii(out.number);
+  if (typeof out.holder === 'string' && out.holder) out.holder = openPii(out.holder);
+  return out;
+}
 function loadStore() {
   ensureDirs();
   const users = readJson(path.join(DATA_DIR, 'users.json'), { users: [] });
@@ -2565,6 +2655,29 @@ if (fs.existsSync(adminFile)) {
     if (typeof u.phone === 'string' && u.phone) u.phone = openPii(u.phone);
     if (typeof u.realName === 'string' && u.realName) u.realName = openPii(u.realName);
   });
+  let bankCardsMigrated = false;
+  db.users.forEach((u) => {
+    if (!u || !Array.isArray(u.bankCards)) return;
+    u.bankCards = u.bankCards.map((card) => {
+      if (card && typeof card.number === 'string' &&
+          !card.number.startsWith(PII_PREFIX)) bankCardsMigrated = true;
+      if (card && typeof card.holder === 'string' &&
+          !card.holder.startsWith(PII_PREFIX)) bankCardsMigrated = true;
+      return openBankCardFields(card);
+    });
+  });
+  if (bankCardsMigrated) saveUsers();
+
+  db.transfers = (readSecureJsonStore('transfers.json', { transfers: [] }).transfers || []);
+  const secureRedPackets = readSecureJsonStore('redpackets.json', { redpackets: [] });
+  db.redpackets = (secureRedPackets.redpackets || []).filter((r) =>
+    r && typeof r === 'object' && Array.isArray(r.claims) && r.total != null);
+  readWalletOps();
+  readSecureJsonStore(MONEY_STATE, { users: {} });
+  readSecureJsonStore('ledger.json', { items: [] });
+  readBizAll();
+  loadOrders();
+  migrateSecureJsonl(MONEY_JOURNAL);
 }
 
 /* 保存时把手机号 / 实名姓名加密（内存里仍是明文） */
@@ -2574,6 +2687,7 @@ const saveUsers = () => writeJson(path.join(DATA_DIR, 'users.json'), {
     const c = Object.assign({}, u);
     if (typeof c.phone === 'string' && c.phone) c.phone = sealPii(c.phone);
     if (typeof c.realName === 'string' && c.realName) c.realName = sealPii(c.realName);
+    if (Array.isArray(c.bankCards)) c.bankCards = c.bankCards.map(sealBankCardFields);
     return c;
   })
 });
@@ -2700,8 +2814,8 @@ const saveWallet = () => writeJson(path.join(DATA_DIR, WALLET_FILE), { wallet: d
 const saveBalancePage = () => writeJson(path.join(DATA_DIR, BALANCE_FILE), { page: db.balancePage });
 const saveBillsPage = () => writeJson(path.join(DATA_DIR, BILLS_FILE), { page: db.billsPage });
 const saveFaceRooms = () => writeJson(path.join(DATA_DIR, 'face-rooms.json'), { rooms: db.faceRooms });
-const saveTransfers = () => writeJson(path.join(DATA_DIR, 'transfers.json'), { transfers: db.transfers });
-const saveRedPackets = () => writeJson(path.join(DATA_DIR, 'redpackets.json'), { redpackets: db.redpackets });
+const saveTransfers = () => writeSecureJsonStore('transfers.json', { transfers: db.transfers });
+const saveRedPackets = () => writeSecureJsonStore('redpackets.json', { redpackets: db.redpackets });
 const saveSecurity = () => writeJson(path.join(DATA_DIR, 'logins.json'), { logins: db.security.logins, events: db.security.events });
 
 /* --------------------------------------------------- 朋友圈：追加式写入
@@ -2786,13 +2900,14 @@ function payRuleNum(key, def) {
 /** 总账：追加一行（崩溃也不影响已写入的历史） */
 function journalMoney(row) {
   try {
-    fs.appendFileSync(path.join(DATA_DIR, MONEY_JOURNAL), JSON.stringify(row) + '\n', 'utf8');
+    fs.appendFileSync(path.join(DATA_DIR, MONEY_JOURNAL),
+      JSON.stringify(sealSecureStoreValue(MONEY_JOURNAL, row)) + '\n', 'utf8');
   } catch (err) { /* 总账写不进去不能拦住交易，但下面那份 state 还会写 */ }
   try {
-    const st = readJson(path.join(DATA_DIR, MONEY_STATE), { users: {} });
+    const st = readSecureJsonStore(MONEY_STATE, { users: {} });
     if (!st.users) st.users = {};
     st.users[row.userId] = { balance: row.after, at: row.at };
-    writeJson(path.join(DATA_DIR, MONEY_STATE), st);
+    writeSecureJsonStore(MONEY_STATE, st);
   } catch (err) { /* 自检用的快照，写不了下次再写 */ }
 }
 
@@ -2870,7 +2985,7 @@ function idemSave() {
 function moneySelfCheck() {
   let bad = 0;
   try {
-    const st = readJson(path.join(DATA_DIR, MONEY_STATE), { users: {} });
+    const st = readSecureJsonStore(MONEY_STATE, { users: {} });
     const users = (st && st.users) || {};
     db.users.forEach((u) => {
       const rec = users[u.id];
@@ -3334,12 +3449,11 @@ const DEFAULT_BIZ = {
 
 function readBizAll() {
   if (bizCache) return bizCache;
-  let raw = null;
-  try { raw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, BIZ_FILE), 'utf8')); } catch (e) { raw = null; }
+  const raw = readSecureJsonStore(BIZ_FILE, null);
   bizCache = (raw && typeof raw === 'object' && raw.accounts && typeof raw.accounts === 'object') ? raw : { accounts: {} };
   return bizCache;
 }
-function saveBizAll() { try { writeJson(path.join(DATA_DIR, BIZ_FILE), bizCache); } catch (e) { } }
+function saveBizAll() { try { writeSecureJsonStore(BIZ_FILE, bizCache); } catch (e) { } }
 
 /** 取某个人的经营账户（没有就按默认值建一个，但不落盘，等真的改了才存） */
 function bizOf(userId, create) {
@@ -3948,8 +4062,8 @@ function creditScore(user) {
   const violated = (opsStore.violations || []).filter((v) => v && v.userId === user.id).length;
   const ledgerRows = (() => {
     try {
-      const led = readJson(path.join(DATA_DIR, 'ledger.json'), { items: [] });
-      return (Array.isArray(led.items) ? led.items : []).filter((x) => x.userId === user.id).length;
+      const ledSecure = readSecureJsonStore('ledger.json', { items: [] });
+      return (Array.isArray(ledSecure.items) ? ledSecure.items : []).filter((x) => x.userId === user.id).length;
     } catch (e) { return 0; }
   })();
   const days = Math.floor((Date.now() - Date.parse(user.createdAt || now())) / 86400000);
@@ -5209,9 +5323,8 @@ function isLocalOrLan(ip) {
 
 /** 后台登录必须走加密通道：明文 http 会把密码暴露给同网段的人 */
 function httpsHint(req) {
-  const host = String(req.headers.host || '').split(':')[0] || '192.168.2.7';
-  return '后台登录必须走加密通道：请用 https://' + host + ':5443/manage.html 打开后台再登录'
-    + '（http 明文会被同一个 Wi-Fi 下的人抓到密码和暗号）';
+  return '后台登录必须走已配置的加密管理入口'
+    + '（明文 HTTP 会被同一网络的人抓到密码和暗号）';
 }
 
 /* 一次性免密登录链接（只有超级管理员能生成）：
@@ -8616,8 +8729,11 @@ function loadShop() {
   return { food, goods };
 }
 function ordersFile() { return path.join(DATA_DIR, 'orders.json'); }
-function loadOrders() { const d = readJson(ordersFile(), { items: [] }); return Array.isArray(d.items) ? d.items : []; }
-function saveOrders(items) { writeJson(ordersFile(), { items }); }
+function loadOrders() {
+  const d = readSecureJsonStore('orders.json', { items: [] });
+  return Array.isArray(d.items) ? d.items : [];
+}
+function saveOrders(items) { writeSecureJsonStore('orders.json', { items }); }
 function lastMenu(userId) { return (lastShopMenu.get(userId) || null); }
 function money(n) { return '¥' + (Math.round(Number(n || 0) * 100) / 100).toFixed(2); }
 
@@ -8750,17 +8866,16 @@ async function housekeeperCommand(user, text, chat, bot) {
   }
   m = t.match(/^记账\s*([^\s\d]{1,14})\s*(\d+(?:\.\d{1,2})?)/);
   if (m) {
-    const p = path.join(DATA_DIR, 'ledger.json');
-    const led = readJson(p, { items: [] });
+    const led = readSecureJsonStore('ledger.json', { items: [] });
     if (!Array.isArray(led.items)) led.items = [];
     led.items.push({ id: uid('gd'), userId: user.id, what: m[1], amount: Number(m[2]), at: now() });
-    writeJson(p, led);
+    writeSecureJsonStore('ledger.json', led);
     const month = led.items.filter((x) => x.userId === user.id && String(x.at || '').slice(0, 7) === now().slice(0, 7));
     const sum = month.reduce((s, x) => s + Number(x.amount || 0), 0);
     return '记好了：' + m[1] + ' ' + m[2] + ' 元。这个月一共 ' + sum.toFixed(2) + ' 元。';
   }
   if (/^(账本|这个月花了多少|花了多少钱)/.test(t)) {
-    const led = readJson(path.join(DATA_DIR, 'ledger.json'), { items: [] });
+    const led = readSecureJsonStore('ledger.json', { items: [] });
     const items = Array.isArray(led.items) ? led.items : [];
     const month = items.filter((x) => x.userId === user.id && String(x.at || '').slice(0, 7) === now().slice(0, 7));
     if (!month.length) return '这个月还没记过账。跟我说「记账 午饭 25」就行。';
@@ -11266,6 +11381,15 @@ async function handleApi(req, res, pathname, query) {
     await handleAdmin(req, res, parts, query);
     return;
   }
+  if (isProtectedOpsPath(parts) || isOpsWebAuthPath(parts)) {
+    const webOpsAuthed = !!currentOps(req);
+    if (isProtectedOpsPath(parts) && !isOpsUser(user) && !webOpsAuthed) {
+      return fail(res, 404, 'Not Found');
+    }
+    if (isOpsWebAuthPath(parts) && !adminAllowed(peerIp(req)) && !webOpsAuthed) {
+      return fail(res, 404, 'Not Found');
+    }
+  }
 
   /* 独立的管理员后台（/manage.html）：多账号 + 角色 + 审计日志 + 风控 */
   /* ============================================================ 小店 + 卡包
@@ -11286,10 +11410,12 @@ async function handleApi(req, res, pathname, query) {
     return cfg;
   }
   function saveShopCfg(cfg) { writeJson(path.join(DATA_DIR, 'shop.json'), cfg); }
-  function readCards() { const f = path.join(DATA_DIR, 'cards.json'); const c = readJson(f, { cards: [] }); if (!Array.isArray(c.cards)) c.cards = []; return c; }
-  function saveCards(c) { writeJson(path.join(DATA_DIR, 'cards.json'), c); }
-  function isOpsUser(u) { return !!(u && (u.ops === true || u.admin === true)); }
-
+  function readCards() {
+    const c = readSecureJsonStore('cards.json', { cards: [] });
+    if (!Array.isArray(c.cards)) c.cards = [];
+    return c;
+  }
+  function saveCards(c) { writeSecureJsonStore('cards.json', c); }
   /* ============================================================ 小星（顶栏那颗眼睛）的三档开关
      2026-10-12 用户要求：**每个用户自己设**，而且"开启小星"是付费的（¥40 一次性）。
        · off    ：顶栏不画（免费，最安全）
@@ -11390,7 +11516,9 @@ async function handleApi(req, res, pathname, query) {
     if (action === 'product') {
       const it = b.item || {};
       const id = String(it.id || '').trim() || ('p' + Date.now().toString(36));
-      const one = {
+      const i = m.products.findIndex((x) => x.id === id);
+      const old = i >= 0 ? m.products[i] : {};
+      const one = Object.assign({}, old, {
         id,
         em: String(it.em || '').slice(0, 8) || '📦',
         img: String(it.img || '').slice(0, 400),
@@ -11403,8 +11531,23 @@ async function handleApi(req, res, pathname, query) {
         shop: String(it.shop || '').slice(0, 40),
         cate: String(it.cate || '').slice(0, 20) || '其它',
         on: it.on === false ? false : true
-      };
-      const i = m.products.findIndex((x) => x.id === id);
+      });
+      if (it.subtitle !== undefined) one.subtitle = String(it.subtitle || '').slice(0, 200);
+      if (it.brand !== undefined) one.brand = String(it.brand || '').slice(0, 40);
+      if (it.rating !== undefined) one.rating = Math.max(0, Math.min(5, Number(it.rating) || 0));
+      if (it.sales !== undefined) one.sales = Math.max(0, Number(it.sales) || 0);
+      if (it.detail !== undefined) one.detail = String(it.detail || '').slice(0, 20000);
+      if (it.shopId !== undefined) one.shopId = String(it.shopId || '').slice(0, 80);
+      if (it.video !== undefined) one.video = String(it.video || '').slice(0, 500);
+      if (Array.isArray(it.videos)) one.videos = it.videos.slice(0, 8).map((x) => String(x || '').slice(0, 500)).filter(Boolean);
+      if (Array.isArray(it.detailImages)) one.detailImages = it.detailImages.slice(0, 30).map((x) => String(x || '').slice(0, 500)).filter(Boolean);
+      if (Array.isArray(it.services)) one.services = it.services.slice(0, 12).map((x) => String(x || '').slice(0, 40)).filter(Boolean);
+      if (Array.isArray(it.params)) one.params = it.params.slice(0, 40).map((row) => Array.isArray(row) ? row.slice(0, 2).map((x) => String(x || '').slice(0, 120)) : []);
+      if (Array.isArray(it.variants)) one.variants = it.variants.slice(0, 40).map((v) => ({
+        name: String((v && v.name) || '').slice(0, 40),
+        price: Math.max(0, Number(v && v.price) || 0),
+        stock: Math.max(0, Number(v && v.stock) || 0)
+      })).filter((v) => v.name);
       if (i >= 0) m.products[i] = one; else m.products.unshift(one);
       saveMall(m); ok(res, m); return;
     }
@@ -11991,9 +12134,10 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
 
-  /* 多入口：App 每次进前台拉一次，主入口连不上时按这张表自动换线路。
-     放在公开接口里（还没登录也要能拿到），后台「线路入口」页可以随时改。 */
+  /* 多入口：只给服务端白名单运维账号下发。普通客户端继续使用包内主入口，
+     不再通过公开 API 暴露真实服务器地址。 */
   if (parts[0] === 'endpoints' && method === 'GET') {
+    if (!isOpsUser(user)) return fail(res, 404, 'Not Found');
     ok(res, { endpoints: serverEndpoints() });
     return;
   }
@@ -12767,7 +12911,7 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'manage' && parts.length === 1 && method === 'GET') {
     const mu = currentUser(req);
     if (!mu) return fail(res, 401, '请先登录');
-    if (!mu.ops) return fail(res, 403, '你没有管理权限');
+    if (!isOpsUser(mu)) return fail(res, 403, '你没有管理权限');
     ok(res, {
       music: readMusicDb().tracks,
       apps: miniAppList(null),
@@ -12780,7 +12924,7 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'manage' && parts[1] === 'music' && parts.length === 2 && method === 'POST') {
     const mu = currentUser(req);
     if (!mu) return fail(res, 401, '请先登录');
-    if (!mu.ops) return fail(res, 403, '你没有管理权限');
+    if (!isOpsUser(mu)) return fail(res, 403, '你没有管理权限');
     const b = await readBody(req);
     const title = str(b.title, 60).replace(/\s+/g, ' ').trim();
     const url = str(b.url, 400).trim();
@@ -12826,14 +12970,14 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'manage' && parts[1] === 'sysnotice' && method === 'GET') {
     const mu = currentUser(req);
     if (!mu) return fail(res, 401, '请先登录');
-    if (!mu.ops) return fail(res, 403, '你没有管理权限');
+    if (!isOpsUser(mu)) return fail(res, 403, '你没有管理权限');
     ok(res, readSysNoticeCfg());
     return;
   }
   if (parts[0] === 'manage' && parts[1] === 'sysnotice' && method === 'POST') {
     const mu2 = currentUser(req);
     if (!mu2) return fail(res, 401, '请先登录');
-    if (!mu2.ops) return fail(res, 403, '你没有管理权限');
+    if (!isOpsUser(mu2)) return fail(res, 403, '你没有管理权限');
     const mb = await readBody(req);
     const cur = readSysNoticeCfg();
     if (mb.enabled !== undefined) cur.enabled = mb.enabled ? 1 : 0;
@@ -12849,7 +12993,7 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'manage' && parts[1] === 'music' && parts[2] === 'remove' && method === 'POST') {
     const mu = currentUser(req);
     if (!mu) return fail(res, 401, '请先登录');
-    if (!mu.ops) return fail(res, 403, '你没有管理权限');
+    if (!isOpsUser(mu)) return fail(res, 403, '你没有管理权限');
     const b = await readBody(req);
     const ids = Array.isArray(b.ids) ? b.ids.map((x) => String(x).slice(0, 60)) : [];
     const one = str(b.id, 60);
@@ -12867,7 +13011,7 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'manage' && parts[1] === 'miniapp' && method === 'POST') {
     const mu = currentUser(req);
     if (!mu) return fail(res, 401, '请先登录');
-    if (!mu.ops) return fail(res, 403, '你没有管理权限');
+    if (!isOpsUser(mu)) return fail(res, 403, '你没有管理权限');
     const b = await readBody(req);
     const id = str(b.id, 60);
     const cfg = readMiniApps();
@@ -12897,7 +13041,7 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'manage' && parts[1] === 'icon' && method === 'POST') {
     const mu = currentUser(req);
     if (!mu) return fail(res, 401, '请先登录');
-    if (!mu.ops) return fail(res, 403, '你没有管理权限');
+    if (!isOpsUser(mu)) return fail(res, 403, '你没有管理权限');
     const b = await readBody(req);
     const kind = str(b.kind, 20);
     const id = str(b.id, 60);
@@ -12928,14 +13072,14 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'manage' && parts[1] === 'official' && parts.length === 2 && method === 'GET') {
     const mu = currentUser(req);
     if (!mu) return fail(res, 401, '请先登录');
-    if (!mu.ops) return fail(res, 403, '你没有管理权限');
+    if (!isOpsUser(mu)) return fail(res, 403, '你没有管理权限');
     ok(res, { items: officialList() });
     return;
   }
   if (parts[0] === 'manage' && parts[1] === 'official' && parts.length === 2 && method === 'POST') {
     const mu2 = currentUser(req);
     if (!mu2) return fail(res, 401, '请先登录');
-    if (!mu2.ops) return fail(res, 403, '你没有管理权限');
+    if (!isOpsUser(mu2)) return fail(res, 403, '你没有管理权限');
     const mb = await readBody(req);
     const k = str(mb.key, 40).trim();
     if (!k) return fail(res, 422, '缺少 key');
@@ -18999,6 +19143,14 @@ async function handleHttpRequest(req, res) {
     }
     if (/^\/(manage|admin|admin2|ai|index)\.html$/i.test(parsed.pathname) && isAdminPath(parsed.pathname)) {
       if (!adminEntryOk(req, parsed.searchParams)) {
+        if (!adminAllowed(reqIp)) {
+          res.writeHead(404, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'no-store'
+          });
+          res.end('{"detail":"Not Found"}');
+          return;
+        }
         /* 没暗号也不直接甩 404 —— 给一个「输入暗号」的小页面，
            这样你平时那个地址 http://192.168.2.7:5180/manage.html 还是能用，
            只是第一次要输一次暗号（输对了这台设备记 30 天）。 */
@@ -21148,10 +21300,10 @@ async function handleOps(req, res, parts, query) {
       delete idemStore.items[a.key];
       idemSave();
       try {
-        const st = readJson(path.join(DATA_DIR, MONEY_STATE), { users: {} });
+        const st = readSecureJsonStore(MONEY_STATE, { users: {} });
         if (st.users && st.users[scratch.id]) {
           delete st.users[scratch.id];
-          writeJson(path.join(DATA_DIR, MONEY_STATE), st);
+          writeSecureJsonStore(MONEY_STATE, st);
         }
       } catch (err) { /* 清不掉也无所谓，自检账号不在真实用户表里 */ }
       return ok(res, { allOk: checks.every((x) => x.ok), checks: checks });
