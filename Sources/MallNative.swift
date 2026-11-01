@@ -2889,13 +2889,13 @@ struct DDProductCard: View {
                 if let img = product.img, !img.isEmpty {
                     RemoteImage(path: img, icon: "photo", mode: .fill)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 172)
+                        .frame(height: 190)
                         .clipped()
                 } else {
                     Text(product.em)
                         .font(.system(size: 62))
                         .frame(maxWidth: .infinity)
-                        .frame(height: 172)
+                        .frame(height: 190)
                         .background(LinearGradient(
                             colors: [Color(hex: 0xF2F7FF), Color(hex: 0xE6F1FF)],
                             startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -2913,7 +2913,7 @@ struct DDProductCard: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 172)
+            .frame(height: 190)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 if !product.galleryVideos.isEmpty {
