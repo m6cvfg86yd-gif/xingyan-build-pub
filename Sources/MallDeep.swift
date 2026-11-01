@@ -234,12 +234,39 @@ struct DDReviewRow: View {
 struct DDReviewListView: View {
     @ObservedObject private var store = DDStore.shared
     let product: DDProduct
+    @State private var filter = 0
+
+    private var all: [DDReview] { store.reviews(of: product) }
+    private var list: [DDReview] {
+        switch filter {
+        case 1: return all.filter { $0.rating >= 4 }
+        case 2: return all.filter { !$0.images.isEmpty }
+        default: return all
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             DDSheetBar(title: Tr("商品评价"))
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(store.reviews(of: product)) { r in
+                    HStack(spacing: 8) {
+                        reviewFilter(Tr("全部") + " " + String(all.count), 0)
+                        reviewFilter(Tr("好评"), 1)
+                        reviewFilter(Tr("有图"), 2)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    HairLine()
+                    if list.isEmpty {
+                        Text(Tr("暂时没有这类评价"))
+                            .font(pf(13.5))
+                            .foregroundColor(DDColor.sub)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 44)
+                    }
+                    ForEach(list) { r in
                         DDReviewRow(review: r).padding(.horizontal, 14)
                     }
                 }
@@ -247,6 +274,18 @@ struct DDReviewListView: View {
             }
         }
         .background(DDColor.page.ignoresSafeArea())
+    }
+
+    private func reviewFilter(_ title: String, _ value: Int) -> some View {
+        Button { filter = value } label: {
+            Text(title)
+                .font(pf(12.5, filter == value ? .semibold : .regular))
+                .foregroundColor(filter == value ? DDColor.red : DDColor.sub)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+                .background(Capsule().fill(filter == value ? DDColor.redLight : DDColor.page))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -299,12 +338,18 @@ struct DDDetailLongSection: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(Tr("图文详情")).font(pf(15, .semibold)).foregroundColor(DDColor.ink)
             ForEach(imgs, id: \.self) { u in
-                RemoteImage(path: u, icon: "photo")
-                    .frame(maxWidth: .infinity).frame(height: 260).clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                DDDetailRemoteImage(path: u)
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text(Tr("商品说明")).font(pf(14, .medium)).foregroundColor(DDColor.ink)
+                if let detail = product.detail?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !detail.isEmpty {
+                    Text(detail)
+                        .font(pf(13))
+                        .foregroundColor(DDColor.ink)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 ForEach(product.serviceList, id: \.self) { s in
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
@@ -325,6 +370,21 @@ struct DDDetailLongSection: View {
         .background(DDColor.card)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .padding(.horizontal, 10)
+    }
+}
+
+private struct DDDetailRemoteImage: View {
+    let path: String
+    @State private var ratio: CGFloat = 0.78
+
+    var body: some View {
+        let width = max(1, UIScreen.main.bounds.width - 48)
+        RemoteImage(path: path, icon: "photo", mode: .fit) { image in
+            guard image.size.width > 0, image.size.height > 0 else { return }
+            ratio = max(0.25, min(3.2, image.size.width / image.size.height))
+        }
+        .frame(width: width, height: max(180, width / ratio))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

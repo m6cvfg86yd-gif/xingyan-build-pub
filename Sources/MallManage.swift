@@ -652,6 +652,7 @@ struct MallProductSheet: View {
 
     @State private var em = "📦"
     @State private var img = ""
+    @State private var video = ""
     @State private var title = ""
     @State private var price = ""
     @State private var orig = ""
@@ -662,6 +663,8 @@ struct MallProductSheet: View {
     @State private var sold = "0"
     @State private var on = true
     @State private var showPick = false
+    @State private var showVideoPick = false
+    @State private var videoBusy = false
     @State private var saving = false
 
     private var editing: Bool { product != nil }
@@ -692,6 +695,47 @@ struct MallProductSheet: View {
                         Spacer(minLength: 0)
                     }
                     .padding(12)
+                    .background(C.cardBg)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(Tr("商品视频"))
+                                .font(pf(14.5, .medium))
+                                .foregroundColor(C.label)
+                            Text(video.isEmpty
+                                 ? Tr("可选，上传后详情首屏可直接播放")
+                                 : Tr("已上传，详情页首屏可播放"))
+                                .font(pf(11.5))
+                                .foregroundColor(C.subLabel)
+                        }
+                        Spacer(minLength: 8)
+                        if videoBusy {
+                            ProgressView()
+                        } else {
+                            Button {
+                                showVideoPick = true
+                            } label: {
+                                Text(video.isEmpty ? Tr("上传视频") : Tr("更换"))
+                                    .font(pf(13, .medium))
+                                    .foregroundColor(C.green)
+                            }
+                            .buttonStyle(.plain)
+                            if !video.isEmpty {
+                                Button {
+                                    video = ""
+                                    app.show(Tr("商品视频已移除，保存后生效"))
+                                } label: {
+                                    Text(Tr("移除"))
+                                        .font(pf(13))
+                                        .foregroundColor(C.red)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 58)
                     .background(C.cardBg)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
@@ -744,6 +788,24 @@ struct MallProductSheet: View {
                 }
             }
         }
+        .sheet(isPresented: $showVideoPick) {
+            MediaPicker(onImage: { _ in },
+                        onVideo: { url in
+                            Task {
+                                videoBusy = true
+                                let uploaded = await MediaTool.upload(url)
+                                videoBusy = false
+                                if let uploaded, !uploaded.isEmpty {
+                                    video = uploaded
+                                    app.show(Tr("商品视频已上传"))
+                                } else {
+                                    app.show(Tr("视频上传失败"))
+                                }
+                            }
+                        },
+                        onLive: { _, _ in },
+                        videosOnly: true)
+        }
     }
 
     private func fld(_ ph: String, _ text: Binding<String>, num: Bool = false) -> some View {
@@ -759,6 +821,7 @@ struct MallProductSheet: View {
         guard let p = product else { return }
         em = p.em
         img = p.img ?? ""
+        video = p.video ?? ""
         title = p.title
         price = moneyFmt(p.price)
         orig = moneyFmt(p.orig)
@@ -789,6 +852,7 @@ struct MallProductSheet: View {
         p.em = em.trimmingCharacters(in: .whitespaces).isEmpty ? "📦"
             : em.trimmingCharacters(in: .whitespaces)
         p.img = img.isEmpty ? nil : img
+        p.video = video.isEmpty ? nil : video
         p.title = name
         p.price = Double(price) ?? 0
         p.orig = Double(orig) ?? 0
