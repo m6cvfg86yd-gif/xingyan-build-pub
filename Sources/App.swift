@@ -673,8 +673,8 @@ final class AppState: ObservableObject {
         await loadChats()
     }
 
-    func login(phone: String, code: String) async throws {
-        let user = try await API.shared.loginPhone(phone: phone, code: code)
+    func login(phone: String, code: String, register: Bool = false) async throws {
+        let user = try await API.shared.loginPhone(phone: phone, code: code, register: register)
         beginAccountTransition()
         me = user
         finishLoginTransition()
@@ -3183,7 +3183,8 @@ struct RegisterSheet: View {
         Task {
             do {
                 let dev = try await API.shared.phoneCode(phone: phone,
-                                                          sliderTicket: sliderTicket)
+                                                          sliderTicket: sliderTicket,
+                                                          register: true)
                 sliderTicket = ""
                 codeSent = true
                 startCountdown()
@@ -3211,7 +3212,7 @@ struct RegisterSheet: View {
         error = nil
         Task { @MainActor in
             do {
-                try await app.login(phone: phone, code: code)
+                try await app.login(phone: phone, code: code, register: true)
                 UserDefaults.standard.set(phone, forKey: "chris.lastPhone")
                 app.show(Tr("注册成功"))
                 dismiss()

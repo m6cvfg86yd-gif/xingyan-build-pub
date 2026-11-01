@@ -2442,9 +2442,11 @@ final class API {
         return p?.ids ?? []
     }
 
-    func phoneCode(phone: String, sliderTicket: String = "") async throws -> String? {
+    func phoneCode(phone: String, sliderTicket: String = "",
+                   register: Bool = false) async throws -> String? {
         var body: [String: Any] = ["phone": phone]
         if !sliderTicket.isEmpty { body["sliderTicket"] = sliderTicket }
+        if register { body["register"] = true }
         let payload: PhoneCodePayload = try await post("/api/login/phone-code",
                                                        body,
                                                        as: PhoneCodePayload.self)
@@ -2488,9 +2490,12 @@ final class API {
         } catch { return (error as? APIError)?.errorDescription ?? "确认失败" }
     }
 
-    func loginPhone(phone: String, code: String) async throws -> User {
+    func loginPhone(phone: String, code: String,
+                    register: Bool = false) async throws -> User {
+        var body: [String: Any] = ["phone": phone, "code": code]
+        if register { body["register"] = true }
         let payload: LoginPayload = try await post("/api/login/phone",
-                                                   ["phone": phone, "code": code],
+                                                   body,
                                                    as: LoginPayload.self)
         guard let user = payload.user else { throw APIError.message("登录失败") }
         return user

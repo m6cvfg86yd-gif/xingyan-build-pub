@@ -1191,6 +1191,37 @@ function normalizePhone(v) {
 /* 手机号登录的验证码（内存里存，5 分钟有效） */
 const phoneCodes = new Map();
 
+/* 手机号注册即绑定：验证码校验通过后才建账号，避免未验证号码占用用户名。 */
+function makePhoneUsername(phone) {
+  const base = 'xy' + String(phone || '').slice(-9);
+  let username = base;
+  while (findUserByName(username)) {
+    username = base + crypto.randomBytes(2).toString('hex');
+  }
+  return username;
+}
+
+function createPhoneUser(phone) {
+  const username = makePhoneUsername(phone);
+  const user = {
+    id: uid('u'),
+    username,
+    nickname: '星言用户' + phone.slice(-4),
+    phone,
+    phoneBoundAt: now(),
+    avatar: '',
+    bio: '',
+    gender: 'secret',
+    balance: 0,
+    transferLimit: 20000,
+    createdAt: now()
+  };
+  db.users.push(user);
+  saveUsers();
+  attachBotsFor(user);
+  return user;
+}
+
 /* ============================================================
    短信通道（登录验证码 / 找回密码用）
    后台「短信」里填服务商和 Key，填完开关一开就是真发短信。
@@ -13809,6 +13840,7 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'login' && parts[1] === 'phone-code' && method === 'POST') {
     const body = await readBody(req);
     const phone = normalizePhone(body.phone);
+    const wantsRegistration = body.register === true;
     if (!/^1[3-9]\d{9}$/.test(phone)) return fail(res, 422, '手机号格式不对，要 11 位手机号');
     /* 这个接口能试出「某个手机号有没有绑定账号」，所以单独限流，防止有人拿号码库来撞 */
     if (!phoneCodeRateAllow(clientInfo(req).ip)) {
@@ -13816,12 +13848,19 @@ async function handleApi(req, res, pathname, query) {
       return fail(res, 429, '试得太频繁了，10 分钟后再试');
     }
     const user = db.users.find((u) => normalizePhone(u.phone) === phone);
-    if (!user) return fail(res, 404, '这个手机号还没有绑定账号，先用账号密码登录，在「手机号」里绑定');
-    if (user.banned) return fail(res, 403, banMsg(user));
-    if (user.frozen) return fail(res, 403, frozenMsg(user));      // CHRIS_FREEZE_V1
+    if (!user && !wantsRegistration) {
+      return fail(res, 404, '这个手机号还没有绑定账号，请从注册入口创建账号');
+    }
+    if (user && user.banned) return fail(res, 403, banMsg(user));
+    if (user && user.frozen) return fail(res, 403, frozenMsg(user));      // CHRIS_FREEZE_V1
     const code = String(Math.floor(100000 + Math.random() * 900000));
-    phoneCodes.set(phone, { code, userId: user.id, expiresAt: Date.now() + 5 * 60 * 1000 });
-    recordSecurity(user.id, req, 'phone-code', { phone });
+    phoneCodes.set(phone, {
+      code,
+      userId: user ? user.id : '',
+      register: !user && wantsRegistration,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    });
+    if (user) recordSecurity(user.id, req, 'phone-code', { phone });
     /* 配了短信通道就真发短信；没配就是「开发模式」：只写日志 + 局域网内直接显示 */
     const smsCfg = readSmsCfg();
     let smsResult = { ok: false, error: '短信没配置' };
@@ -13835,11 +13874,13 @@ async function handleApi(req, res, pathname, query) {
     const fromLan = isLanAddress(peerIp(req));
     console.log('[手机号登录] ' + phone + ' 验证码 ' + code + ' ← ' + clientInfo(req).ip);
     if (smsResult.ok) {
-      ok(res, { sent: true, sms: true, nickname: fromLan ? user.nickname : '', note: '验证码已发到手机，5 分钟内有效' });
+      ok(res, { sent: true, sms: true, nickname: fromLan && user ? user.nickname : '',
+        note: '验证码已发到手机，5 分钟内有效' });
       return;
     }
     ok(res, fromLan
-      ? { sent: true, devCode: code, nickname: user.nickname, note: '没接短信通道，局域网内直接显示，5 分钟内有效' }
+      ? { sent: true, devCode: code, nickname: user ? user.nickname : '',
+        note: '没接短信通道，局域网内直接显示，5 分钟内有效' }
       : { sent: true, nickname: '', note: '验证码已发送，请在手机上看（外网不返回验证码）' });
     return;
   }
@@ -13880,8 +13921,18 @@ async function handleApi(req, res, pathname, query) {
     const rec = phoneCodes.get(phone);
     if (!rec || rec.expiresAt < Date.now()) return fail(res, 422, '验证码过期了，请重新获取');
     if (rec.code !== code) return fail(res, 401, '验证码不对');
-    const user = findUser(rec.userId);
-    if (!user) return fail(res, 404, '账号不存在');
+    let user = rec.userId ? findUser(rec.userId) : null;
+    let created = false;
+    if (!user) {
+      user = db.users.find((u) => normalizePhone(u.phone) === phone);
+      if (!user) {
+        if (rec.register !== true || body.register !== true) {
+          return fail(res, 404, '账号不存在');
+        }
+        user = createPhoneUser(phone);
+        created = true;
+      }
+    }
     if (user.banned) return fail(res, 403, banMsg(user));
     if (user.frozen) return fail(res, 403, frozenMsg(user));      // CHRIS_FREEZE_V1
     phoneCodes.delete(phone);
@@ -13889,8 +13940,13 @@ async function handleApi(req, res, pathname, query) {
     kickOtherPhones(user, req);     // 手机单点登录：新手机一登，旧手机立刻下线
     saveUsers();
     noteLoginRisk(user, req);   // 风控：新设备 / 同 IP 多账号（要在记安全事件之前算）
-    recordSecurity(user.id, req, 'login');
-    ok(res, { user: publicUser(user) },
+    if (created) {
+      noteSignupRisk(user, req);
+      recordSecurity(user.id, req, 'register-phone', { phone });
+    } else {
+      recordSecurity(user.id, req, 'login');
+    }
+    ok(res, { user: publicUser(user), created },
       { 'Set-Cookie': sessionCookie(signToken(user.id, req), Math.floor(userSessionTtlMs() / 1000)) });
     return;
   }
@@ -16295,8 +16351,10 @@ async function handleApi(req, res, pathname, query) {
     /* 仿微信：微信号 / 手机号要完全对上才出结果，靠字母表一个个扫扫不出来。
        另外补一条：**完整昵称**也能搜到（新用户注册完只知道自己叫什么，
        光靠微信号搜不到人）。自己的好友额外允许昵称模糊匹配。 */
+    const phoneQ = normalizePhone(q);
+    const phoneQuery = /^1[3-9]\d{9}$/.test(phoneQ);
     const exact = (u) => String(u.username || '').toLowerCase() === q
-      || String(u.phone || '') === q
+      || (phoneQuery && userPrivacy(u).addByPhone && normalizePhone(u.phone) === phoneQ)
       || String(u.nickname || '').toLowerCase() === q;
     let matched = secCfg().strictSearch
       ? db.users.filter((u) => u.id !== user.id && exact(u))

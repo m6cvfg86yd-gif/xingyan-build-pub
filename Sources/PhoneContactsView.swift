@@ -1,4 +1,5 @@
 import Contacts
+import MessageUI
 import SwiftUI
 import UIKit
 
@@ -10,6 +11,12 @@ private struct LocalPhoneContact: Identifiable {
     let id: String
     let name: String
     let phone: String
+}
+
+private struct SMSInvite: Identifiable {
+    let id = UUID()
+    let phone: String
+    let qrURL: URL
 }
 
 struct PhoneContactsView: View {
@@ -24,6 +31,7 @@ struct PhoneContactsView: View {
     @State private var keyword = ""
     @State private var searchingPhone = ""
     @State private var inviteContact: LocalPhoneContact?
+    @State private var smsInvite: SMSInvite?
     @State private var errorText = ""
 
     private var filteredContacts: [LocalPhoneContact] {
@@ -181,12 +189,21 @@ struct PhoneContactsView: View {
         )) {
             Button(Tr("取消"), role: .cancel) { inviteContact = nil }
             Button(Tr("发短信邀请")) {
-                if let contact = inviteContact { invite(contact) }
+                if let contact = inviteContact {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        invite(contact)
+                    }
+                }
                 inviteContact = nil
             }
         } message: {
             if let contact = inviteContact {
-                Text(contact.name + "  " + contact.phone + "\n" + Tr("现在给对方发一条短信邀请吗？"))
+                Text(contact.name + "  " + contact.phone + "\n" + Tr("现在把星言二维码发到短信里吗？"))
+            }
+        }
+        .sheet(item: $smsInvite) { invite in
+            SMSInviteComposer(phone: invite.phone, qrURL: invite.qrURL) {
+                smsInvite = nil
             }
         }
     }
@@ -242,11 +259,141 @@ struct PhoneContactsView: View {
     }
 
     private func invite(_ contact: LocalPhoneContact) {
-        let text = Tr("我正在使用星言，下载后可以通过手机号找到我：")
-            + "https://aa.x8iu.com/download.html"
-        let body = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        guard let url = URL(string: "sms:\(contact.phone)&body=\(body)") else { return }
-        openURL(url)
+        guard MFMessageComposeViewController.canSendText() else {
+            errorText = Tr("这台手机暂时不能发送短信")
+            return
+        }
+        guard MFMessageComposeViewController.canSendAttachments() else {
+            errorText = Tr("短信不支持附加二维码图片")
+            return
+        }
+        guard let image = makeInviteQRCard(),
+              let data = image.pngData() else {
+            errorText = Tr("二维码生成失败，请稍后再试")
+            return
+        }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("xingyan-invite-qr.png")
+        do {
+            try data.write(to: url, options: .atomic)
+            smsInvite = SMSInvite(phone: contact.phone, qrURL: url)
+        } catch {
+            errorText = Tr("二维码生成失败，请稍后再试")
+        }
+    }
+
+    private func makeInviteQRCard() -> UIImage? {
+        guard let qr = qrImage("https://aa.x8iu.com/download.html", size: 720) else {
+            return nil
+        }
+        let size = CGSize(width: 1080, height: 1380)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: format).image { renderer in
+            let ctx = renderer.cgContext
+            let colors = [
+                UIColor(red: 0.035, green: 0.20, blue: 0.17, alpha: 1).cgColor,
+                UIColor(red: 0.015, green: 0.075, blue: 0.065, alpha: 1).cgColor
+            ] as CFArray
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                         colors: colors, locations: [0, 1]) {
+                ctx.drawLinearGradient(gradient,
+                                       start: CGPoint(x: 0, y: 0),
+                                       end: CGPoint(x: size.width, y: size.height),
+                                       options: [])
+            }
+
+            UIColor.white.withAlphaComponent(0.05).setStroke()
+            ctx.setLineWidth(2)
+            ctx.strokeEllipse(in: CGRect(x: -180, y: 80, width: 720, height: 720))
+            ctx.strokeEllipse(in: CGRect(x: 670, y: 940, width: 520, height: 520))
+
+            let card = CGRect(x: 80, y: 72, width: 920, height: 1236)
+            let cardPath = UIBezierPath(roundedRect: card, cornerRadius: 48)
+            UIColor.white.setFill()
+            cardPath.fill()
+
+            let titleStyle = NSMutableParagraphStyle()
+            titleStyle.alignment = .center
+            let title = "星言 Luchat" as NSString
+            title.draw(in: CGRect(x: 130, y: 158, width: 820, height: 72),
+                       withAttributes: [
+                        .font: UIFont.systemFont(ofSize: 56, weight: .semibold),
+                        .foregroundColor: UIColor(red: 0.035, green: 0.18, blue: 0.15, alpha: 1),
+                        .paragraphStyle: titleStyle
+                       ])
+
+            let tagline = "安全、克制的即时通讯" as NSString
+            tagline.draw(in: CGRect(x: 130, y: 238, width: 820, height: 48),
+                         withAttributes: [
+                            .font: UIFont.systemFont(ofSize: 26, weight: .regular),
+                            .foregroundColor: UIColor(white: 0.38, alpha: 1),
+                            .paragraphStyle: titleStyle
+                         ])
+
+            if let icon = UIImage(named: "AppIcon60x60@3x")
+                ?? UIImage(named: "AppIcon60x60@2x") {
+                let iconRect = CGRect(x: 480, y: 314, width: 120, height: 120)
+                let iconPath = UIBezierPath(roundedRect: iconRect, cornerRadius: 28)
+                ctx.saveGState()
+                iconPath.addClip()
+                icon.draw(in: iconRect)
+                ctx.restoreGState()
+            }
+
+            let qrFrame = CGRect(x: 170, y: 474, width: 740, height: 740)
+            let qrPath = UIBezierPath(roundedRect: qrFrame.insetBy(dx: -22, dy: -22),
+                                      cornerRadius: 34)
+            UIColor(white: 0.96, alpha: 1).setFill()
+            qrPath.fill()
+            qr.draw(in: qrFrame)
+
+            let foot = "请使用微信或系统相机扫码下载" as NSString
+            foot.draw(in: CGRect(x: 120, y: 1242, width: 840, height: 46),
+                      withAttributes: [
+                        .font: UIFont.systemFont(ofSize: 25, weight: .medium),
+                        .foregroundColor: UIColor(red: 0.035, green: 0.18, blue: 0.15, alpha: 1),
+                        .paragraphStyle: titleStyle
+                      ])
+        }
+    }
+}
+
+private struct SMSInviteComposer: UIViewControllerRepresentable {
+    let phone: String
+    let qrURL: URL
+    let onFinish: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onFinish: onFinish)
+    }
+
+    func makeUIViewController(context: Context) -> MFMessageComposeViewController {
+        let composer = MFMessageComposeViewController()
+        composer.recipients = [phone]
+        composer.body = Tr("我正在使用星言，扫描二维码即可下载：")
+        composer.addAttachmentURL(qrURL, withAlternateFilename: "xingyan-invite-qr.png")
+        composer.messageComposeDelegate = context.coordinator
+        return composer
+    }
+
+    func updateUIViewController(_ uiViewController: MFMessageComposeViewController,
+                                context: Context) { }
+
+    final class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
+        private let onFinish: () -> Void
+
+        init(onFinish: @escaping () -> Void) {
+            self.onFinish = onFinish
+        }
+
+        func messageComposeViewController(
+            _ controller: MFMessageComposeViewController,
+            didFinishWith result: MessageComposeResult
+        ) {
+            controller.dismiss(animated: true) { self.onFinish() }
+        }
     }
 }
 
