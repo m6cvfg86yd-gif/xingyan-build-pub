@@ -41,25 +41,16 @@ struct ChatBackgroundSheet: View {
     @State private var picking = false
     @State private var busy = false
 
-    static let presets: [String] = ["/bg/bw1.jpg", "/bg/bw2.jpg", "/bg/bw3.jpg",
-                                    "/bg/bw4.jpg", "/bg/bw5.jpg", "/bg/bw6.jpg"]
+    static let presets: [String] = ["/bg/bw1.jpg", "/bg/bw2.jpg"]
 
-    static let names: [String] = ["流光晨雾", "深空石墨", "雾蓝丝绸", "苔原微光", "烟粉云霞", "黑曜星砂"]
+    static let names: [String] = ["白色", "黑色"]
 
-    @State private var remotePresets: [ChatBgPayload.Item] = []
     @State private var remoteVersion = ""
 
     private var shownPresets: [(path: String, name: String)] {
-        let remote = remotePresets.compactMap { it -> (path: String, name: String)? in
-            guard let p = it.path, !p.isEmpty else { return nil }
-            return (p, it.name ?? "")
+        Self.presets.enumerated().map { idx, path in
+            (path, Self.names[min(idx, Self.names.count - 1)])
         }
-        if !remote.isEmpty { return remote }
-        var out: [(path: String, name: String)] = []
-        for (idx, p) in Self.presets.enumerated() {
-            out.append((p, Self.names[min(idx, Self.names.count - 1)]))
-        }
-        return out
     }
 
     private func versioned(_ p: String) -> String {
@@ -191,7 +182,6 @@ struct ChatBackgroundSheet: View {
 
     private func loadRemote() async {
         guard let r = await API.shared.chatBackgrounds() else { return }
-        remotePresets = r.presets ?? []
         remoteVersion = r.version ?? ""
 
         if let def = r.default, !def.isEmpty, (app.me?.chatBackground ?? "auto") == "auto" {
@@ -227,21 +217,27 @@ struct ChatBackgroundSheet: View {
         }
         Task {
             busy = true
-            // 恢复默认必须由一个请求原子完成，拆成两次写在多分片下会被旧行覆盖。
-            let saved = path == "auto" ? true : await API.shared.changeBackground(path)
-            let reset = path == "auto" ? await API.shared.resetChatBackgrounds() : true
-            if saved && reset {
-                if path == "auto" {
+            if path == "auto" {
+                // 全局背景和所有会话覆盖必须由同一个请求一起清除，避免旧分片回写。
+                if await API.shared.resetChatBackgrounds() {
                     store.clearAll()
                     if var me = app.me {
+                        me.chatBackground = "auto"
                         me.chatBackgrounds = [:]
                         app.me = me
                     }
+                    app.show(Tr("已恢复默认背景"))
+                } else {
+                    app.me = oldUser
+                    app.show(Tr("背景没保存上，检查网络"))
                 }
-                app.show(Tr("已恢复默认背景"))
             } else {
-                app.me = oldUser
-                app.show(Tr("背景没保存上，检查网络"))
+                if await API.shared.changeBackground(path) {
+                    app.show(Tr("背景换好了"))
+                } else {
+                    app.me = oldUser
+                    app.show(Tr("背景没保存上，检查网络"))
+                }
             }
             busy = false
         }

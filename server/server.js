@@ -16014,11 +16014,12 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'me' && parts[1] === 'chat-background' && method === 'POST') {
     const body = await readBody(req);
     if (body.resetAll === true) {
+      user.chatBackground = 'auto';
       user.chatBackgrounds = {};
       saveUsers();
       friendIds(user.id).forEach((fid) => sendTo(fid, { type: 'profile', user: publicUser(user) }));
       sendTo(user.id, { type: 'profile', user: publicUser(user) });
-      ok(res, { chatBackgrounds: {} });
+      ok(res, { chatBackground: 'auto', chatBackgrounds: {} });
       return;
     }
 
