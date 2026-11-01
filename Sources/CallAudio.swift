@@ -451,8 +451,10 @@ final class CallAudioPipe: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
     private func configureSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-
-            try session.setCategory(.playAndRecord, mode: .voiceChat,
+            // 纯语音先用自研 PCM 通道，不能开 .voiceChat 的 VoiceProcessingIO：
+            // 它会和 AVCaptureSession 抢同一个输入设备，采集帧还在但 PCM 近似静音。
+            // 视频分支的 WebRTC/TRTC 音频继续走自己的 .voiceChat 配置，互不复用这里。
+            try session.setCategory(.playAndRecord, mode: .default,
                                     options: [.defaultToSpeaker, .allowBluetooth])
         } catch {
             lastError = "setCategory 失败: \(error.localizedDescription)"
