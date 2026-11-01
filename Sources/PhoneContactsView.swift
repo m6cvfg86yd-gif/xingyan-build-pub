@@ -13,10 +13,11 @@ private struct LocalPhoneContact: Identifiable {
     let phone: String
 }
 
-private struct SMSInvite: Identifiable {
+private struct QRInvite: Identifiable {
     let id = UUID()
+    let name: String
     let phone: String
-    let qrURL: URL
+    let image: UIImage
 }
 
 struct PhoneContactsView: View {
@@ -30,8 +31,7 @@ struct PhoneContactsView: View {
     @State private var contacts: [LocalPhoneContact] = []
     @State private var keyword = ""
     @State private var searchingPhone = ""
-    @State private var inviteContact: LocalPhoneContact?
-    @State private var smsInvite: SMSInvite?
+    @State private var qrInvite: QRInvite?
     @State private var errorText = ""
 
     private var filteredContacts: [LocalPhoneContact] {
@@ -183,27 +183,10 @@ struct PhoneContactsView: View {
         }
         .background(C.pageBg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .alert(Tr("这个号码还没有注册星言"), isPresented: Binding(
-            get: { inviteContact != nil },
-            set: { if !$0 { inviteContact = nil } }
-        )) {
-            Button(Tr("取消"), role: .cancel) { inviteContact = nil }
-            Button(Tr("发短信邀请")) {
-                if let contact = inviteContact {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                        invite(contact)
-                    }
-                }
-                inviteContact = nil
-            }
-        } message: {
-            if let contact = inviteContact {
-                Text(contact.name + "  " + contact.phone + "\n" + Tr("现在把星言二维码发到短信里吗？"))
-            }
-        }
-        .sheet(item: $smsInvite) { invite in
-            SMSInviteComposer(phone: invite.phone, qrURL: invite.qrURL) {
-                smsInvite = nil
+        .sheet(item: $qrInvite) { invite in
+            PhoneInviteSheet(name: invite.name, phone: invite.phone,
+                             image: invite.image) {
+                qrInvite = nil
             }
         }
     }
@@ -239,14 +222,13 @@ struct PhoneContactsView: View {
     private func lookUp(_ contact: LocalPhoneContact) async {
         guard searchingPhone.isEmpty else { return }
         searchingPhone = contact.phone
-        inviteContact = nil
         errorText = ""
         defer { searchingPhone = "" }
 
         do {
             guard let user = try await API.shared.searchUsers(contact.phone).first else {
-                inviteContact = contact
-                errorText = Tr("这个手机联系人还没有注册星言，可以发短信邀请")
+                errorText = Tr("这个手机联系人还没有注册星言，可以生成二维码邀请")
+                prepareInvite(contact)
                 return
             }
             dismiss()
@@ -258,28 +240,12 @@ struct PhoneContactsView: View {
         }
     }
 
-    private func invite(_ contact: LocalPhoneContact) {
-        guard MFMessageComposeViewController.canSendText() else {
-            errorText = Tr("这台手机暂时不能发送短信")
-            return
-        }
-        guard MFMessageComposeViewController.canSendAttachments() else {
-            errorText = Tr("短信不支持附加二维码图片")
-            return
-        }
-        guard let image = makeInviteQRCard(),
-              let data = image.pngData() else {
+    private func prepareInvite(_ contact: LocalPhoneContact) {
+        guard let image = makeInviteQRCard() else {
             errorText = Tr("二维码生成失败，请稍后再试")
             return
         }
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("xingyan-invite-qr.png")
-        do {
-            try data.write(to: url, options: .atomic)
-            smsInvite = SMSInvite(phone: contact.phone, qrURL: url)
-        } catch {
-            errorText = Tr("二维码生成失败，请稍后再试")
-        }
+        qrInvite = QRInvite(name: contact.name, phone: contact.phone, image: image)
     }
 
     private func makeInviteQRCard() -> UIImage? {
@@ -360,9 +326,114 @@ struct PhoneContactsView: View {
     }
 }
 
+private struct PhoneInviteSheet: View {
+    let name: String
+    let phone: String
+    let image: UIImage
+    let onFinish: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var showShare = false
+    @State private var showMessages = false
+    @State private var saved = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    VStack(spacing: 6) {
+                        Text(Tr("邀请 ") + name)
+                            .font(pf(18, .semibold))
+                            .foregroundColor(C.label)
+                        Text(phone)
+                            .font(pf(12.5))
+                            .foregroundColor(C.subLabel)
+                        Text(Tr("这个号码还没有注册星言"))
+                            .font(pf(13))
+                            .foregroundColor(C.subLabel)
+                    }
+
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .shadow(color: Color.black.opacity(0.12), radius: 14, y: 6)
+                        .padding(.horizontal, 12)
+
+                    VStack(spacing: 10) {
+                        Button { showShare = true } label: {
+                            inviteButton(Tr("分享二维码图片"), "square.and.arrow.up", filled: true)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                            saved = true
+                        } label: {
+                            inviteButton(saved ? Tr("已提交保存到相册") : Tr("保存二维码到相册"),
+                                         "square.and.arrow.down", filled: false)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button { showMessages = true } label: {
+                            inviteButton(Tr("发短信"), "message", filled: false)
+                        }
+                        .buttonStyle(.plain)
+
+                        Text(Tr("支持彩信或 iMessage 时会附带二维码；纯短信只能发送文字邀请。"))
+                            .font(pf(12))
+                            .foregroundColor(C.subLabel)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 8)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+            .background(C.pageBg.ignoresSafeArea())
+            .navigationTitle(Tr("二维码邀请"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(Tr("完成")) {
+                        dismiss()
+                        onFinish()
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showShare) {
+            ShareSheet(items: [image])
+        }
+        .sheet(isPresented: $showMessages) {
+            SMSInviteComposer(phone: phone, image: image) {
+                showMessages = false
+            }
+        }
+    }
+
+    private func inviteButton(_ title: String, _ icon: String, filled: Bool) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: icon).font(.system(size: 17, weight: .medium))
+            Text(title).font(pf(15, .medium))
+        }
+        .foregroundColor(filled ? .white : C.green)
+        .frame(maxWidth: .infinity)
+        .frame(height: 46)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(filled ? C.green : C.cardBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(filled ? Color.clear : C.green.opacity(0.35), lineWidth: 0.8)
+        )
+    }
+}
+
 private struct SMSInviteComposer: UIViewControllerRepresentable {
     let phone: String
-    let qrURL: URL
+    let image: UIImage
     let onFinish: () -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -372,8 +443,14 @@ private struct SMSInviteComposer: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> MFMessageComposeViewController {
         let composer = MFMessageComposeViewController()
         composer.recipients = [phone]
-        composer.body = Tr("我正在使用星言，扫描二维码即可下载：")
-        composer.addAttachmentURL(qrURL, withAlternateFilename: "xingyan-invite-qr.png")
+        if MFMessageComposeViewController.canSendAttachments(),
+           let data = image.pngData() {
+            composer.body = Tr("我正在使用星言，扫描二维码即可下载：")
+            composer.addAttachmentData(data, typeIdentifier: "public.png",
+                                       filename: "xingyan-invite-qr.png")
+        } else {
+            composer.body = Tr("我正在使用星言，下载后可以通过手机号找到我。")
+        }
         composer.messageComposeDelegate = context.coordinator
         return composer
     }
