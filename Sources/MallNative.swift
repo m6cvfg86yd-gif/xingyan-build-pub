@@ -1974,6 +1974,7 @@ struct DDHomeTab: View {
                                                    value: g.frame(in: .named("ddhome")).minY)
                     })
                     deliveryStrip
+                    sellerGateway(proxy)
                     carousel(proxy)
                     curatedStrip
                     categoryQuickRail(proxy)
@@ -2693,6 +2694,72 @@ struct DDHomeTab: View {
         return String(format: "%02d:%02d:%02d", h, m, s)
     }
 
+    private func sellerGateway(_ proxy: ScrollViewProxy) -> some View {
+        let selfCount = store.live.filter { $0.isSelfOperated }.count
+        let thirdCount = store.live.count - selfCount
+        return HStack(spacing: 10) {
+            sellerGatewayCard("self", title: "星选自营",
+                              subtitle: "统一发货 · 平台售后",
+                              count: selfCount, icon: "checkmark.seal.fill",
+                              colors: [DDColor.redDeep, Color(hex: 0xEE5344)],
+                              proxy: proxy)
+            sellerGatewayCard("third", title: "品牌第三方",
+                              subtitle: "店铺直发 · 平台保障",
+                              count: thirdCount, icon: "storefront.fill",
+                              colors: [C.green, OrbitTheme.jadeDeep],
+                              proxy: proxy)
+        }
+        .padding(.horizontal, 10)
+    }
+
+    private func sellerGatewayCard(_ scope: String, title: String, subtitle: String,
+                                   count: Int, icon: String, colors: [Color],
+                                   proxy: ScrollViewProxy) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) {
+                cate = nil
+                sellerScope = scope
+            }
+            toGrid(proxy)
+        } label: {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Color.white.opacity(0.16)))
+                    Spacer(minLength: 0)
+                    Text(String(count))
+                        .font(pf(18, .bold))
+                        .foregroundColor(.white)
+                    Text(Tr("件"))
+                        .font(pf(9.5, .medium))
+                        .foregroundColor(.white.opacity(0.76))
+                }
+                Text(Tr(title)).font(pf(16, .bold)).foregroundColor(.white)
+                Text(Tr(subtitle))
+                    .font(pf(10.5, .medium))
+                    .foregroundColor(.white.opacity(0.78))
+                    .lineLimit(1)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 118, alignment: .leading)
+            .background(LinearGradient(colors: colors,
+                                       startPoint: .topLeading, endPoint: .bottomTrailing))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.10), lineWidth: 18)
+                    .frame(width: 110, height: 110)
+                    .offset(x: 58, y: -48)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     private var cateRow: some View {
 
         let names: [String] = ["推荐"] + store.categories
@@ -2970,6 +3037,7 @@ struct DDProductCard: View {
     var onOpen: (() -> Void)? = nil
     var onAddCart: (() -> Void)? = nil
     @ObservedObject private var store = DDStore.shared
+    private let cardImageHeight: CGFloat = 210
 
     var body: some View {
 
@@ -2978,31 +3046,47 @@ struct DDProductCard: View {
                 if let img = product.img, !img.isEmpty {
                     RemoteImage(path: img, icon: "photo", mode: .fill)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 190)
+                        .frame(height: cardImageHeight)
                         .clipped()
                 } else {
-                    Text(product.em)
-                        .font(.system(size: 62))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 190)
-                        .background(LinearGradient(
-                            colors: [Color(hex: 0xF2F7FF), Color(hex: 0xE6F1FF)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing))
+                    ZStack {
+                        LinearGradient(
+                            colors: [Color(hex: 0xFFF7F4), Color(hex: 0xF1F6FF)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing)
+                        Circle()
+                            .fill(Color.white.opacity(0.62))
+                            .frame(width: 138, height: 138)
+                            .blur(radius: 4)
+                        Text(product.em)
+                            .font(.system(size: 78))
+                            .shadow(color: Color.black.opacity(0.08), radius: 8, y: 5)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: cardImageHeight)
                 }
 
-                if let tag = product.tags.first {
-                    Text(Tr(tag))
-                        .font(pf(9, .medium))
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(Tr(product.isSelfOperated ? "自营" : "第三方"))
+                        .font(pf(9, .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 7)
                         .frame(height: 20)
                         .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(DDColor.red.opacity(0.85)))
-                        .padding(8)
+                            .fill(product.isSelfOperated ? DDColor.redDeep : DDColor.blueDeep))
+                    if let tag = product.tags.first {
+                        Text(Tr(tag))
+                            .font(pf(9, .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 7)
+                            .frame(height: 20)
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color.black.opacity(0.56)))
+                    }
                 }
+                .padding(8)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 190)
+            .frame(height: cardImageHeight)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 if !product.galleryVideos.isEmpty {
