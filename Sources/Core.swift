@@ -953,11 +953,13 @@ struct GroupAvatarMosaic: View {
     var radius: CGFloat = 6
 
     @EnvironmentObject private var app: AppState
+    @ObservedObject private var realtime = Realtime.shared
     @State private var fetchedMembers: [User] = []
     @State private var loaded = false
+    @State private var loadedMemberKey = ""
 
     private var resolvedUsers: [String: User] {
-        let local = ([app.me].compactMap { $0 } + app.contacts + fetchedMembers)
+        let local = fetchedMembers + ([app.me].compactMap { $0 } + app.contacts)
         var out: [String: User] = [:]
         for user in local where out[user.id] == nil {
             out[user.id] = user
@@ -994,14 +996,50 @@ struct GroupAvatarMosaic: View {
         .frame(width: size, height: size)
         .background(Color.dyn(0xE8E8EC, 0x222528))
         .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-        .task(id: chatId) {
-            guard !loaded, !memberIds.isEmpty else { return }
-            loaded = true
+        .task(id: memberIds) {
+            await refreshMembers()
+        }
+        .onChange(of: app.contacts) { contacts in
+            for user in contacts where memberIds.contains(user.id) {
+                upsertMember(user)
+            }
+        }
+        .onChange(of: app.me) { user in
+            if let user, memberIds.contains(user.id) {
+                upsertMember(user)
+            }
+        }
+        .onChange(of: realtime.event) { event in
+            if let user = event.user, memberIds.contains(user.id) {
+                upsertMember(user)
+            }
+            if (event.type == "group" && event.chatId == chatId)
+                || (event.type == "profile" && event.user == nil) {
+                Task { await refreshMembers(force: true) }
+            }
+        }
+    }
+
+    private func refreshMembers(force: Bool = false) async {
+        guard !memberIds.isEmpty else { return }
+        let memberKey = memberIds.joined(separator: ",")
+        if loaded && !force && loadedMemberKey == memberKey { return }
+        loaded = true
+        loadedMemberKey = memberKey
+        if !force {
             let known = Set(([app.me].compactMap { $0 } + app.contacts).map(\.id))
             guard memberIds.contains(where: { !known.contains($0) }) else { return }
-            if let r = try? await API.shared.chatMembers(chatId: chatId) {
-                fetchedMembers = r.members
-            }
+        }
+        if let result = try? await API.shared.chatMembers(chatId: chatId) {
+            fetchedMembers = result.members.filter { memberIds.contains($0.id) }
+        }
+    }
+
+    private func upsertMember(_ user: User) {
+        if let index = fetchedMembers.firstIndex(where: { $0.id == user.id }) {
+            fetchedMembers[index] = user
+        } else {
+            fetchedMembers.append(user)
         }
     }
 
