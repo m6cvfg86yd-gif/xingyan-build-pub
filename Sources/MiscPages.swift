@@ -5,6 +5,7 @@ struct FavoritesView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var items: [[String: Any]] = []
+    @State private var pendingNotes: [[String: Any]] = []
     @State private var loading = true
     @State private var viewerPaths: [String] = []
     @State private var viewerIndex: Int?
@@ -27,7 +28,7 @@ struct FavoritesView: View {
 
     private var shown: [[String: Any]] {
         let key = q.trimmingCharacters(in: .whitespaces)
-        return items.filter { it in
+        return (pendingNotes + items).filter { it in
             let kind = (it["kind"] as? String) ?? "text"
 
             let isPic = ["image", "images", "video", "livephoto"].contains(kind)
@@ -205,7 +206,22 @@ struct FavoritesView: View {
         .task { await load() }
 
         .sheet(isPresented: $showCompose) {
-            FavoriteNoteComposeSheet { Task { await load() } }
+            FavoriteNoteComposeSheet { body, title, editing in
+                if !editing {
+                    pendingNotes.insert([
+                        "id": "local-" + UUID().uuidString,
+                        "kind": "text",
+                        "content": body,
+                        "title": title,
+                        "fromName": "",
+                        "pinned": false
+                    ], at: 0)
+                }
+                Task {
+                    if !editing { try? await Task.sleep(nanoseconds: 350_000_000) }
+                    await load()
+                }
+            }
                 .environmentObject(app)
         }
 
@@ -364,7 +380,15 @@ struct FavoritesView: View {
     }
 
     private func load() async {
-        items = await API.shared.favorites()
+        let fresh = await API.shared.favorites()
+        pendingNotes.removeAll { pending in
+            let content = (pending["content"] as? String) ?? ""
+            return fresh.contains { item in
+                ((item["kind"] as? String) ?? "") == ((pending["kind"] as? String) ?? "")
+                    && ((item["content"] as? String) ?? "") == content
+            }
+        }
+        items = fresh
         loading = false
     }
 
@@ -411,7 +435,7 @@ private extension View {
                          pin: @escaping ([String: Any]) -> Void,
                          forward: @escaping ([String: Any]) -> Void) -> some View {
         swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if let id = item["id"] as? String {
+            if let id = item["id"] as? String, !id.hasPrefix("local-") {
                 Button(role: .destructive) {
                     remove(id)
                 } label: {
@@ -427,7 +451,7 @@ private extension View {
             }
         }
         .contextMenu {
-            if let id = item["id"] as? String {
+            if let id = item["id"] as? String, !id.hasPrefix("local-") {
                 Button {
                     forward(item)
                 } label: {

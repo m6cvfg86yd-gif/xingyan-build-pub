@@ -6,7 +6,7 @@ struct FavoriteNoteComposeSheet: View {
 
     let editingId: String
     let initial: String
-    let onSaved: () -> Void
+    let onSaved: (_ content: String, _ title: String, _ editing: Bool) -> Void
 
     @State private var titleText = ""
     @State private var bodyText = ""
@@ -202,7 +202,7 @@ struct FavoriteNoteComposeSheet: View {
         busy = false
         if ok {
             DiagLog.shared.note("收藏：保存了一条笔记（" + String(body.count) + " 字）")
-            onSaved()
+            onSaved(body, title, !editingId.isEmpty)
             dismiss()
         } else {
             msg = Tr("保存失败，再试一次")
@@ -324,7 +324,7 @@ struct FavoriteNoteDetailSheet: View {
                 .environmentObject(app)
         }
         .sheet(isPresented: $editing) {
-            FavoriteNoteComposeSheet(editingId: id, initial: content) {
+            FavoriteNoteComposeSheet(editingId: id, initial: content) { _, _, _ in
                 onChanged()
                 dismiss()
             }
