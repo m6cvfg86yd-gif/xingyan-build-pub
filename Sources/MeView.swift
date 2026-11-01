@@ -544,13 +544,39 @@ struct MeView: View {
         var last: Int? = nil
 
         let serviceOff = UIConfig.num("serviceShow", 1) <= 0
-        for it in items {
+        for it in effectiveItems {
             if serviceOff, it.action == "service" { continue }
             let g = it.group ?? 1
             if last == nil || g != last! { out.append([]); last = g }
             out[out.count - 1].append(it)
         }
         return out
+    }
+
+    private var effectiveItems: [DiscoverItem] {
+        let hasCards = items.contains { $0.action == "cards" }
+        var out: [DiscoverItem] = []
+        var insertedCards = false
+
+        for item in items {
+            if item.action == "shop" || item.action == "mall" {
+                if !hasCards && !insertedCards {
+                    out.append(cardsItem(group: item.group))
+                    insertedCards = true
+                }
+                continue
+            }
+            out.append(item)
+        }
+        if !hasCards && !insertedCards {
+            out.append(cardsItem(group: 2))
+        }
+        return out
+    }
+
+    private func cardsItem(group: Int?) -> DiscoverItem {
+        DiscoverItem(id: "m-cards", label: "卡包", icon: "i.wallet", svg: I.wallet,
+                     color: "#59C47E", action: "cards", group: group ?? 2, enabled: true)
     }
 
     private func loadItems() async {

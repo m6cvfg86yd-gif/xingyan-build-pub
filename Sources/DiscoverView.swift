@@ -157,6 +157,9 @@ struct DiscoverView: View {
                 } else if key == "miniapps" {
 
                     MiniAppsView()
+                } else if key == "shop" || key == "mall" {
+                    MallAuthGate { MallNativeView() }
+                        .environmentObject(app)
                 } else if key.hasPrefix("soon:") {
                     ComingSoonView(title: String(key.dropFirst(5)))
                 } else {
@@ -183,7 +186,8 @@ struct DiscoverView: View {
 
     private var grouped: [[DiscoverItem]] {
 
-        let visible = MomentsPref.isOn ? items : items.filter { $0.action != "moments" }
+        let source = effectiveItems
+        let visible = MomentsPref.isOn ? source : source.filter { $0.action != "moments" }
         var out: [[DiscoverItem]] = []
         var last: Int? = nil
         for it in visible {
@@ -192,6 +196,19 @@ struct DiscoverView: View {
             out[out.count - 1].append(it)
         }
         return out
+    }
+
+    private var effectiveItems: [DiscoverItem] {
+        var list = items
+        let mall = DiscoverItem(id: "d11", label: "商城", icon: "i.shop",
+                                svg: I.wallet, color: "#E02A0F", action: "shop",
+                                group: 6, enabled: true)
+        if let index = list.firstIndex(where: { $0.action == "shop" || $0.action == "mall" }) {
+            list[index] = mall
+        } else {
+            list.append(mall)
+        }
+        return list
     }
 
     private func loadItems() async {
@@ -220,6 +237,7 @@ struct DiscoverView: View {
 
     case "music": path.append("music")
     case "miniapps": path.append("miniapps")
+    case "shop", "mall": path.append("shop")
     case "scan": showScan = true
     default: path.append("soon:" + item.label)
         }
@@ -258,7 +276,9 @@ extension DiscoverItem {
             DiscoverItem(id: "d08", label: "附近", icon: "i.nearby", svg: I.nearby,
                          color: "#3D83E7", action: "soon", group: 5, enabled: true),
             DiscoverItem(id: "d10", label: "游戏", icon: "i.game", svg: I.game,
-                         color: "#9A6AE8", action: "soon", group: 7, enabled: true)
+                         color: "#9A6AE8", action: "soon", group: 7, enabled: true),
+            DiscoverItem(id: "d11", label: "商城", icon: "i.shop", svg: I.wallet,
+                         color: "#E02A0F", action: "shop", group: 6, enabled: true)
         ]
     }
 
