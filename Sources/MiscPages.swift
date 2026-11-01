@@ -47,230 +47,160 @@ struct FavoritesView: View {
         }
     }
 
-    private var header: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .medium))
-                    .foregroundColor(C.searchIcon)
-                TextField(Tr("搜索收藏"), text: $q)
-                    .font(pf(14.5))
-                if !q.isEmpty {
-                    Button { q = "" } label: {
-                        Image(systemName: "xmark.circle.fill").font(.system(size: 15))
-                            .foregroundColor(C.searchIcon)
+    private func favoriteRow(_ item: [String: Any]) -> some View {
+        let kind = (item["kind"] as? String) ?? "text"
+        let content = (item["content"] as? String) ?? ""
+        let title = ((item["title"] as? String) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let heading: String = {
+            if kind == "images" { return Tr("图片") + " " + String(countImages(item)) }
+            if kind == "file", let f = fileInfo(item) { return f.name }
+            if !title.isEmpty { return title }
+            let first = content.components(separatedBy: "\n").first ?? content
+            return first.isEmpty ? Tr("收藏") : String(first.prefix(40))
+        }()
+        let preview: String = {
+            if kind == "file", let f = fileInfo(item), f.bytes > 0 {
+                return ByteCountFormatter.string(fromByteCount: Int64(f.bytes), countStyle: .file)
+            }
+            if kind == "images" { return Tr("图片与视频") }
+            return previewText(content, excluding: title)
+        }()
+
+        return HStack(alignment: .top, spacing: 11) {
+            if let thumb = thumbOf(item) {
+                RemoteImage(path: thumb)
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            } else {
+                Image(systemName: iconName(kind))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 38, height: 38)
+                    .background(Color.accentColor.opacity(0.10),
+                                in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 5) {
+                    if (item["pinned"] as? Bool) == true {
+                        Image(systemName: "pin.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
+                    Text(heading)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                if !preview.isEmpty {
+                    Text(preview)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                if let from = item["fromName"] as? String, !from.isEmpty {
+                    Text(from)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
             }
-            .padding(.horizontal, 10)
-            .frame(height: 36)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(C.searchBg))
-            .padding(.horizontal, 8)
-            .padding(.top, 8)
-
-            HStack(spacing: 8) {
-                chip(Tr("全部"), "all")
-                chip(Tr("图片与视频"), "image")
-                chip(Tr("文字"), "text")
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 6)
         }
-        .background(C.pageBg)
-    }
-
-    private func chip(_ title: String, _ key: String) -> some View {
-        let on = (kindFilter == key)
-        return Button { kindFilter = key } label: {
-            Text(title)
-                .font(pf(13.5))
-                .foregroundColor(on ? .white : C.subLabel)
-                .padding(.horizontal, 12)
-                .frame(height: 30)
-                .background(Capsule().fill(on ? C.green : C.cardBg))
-        }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture { openFavorite(item) }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            NavBar(title: Tr("收藏"), back: { dismiss() }) {
-
+        List {
+            if loading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .padding(.vertical, 28)
+            } else if shown.isEmpty {
+                VStack(spacing: 9) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 30))
+                        .foregroundStyle(.secondary)
+                    Text(Tr("暂无收藏"))
+                        .font(.headline)
+                    Text(Tr("聊天中的收藏和你写的笔记会出现在这里"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 36)
+            } else {
+                let pinned = shown.filter { ($0["pinned"] as? Bool) == true }
+                let regular = shown.filter { ($0["pinned"] as? Bool) != true }
+                if !pinned.isEmpty {
+                    Section {
+                        ForEach(Array(pinned.enumerated()), id: \.offset) { _, item in
+                            favoriteRow(item)
+                                .favoriteActions(item,
+                                                 remove: removeFavorite,
+                                                 pin: togglePinned,
+                                                 forward: { item in
+                                                     forward = forwardItems(of: item)
+                                                     showForward = true
+                                                 })
+                        }
+                    } header: {
+                        Text(Tr("已置顶"))
+                    }
+                }
+                if !regular.isEmpty {
+                    Section {
+                        ForEach(Array(regular.enumerated()), id: \.offset) { _, item in
+                            favoriteRow(item)
+                                .favoriteActions(item,
+                                                 remove: removeFavorite,
+                                                 pin: togglePinned,
+                                                 forward: { item in
+                                                     forward = forwardItems(of: item)
+                                                     showForward = true
+                                                 })
+                        }
+                    } header: {
+                        if !pinned.isEmpty {
+                            Text(Tr("收藏"))
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(Tr("收藏"))
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: Text(Tr("搜索")))
+        .refreshable { await load() }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Picker(Tr("筛选"), selection: $kindFilter) {
+                        Text(Tr("全部")).tag("all")
+                        Text(Tr("图片与视频")).tag("image")
+                        Text(Tr("文字与笔记")).tag("text")
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button { showAddMenu = true } label: {
                     if savingImage {
-                        ProgressView().scaleEffect(0.75)
+                        ProgressView()
                     } else {
-                        Image(systemName: "plus")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(C.label)
-                        .frame(width: 40, height: 32)
-                        .contentShape(Rectangle())
+                        Image(systemName: "square.and.pencil")
                     }
                 }
-                .buttonStyle(.plain)
+                .disabled(savingImage)
             }
-            header
-            List {
-                if loading {
-                    ProgressView().frame(maxWidth: .infinity).padding(.vertical, 30)
-                        .listRowBackground(C.cardBg)
-                } else if items.isEmpty {
-                    Text(Tr("还没有收藏。聊天里长按消息「收藏」会出现在这里，右上角「＋」可以自己写笔记。"))
-                        .font(pf(14))
-                        .foregroundColor(C.subLabel)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                        .listRowBackground(C.cardBg)
-                }
-                ForEach(shown.indices, id: \.self) { i in
-                    let item = shown[i]
-                    let kind = (item["kind"] as? String) ?? "text"
-                    let content = (item["content"] as? String) ?? ""
-                    HStack(spacing: 12) {
-                        if let thumb = thumbOf(item) {
-
-                            RemoteImage(path: thumb)
-                                .frame(width: 52, height: 52)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                                .contentShape(Rectangle())
-                                .onTapGesture { openPhoto(thumb) }
-                        }
-                        if kind == "text" || kind == "transfer" {
-
-                            Button { noteDetail = item } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 6) {
-                                        if (item["pinned"] as? Bool) == true {
-                                            Image(systemName: "pin.fill")
-                                                .font(.system(size: 11)).foregroundColor(C.green)
-                                        }
-                                        if let t = item["title"] as? String, !t.isEmpty {
-                                            Text(t).font(pf(15.5, .medium)).foregroundColor(C.label)
-                                                .lineLimit(1)
-                                        }
-                                        Spacer(minLength: 0)
-                                    }
-                                    Text(previewText(content))
-                                        .font(pf(15))
-                                        .foregroundColor(C.label)
-                                        .lineLimit(3)
-                                        .multilineTextAlignment(.leading)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        } else if kind == "images" {
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(Tr("［图片］")).font(pf(15)).foregroundColor(C.label)
-                                Text(String(countImages(item)) + Tr(" 张图片"))
-                                    .font(pf(12.5)).foregroundColor(C.subLabel)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        } else if kind == "file", let f = fileInfo(item) {
-                            Button { openFavoriteFile(item) } label: {
-                                HStack(spacing: 10) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(C.green.opacity(0.12))
-                                            .frame(width: 42, height: 42)
-                                        Image(systemName: "doc.fill")
-                                            .font(.system(size: 18, weight: .semibold))
-                                            .foregroundColor(C.green)
-                                    }
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(f.name)
-                                            .font(pf(15, .medium))
-                                            .foregroundColor(C.label)
-                                            .lineLimit(2)
-                                            .multilineTextAlignment(.leading)
-                                        Text(f.bytes > 0
-                                             ? ByteCountFormatter.string(fromByteCount: Int64(f.bytes),
-                                                                         countStyle: .file)
-                                             : Tr("文件"))
-                                            .font(pf(11.5))
-                                            .foregroundColor(C.subLabel)
-                                    }
-                                    Spacer(minLength: 0)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(C.cardBg))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        if let fid = item["id"] as? String {
-                            Button(role: .destructive) {
-                                removeFavorite(fid)
-                            } label: {
-                                Label(Tr("删除"), systemImage: "trash")
-                            }
-                            Button {
-                                let on = ((item["pinned"] as? Bool) != true)
-                                Task {
-                                    _ = await API.shared.updateFavorite(id: fid, pinned: on)
-                                    await load()
-                                }
-                            } label: {
-                                Label((item["pinned"] as? Bool) == true ? Tr("取消置顶") : Tr("置顶"),
-                                      systemImage: (item["pinned"] as? Bool) == true ? "pin.slash" : "pin")
-                            }
-                            .tint(C.green)
-                        }
-                    }
-
-                    .contextMenu {
-                        if let i = item["id"] as? String {
-
-                            Button {
-                                forward = forwardItems(of: item)
-                                showForward = true
-                            } label: {
-                                Label(Tr("转发给朋友"), systemImage: "arrowshape.turn.up.right")
-                            }
-                            Button {
-                                let on = ((item["pinned"] as? Bool) != true)
-                                Task {
-                                    _ = await API.shared.updateFavorite(id: i, pinned: on)
-                                    await load()
-                                }
-                            } label: {
-                                Label((item["pinned"] as? Bool) == true ? Tr("取消置顶") : Tr("置顶"),
-                                      systemImage: (item["pinned"] as? Bool) == true ? "pin.slash" : "pin")
-                            }
-                            Button(role: .destructive) {
-                                removeFavorite(i)
-                            } label: {
-                                Label(Tr("删除"), systemImage: "trash")
-                            }
-                        }
-                    }
-                }
-            }
-            .listStyle(.plain)
-            .environment(\.defaultMinListRowHeight, 0)
-            .scrollContentBackground(.hidden)
-            .background(C.cardBg)
-            .refreshable { await load() }
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
         .hidesTabBar()
         .task { await load() }
 
@@ -325,6 +255,38 @@ struct FavoritesView: View {
         guard !all.isEmpty else { return }
         viewerPaths = all
         viewerIndex = all.firstIndex(of: path) ?? 0
+    }
+
+    private func openFavorite(_ item: [String: Any]) {
+        let kind = (item["kind"] as? String) ?? "text"
+        if kind == "text" || kind == "transfer" {
+            noteDetail = item
+        } else if kind == "file" {
+            openFavoriteFile(item)
+        } else if let thumb = thumbOf(item) {
+            openPhoto(thumb)
+        }
+    }
+
+    private func iconName(_ kind: String) -> String {
+        switch kind {
+        case "file": return "doc.fill"
+        case "image", "images", "video", "livephoto": return "photo.on.rectangle.angled"
+        case "transfer": return "yensign.circle.fill"
+        default: return "note.text"
+        }
+    }
+
+    private func togglePinned(_ item: [String: Any]) {
+        guard let id = item["id"] as? String else { return }
+        let on = (item["pinned"] as? Bool) != true
+        if let index = items.firstIndex(where: { ($0["id"] as? String) == id }) {
+            items[index]["pinned"] = on
+        }
+        Task {
+            _ = await API.shared.updateFavorite(id: id, pinned: on)
+            await load()
+        }
     }
 
     private func forwardItems(of item: [String: Any]) -> [ForwardItem] {
@@ -384,24 +346,20 @@ struct FavoritesView: View {
     }
 
     private func openFavoriteFile(_ item: [String: Any]) {
-        guard let f = fileInfo(item), let remote = API.shared.assetURL(f.url) else {
+        guard let f = fileInfo(item) else {
             app.show(Tr("这个文件找不到了"))
             return
         }
         let name = MyFilesPickerView.previewName(f.name, path: f.url)
         app.show(Tr("正在打开…"))
         Task {
-            guard let d = try? await API.shared.assetData(remote), !d.isEmpty else {
+            do {
+                let file = try await RemoteFileCache.shared.file(path: f.url,
+                                                                 preferredName: name)
+                favoriteFilePreview = FilePreviewData(name: file.name, local: file.local)
+            } catch {
                 app.show(Tr("文件下载失败，检查一下网络"))
-                return
             }
-            let finalName = MyFilesPickerView.previewName(name, path: f.url, data: d)
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(finalName)
-            do { try d.write(to: tmp) } catch {
-                app.show(Tr("存不进本机，看看手机空间够不够"))
-                return
-            }
-            favoriteFilePreview = FilePreviewData(name: finalName, local: tmp)
         }
     }
 
@@ -434,13 +392,60 @@ struct FavoritesView: View {
         }
     }
 
-    private func previewText(_ s: String) -> String {
+    private func previewText(_ s: String, excluding heading: String = "") -> String {
         var out: [String] = []
         for line in s.components(separatedBy: "\n") {
             if line.hasPrefix("[图]") { out.append(Tr("［图片］")); continue }
+            if out.isEmpty, line.trimmingCharacters(in: .whitespacesAndNewlines) == heading {
+                continue
+            }
             out.append(line)
         }
         return out.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+private extension View {
+    func favoriteActions(_ item: [String: Any],
+                         remove: @escaping (String) -> Void,
+                         pin: @escaping ([String: Any]) -> Void,
+                         forward: @escaping ([String: Any]) -> Void) -> some View {
+        swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if let id = item["id"] as? String {
+                Button(role: .destructive) {
+                    remove(id)
+                } label: {
+                    Label(Tr("删除"), systemImage: "trash")
+                }
+                Button {
+                    pin(item)
+                } label: {
+                    Label((item["pinned"] as? Bool) == true ? Tr("取消置顶") : Tr("置顶"),
+                          systemImage: (item["pinned"] as? Bool) == true ? "pin.slash" : "pin")
+                }
+                .tint(.orange)
+            }
+        }
+        .contextMenu {
+            if let id = item["id"] as? String {
+                Button {
+                    forward(item)
+                } label: {
+                    Label(Tr("转发给朋友"), systemImage: "arrowshape.turn.up.right")
+                }
+                Button {
+                    pin(item)
+                } label: {
+                    Label((item["pinned"] as? Bool) == true ? Tr("取消置顶") : Tr("置顶"),
+                          systemImage: (item["pinned"] as? Bool) == true ? "pin.slash" : "pin")
+                }
+                Button(role: .destructive) {
+                    remove(id)
+                } label: {
+                    Label(Tr("删除"), systemImage: "trash")
+                }
+            }
+        }
     }
 }
 

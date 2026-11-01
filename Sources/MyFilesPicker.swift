@@ -159,7 +159,7 @@ struct MyFilesPickerView: View {
     }
 
     private func openPreview(_ f: API.MyFileItem) {
-        guard let p = f.url, !p.isEmpty, let remote = API.shared.assetURL(p) else {
+        guard let p = f.url, !p.isEmpty else {
             app.show(Tr("这个文件找不到了"))
             return
         }
@@ -167,16 +167,13 @@ struct MyFilesPickerView: View {
         openingId = f.id
         Task {
             defer { openingId = "" }
-            guard let d = try? await API.shared.assetData(remote), !d.isEmpty else {
+            do {
+                let file = try await RemoteFileCache.shared.file(path: p,
+                                                                 preferredName: name)
+                preview = FilePreviewData(name: file.name, local: file.local)
+            } catch {
                 app.show(Tr("文件下载失败，检查一下网络"))
-                return
             }
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-            do { try d.write(to: tmp) } catch {
-                app.show(Tr("存不进本机，看看手机空间够不够"))
-                return
-            }
-            preview = FilePreviewData(name: name, local: tmp)
         }
     }
 

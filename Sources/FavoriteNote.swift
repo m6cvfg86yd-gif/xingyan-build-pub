@@ -5,19 +5,16 @@ struct FavoriteNoteComposeSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let editingId: String
-
     let initial: String
-
     let onSaved: () -> Void
 
-    @State private var text = ""
+    @State private var titleText = ""
+    @State private var bodyText = ""
     @State private var busy = false
     @State private var msg = ""
     @FocusState private var focused: Bool
-
     @State private var showPic = false
     @State private var picBusy = false
-
     @State private var pics: [String] = []
 
     init(editingId: String = "", initial: String = "", onSaved: @escaping () -> Void) {
@@ -31,53 +28,57 @@ struct FavoriteNoteComposeSheet: View {
             if line.hasPrefix("[图]") { imgs.append(String(line.dropFirst(3))) }
             else { body.append(line) }
         }
-        _text = State(initialValue: body.joined(separator: "\n")
+        while body.first?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
+            body.removeFirst()
+        }
+        let title = body.first ?? ""
+        _titleText = State(initialValue: title.trimmingCharacters(in: .whitespacesAndNewlines))
+        _bodyText = State(initialValue: body.dropFirst().joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines))
         _pics = State(initialValue: imgs)
     }
 
     private var canSave: Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pics.isEmpty
+        !titleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !pics.isEmpty
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            NavBar(title: editingId.isEmpty ? Tr("写笔记") : Tr("编辑笔记"), back: { dismiss() }) {
-                Button { Task { await save() } } label: {
-                    Text(busy ? Tr("保存中…") : Tr("保存"))
-                        .font(pf(15, .medium))
-                        .foregroundColor(canSave ? C.green : C.subLabel)
-                        .padding(.horizontal, 14).frame(height: 32)
-                }
-                .buttonStyle(.plain)
-                .disabled(busy || !canSave)
-            }
-
+        NavigationStack {
             VStack(spacing: 0) {
+                TextField(Tr("标题"), text: $titleText, axis: .vertical)
+                    .font(.title2.weight(.semibold))
+                    .lineLimit(1...3)
+                    .padding(.horizontal, 18)
+                    .padding(.top, 12)
+
+                Divider().padding(.horizontal, 18)
+
                 ZStack(alignment: .topLeading) {
-                    if text.isEmpty {
-                        Text(Tr("写点什么…（最多 2 万字）"))
-                            .font(pf(16)).foregroundColor(C.subLabel)
-                            .padding(.horizontal, 14).padding(.top, 12)
+                    if bodyText.isEmpty {
+                        Text(Tr("开始输入…"))
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 18)
+                            .padding(.top, 12)
                             .allowsHitTesting(false)
                     }
-                    TextEditor(text: $text)
-                        .font(pf(16))
-                        .foregroundColor(C.label)
+                    TextEditor(text: $bodyText)
+                        .font(.body)
                         .scrollContentBackground(.hidden)
-                        .padding(.horizontal, 10).padding(.top, 4)
+                        .padding(.horizontal, 13)
+                        .padding(.top, 4)
                         .focused($focused)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
                 if !pics.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 88), spacing: 8)], spacing: 8) {
                         ForEach(pics, id: \.self) { p in
                             ZStack(alignment: .topTrailing) {
                                 RemoteImage(path: p, mode: .fill, maxSide: 600)
-                                    .frame(height: 92)
+                                    .frame(height: 88)
                                     .frame(maxWidth: .infinity)
-                                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                 Button { pics.removeAll { $0 == p } } label: {
                                     Image(systemName: "xmark.circle.fill")
                                         .font(.system(size: 17))
@@ -89,63 +90,70 @@ struct FavoriteNoteComposeSheet: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 18)
                     .padding(.top, 6)
-                    .padding(.bottom, 10)
+                    .padding(.bottom, 12)
                 }
             }
-            .background(C.cardBg)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
-
-            HStack(spacing: 10) {
-                Button { showPic = true } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "photo").font(.system(size: 14))
-                        Text(Tr("插入图片")).font(pf(13.5))
+            .background(Color(.systemBackground))
+            .navigationTitle(editingId.isEmpty ? Tr("新建备忘录") : Tr("编辑备忘录"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Tr("取消")) { dismiss() }
+                        .disabled(busy)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        Task { await save() }
+                    } label: {
+                        if busy {
+                            ProgressView()
+                        } else {
+                            Text(Tr("完成")).fontWeight(.semibold)
+                        }
                     }
-                    .foregroundColor(C.green)
-                    .padding(.horizontal, 12).frame(height: 32)
-                    .background(Capsule().fill(C.cardBg))
+                    .disabled(busy || !canSave)
                 }
-                .buttonStyle(.plain)
-                .disabled(picBusy)
-
-                Button {
-                    text += "\n————————\n"
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "minus").font(.system(size: 14))
-                        Text(Tr("分割线")).font(pf(13.5))
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 0) {
+                    if !msg.isEmpty {
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 18)
+                            .padding(.bottom, 6)
                     }
-                    .foregroundColor(C.green)
-                    .padding(.horizontal, 12).frame(height: 32)
-                    .background(Capsule().fill(C.cardBg))
+                    HStack(spacing: 18) {
+                        Button { showPic = true } label: {
+                            Image(systemName: "photo")
+                        }
+                        .disabled(picBusy)
+                        Button {
+                            bodyText += (bodyText.isEmpty ? "" : "\n") + "————————"
+                        } label: {
+                            Image(systemName: "minus")
+                        }
+                        if picBusy { ProgressView() }
+                        Spacer()
+                        Text("\((titleText + bodyText).count) / 20000")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.system(size: 18, weight: .medium))
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 9)
                 }
-                .buttonStyle(.plain)
-
-                if picBusy { ProgressView().scaleEffect(0.7) }
-                Spacer(minLength: 0)
+                .background(.bar)
             }
-            .padding(.horizontal, 12).padding(.top, 8)
-
-            HStack(spacing: 10) {
-                if !msg.isEmpty {
-                    Text(msg).font(pf(12.5)).foregroundColor(C.subLabel)
-                }
-                Spacer(minLength: 0)
-                Text(String(text.count) + " / 20000")
-                    .font(pf(12)).foregroundColor(C.subLabel)
-            }
-            .padding(.horizontal, 16).padding(.top, 8)
-
-            Spacer(minLength: 0)
         }
-        .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
-        .task { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { focused = true } }
+        .task {
+            if editingId.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { focused = true }
+            }
+        }
         .sheet(isPresented: $showPic) {
             PhotoPicker { img in insertImage(img) }
         }
@@ -166,17 +174,23 @@ struct FavoriteNoteComposeSheet: View {
     }
 
     private func save() async {
-
-        var body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanTitle = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        var parts: [String] = []
+        if !cleanTitle.isEmpty { parts.append(cleanTitle) }
+        if !cleanBody.isEmpty { parts.append(cleanBody) }
         if !pics.isEmpty {
             let imgs = pics.map { "[图]" + $0 }.joined(separator: "\n")
-            body = body.isEmpty ? imgs : (body + "\n" + imgs)
+            parts.append(imgs)
         }
+        let body = parts.joined(separator: "\n")
         guard !body.isEmpty else { return }
         busy = true
         msg = ""
 
-        let firstLine = body.split(separator: "\n").first.map(String.init) ?? body
+        let firstLine = cleanTitle.isEmpty
+            ? (body.split(separator: "\n").first.map(String.init) ?? body)
+            : cleanTitle
         let title = String(firstLine.prefix(24))
 
         let ok: Bool
@@ -222,110 +236,81 @@ struct FavoriteNoteDetailSheet: View {
         content.components(separatedBy: "\n")
     }
 
+    private var titleText: String {
+        lines.first(where: {
+            !$0.hasPrefix("[图]") && !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }) ?? Tr("备忘录")
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            NavBar(title: Tr("笔记"), back: { dismiss() }) {
-                Button {
-                    UIPasteboard.general.string = content
-                    copied = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
-                } label: {
-                    Text(copied ? Tr("已复制") : Tr("复制"))
-                        .font(pf(15, .medium)).foregroundColor(C.green)
-                        .padding(.horizontal, 14).frame(height: 32)
-                }
-                .buttonStyle(.plain)
-            }
-
+        NavigationStack {
             ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(titleText)
+                        .font(.largeTitle.bold())
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    if content.isEmpty {
-                        Text(Tr("（空）")).font(pf(16)).foregroundColor(C.subLabel)
-                    } else {
-                        ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                            if line.hasPrefix("[图]") {
-                                let path = String(line.dropFirst(3))
-                                NoteImageBlock(path: path) { p in viewerPath = p }
-                            } else if !line.isEmpty {
-                                Text(line)
-                                    .font(pf(16))
-                                    .foregroundColor(C.label)
-                                    .textSelection(.enabled)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
+                    let titleIndex = lines.firstIndex(of: titleText)
+                    ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                        if index == titleIndex { EmptyView() }
+                        else if line.hasPrefix("[图]") {
+                            NoteImageBlock(path: String(line.dropFirst(3))) { p in viewerPath = p }
+                        } else if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(line)
+                                .font(.body)
+                                .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
+
+                    if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text(Tr("（空）"))
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .padding(14)
-                .background(C.cardBg)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 20)
                 .padding(.top, 12)
-
-                VStack(spacing: 0) {
-
-                    Button { Task { await pin(!isPinned) } } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: isPinned ? "pin.slash" : "pin").font(.system(size: 15))
-                            Text(isPinned ? Tr("取消置顶") : Tr("置顶")).font(pf(16))
-                            Spacer(minLength: 0)
-                        }
-                        .foregroundColor(C.label)
-                        .padding(.horizontal, 16).frame(height: 52)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    HairLine(inset: 16)
-
-                    Button { showForward = true } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "arrowshape.turn.up.right").font(.system(size: 15))
-                            Text(Tr("转发给朋友")).font(pf(16))
-                            Spacer(minLength: 0)
-                        }
-                        .foregroundColor(C.label)
-                        .padding(.horizontal, 16).frame(height: 52)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    HairLine(inset: 16)
-                    Button { editing = true } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "square.and.pencil").font(.system(size: 15))
-                            Text(Tr("编辑这条笔记")).font(pf(16))
-                            Spacer(minLength: 0)
-                        }
-                        .foregroundColor(C.label)
-                        .padding(.horizontal, 16).frame(height: 52)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    HairLine(inset: 16)
-                    Button { Task { await remove() } } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "trash").font(.system(size: 15))
-                            Text(Tr("删除")).font(pf(16))
-                            Spacer(minLength: 0)
-                        }
-                        .foregroundColor(C.red)
-                        .padding(.horizontal, 16).frame(height: 52)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-                .background(C.cardBg)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .padding(.horizontal, 12)
-                .padding(.top, 10)
-                Spacer().frame(height: 30)
+                .padding(.bottom, 36)
             }
-            .background(C.pageBg)
+            .background(Color(.systemBackground))
+            .navigationTitle(Tr("备忘录"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Tr("关闭")) { dismiss() }
+                }
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button { editing = true } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                    Menu {
+                        Button {
+                            UIPasteboard.general.string = content
+                            copied = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+                        } label: {
+                            Label(copied ? Tr("已复制") : Tr("复制"), systemImage: "doc.on.doc")
+                        }
+                        Button { Task { await pin(!isPinned) } } label: {
+                            Label(isPinned ? Tr("取消置顶") : Tr("置顶"),
+                                  systemImage: isPinned ? "pin.slash" : "pin")
+                        }
+                        Button { showForward = true } label: {
+                            Label(Tr("转发给朋友"), systemImage: "arrowshape.turn.up.right")
+                        }
+                        Divider()
+                        Button(role: .destructive) { Task { await remove() } } label: {
+                            Label(Tr("删除"), systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
         }
-        .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
         .overlay {
             if let p = viewerPath, !p.isEmpty {
                 PhotoPager(paths: [p], startIndex: 0, showActions: true) { viewerPath = nil }

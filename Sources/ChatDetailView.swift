@@ -3638,7 +3638,7 @@ struct ChatDetailView: View {
         guard let data = body.data(using: .utf8),
               let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let path = o["url"] as? String,
-              let remote = API.shared.assetURL(path) else {
+              !path.isEmpty else {
             app.show(Tr("这个文件找不到了"))
             return
         }
@@ -3647,19 +3647,15 @@ struct ChatDetailView: View {
         let name = MyFilesPickerView.previewName(raw, path: path)
         app.show(Tr("正在打开…"))
         Task {
-            guard let d = try? await API.shared.assetData(remote), !d.isEmpty else {
+            do {
+                let file = try await RemoteFileCache.shared.file(path: path,
+                                                                 preferredName: name)
+                filePreview = FilePreviewData(name: file.name, local: file.local,
+                                              favoriteTitle: chat.name,
+                                              favoriteFrom: "聊天文件")
+            } catch {
                 app.show(Tr("文件下载失败，检查一下网络"))
-                return
             }
-            let finalName = MyFilesPickerView.previewName(name, path: path, data: d)
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(finalName)
-            do { try d.write(to: tmp) } catch {
-                app.show(Tr("存不进本机，看看手机空间够不够"))
-                return
-            }
-            filePreview = FilePreviewData(name: finalName, local: tmp,
-                                          favoriteTitle: chat.name,
-                                          favoriteFrom: "聊天文件")
         }
     }
 
@@ -3667,7 +3663,7 @@ struct ChatDetailView: View {
         guard let data = m.body.data(using: .utf8),
               let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let path = o["url"] as? String,
-              let remote = API.shared.assetURL(path) else {
+              !path.isEmpty else {
             app.show(Tr("这个文件找不到了"))
             return
         }
@@ -3675,17 +3671,12 @@ struct ChatDetailView: View {
         let name = MyFilesPickerView.previewName(raw, path: path)
         app.show(Tr("正在准备分享…"))
         Task {
-            guard let d = try? await API.shared.assetData(remote), !d.isEmpty else {
-                app.show(Tr("文件下载失败，检查一下网络"))
-                return
-            }
-            let finalName = MyFilesPickerView.previewName(name, path: path, data: d)
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(finalName)
             do {
-                try d.write(to: tmp)
-                shareFile = FilePreviewData(name: finalName, local: tmp)
+                let file = try await RemoteFileCache.shared.file(path: path,
+                                                                 preferredName: name)
+                shareFile = FilePreviewData(name: file.name, local: file.local)
             } catch {
-                app.show(Tr("存不进本机，看看手机空间够不够"))
+                app.show(Tr("文件下载失败，检查一下网络"))
             }
         }
     }
@@ -3819,6 +3810,7 @@ struct ChatDetailView: View {
             let rows = visibleMessages(cached)
             messages = Array(rows.suffix(initialMessageWindow))
             hasOlder = rows.count > messages.count
+            prefetchRecentFiles()
         } else if initial, messages.isEmpty {
 
             let chatId = chat.id
@@ -3829,6 +3821,7 @@ struct ChatDetailView: View {
                 let rows = visibleMessages(local)
                 messages = Array(rows.suffix(initialMessageWindow))
                 hasOlder = rows.count > messages.count
+                prefetchRecentFiles()
             }
         }
         do {
@@ -3904,6 +3897,7 @@ struct ChatDetailView: View {
             initialRetryTask = nil
         }
         rebuildIndex()
+        prefetchRecentFiles()
         loading = false
         autoOpenShopCard()
 
@@ -3913,6 +3907,25 @@ struct ChatDetailView: View {
                 lastBurnSweep = Date()
                 let gone = await API.shared.burnSweep(chatId: chat.id)
                 if !gone.isEmpty { burnAway(gone) }
+            }
+        }
+    }
+
+    private func prefetchRecentFiles() {
+        var started = 0
+        for message in messages.suffix(80).reversed()
+        where message.kindName == "file" && started < 3 {
+            guard let data = message.body.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let path = object["url"] as? String, !path.isEmpty else { continue }
+            let name = (object["name"] as? String) ?? "文件"
+            let bytes = (object["bytes"] as? Int) ?? 0
+            guard bytes > 0, bytes <= 30 * 1024 * 1024 else { continue }
+            started += 1
+            Task {
+                await RemoteFileCache.shared.prefetch(path: path,
+                                                      preferredName: name,
+                                                      bytes: bytes)
             }
         }
     }
