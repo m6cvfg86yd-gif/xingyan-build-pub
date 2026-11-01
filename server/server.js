@@ -1094,6 +1094,8 @@ function publicUser(u) {
     alipayQr: u.alipayQr || '',          // 支付宝收款码图片（谁都能看，方便付款）
     bot: !!u.bot,
     botName: u.bot ? u.nickname : '',
+    banned: !!u.banned,
+    banReason: u.banned ? (u.banReason || '违规') : '',
     usernameUpdatedAt: u.usernameUpdatedAt || '',
     usernameChangesUsed: usernameChangeTimes(u).length,
     usernameChangesRemaining: Math.max(0, 2 - usernameChangeTimes(u).length),
@@ -1122,7 +1124,9 @@ function publicUserBrief(u, viewerId, preFriendSet) {
     region: u.region || '',
     bio: u.bio || '',
     qqLevel: qqLevelFor(u.id),         // 等级（QQ 那套）
-    bot: !!u.bot
+    bot: !!u.bot,
+    banned: !!u.banned,
+    banReason: u.banned ? (u.banReason || '违规') : ''
   };
   Object.assign(out, memberFields(u.id));   // 会员：会话/通讯录/名片都要挂徽章
   if (self || friend) {
@@ -9944,6 +9948,13 @@ function setUserBanned(u, banned, reason, by) {
     u.bannedBy = '';
   }
   saveUsers();
+  try {
+    const profile = publicUser(u);
+    friendIds(u.id).forEach((fid) => sendTo(fid, { type: 'profile', user: profile }));
+    sendTo(u.id, { type: 'profile', user: profile });
+  } catch (err) {
+    console.error('[封禁状态广播失败] ' + err.message);
+  }
   return was !== on;      // 状态真的变了才返回 true（给审计用）
 }
 

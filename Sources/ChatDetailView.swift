@@ -351,6 +351,8 @@ struct ChatDetailView: View {
     @State private var applyNote = ""
     @State private var peerRelationChecked = false
     @State private var serverPeerRelation: String?
+    @State private var peerBanned = false
+    @State private var peerBanReason = ""
 
     @State private var announcePage = ""
     @State private var showAnnouncePage = false
@@ -760,6 +762,10 @@ struct ChatDetailView: View {
 
     private func startRealCall(video: Bool) {
 
+        if !isGroup && peerBanned {
+            app.show(Tr("对方账号已被管理员封禁，暂时无法通话"))
+            return
+        }
         if isGroup {
             if CallCenter.shared.phase != .idle { app.show(Tr("正在通话中")); return }
             CallCenter.shared.resetIfStale()
@@ -1002,6 +1008,30 @@ struct ChatDetailView: View {
                                         native: true)
                         .ignoresSafeArea(edges: .top)
                     }
+                }
+            }
+
+            if !isGroup && peerBanned {
+                HStack(spacing: 9) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(C.red)
+                    Text(Tr("该账号已被管理员封禁"))
+                        .font(pf(13.5, .semibold))
+                        .foregroundColor(C.label)
+                    if !peerBanReason.isEmpty {
+                        Text(peerBanReason)
+                            .font(pf(12.5))
+                            .foregroundColor(C.subLabel)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .frame(height: 38)
+                .background(Color.red.opacity(0.07))
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(C.red.opacity(0.16)).frame(height: 0.5)
                 }
             }
 
@@ -1458,6 +1488,11 @@ struct ChatDetailView: View {
         }
         .onChange(of: realtime.event) { _ in
             let ev = realtime.event
+
+            if !isGroup, let user = ev.user, user.id == peerId {
+                peerBanned = user.banned == true
+                peerBanReason = user.banReason?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            }
 
             if ev.type == "typing", ev.chatId == chat.id {
                 peerTyping = "对方"
@@ -2316,6 +2351,8 @@ struct ChatDetailView: View {
             if !isFriendPeer {
 
                 verifyComposer
+            } else if peerBanned {
+                bannedComposer
             } else if mutedForMe {
                 mutedComposer
             } else {
@@ -2350,10 +2387,35 @@ struct ChatDetailView: View {
             return
         }
         serverPeerRelation = user.relation
+        peerBanned = user.banned == true
+        peerBanReason = user.banReason?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if user.relation == "friend" {
             app.applyFriendAccepted(user)
         }
         peerRelationChecked = true
+    }
+
+    private var bannedComposer: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "person.crop.circle.badge.exclamationmark")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundColor(C.red)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(Tr("对方账号已被管理员封禁"))
+                    .font(pf(14.5, .medium))
+                    .foregroundColor(C.label)
+                Text(peerBanReason.isEmpty
+                     ? Tr("暂时无法发送消息")
+                     : Tr("原因：") + peerBanReason)
+                    .font(pf(12.5))
+                    .foregroundColor(C.subLabel)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 13)
+        .background(ChatTheme.composerBg)
+        .overlay(alignment: .top) { HairLine() }
     }
 
     private var verifyComposer: some View {

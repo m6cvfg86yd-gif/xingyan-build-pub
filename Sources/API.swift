@@ -67,6 +67,9 @@ struct User: Codable, Identifiable, Hashable {
 
     var block: Bool?
 
+    var banned: Bool?
+    var banReason: String?
+
     var noMoments: Bool?
 
     var addedAt: String?
