@@ -1,4 +1,6 @@
 import SwiftUI
+import SwiftUI
+import UIKit
 
 struct SwitchAccountView: View {
     @EnvironmentObject var app: AppState
@@ -12,65 +14,204 @@ struct SwitchAccountView: View {
     private var me: String { app.me?.username ?? "" }
 
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack {
+            C.pageBg.ignoresSafeArea()
+            accountWatermark
 
-            HStack(spacing: 0) {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 19, weight: .medium))
-                        .foregroundColor(C.label)
-                        .frame(height: L.navH)
-                        .padding(.horizontal, 16)
-                        .contentShape(Rectangle())
+            VStack(spacing: 0) {
+
+                HStack(spacing: 0) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 19, weight: .medium))
+                            .foregroundColor(C.label)
+                            .frame(height: L.navH)
+                            .padding(.horizontal, 16)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    Spacer(minLength: 0)
+                    Text(Tr("切换账号")).font(pf(17, .semibold)).foregroundColor(C.label)
+                    Spacer(minLength: 0)
+                    Color.clear.frame(width: 51, height: L.navH)
                 }
-                .buttonStyle(.plain)
-                Spacer(minLength: 0)
-                Text(Tr("切换账号")).font(pf(17, .semibold)).foregroundColor(C.label)
-                Spacer(minLength: 0)
-                Color.clear.frame(width: 51, height: L.navH)
-            }
-            .frame(height: L.navH)
-            .background(C.navBg)
+                .frame(height: L.navH)
+                .background(accountTopMask)
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        accountHero
 
-                    Text(Tr("轻触头像以切换账号"))
-                        .font(pf(16.5))
-                        .foregroundColor(C.label)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 56)
-                        .padding(.bottom, 40)
-
-                    VStack(spacing: 12) {
-                        ForEach(app.accounts) { acct in
-                            accountRow(acct)
+                        VStack(spacing: 10) {
+                            ForEach(app.accounts) { acct in
+                                accountRow(acct)
+                            }
+                            addRow
                         }
-                        addRow
+
+                        if !note.isEmpty {
+                            Text(note)
+                                .font(pf(13))
+                                .foregroundColor(Color(hexString: "#FA5151"))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 4)
+                                .padding(.top, 2)
+                        }
+
+                        HStack(spacing: 7) {
+                            Image(systemName: "lock.shield.fill")
+                            Text(Tr("已登录账号只保存在这台设备"))
+                        }
+                        .font(pf(11.5))
+                        .foregroundColor(C.subLabel)
+                        .padding(.top, 2)
+                        .padding(.bottom, max(24, L.safeBottom))
                     }
                     .padding(.horizontal, 24)
-
-                    if !note.isEmpty {
-                        Text(note)
-                            .font(pf(13))
-                            .foregroundColor(Color(hexString: "#FA5151"))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 22)
-                            .padding(.top, 10)
-                    }
-
-                    Spacer().frame(height: 30)
+                    .padding(.top, 26)
                 }
             }
-            .background(C.pageBg)
         }
-        .background(C.pageBg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
         .fullScreenCover(isPresented: $adding) {
             HarmonyLoginView()
                 .environmentObject(app)
+        }
+    }
+
+    private var accountHero: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(OrbitTheme.jadeSoft)
+                    .frame(width: 78, height: 78)
+                Circle()
+                    .stroke(OrbitTheme.gold.opacity(0.45), lineWidth: 1.1)
+                    .frame(width: 88, height: 88)
+                    .rotationEffect(.degrees(-18))
+                brandLogo(size: 60)
+            }
+
+            VStack(spacing: 5) {
+                Text("星言 Luchat")
+                    .font(pf(22, .semibold))
+                    .foregroundColor(C.label)
+                Text(Tr("轻触头像以切换账号"))
+                    .font(pf(13.5))
+                    .foregroundColor(C.subLabel)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+        .padding(.bottom, 2)
+    }
+
+    private var accountWatermark: some View {
+        GeometryReader { geo in
+            ZStack {
+                Circle()
+                    .stroke(OrbitTheme.jade.opacity(0.07), lineWidth: 1)
+                    .frame(width: min(geo.size.width * 0.86, 360))
+                    .offset(x: geo.size.width * 0.30, y: -geo.size.height * 0.23)
+                Circle()
+                    .stroke(OrbitTheme.gold.opacity(0.06), lineWidth: 1)
+                    .frame(width: min(geo.size.width * 0.62, 270))
+                    .offset(x: -geo.size.width * 0.38, y: geo.size.height * 0.32)
+                brandLogo(size: min(geo.size.width * 0.72, 300))
+                    .opacity(0.035)
+                    .rotationEffect(.degrees(-8))
+                    .offset(x: geo.size.width * 0.30, y: -geo.size.height * 0.10)
+                Text("LUCHAT")
+                    .font(.system(size: 42, weight: .black, design: .rounded))
+                    .tracking(8)
+                    .foregroundColor(OrbitTheme.jade.opacity(0.025))
+                    .rotationEffect(.degrees(-8))
+                    .offset(x: -geo.size.width * 0.18, y: geo.size.height * 0.32)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var accountTopMask: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .bottom) {
+                C.navBg.opacity(0.97)
+
+                LinearGradient(
+                    colors: [
+                        C.red.opacity(0.20),
+                        Color(hex: 0xFF8B78).opacity(0.075),
+                        Color.clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                Circle()
+                    .stroke(C.red.opacity(0.20), lineWidth: 0.8)
+                    .frame(width: geo.size.height * 1.7,
+                           height: geo.size.height * 1.7)
+                    .offset(x: geo.size.width * 0.31,
+                            y: geo.size.height * 0.58)
+
+                Circle()
+                    .stroke(C.red.opacity(0.11), lineWidth: 0.7)
+                    .frame(width: geo.size.height * 1.18,
+                           height: geo.size.height * 1.18)
+                    .offset(x: -geo.size.width * 0.34,
+                            y: geo.size.height * 0.70)
+
+                Capsule()
+                    .fill(C.red.opacity(0.10))
+                    .frame(width: geo.size.width * 0.34, height: 1.2)
+                    .rotationEffect(.degrees(-18))
+                    .offset(x: geo.size.width * 0.20,
+                            y: -geo.size.height * 0.17)
+
+                HStack(spacing: 5) {
+                    ForEach(0..<3, id: \.self) { index in
+                        Circle()
+                            .fill(C.red.opacity(index == 1 ? 0.24 : 0.12))
+                            .frame(width: index == 1 ? 3 : 2,
+                                   height: index == 1 ? 3 : 2)
+                    }
+                }
+                .offset(x: geo.size.width * 0.29,
+                        y: -geo.size.height * 0.26)
+
+                LinearGradient(
+                    colors: [C.red.opacity(0.0), C.red.opacity(0.56)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 1)
+            }
+        }
+        .clipped()
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private func brandLogo(size: CGFloat) -> some View {
+        if let image = UIImage(named: "AppIcon60x60@3x")
+            ?? UIImage(named: "AppIcon60x60@2x") {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
+        } else {
+            RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
+                .fill(OrbitTheme.jadeDeep)
+                .frame(width: size, height: size)
+                .overlay(
+                    Text("星")
+                        .font(.system(size: size * 0.48, weight: .semibold))
+                        .foregroundColor(.white)
+                )
         }
     }
 
@@ -110,6 +251,11 @@ struct SwitchAccountView: View {
             .frame(height: 80)
             .background(C.cardBg)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(current ? OrbitTheme.jade.opacity(0.42) : C.navLine, lineWidth: 0.7)
+            )
+            .shadow(color: Color.black.opacity(0.035), radius: 8, y: 3)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -140,8 +286,13 @@ struct SwitchAccountView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 80)
-            .background(C.cardBg)
+            .background(C.cardBg.opacity(0.84))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(OrbitTheme.jade.opacity(0.28),
+                            style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

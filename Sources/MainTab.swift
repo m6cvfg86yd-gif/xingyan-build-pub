@@ -208,7 +208,8 @@ struct MainTabView: View {
         )) { p in
             DDDetailView(product: p,
                          onCart: { mallSheet.close() },
-                         onOpenOther: { mallSheet.product = $0 })
+                         onOpenOther: { mallSheet.product = $0 },
+                         onDismiss: { mallSheet.close() })
                 .environmentObject(app)
         }
 

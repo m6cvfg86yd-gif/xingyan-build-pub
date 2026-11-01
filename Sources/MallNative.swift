@@ -1427,7 +1427,8 @@ struct MallNativeView: View {
 
             DDDetailView(product: p,
                          onCart: { tab = 3 },
-                         onOpenOther: { openProduct = $0 }).environmentObject(app)
+                         onOpenOther: { openProduct = $0 },
+                         onDismiss: { openProduct = nil }).environmentObject(app)
         }
         .sheet(isPresented: $showSearch) {
             DDSearchView { p in
@@ -1596,7 +1597,7 @@ struct MallNativeView: View {
 
         return VStack(spacing: 6) {
             HStack(spacing: 8) {
-                Button { dismiss() } label: {
+                Button { backToMallOrClose() } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(DDColor.ink)
@@ -1686,6 +1687,16 @@ struct MallNativeView: View {
         .padding(.bottom, 8)
 
         .background { headerBg.ignoresSafeArea(edges: .top) }
+    }
+
+    private func backToMallOrClose() {
+        if tab != 0 {
+            withAnimation(.easeOut(duration: 0.18)) {
+                tab = 0
+            }
+        } else {
+            dismiss()
+        }
     }
 
     @ViewBuilder private var headerBg: some View {
@@ -1927,6 +1938,7 @@ struct DDHomeTab: View {
                     })
                     deliveryStrip
                     carousel(proxy)
+                    curatedStrip
                     categoryQuickRail(proxy)
                     seckill(proxy)
                     couponRail
@@ -2066,6 +2078,86 @@ struct DDHomeTab: View {
 
     private func toGrid(_ proxy: ScrollViewProxy) {
         withAnimation(.easeInOut(duration: 0.3)) { proxy.scrollTo("dd-grid", anchor: .top) }
+    }
+
+    @ViewBuilder
+    private var curatedStrip: some View {
+        let deals = store.live.filter { $0.orig > $0.price }
+        if let best = deals.max(by: { $0.discountRate < $1.discountRate }) {
+            let averageSave = deals.isEmpty ? 0 :
+                deals.reduce(0.0) { $0 + max(0, $1.orig - $1.price) } / Double(deals.count)
+            Button { onOpen(best) } label: {
+                HStack(spacing: 13) {
+                    VStack(alignment: .leading, spacing: 7) {
+                        HStack(spacing: 7) {
+                            Text(Tr("今日星选"))
+                                .font(pf(17, .bold))
+                                .foregroundColor(DDColor.ink)
+                            Text(Tr("少看广告，多看好货"))
+                                .font(pf(10.5))
+                                .foregroundColor(DDColor.sub)
+                                .lineLimit(1)
+                        }
+                        Text(best.title)
+                            .font(pf(12.5, .medium))
+                            .foregroundColor(DDColor.ink)
+                            .lineLimit(1)
+                        HStack(spacing: 7) {
+                            Text(String(max(1, Int((best.discountRate * 100).rounded()))) + "% OFF")
+                                .font(pf(10, .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 7)
+                                .frame(height: 20)
+                                .background(Capsule().fill(DDColor.redDeep))
+                            Text(Tr("\(deals.count) 件正在降"))
+                                .font(pf(10))
+                                .foregroundColor(DDColor.sub)
+                            Text(Tr("平均省 ¥") + moneyFmt(averageSave))
+                                .font(pf(10, .medium))
+                                .foregroundColor(Color(hex: 0xA37D38))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    ZStack(alignment: .bottomTrailing) {
+                        DDThumb(em: best.em, size: 78, radius: 12, img: best.img)
+                        Text("¥" + moneyFmt(best.price))
+                            .font(pf(11, .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 7)
+                            .frame(height: 22)
+                            .background(Capsule().fill(DDColor.redDeep))
+                            .offset(x: 3, y: 3)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: 0xFFF7F2), Color(hex: 0xF4FAF7)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [DDColor.red.opacity(0.20),
+                                         DDColor.blueDeep.opacity(0.10)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            lineWidth: 0.8
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.04), radius: 10, y: 3)
+                .padding(.horizontal, 10)
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     @ViewBuilder
@@ -2602,7 +2694,8 @@ struct DDHomeTab: View {
 
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                .fill(DDColor.blueDeep)
+                .fill(LinearGradient(colors: [DDColor.red, Color(hex: 0xD4A44A)],
+                                     startPoint: .top, endPoint: .bottom))
                 .frame(width: 3, height: 17)
             Text(t).font(pf(18, .bold)).foregroundColor(DDColor.ink)
             if !subtitle.isEmpty {
@@ -3818,11 +3911,15 @@ struct DDDetailView: View {
     private let onCart: (() -> Void)?
 
     private let onOpenOther: ((DDProduct) -> Void)?
+    private let onDismiss: (() -> Void)?
 
-    init(product: DDProduct, onCart: (() -> Void)? = nil, onOpenOther: ((DDProduct) -> Void)? = nil) {
+    init(product: DDProduct, onCart: (() -> Void)? = nil,
+         onOpenOther: ((DDProduct) -> Void)? = nil,
+         onDismiss: (() -> Void)? = nil) {
         self.product = product
         self.onCart = onCart
         self.onOpenOther = onOpenOther
+        self.onDismiss = onDismiss
     }
 
     @State private var showOrder = false
@@ -3999,7 +4096,7 @@ struct DDDetailView: View {
 
     private var topBar: some View {
         HStack(spacing: 10) {
-            Button { dismiss() } label: {
+            Button { closeDetail() } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(DDColor.ink)
@@ -4402,13 +4499,21 @@ struct DDDetailView: View {
         app.show(Tr("已加入购物车"))
         store.jumpCart()
         onCart?()
-        dismiss()
+        closeDetail()
     }
 
     private func openCart() {
         store.jumpCart()
         onCart?()
-        dismiss()
+        closeDetail()
+    }
+
+    private func closeDetail() {
+        if let onDismiss {
+            onDismiss()
+        } else {
+            dismiss()
+        }
     }
 }
 

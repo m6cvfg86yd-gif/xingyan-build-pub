@@ -332,7 +332,8 @@ struct DDChannelView: View {
         .sheet(item: $openProduct) { p in
             DDDetailView(product: p,
                          onCart: { openProduct = nil; onCart() },
-                         onOpenOther: { openProduct = $0 })
+                         onOpenOther: { openProduct = $0 },
+                         onDismiss: { openProduct = nil })
                 .environmentObject(app)
         }
     }
