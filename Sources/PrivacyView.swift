@@ -273,27 +273,183 @@ struct GeneralView: View {
 struct AppearanceView: View {
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
+    @Environment(\.colorScheme) private var systemColorScheme
 
-    private let opts: [(String, String)] = [("auto", "跟随系统"), ("light", "浅色"), ("dark", "深色")]
+    private var effectiveMode: String {
+        if app.appearance == "auto" {
+            return systemColorScheme == .dark ? "dark" : "light"
+        }
+        return app.appearance == "dark" ? "dark" : "light"
+    }
 
     var body: some View {
         List {
+            Section(header: Text(Tr("外观"))) {
+                HStack(alignment: .top, spacing: 18) {
+                    appearanceChoice(
+                        mode: "light",
+                        title: Tr("浅色"),
+                        selected: effectiveMode == "light"
+                    )
+                    appearanceChoice(
+                        mode: "dark",
+                        title: Tr("深色"),
+                        selected: effectiveMode == "dark"
+                    )
+                }
+                .padding(.vertical, 8)
+                .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 12, trailing: 20))
+                .listRowBackground(Color.clear)
+            }
+
             Section {
-                Picker("", selection: Binding(
-                    get: { app.appearance },
-                    set: { app.setAppearance($0) }
+                Toggle(isOn: Binding(
+                    get: { app.appearance == "auto" },
+                    set: { automatic in
+                        if automatic {
+                            app.setAppearance("auto")
+                        } else {
+                            app.setAppearance(systemColorScheme == .dark ? "dark" : "light")
+                        }
+                    }
                 )) {
-                    ForEach(opts, id: \.0) { option in
-                        Text(Tr(option.1)).tag(option.0)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(Tr("自动"))
+                        Text(Tr("根据 iPhone 的显示设置自动切换"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .pickerStyle(.inline)
-                .labelsHidden()
+            } footer: {
+                Text(Tr("选择浅色或深色会立即应用到整个 App；打开自动后，会跟随 iPhone 系统的外观设置。"))
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(Tr("外观"))
+        .navigationTitle(Tr("外观与显示"))
+        .navigationBarTitleDisplayMode(.large)
         .hidesTabBar()
+        .animation(.easeInOut(duration: 0.18), value: effectiveMode)
+        .animation(.easeInOut(duration: 0.18), value: app.appearance)
+    }
+
+    private func appearanceChoice(mode: String, title: String, selected: Bool) -> some View {
+        Button {
+            app.setAppearance(mode)
+        } label: {
+            VStack(spacing: 9) {
+                AppearanceHomePreview(dark: mode == "dark", selected: selected)
+                HStack(spacing: 6) {
+                    Text(title)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                    if selected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(selected ? Tr("已选择") : "")
+    }
+}
+
+private struct AppearanceHomePreview: View {
+    let dark: Bool
+    let selected: Bool
+
+    private var panel: Color {
+        dark ? Color(white: 0.10) : Color(white: 0.97)
+    }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: dark
+                            ? [Color(red: 0.12, green: 0.16, blue: 0.30),
+                               Color(red: 0.04, green: 0.05, blue: 0.10)]
+                            : [Color(red: 0.58, green: 0.77, blue: 0.98),
+                               Color(red: 0.90, green: 0.94, blue: 1.00)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            VStack(spacing: 9) {
+                HStack {
+                    Text("9:41")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    Spacer()
+                    HStack(spacing: 3) {
+                        Image(systemName: "cellularbars")
+                        Image(systemName: "wifi")
+                        Image(systemName: "battery.75")
+                    }
+                    .font(.system(size: 8, weight: .semibold))
+                }
+                .foregroundStyle(dark ? Color.white : Color.black)
+                .padding(.horizontal, 11)
+                .padding(.top, 9)
+
+                VStack(spacing: 7) {
+                    HStack(spacing: 7) {
+                        previewWidget(icon: "clock.fill", tint: .orange)
+                        previewWidget(icon: "calendar", tint: .red)
+                    }
+                    HStack(spacing: 7) {
+                        previewWidget(icon: "message.fill", tint: .green)
+                        previewWidget(icon: "camera.fill", tint: .gray)
+                    }
+                }
+                .padding(.horizontal, 11)
+
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(height: 142)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    selected ? Color.accentColor : Color.primary.opacity(dark ? 0.22 : 0.12),
+                    lineWidth: selected ? 3 : 1
+                )
+        }
+        .overlay(alignment: .topTrailing) {
+            if selected {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, Color.accentColor)
+                    .padding(8)
+            }
+        }
+        .shadow(color: Color.black.opacity(dark ? 0.20 : 0.08), radius: 5, y: 2)
+    }
+
+    private func previewWidget(icon: String, tint: Color) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 20, height: 20)
+                .background(tint, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Capsule().fill(Color.primary.opacity(0.25)).frame(width: 26, height: 3)
+                Capsule().fill(Color.primary.opacity(0.13)).frame(width: 18, height: 3)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity)
+        .frame(height: 31)
+        .background(panel.opacity(0.90), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
