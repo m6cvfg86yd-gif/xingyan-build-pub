@@ -1863,6 +1863,22 @@ struct DDHomeTab: View {
         }
     }
 
+    private var seckillList: [DDProduct] {
+        store.live
+            .filter { $0.orig > $0.price }
+            .sorted {
+                let tagged0 = $0.tags.contains { $0.contains("秒杀") || $0.contains("限时") }
+                let tagged1 = $1.tags.contains { $0.contains("秒杀") || $0.contains("限时") }
+                if tagged0 != tagged1 { return tagged0 }
+                if $0.discountRate != $1.discountRate {
+                    return $0.discountRate > $1.discountRate
+                }
+                return $0.salesNum > $1.salesNum
+            }
+            .prefix(8)
+            .map { $0 }
+    }
+
     private var mallFloorPullValue: CGFloat { DDMallFloorCfg.pull }
 
     private func mallFloorImpact(_ level: Int) {
@@ -1885,16 +1901,31 @@ struct DDHomeTab: View {
                         .background(GeometryReader { g in
                             Color.clear.preference(key: DDFloorOffsetKey.self,
                                                    value: g.frame(in: .named("ddhome")).minY)
-                        })
+                    })
                     deliveryStrip
                     carousel(proxy)
-                    sectionTitle(Tr("今日精选"), subtitle: Tr("真实商品 · 官方保障"), right: Tr("更多频道"))
-                    promoBoard
+                    categoryQuickRail(proxy)
+                    seckill(proxy)
+                    couponRail
+                    sectionTitle(Tr("今日精选"),
+                                 subtitle: Tr("真实商品 · 官方保障"),
+                                 right: Tr("更多频道")) { channel = .rank }
+                    promoBoard(onViewAll: {
+                        cate = nil
+                        toGrid(proxy)
+                    })
 
                     adStrip
-                    sectionTitle(Tr("品牌好价"), subtitle: Tr("大牌直降 · 限时补贴"), right: Tr("全部好价"))
+                    sectionTitle(Tr("品牌好价"),
+                                 subtitle: Tr("大牌直降 · 限时补贴"),
+                                 right: Tr("全部好价")) { channel = .subsidy }
                     dealBoard
-                    sectionTitle(Tr("为你推荐"), subtitle: Tr("按热度与优惠智能排序"), right: Tr("更多好物"))
+                    sectionTitle(Tr("为你推荐"),
+                                 subtitle: Tr("按热度与优惠智能排序"),
+                                 right: Tr("全部商品")) {
+                        cate = nil
+                        toGrid(proxy)
+                    }
 
                     cateRow
                     if !store.mutedCates.isEmpty { mutedNote }
@@ -2014,8 +2045,142 @@ struct DDHomeTab: View {
         withAnimation(.easeInOut(duration: 0.3)) { proxy.scrollTo("dd-grid", anchor: .top) }
     }
 
+    @ViewBuilder
+    private func categoryQuickRail(_ proxy: ScrollViewProxy) -> some View {
+        let cats = Array(store.categories.prefix(10))
+        if !cats.isEmpty {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack {
+                    Text(Tr("逛分类"))
+                        .font(pf(15, .semibold))
+                        .foregroundColor(DDColor.ink)
+                    Spacer(minLength: 0)
+                    Text(Tr("按品类快速筛选"))
+                        .font(pf(11))
+                        .foregroundColor(DDColor.sub)
+                }
+                .padding(.horizontal, 14)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(Array(cats.enumerated()), id: \.element) { index, name in
+                            let selected = cate == name
+                            Button {
+                                withAnimation(.easeOut(duration: 0.16)) {
+                                    cate = selected ? nil : name
+                                }
+                                toGrid(proxy)
+                            } label: {
+                                VStack(spacing: 6) {
+                                    Text(String(name.prefix(1)))
+                                        .font(pf(17, .semibold))
+                                        .foregroundColor(selected ? .white : categoryTint(index))
+                                        .frame(width: 46, height: 46)
+                                        .background(
+                                            Circle().fill(selected
+                                                ? categoryTint(index)
+                                                : categoryTint(index).opacity(0.12))
+                                        )
+                                    Text(Tr(name))
+                                        .font(pf(11.5, selected ? .medium : .regular))
+                                        .foregroundColor(selected ? DDColor.blueDeep : DDColor.ink)
+                                        .lineLimit(1)
+                                }
+                                .frame(width: 58)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                }
+            }
+            .padding(.vertical, 12)
+            .background(DDColor.card)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 10)
+        }
+    }
+
+    private func categoryTint(_ index: Int) -> Color {
+        [DDColor.blueDeep, DDColor.redDeep, DDColor.orange,
+         Color(hex: 0x2E9E5B), Color(hex: 0x8B5CF6)][index % 5]
+    }
+
+    @ViewBuilder private var couponRail: some View {
+        let couponAds = store.ads.filter {
+            $0.on != false && $0.coupon != nil && !store.adHidden("ad:" + $0.id)
+        }
+        if !couponAds.isEmpty {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Text(Tr("领券中心"))
+                        .font(pf(15, .semibold))
+                        .foregroundColor(DDColor.ink)
+                    Text(Tr("先领券，再下单"))
+                        .font(pf(11))
+                        .foregroundColor(DDColor.red)
+                    Spacer(minLength: 0)
+                    Text(Tr("\(couponAds.count) 个活动"))
+                        .font(pf(10.5))
+                        .foregroundColor(DDColor.sub)
+                }
+                .padding(.horizontal, 14)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(couponAds.prefix(6)) { a in
+                            Button { runAd(a) } label: {
+                                HStack(spacing: 9) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(a.coupon?.text ?? Tr("优惠券"))
+                                            .font(pf(15, .bold))
+                                            .foregroundColor(DDColor.redDeep)
+                                        Text(a.title)
+                                            .font(pf(10.5))
+                                            .foregroundColor(DDColor.ink)
+                                            .lineLimit(1)
+                                        Text(a.coupon?.days.map {
+                                            Tr("领取后 ") + String(Int($0)) + Tr(" 天有效")
+                                        } ?? Tr("数量有限"))
+                                            .font(pf(9.5))
+                                            .foregroundColor(DDColor.sub)
+                                    }
+                                    .frame(width: 118, alignment: .leading)
+                                    Text(Tr("领取"))
+                                        .font(pf(11.5, .semibold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 9)
+                                        .frame(height: 26)
+                                        .background(Capsule().fill(DDColor.redDeep))
+                                }
+                                .padding(.horizontal, 12)
+                                .frame(height: 76)
+                                .background(
+                                    LinearGradient(colors: [Color(hex: 0xFFF4F0), .white],
+                                                   startPoint: .leading,
+                                                   endPoint: .trailing)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(DDColor.red.opacity(0.16), lineWidth: 0.7))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+            }
+            .padding(.vertical, 12)
+            .background(DDColor.card)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 10)
+        }
+    }
+
     private var deliveryStrip: some View {
-        Button { showAddressHome = true } label: {
+        let delivery = store.deliveryMode
+        return Button { showAddressHome = true } label: {
             HStack(spacing: 7) {
                 Image(systemName: "mappin.and.ellipse")
                     .font(.system(size: 13, weight: .semibold))
@@ -2025,10 +2190,12 @@ struct DDHomeTab: View {
                     .foregroundColor(DDColor.ink)
                     .lineLimit(1)
                 Spacer(minLength: 4)
-                Text(Tr("预计明日送达"))
+                Text(delivery?.days ?? Tr("预计 48 小时内发货"))
                     .font(pf(10.5, .medium))
                     .foregroundColor(Color(hex: 0x2E9E5B))
-                Text(Tr("官方正品"))
+                Text((delivery?.freeMin ?? 0) > 0
+                     ? Tr("满 ¥") + moneyFmt(delivery?.freeMin ?? 0) + Tr(" 免运费")
+                     : Tr("官方正品"))
                     .font(pf(9.5, .semibold))
                     .foregroundColor(DDColor.red)
                     .padding(.horizontal, 7)
@@ -2050,12 +2217,20 @@ struct DDHomeTab: View {
     }
 
     private var dealBoard: some View {
+        let deals = store.live
+            .filter { $0.orig > $0.price }
+            .sorted {
+                $0.discountRate != $1.discountRate
+                    ? $0.discountRate > $1.discountRate
+                    : $0.salesNum > $1.salesNum
+            }
+            .prefix(4)
         let columns = [
             GridItem(.flexible(), spacing: 8, alignment: .top),
             GridItem(.flexible(), spacing: 8, alignment: .top)
         ]
         return LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
-            ForEach(Array(store.live.prefix(4).enumerated()), id: \.element.id) { i, p in
+            ForEach(Array(deals.enumerated()), id: \.element.id) { i, p in
                 Button { onOpen(p) } label: { dealTile(p, index: i) }
                     .buttonStyle(.plain)
             }
@@ -2106,7 +2281,7 @@ struct DDHomeTab: View {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    private var promoBoard: some View {
+    private func promoBoard(onViewAll: @escaping () -> Void) -> some View {
         GeometryReader { g in
             HStack(spacing: 8) {
                 if let first = store.live.first {
@@ -2124,12 +2299,17 @@ struct DDHomeTab: View {
                         Text("·").font(pf(9)).foregroundColor(Color(hex: 0xA2AAB5))
                         Text(Tr("极速退款")).font(pf(9)).foregroundColor(DDColor.blueDeep)
                         Spacer(minLength: 0)
-                        Text(Tr("查看全部"))
-                            .font(pf(10))
-                            .foregroundColor(DDColor.sub)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundColor(DDColor.weak)
+                        Button(action: onViewAll) {
+                            HStack(spacing: 2) {
+                                Text(Tr("查看全部"))
+                                    .font(pf(10))
+                                    .foregroundColor(DDColor.blueDeep)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .foregroundColor(DDColor.blueDeep)
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
                     .frame(height: 20)
                 }
@@ -2312,7 +2492,7 @@ struct DDHomeTab: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
-                        ForEach(Array(store.live.prefix(8))) { p in
+                        ForEach(seckillList) { p in
                             Button { onOpen(p) } label: { seckillCell(p) }
                                 .buttonStyle(.plain)
                         }
@@ -2394,7 +2574,8 @@ struct DDHomeTab: View {
         .padding(.horizontal, 10)
     }
 
-    private func sectionTitle(_ t: String, subtitle: String = "", right: String) -> some View {
+    private func sectionTitle(_ t: String, subtitle: String = "", right: String,
+                              action: (() -> Void)? = nil) -> some View {
 
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             RoundedRectangle(cornerRadius: 1.5, style: .continuous)
@@ -2405,12 +2586,18 @@ struct DDHomeTab: View {
                 Text(subtitle).font(pf(10.5)).foregroundColor(DDColor.sub).lineLimit(1)
             }
             Spacer(minLength: 0)
-            HStack(spacing: 2) {
-                Text(right).font(pf(12.5)).foregroundColor(DDColor.sub)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 9.5, weight: .semibold))
-                    .foregroundColor(DDColor.weak)
+            Button {
+                action?()
+            } label: {
+                HStack(spacing: 2) {
+                    Text(right).font(pf(12.5)).foregroundColor(DDColor.sub)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundColor(DDColor.weak)
+                }
             }
+            .buttonStyle(.plain)
+            .disabled(action == nil)
             .offset(y: -1)
         }
         .padding(.horizontal, 12)
@@ -2435,34 +2622,67 @@ struct DDHomeTab: View {
         .padding(.vertical, 6)
     }
 
-    private var grid: some View {
+    @ViewBuilder private var grid: some View {
         let columns = [
             GridItem(.flexible(), spacing: 10, alignment: .top),
             GridItem(.flexible(), spacing: 10, alignment: .top)
         ]
-        return LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
-            ForEach(list) { p in
-                DDProductCard(product: p,
-                              onOpen: { onOpen(p) },
-                              onAddCart: {
-                                  store.addCart(p.id)
-                                  app.show(Tr("已加入购物车"))
-                              })
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            store.notInterested(p, muteCate: false)
-                            app.show(Tr("好的，这件不再推给你"))
-                        } label: { Label(Tr("不感兴趣"), systemImage: "hand.thumbsdown") }
-                        if !p.cate.isEmpty {
-                            Button {
-                                store.notInterested(p, muteCate: true)
-                                app.show(Tr("好的，少推「") + Tr(p.cate) + Tr("」"))
-                            } label: { Label(Tr("不感兴趣，少推这一类"), systemImage: "eye.slash") }
-                        }
-                    }
+        if store.live.isEmpty {
+            VStack(spacing: 8) {
+                ProgressView()
+                Text(Tr("正在加载商品"))
+                    .font(pf(13))
+                    .foregroundColor(DDColor.sub)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 48)
+        } else if list.isEmpty {
+            VStack(spacing: 10) {
+                Text(Tr("这个分类暂时没有商品"))
+                    .font(pf(14, .medium))
+                    .foregroundColor(DDColor.ink)
+                Text(Tr("可以看看其他分类或全部商品"))
+                    .font(pf(12))
+                    .foregroundColor(DDColor.sub)
+                Button {
+                    withAnimation(.easeOut(duration: 0.16)) { cate = nil }
+                } label: {
+                    Text(Tr("查看全部商品"))
+                        .font(pf(13, .medium))
+                        .foregroundColor(DDColor.blueDeep)
+                        .padding(.horizontal, 14)
+                        .frame(height: 32)
+                        .background(Capsule().stroke(DDColor.blueDeep, lineWidth: 0.8))
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 42)
+        } else {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
+                ForEach(list) { p in
+                    DDProductCard(product: p,
+                                  onOpen: { onOpen(p) },
+                                  onAddCart: {
+                                      store.addCart(p.id)
+                                      app.show(Tr("已加入购物车"))
+                                  })
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                store.notInterested(p, muteCate: false)
+                                app.show(Tr("好的，这件不再推给你"))
+                            } label: { Label(Tr("不感兴趣"), systemImage: "hand.thumbsdown") }
+                            if !p.cate.isEmpty {
+                                Button {
+                                    store.notInterested(p, muteCate: true)
+                                    app.show(Tr("好的，少推「") + Tr(p.cate) + Tr("」"))
+                                } label: { Label(Tr("不感兴趣，少推这一类"), systemImage: "eye.slash") }
+                            }
+                        }
+                }
+            }
+            .padding(.horizontal, 10)
         }
-        .padding(.horizontal, 10)
     }
 
     @ViewBuilder private var adStrip: some View {
