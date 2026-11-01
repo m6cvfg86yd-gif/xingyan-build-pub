@@ -56,9 +56,6 @@ struct SelfPermView: View {
     var body: some View {
         List {
             Section {
-                NavigationLink(value: "profile") {
-                    Text(Tr("个人资料"))
-                }
                 Button {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         UIApplication.shared.open(url)
@@ -72,9 +69,6 @@ struct SelfPermView: View {
                 } label: {
                     LabeledContent(Tr("授权管理"),
                                    value: mallAuth.grantedTo.isEmpty ? Tr("无") : Tr("商城"))
-                }
-                NavigationLink(value: "privacy") {
-                    Text(Tr("隐私"))
                 }
             } footer: {
                 Text(Tr("App 只在你同意之后才会用相册、相机、麦克风、位置这些权限，随时可以在 iOS 设置里改。"))
@@ -233,8 +227,6 @@ struct CallSettingsView: View {
     var body: some View {
         List {
             Section {
-                NavigationLink(value: "notify") { Text(Tr("新消息通知")) }
-                NavigationLink(value: "g.voice") { Text(Tr("语音变声")) }
                 Button {
                     pickQuality = true
                 } label: {
@@ -251,7 +243,6 @@ struct CallSettingsView: View {
                     LabeledContent(Tr("视频美颜"),
                                    value: Tr(CallPrefs.beautyName))
                 }
-                NavigationLink(value: "devices") { Text(Tr("登录设备管理")) }
             } footer: {
                 Text(Tr("语音通话默认走听筒，通话中点一下扬声器就外放；视频通话默认外放。清晰度、镜像、美颜改完，正在进行的通话会立刻生效。"))
             }

@@ -76,7 +76,9 @@ struct LoginDevicesView: View {
                     Spacer().frame(height: 14)
 
                     GroupCard {
-                        NavigationLink(value: "pair") {
+                        NavigationLink {
+                            PairApproveView()
+                        } label: {
                             HStack(spacing: 12) {
                                 Text(Tr("确认新设备登录")).font(pf(17)).foregroundColor(C.label)
                                 Spacer(minLength: 8)
@@ -89,7 +91,9 @@ struct LoginDevicesView: View {
                         }
                         .buttonStyle(.plain)
                         HairLine(inset: 16)
-                        NavigationLink(value: "devices.faq") {
+                        NavigationLink {
+                            DevicesFaqView()
+                        } label: {
                             HStack(spacing: 12) {
                                 Text(Tr("常见问题")).font(pf(17)).foregroundColor(C.label)
                                 Spacer(minLength: 8)

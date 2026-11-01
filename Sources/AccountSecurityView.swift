@@ -27,9 +27,6 @@ struct AccountSecurityView: View {
     var body: some View {
         List {
             Section {
-                NavigationLink(value: "profile") {
-                    LabeledContent(Tr("个人信息"), value: me?.name ?? "")
-                }
                 Button {
                     app.show(Tr("账号一年只能改一次，需要的话联系客服"))
                 } label: {
@@ -49,31 +46,45 @@ struct AccountSecurityView: View {
             }
 
             Section {
-                NavigationLink(value: "changepwd") {
+                NavigationLink {
+                    ChangePasswordSheet()
+                } label: {
                     Text(Tr("修改登录密码"))
                 }
-                NavigationLink(value: "realname") {
+                NavigationLink {
+                    RealNameView()
+                } label: {
                     LabeledContent(Tr("实名认证"), value: realNameText)
                 }
-                NavigationLink(value: "paypwd") {
+                NavigationLink {
+                    PayPasswordView()
+                } label: {
                     LabeledContent(Tr("支付密码"),
                                    value: hasPay ? Tr("已设置") : Tr("未设置"))
                 }
-                NavigationLink(value: "gesture") {
+                NavigationLink {
+                    GestureSetupView()
+                } label: {
                     LabeledContent(Tr("安全锁（手势密码）"),
                                    value: gestureOn ? Tr("已开启") : Tr("未开启"))
                 }
-                NavigationLink(value: "voicelock") {
+                NavigationLink {
+                    VoiceLockSetupView()
+                } label: {
                     LabeledContent(Tr("声音锁"),
                                    value: voiceOn ? Tr("已开启") : Tr("未开启"))
                 }
-                NavigationLink(value: "score") {
+                NavigationLink {
+                    SecurityScoreView()
+                } label: {
                     Text(Tr("安全分"))
                 }
             }
 
             Section {
-                NavigationLink(value: "devices") {
+                NavigationLink {
+                    LoginDevicesView()
+                } label: {
                     Text(Tr("登录设备管理"))
                 }
                 Button(role: .destructive) {

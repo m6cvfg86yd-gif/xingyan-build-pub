@@ -51,24 +51,6 @@ struct AppleSettingsView: View {
                     settingsRow(Tr("账号安全"), symbol: "lock.shield.fill",
                                 color: .blue)
                 }
-                NavigationLink {
-                    LoginDevicesView()
-                } label: {
-                    settingsRow(Tr("登录设备"), symbol: "laptopcomputer.and.iphone",
-                                color: .indigo)
-                }
-                NavigationLink {
-                    RealNameView()
-                } label: {
-                    settingsRow(Tr("实名认证"), symbol: "person.text.rectangle.fill",
-                                color: .green)
-                }
-                NavigationLink {
-                    PayPasswordView()
-                } label: {
-                    settingsRow(Tr("支付密码"), symbol: "key.fill",
-                                color: C.green)
-                }
             }
 
             Section(header: Text(Tr("通用"))) {
@@ -91,12 +73,6 @@ struct AppleSettingsView: View {
                                 color: .red)
                 }
                 NavigationLink {
-                    GeneralView()
-                } label: {
-                    settingsRow(Tr("界面与显示"), symbol: "switch.2",
-                                color: .indigo)
-                }
-                NavigationLink {
                     PrivacyView()
                 } label: {
                     settingsRow(Tr("隐私与权限"), symbol: "hand.raised.fill",
@@ -117,10 +93,10 @@ struct AppleSettingsView: View {
                     Label("朋友圈", systemImage: "photo.on.rectangle.angled")
                 }
                 NavigationLink {
-                    ChatSettingsView()
+                    VoiceChangerView()
                 } label: {
-                    settingsRow(Tr("聊天设置"), symbol: "message.fill",
-                                color: .green)
+                    settingsRow(Tr("语音变声"), symbol: "waveform",
+                                color: .orange)
                 }
                 NavigationLink {
                     CallSettingsView()

@@ -36,14 +36,6 @@ struct StorageView: View {
             }
 
             Section {
-                NavigationLink(value: "g.history") {
-                    LabeledContent {
-                        Text("\((info?.chats ?? []).count) " + Tr("个会话"))
-                            .foregroundStyle(.secondary)
-                    } label: {
-                        Label(Tr("聊天记录管理"), systemImage: "clock.arrow.circlepath")
-                    }
-                }
                 Button {
                     clearCache()
                 } label: {
