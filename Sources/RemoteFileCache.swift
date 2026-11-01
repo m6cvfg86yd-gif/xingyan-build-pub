@@ -25,13 +25,13 @@ actor RemoteFileCache {
             return try await task.value
         }
 
-        let name = Self.safeName(MyFilesPickerView.previewName(preferredName, path: path))
+        let name = Self.safeName(preferredName)
         let task = Task { () throws -> CachedRemoteFile in
             let destination = directory.appendingPathComponent(key + "-" + name)
             let temporary = directory.appendingPathComponent(
                 ".download-" + key + "-" + UUID().uuidString)
             do {
-                try await API.shared.downloadAssetToDisk(remote, to: temporary)
+                try await API.shared.downloadAssetToDisk(remote, destination: temporary)
                 let values = try temporary.resourceValues(forKeys: [.fileSizeKey])
                 let size = values.fileSize ?? 0
                 guard size > 0 else { throw APIError.message("文件是空的") }
