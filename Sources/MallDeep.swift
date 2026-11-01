@@ -153,13 +153,10 @@ struct DDReviewSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Text(Tr("商品评价")).font(pf(15, .semibold)).foregroundColor(DDColor.ink)
-                if !list.isEmpty {
-                    Text(String(format: "%.1f", avg))
-                        .font(pf(14, .semibold)).foregroundColor(Color(hex: 0xB27C37))
-                    DDStars(value: avg, size: 11)
-                    Text(Tr("好评 ") + String(good) + "%").font(pf(12)).foregroundColor(DDColor.sub)
-                }
+                Image(systemName: "quote.bubble.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DDColor.redDeep)
+                Text(Tr("真实口碑")).font(pf(15.5, .semibold)).foregroundColor(DDColor.ink)
                 Spacer(minLength: 0)
                 if list.count > 2 {
                     Button { showAll = true } label: {
@@ -173,8 +170,40 @@ struct DDReviewSection: View {
                 }
             }
             if list.isEmpty {
-                Text(Tr("还没有评价，确认收货后可以来晒单")).font(pf(13)).foregroundColor(DDColor.sub)
+                HStack(spacing: 9) {
+                    Image(systemName: "bubble.left.and.text.bubble.right")
+                        .foregroundColor(DDColor.sub)
+                    Text(Tr("还没有评价，确认收货后可以来晒单"))
+                        .font(pf(13)).foregroundColor(DDColor.sub)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(DDColor.page.opacity(0.72)))
             } else {
+                HStack(spacing: 14) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 3) {
+                            Text(String(format: "%.1f", avg))
+                                .font(pf(27, .bold))
+                                .foregroundColor(DDColor.redDeep)
+                            Text(Tr("分")).font(pf(11.5, .medium)).foregroundColor(DDColor.sub)
+                        }
+                        DDStars(value: avg, size: 11)
+                    }
+                    Rectangle().fill(DDColor.line).frame(width: 1, height: 42)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(Tr("好评率 ") + String(good) + "%")
+                            .font(pf(14.5, .semibold))
+                            .foregroundColor(DDColor.ink)
+                        Text(Tr("来自 ") + String(list.count) + Tr(" 条真实评价"))
+                            .font(pf(11.5)).foregroundColor(DDColor.sub)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(DDColor.redLight.opacity(0.66)))
                 ForEach(list.prefix(2)) { r in
                     DDReviewRow(review: r)
                 }
@@ -182,8 +211,11 @@ struct DDReviewSection: View {
         }
         .padding(14)
         .background(DDColor.card)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(DDColor.cardEdge, lineWidth: 0.6))
         .padding(.horizontal, 10)
+        .padding(.top, 10)
         .sheet(isPresented: $showAll) {
             DDReviewListView(product: product).ddLight()
         }
@@ -297,6 +329,8 @@ struct DDParamSection: View {
         var out: [[String]] = [["商品名称", product.title]]
         if let b = product.brand, !b.isEmpty { out.append(["品牌", b]) }
         out.append(["店铺", product.shop])
+        out.append(["店铺类型", product.sellerBadge])
+        out.append(["履约方式", product.sellerFulfillment])
         out.append(["分类", product.cate])
         out.append(["规格", product.specList.map { $0.name }.joined(separator: " / ")])
         out.append(["发货地", product.shop.hasPrefix("永康") ? "浙江 永康"
@@ -323,8 +357,11 @@ struct DDParamSection: View {
             Spacer().frame(height: 8)
         }
         .background(DDColor.card)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(DDColor.cardEdge, lineWidth: 0.6))
         .padding(.horizontal, 10)
+        .padding(.top, 10)
     }
 }
 
@@ -357,7 +394,8 @@ struct DDDetailLongSection: View {
                         Text(s).font(pf(13)).foregroundColor(DDColor.sub)
                     }
                 }
-                Text(product.title + Tr("。厂家直发，支持一件代发；收到货有质量问题 7 天内可退换，运费由商家承担。"))
+                Text(product.title + "。" + Tr(product.sellerFulfillment)
+                     + Tr("。收到货有质量问题 7 天内可退换，平台跟进处理。"))
                     .font(pf(13)).foregroundColor(DDColor.sub)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -368,8 +406,11 @@ struct DDDetailLongSection: View {
         }
         .padding(14)
         .background(DDColor.card)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(DDColor.cardEdge, lineWidth: 0.6))
         .padding(.horizontal, 10)
+        .padding(.top, 10)
     }
 }
 
