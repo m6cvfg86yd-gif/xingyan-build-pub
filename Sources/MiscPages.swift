@@ -112,66 +112,67 @@ struct FavoritesView: View {
         .onTapGesture { openFavorite(item) }
     }
 
-    var body: some View {
-        List {
-            if loading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-                .padding(.vertical, 28)
-            } else if shown.isEmpty {
-                VStack(spacing: 9) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 30))
-                        .foregroundStyle(.secondary)
-                    Text(Tr("暂无收藏"))
-                        .font(.headline)
-                    Text(Tr("聊天中的收藏和你写的笔记会出现在这里"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 36)
-            } else {
-                let pinned = shown.filter { ($0["pinned"] as? Bool) == true }
-                let regular = shown.filter { ($0["pinned"] as? Bool) != true }
-                if !pinned.isEmpty {
-                    Section {
-                        ForEach(Array(pinned.enumerated()), id: \.offset) { _, item in
-                            favoriteRow(item)
-                                .favoriteActions(item,
-                                                 remove: removeFavorite,
-                                                 pin: togglePinned,
-                                                 forward: { item in
-                                                     forward = forwardItems(of: item)
-                                                     showForward = true
-                                                 })
-                        }
-                    } header: {
-                        Text(Tr("已置顶"))
+    @ViewBuilder private var favoriteListContent: some View {
+        if loading {
+            HStack {
+                Spacer()
+                ProgressView()
+                Spacer()
+            }
+            .padding(.vertical, 28)
+        } else if shown.isEmpty {
+            VStack(spacing: 9) {
+                Image(systemName: "tray")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.secondary)
+                Text(Tr("暂无收藏"))
+                    .font(.headline)
+                Text(Tr("聊天中的收藏和你写的笔记会出现在这里"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 36)
+        } else {
+            let pinned = shown.filter { ($0["pinned"] as? Bool) == true }
+            let regular = shown.filter { ($0["pinned"] as? Bool) != true }
+            if !pinned.isEmpty {
+                Section {
+                    ForEach(Array(pinned.enumerated()), id: \.offset) { _, item in
+                        favoriteListRow(item)
                     }
+                } header: {
+                    Text(Tr("已置顶"))
                 }
-                if !regular.isEmpty {
-                    Section {
-                        ForEach(Array(regular.enumerated()), id: \.offset) { _, item in
-                            favoriteRow(item)
-                                .favoriteActions(item,
-                                                 remove: removeFavorite,
-                                                 pin: togglePinned,
-                                                 forward: { item in
-                                                     forward = forwardItems(of: item)
-                                                     showForward = true
-                                                 })
-                        }
-                    } header: {
-                        if !pinned.isEmpty {
-                            Text(Tr("收藏"))
-                        }
+            }
+            if !regular.isEmpty {
+                Section {
+                    ForEach(Array(regular.enumerated()), id: \.offset) { _, item in
+                        favoriteListRow(item)
+                    }
+                } header: {
+                    if !pinned.isEmpty {
+                        Text(Tr("收藏"))
                     }
                 }
             }
+        }
+    }
+
+    private func favoriteListRow(_ item: [String: Any]) -> some View {
+        favoriteRow(item)
+            .favoriteActions(item,
+                             remove: removeFavorite,
+                             pin: togglePinned,
+                             forward: { selected in
+                                 forward = forwardItems(of: selected)
+                                 showForward = true
+                             })
+    }
+
+    var body: some View {
+        List {
+            favoriteListContent
         }
         .listStyle(.insetGrouped)
         .navigationTitle(Tr("收藏"))
@@ -380,7 +381,7 @@ struct FavoritesView: View {
     }
 
     private func load() async {
-        let fresh = await API.shared.favorites()
+        let fresh: [[String: Any]] = await API.shared.favorites()
         pendingNotes.removeAll { pending in
             let content = (pending["content"] as? String) ?? ""
             return fresh.contains { item in

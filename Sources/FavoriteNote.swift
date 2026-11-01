@@ -1,12 +1,14 @@
 import SwiftUI
 
 struct FavoriteNoteComposeSheet: View {
+    typealias SaveHandler = (String, String, Bool) -> Void
+
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
 
     let editingId: String
     let initial: String
-    let onSaved: (_ content: String, _ title: String, _ editing: Bool) -> Void
+    let onSaved: SaveHandler
 
     @State private var titleText = ""
     @State private var bodyText = ""
@@ -17,7 +19,7 @@ struct FavoriteNoteComposeSheet: View {
     @State private var picBusy = false
     @State private var pics: [String] = []
 
-    init(editingId: String = "", initial: String = "", onSaved: @escaping () -> Void) {
+    init(editingId: String = "", initial: String = "", onSaved: @escaping SaveHandler) {
         self.editingId = editingId
         self.initial = initial
         self.onSaved = onSaved
