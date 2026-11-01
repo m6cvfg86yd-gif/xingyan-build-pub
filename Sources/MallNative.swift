@@ -1623,14 +1623,14 @@ struct MallNativeView: View {
 
     private var header: some View {
 
-        let onRed = false
+        let onRed = true
 
         return VStack(spacing: 6) {
             HStack(spacing: 8) {
                 Button { backToMallOrClose() } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(DDColor.ink)
+                        .foregroundColor(onRed ? .white : DDColor.ink)
                         .frame(width: 34, height: 40)
                         .contentShape(Rectangle())
                 }
@@ -1650,9 +1650,9 @@ struct MallNativeView: View {
                                             .font(pf(homeTopChannel == i ? 17.5 : 15.5,
                                                     homeTopChannel == i ? .bold : .medium))
                                             .foregroundColor(homeTopChannel == i
-                                                             ? DDColor.blueDeep : DDColor.sub)
+                                                             ? .white : Color.white.opacity(0.64))
                                         Capsule()
-                                            .fill(homeTopChannel == i ? DDColor.blueDeep : Color.clear)
+                                            .fill(homeTopChannel == i ? Color.white : Color.clear)
                                             .frame(width: homeTopChannel == i ? 24 : 0, height: 3)
                                     }
                                     .frame(width: 72, height: 40)
@@ -1667,13 +1667,13 @@ struct MallNativeView: View {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: "cart.fill")
                                 .font(.system(size: 20, weight: .medium))
-                                .foregroundColor(DDColor.ink)
+                                .foregroundColor(.white)
                                 .frame(width: 38, height: 40)
                             if store.cartCount > 0 {
                                 Text(store.cartCount > 99 ? "99+" : String(store.cartCount))
-                                    .font(pf(9, .semibold)).foregroundColor(.white)
+                                    .font(pf(9, .semibold)).foregroundColor(DDColor.redDeep)
                                     .padding(.horizontal, 4).frame(height: 14)
-                                    .background(Capsule().fill(Color(hex: 0xFF6B4A)))
+                                    .background(Capsule().fill(Color.white))
                                     .offset(x: 4, y: -2)
                             }
                         }
@@ -1704,9 +1704,9 @@ struct MallNativeView: View {
                 searchBox
                 HStack(spacing: 4) {
                     Text(store.mallName).font(pf(12.5, .semibold))
-                        .foregroundColor(DDColor.ink)
+                        .foregroundColor(.white)
                     Text(store.mallSlogan).font(pf(11))
-                        .foregroundColor(DDColor.sub)
+                        .foregroundColor(Color.white.opacity(0.72))
                     Spacer(minLength: 0)
                 }
             }
@@ -1731,11 +1731,25 @@ struct MallNativeView: View {
 
     @ViewBuilder private var headerBg: some View {
 
-        ZStack {
-            DDColor.card
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(UIConfig.num("mallHeaderGlass", 0.18))
+        ZStack(alignment: .topTrailing) {
+            LinearGradient(
+                colors: [Color(hex: 0xD92218), Color(hex: 0xEA3B2F), Color(hex: 0xB9140D)],
+                startPoint: .topLeading, endPoint: .bottomTrailing)
+            Circle()
+                .stroke(Color.white.opacity(0.12), lineWidth: 1.2)
+                .frame(width: 210, height: 210)
+                .offset(x: 72, y: -105)
+            Circle()
+                .fill(Color.white.opacity(0.055))
+                .frame(width: 150, height: 150)
+                .offset(x: -250, y: 60)
+            Text("星言商城")
+                .font(.system(size: 40, weight: .black, design: .rounded))
+                .foregroundColor(Color.white.opacity(0.07))
+                .rotationEffect(.degrees(-8))
+                .offset(x: -26, y: 34)
+            LinearGradient(colors: [Color.black.opacity(0.02), Color.black.opacity(0.10)],
+                           startPoint: .top, endPoint: .bottom)
         }
     }
 
@@ -1763,14 +1777,14 @@ struct MallNativeView: View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(DDColor.sub)
+                .foregroundColor(DDColor.redDeep.opacity(0.78))
             Text(Tr("搜索想要的商品")).font(pf(14)).foregroundColor(DDColor.sub)
             Spacer(minLength: 0)
 
             Button { showScan = true } label: {
                 Image(systemName: "barcode.viewfinder")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(DDColor.blue)
+                    .foregroundColor(DDColor.redDeep)
                     .frame(width: 30, height: 30)
                     .contentShape(Rectangle())
             }
@@ -1780,8 +1794,8 @@ struct MallNativeView: View {
         .padding(.trailing, 4)
         .frame(height: 34)
         .background(Capsule().fill(Color.white))
-        .overlay(Capsule().stroke(DDColor.blue, lineWidth: 1))
-        .shadow(color: DDColor.blue.opacity(0.06), radius: 6, y: 2)
+        .overlay(Capsule().stroke(Color.white.opacity(0.44), lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.10), radius: 7, y: 3)
         .contentShape(Rectangle())
 
         .onTapGesture { showSearch = true }
