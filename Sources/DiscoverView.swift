@@ -198,10 +198,11 @@ struct DiscoverView: View {
             list.append(mall)
         }
         if !list.contains(where: { $0.action == "miniapps" }) {
-            list.append(
+            list.insert(
                 DiscoverItem(id: "d12", label: "小程序", icon: "i.miniapps",
                              svg: "", color: "#239B68", action: "miniapps",
-                             group: 8, enabled: true)
+                             group: 1, enabled: true),
+                at: 0
             )
         }
         return list
@@ -429,6 +430,8 @@ extension DiscoverItem {
         [
             DiscoverItem(id: "d01", label: "生活圈", icon: "i.moments", svg: I.moments,
                          color: "#4A90D9", action: "moments", group: 1, enabled: true),
+            DiscoverItem(id: "d12", label: "小程序", icon: "i.miniapps", svg: "",
+                         color: "#239B68", action: "miniapps", group: 1, enabled: true),
             DiscoverItem(id: "d02", label: "视频号", icon: "i.channels", svg: I.channels,
                          color: "#F2943B", action: "channels", group: 2, enabled: true),
             DiscoverItem(id: "d03", label: "直播", icon: "i.live", svg: I.live,
@@ -444,8 +447,6 @@ extension DiscoverItem {
                          color: "#59C47E", action: "search", group: 4, enabled: true),
             DiscoverItem(id: "d08", label: "附近", icon: "i.nearby", svg: I.nearby,
                          color: "#3D83E7", action: "nearby", group: 5, enabled: true),
-            DiscoverItem(id: "d09", label: "小程序", icon: "i.miniapps", svg: "",
-                         color: "#239B68", action: "miniapps", group: 6, enabled: true),
             DiscoverItem(id: "d10", label: "游戏", icon: "i.game", svg: I.game,
                          color: "#9A6AE8", action: "games", group: 7, enabled: true),
             DiscoverItem(id: "d11", label: "商城", icon: "i.shop", svg: I.wallet,
