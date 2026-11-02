@@ -810,15 +810,15 @@ struct RemoteImage: View {
     private func load() async {
         if path.isEmpty { return }
         let requestedPath = path
+        let side = max(64, maxSide)
+        let memoryKey = requestedPath + "#" + String(Int(side))
 
-        if let hit = ImageStore.shared.get(requestedPath) {
+        if let hit = ImageStore.shared.get(memoryKey) {
             guard !Task.isCancelled, path == requestedPath else { return }
             image = hit
             onLoaded?(hit)
             return
         }
-
-        let side = max(64, maxSide)
 
         let diskBytes: Data? = await Task.detached(priority: .userInitiated) { () -> Data? in
             ImageStore.shared.diskRead(requestedPath)
@@ -830,7 +830,7 @@ struct RemoteImage: View {
             }.value
             guard !Task.isCancelled, path == requestedPath else { return }
             if let diskImg = diskImg {
-                ImageStore.shared.put(requestedPath, diskImg)
+                ImageStore.shared.put(memoryKey, diskImg)
                 image = diskImg
                 onLoaded?(diskImg)
                 return
@@ -864,7 +864,7 @@ struct RemoteImage: View {
             RemoteImage.downsampled(data, maxSide: side)
         }.value
         guard !Task.isCancelled, path == requestedPath, let img = img else { return }
-        ImageStore.shared.put(requestedPath, img)
+        ImageStore.shared.put(memoryKey, img)
         image = img
         onLoaded?(img)
 

@@ -1284,7 +1284,7 @@ struct DDThumb: View {
             RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .fill(DDColor.gradThumb)
             if let img, !img.isEmpty {
-                RemoteImage(path: img, icon: "photo")
+                RemoteImage(path: img, icon: "photo", maxSide: max(240, size * 3))
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             } else {
@@ -1346,7 +1346,7 @@ struct MallNativeView: View {
     @State private var tab = 0
 
     @State private var homeTopChannel = 0
-    @State private var openProduct: DDProduct? = nil
+    @State private var productPath: [DDProduct] = []
     @State private var showSearch = false
     @State private var showOrders = false
 
@@ -1373,23 +1373,24 @@ struct MallNativeView: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        NavigationStack(path: $productPath) {
+            VStack(spacing: 0) {
+                header
 
-            content
-                .background(
-                    UnevenRoundedRectangle(topLeadingRadius: 18,
-                                           bottomLeadingRadius: 0,
-                                           bottomTrailingRadius: 0,
-                                           topTrailingRadius: 18,
-                                           style: .continuous)
-                        .fill(DDColor.page)
-                        .shadow(color: Color.black.opacity(0.07), radius: 8, y: -2)
-                )
-                .frame(maxWidth: .infinity)
-                .clipped()
-            tabBar
-        }
+                content
+                    .background(
+                        UnevenRoundedRectangle(topLeadingRadius: 18,
+                                               bottomLeadingRadius: 0,
+                                               bottomTrailingRadius: 0,
+                                               topTrailingRadius: 18,
+                                               style: .continuous)
+                            .fill(DDColor.page)
+                            .shadow(color: Color.black.opacity(0.07), radius: 8, y: -2)
+                    )
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                tabBar
+            }
         .frame(maxWidth: .infinity)
         .background(DDColor.page.ignoresSafeArea())
 
@@ -1454,17 +1455,10 @@ struct MallNativeView: View {
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
-        .fullScreenCover(item: $openProduct) { p in
-
-            DDDetailView(product: p,
-                         onCart: { tab = 3 },
-                         onOpenOther: { openProduct = $0 },
-                         onDismiss: { openProduct = nil }).environmentObject(app)
-        }
         .sheet(isPresented: $showSearch) {
             DDSearchView { p in
                 showSearch = false
-                openProduct = p
+                productPath.append(p)
             }
             .environmentObject(app)
         }
@@ -1496,14 +1490,14 @@ struct MallNativeView: View {
         .onChange(of: store.wantCart) { v in
             guard v else { return }
             store.wantCart = false
-            openProduct = nil
+            productPath.removeAll()
             showOrders = false
             tab = 3
         }
         .onChange(of: store.wantOrders) { v in
             guard v else { return }
             store.wantOrders = false
-            openProduct = nil
+            productPath.removeAll()
             showOrders = true
         }
 
@@ -1541,6 +1535,24 @@ struct MallNativeView: View {
         .ddLight()
 
         .preferredColorScheme(.light)
+        .navigationDestination(for: DDProduct.self) { product in
+            DDDetailView(
+                product: product,
+                onCart: { tab = 3 },
+                onOpenOther: { next in
+                    if !productPath.isEmpty {
+                        productPath[productPath.count - 1] = next
+                    } else {
+                        productPath.append(next)
+                    }
+                },
+                onDismiss: {
+                    if !productPath.isEmpty { productPath.removeLast() }
+                }
+            )
+            .environmentObject(app)
+        }
+        }
     }
 
     private var titles = ["商城", "分类", "消息", "购物车", "我的"]
@@ -1817,7 +1829,7 @@ struct MallNativeView: View {
 
     private func openProduct_tap(_ p: DDProduct) {
         store.recordView(p.id)
-        openProduct = p
+        productPath.append(p)
     }
 
     private var tabBar: some View {
@@ -3068,7 +3080,7 @@ struct DDProductCard: View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
                 if let img = product.img, !img.isEmpty {
-                    RemoteImage(path: img, icon: "photo", mode: .fill)
+                    RemoteImage(path: img, icon: "photo", mode: .fill, maxSide: 540)
                         .frame(maxWidth: .infinity)
                         .frame(maxHeight: .infinity)
                 } else {
