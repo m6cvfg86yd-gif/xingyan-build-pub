@@ -92,13 +92,13 @@ struct BotCardNew: View {
                 .padding(.horizontal, 24).padding(.top, 6)
             HStack(spacing: 12) {
                 Button { onMessage() } label: {
-                    Text("发消息").font(pf(17, .medium)).foregroundColor(.white)
+                    Text(Tr("发消息")).font(pf(17, .medium)).foregroundColor(.white)
                         .frame(maxWidth: .infinity).frame(height: 44)
                         .background(Capsule().fill(aBlue))
                 }
                 .buttonStyle(.plain)
                 Button { onCall() } label: {
-                    Text("打电话").font(pf(17, .medium)).foregroundColor(aBlue)
+                    Text(Tr("打电话")).font(pf(17, .medium)).foregroundColor(aBlue)
                         .frame(maxWidth: .infinity).frame(height: 44)
                         .background(Capsule().stroke(aBlue, lineWidth: 1.5))
                 }

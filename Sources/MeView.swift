@@ -37,7 +37,7 @@ struct MeView: View {
         VStack(spacing: 13) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("我的")
+                    Text(Tr("我的"))
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(OrbitTheme.ink)
                     Text(Tr("把生活留在这里"))

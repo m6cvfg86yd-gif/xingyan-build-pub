@@ -210,7 +210,7 @@ struct ChatRow: View {
         let preview = raw.isEmpty ? fallbackPreview(chat.lastMessage?.kind ?? "") : raw
         let body = Text(preview).foregroundColor(OrbitTheme.secondary)
         guard chat.lastMessage?.mentionMe == true, chat.unreadCount > 0 else { return body }
-        return Text("[有人@我] ").foregroundColor(OrbitTheme.jade) + body
+        return Text(Tr("[有人@我] ")).foregroundColor(OrbitTheme.jade) + body
     }
 
     /// 旧服务端或实时推送偶尔只带 kind 不带 preview，列表仍按微信占位。

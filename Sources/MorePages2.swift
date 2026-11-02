@@ -85,7 +85,9 @@ struct GroupQRView: View {
                         Avatar(path: chat.avatar ?? "", size: 40, radius: 6)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(chat.name).font(pf(15.5, .medium)).foregroundColor(C.label)
-                            Text("\(chat.memberCount ?? 0) 位成员").font(pf(12.5)).foregroundColor(C.subLabel)
+                            Text(Lang.isEnglish ? "\(chat.memberCount ?? 0) members"
+                                                : "\(chat.memberCount ?? 0) 位成员")
+                                .font(pf(12.5)).foregroundColor(C.subLabel)
                         }
                         Spacer(minLength: 0)
                     }

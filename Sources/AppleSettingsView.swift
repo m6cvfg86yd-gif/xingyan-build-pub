@@ -90,7 +90,7 @@ struct AppleSettingsView: View {
                                         : Tr("朋友圈已关闭"))
                     }
                 )) {
-                    Label("朋友圈", systemImage: "photo.on.rectangle.angled")
+                    Label(Tr("朋友圈"), systemImage: "photo.on.rectangle.angled")
                 }
                 NavigationLink {
                     VoiceChangerView()

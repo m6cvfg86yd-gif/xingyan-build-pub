@@ -1946,7 +1946,7 @@ struct LoginViewOld: View {
                 API.shared.setServer(server)
                 server = API.shared.server
                 showServer = false
-                app.show("服务器已改成 \(server)")
+                app.show(Lang.isEnglish ? "Server changed to \(server)" : "服务器已改成 \(server)")
             }
         }
     }
@@ -2099,7 +2099,7 @@ struct LoginViewOld: View {
             Button {
                 submit()
             } label: {
-                Text(busy ? "登录中…" : "同意并继续")
+                Text(busy ? Tr("登录中…") : Tr("同意并继续"))
                     .font(pf(17, .medium))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -2112,7 +2112,8 @@ struct LoginViewOld: View {
             Button {
                 showServer = true
             } label: {
-                Text("服务器 \(server)（长按可改）")
+                Text(Lang.isEnglish ? "Server \(server) · Long-press to edit"
+                                    : "服务器 \(server)（长按可改）")
                     .font(pf(11))
                     .foregroundColor(LoginTheme.onBgSub(scheme).opacity(0.7))
             }
@@ -2717,7 +2718,7 @@ struct AccountLoginSheet: View {
             ScrollView {
                 VStack(spacing: 0) {
                     if mode == .phone {
-                        row { TextField("手机号", text: $phone).keyboardType(.numberPad).focused($focus, equals: .phone)
+                        row { TextField(Tr("手机号"), text: $phone).keyboardType(.numberPad).focused($focus, equals: .phone)
                             .foregroundColor(LoginTheme.ink(colorScheme)) }
                         HairLine(color: C.navLine)
                         row {
@@ -2804,7 +2805,7 @@ struct AccountLoginSheet: View {
                     Button { submit() } label: {
                         HStack(spacing: 8) {
                             if busy { ProgressView().progressViewStyle(.circular).tint(.white) }
-                            Text(busy ? "请稍候…" : "登 录").font(.system(size: 16, weight: .medium))
+                            Text(busy ? Tr("请稍候…") : Tr("登 录")).font(.system(size: 16, weight: .medium))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
@@ -2955,7 +2956,7 @@ struct UnbanSheet: View {
                     Button { submit() } label: {
                         HStack(spacing: 8) {
                             if busy { ProgressView().progressViewStyle(.circular).tint(.white) }
-                            Text(busy ? "正在核验…" : "提交并解封").font(.system(size: 16, weight: .medium))
+                            Text(busy ? Tr("正在核验…") : Tr("提交并解封")).font(.system(size: 16, weight: .medium))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
@@ -3040,15 +3041,15 @@ struct RegisterSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     registrationHero
 
-                    Text("创建你的星言账号")
+                    Text(Tr("创建你的星言账号"))
                         .font(.system(size: 24, weight: .semibold))
                         .foregroundColor(C.label)
-                    Text("手机号验证后自动生成星言号，之后统一用绑定手机号登录。")
+                    Text(Tr("手机号验证后自动生成星言号，之后统一用绑定手机号登录。"))
                         .font(.system(size: 13))
                         .foregroundColor(C.subLabel)
 
                     VStack(spacing: 0) {
-                        TextField("手机号", text: $phone)
+                        TextField(Tr("手机号"), text: $phone)
                             .keyboardType(.phonePad)
                             .textContentType(.telephoneNumber)
                             .focused($focus, equals: .phone)
@@ -3063,7 +3064,7 @@ struct RegisterSheet: View {
                         HairLine(color: C.navLine)
 
                         HStack(spacing: 10) {
-                            TextField("6 位短信验证码", text: $code)
+                            TextField(Tr("6 位短信验证码"), text: $code)
                                 .keyboardType(.numberPad)
                                 .textContentType(.oneTimeCode)
                                 .focused($focus, equals: .code)
@@ -3072,7 +3073,9 @@ struct RegisterSheet: View {
                                     code = String(value.filter(\.isNumber).prefix(6))
                                     error = nil
                                 }
-                            Button(countdown > 0 ? "\(countdown) 秒" : (codeSent ? "重新获取" : "获取验证码")) {
+                            Button(countdown > 0
+                                   ? (Lang.isEnglish ? "\(countdown)s" : "\(countdown) 秒")
+                                   : (codeSent ? Tr("重新获取") : Tr("获取验证码"))) {
                                 requestCode()
                             }
                             .font(.system(size: 14, weight: .medium))
@@ -3098,7 +3101,7 @@ struct RegisterSheet: View {
                     Button { submit() } label: {
                         HStack(spacing: 8) {
                             if busy { ProgressView().tint(.white).scaleEffect(0.85) }
-                            Text(busy ? "请稍候…" : "注册并登录")
+                            Text(busy ? Tr("请稍候…") : Tr("注册并登录"))
                                 .font(.system(size: 16, weight: .medium))
                         }
                         .foregroundColor(.white)
@@ -3111,7 +3114,7 @@ struct RegisterSheet: View {
 
                     HStack(spacing: 7) {
                         Image(systemName: "lock.shield.fill")
-                        Text("验证码仅用于本次注册 · 加密传输")
+                        Text(Tr("验证码仅用于本次注册 · 加密传输"))
                     }
                     .font(.system(size: 11.5))
                     .foregroundColor(C.subLabel)
@@ -3158,10 +3161,10 @@ struct RegisterSheet: View {
             .frame(width: 72, height: 72)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("加入星言")
+                Text(Tr("加入星言"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(C.label)
-                Text("真实、克制、只属于你的通讯空间")
+                Text(Tr("真实、克制、只属于你的通讯空间"))
                     .font(.system(size: 12.5))
                     .foregroundColor(C.subLabel)
                     .fixedSize(horizontal: false, vertical: true)

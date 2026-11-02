@@ -191,7 +191,7 @@ struct ShakePageView: View {
                 .buttonStyle(.plain)
                 Spacer(minLength: 0)
                 if shaking > 1 {
-                    Text("\(shaking) 人在摇")
+                    Text(Lang.isEnglish ? "\(shaking) people shaking" : "\(shaking) 人在摇")
                         .font(pf(13))
                         .foregroundColor(subInk)
                         .padding(.trailing, 14)

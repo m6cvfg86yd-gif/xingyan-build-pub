@@ -577,7 +577,8 @@ struct StickerViewOld: View {
                                     .frame(width: 40)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(p.name ?? "表情包").font(pf(16)).foregroundColor(C.label)
-                                    Text("\( (p.stickers ?? []).count ) 个表情")
+                                    Text(Lang.isEnglish ? "\((p.stickers ?? []).count) stickers"
+                                                       : "\((p.stickers ?? []).count) 个表情")
                                         .font(pf(12.5)).foregroundColor(C.subLabel)
                                 }
                                 Spacer(minLength: 8)
@@ -665,7 +666,7 @@ struct StickerViewOld: View {
             Text(p.icon).font(pf(26)).frame(width: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(p.name).font(pf(16)).foregroundColor(C.label)
-                Text("\(p.stickers.count) 个表情")
+                Text(Lang.isEnglish ? "\(p.stickers.count) stickers" : "\(p.stickers.count) 个表情")
                     .font(pf(12.5)).foregroundColor(C.subLabel)
             }
             Spacer(minLength: 8)
@@ -692,7 +693,7 @@ struct StickerViewOld: View {
             Text(icon).font(pf(24)).frame(width: 40)
             Text(name).font(pf(16)).foregroundColor(C.label)
             Spacer(minLength: 8)
-            Text("\(count) 个").font(pf(13)).foregroundColor(C.subLabel)
+            Text(Lang.isEnglish ? "\(count) items" : "\(count) 个").font(pf(13)).foregroundColor(C.subLabel)
             Chevron(size: 9, line: 1.6)
         }
         .padding(.horizontal, 16)
@@ -1164,7 +1165,8 @@ struct StatusDetailView: View {
                     .font(pf(14, .medium))
                     .foregroundColor(C.label)
                 Spacer(minLength: 0)
-                Text("\(info?.viewerCount ?? viewers.count) 人")
+                Text(Lang.isEnglish ? "\(info?.viewerCount ?? viewers.count) viewers"
+                                    : "\(info?.viewerCount ?? viewers.count) 人")
                     .font(pf(13))
                     .foregroundColor(C.subLabel)
             }

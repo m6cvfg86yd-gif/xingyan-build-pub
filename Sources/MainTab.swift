@@ -183,11 +183,11 @@ struct MainTabView: View {
                 .environmentObject(app)
         }
 
-        .alert("根据国家规定", isPresented: $realNameGate.alert) {
-            Button("去实名认证") { realNameGate.openPage = true }
-            Button("取消", role: .cancel) { }
+        .alert(Tr("根据国家规定"), isPresented: $realNameGate.alert) {
+            Button(Tr("去实名认证")) { realNameGate.openPage = true }
+            Button(Tr("取消"), role: .cancel) { }
         } message: {
-            Text("请先完成实名认证，之后才能使用转账、红包、收付款、零钱等功能。聊天不受影响。")
+            Text(Tr("请先完成实名认证，之后才能使用转账、红包、收付款、零钱等功能。聊天不受影响。"))
         }
         .sheet(isPresented: $realNameGate.openPage) {
             RealNameView().environmentObject(app)

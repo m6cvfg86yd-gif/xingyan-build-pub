@@ -86,7 +86,7 @@ struct ChannelsView: View {
                 if loading && items.isEmpty {
                     ProgressView().tint(.white)
                 } else if items.isEmpty {
-                    Text("视频号还没有内容\n去后台 data/feed.json 加，或者点右上角 ＋ 发一条")
+                    Text(Tr("视频号还没有内容\n去后台 data/feed.json 加，或者点右上角 ＋ 发一条"))
                         .font(pf(14)).foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                 } else {

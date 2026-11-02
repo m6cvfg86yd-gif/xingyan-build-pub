@@ -116,7 +116,7 @@ struct LiveListView: View {
                     }
                     Spacer(minLength: 0)
                     if r.isLive {
-                        Text("\(r.watching ?? 0) 人在看")
+                        Text(Lang.isEnglish ? "\(r.watching ?? 0) watching" : "\(r.watching ?? 0) 人在看")
                             .font(pf(11)).foregroundColor(.white.opacity(0.9))
                     }
                 }

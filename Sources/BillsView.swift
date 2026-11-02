@@ -379,7 +379,8 @@ struct BillsView: View {
             }
             .buttonStyle(.plain)
             Spacer(minLength: 0)
-            Text("支出 \(money(s.out)) 收入 \(money(s.income))")
+            Text(Lang.isEnglish ? "Spent \(money(s.out))  Received \(money(s.income))"
+                                : "支出 \(money(s.out)) 收入 \(money(s.income))")
                 .font(pfMoney(style.sumFont))
                 .foregroundColor(sumGray)
         }

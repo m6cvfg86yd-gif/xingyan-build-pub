@@ -189,7 +189,8 @@ struct BillsStatsView: View {
                                 .font(pfMoney(14))
                                 .foregroundColor(C.label)
                                 .monospacedDigit()
-                            Text("\(c.count) 笔 · " + pct(c.amount / total))
+                            Text(Lang.isEnglish ? "\(c.count) transactions · " + pct(c.amount / total)
+                                               : "\(c.count) 笔 · " + pct(c.amount / total))
                                 .font(pf(11.5))
                                 .foregroundColor(C.subLabel)
                         }
@@ -233,7 +234,7 @@ struct BillsStatsView: View {
                             .font(pf(15))
                             .foregroundColor(C.label)
                             .lineLimit(1)
-                        Text("\(p.count) 笔")
+                        Text(Lang.isEnglish ? "\(p.count) transactions" : "\(p.count) 笔")
                             .font(pf(11.5))
                             .foregroundColor(C.subLabel)
                     }

@@ -101,7 +101,7 @@ struct NewUserOnboardingView: View {
                         .foregroundColor(.white)
                 }
                 .frame(width: 28, height: 28)
-                Text("星言")
+                Text(Tr("星言"))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(C.label)
             }
@@ -126,12 +126,12 @@ struct NewUserOnboardingView: View {
     private var avatarStep: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                Text("完善个人资料")
+                Text(Tr("完善个人资料"))
                     .font(.system(size: 30, weight: .bold))
                     .foregroundColor(C.label)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 44)
-                Text("设置一张清晰头像，方便联系人和群成员识别你。")
+                Text(Tr("设置一张清晰头像，方便联系人和群成员识别你。"))
                     .font(.system(size: 14.5))
                     .foregroundColor(C.subLabel)
                     .lineSpacing(5)
@@ -164,7 +164,7 @@ struct NewUserOnboardingView: View {
                                 if uploading {
                                     ProgressView().tint(Color(hex: 0x07C160))
                                 } else {
-                                    Label("选择头像", systemImage: "camera.fill")
+                                    Label(Tr("选择头像"), systemImage: "camera.fill")
                                         .font(.system(size: 13, weight: .medium))
                                         .foregroundColor(Color(hex: 0x07C160))
                                 }
@@ -193,7 +193,7 @@ struct NewUserOnboardingView: View {
                 .buttonStyle(OnboardingPressStyle())
                 .disabled(uploading)
 
-                Text(avatar == nil ? "点击上传你的专属头像" : "头像已就绪，可以继续了")
+                Text(avatar == nil ? Tr("点击上传你的专属头像") : Tr("头像已就绪，可以继续了"))
                     .font(.system(size: 13.5, weight: .medium))
                     .foregroundColor(avatar == nil ? C.subLabel : Color(hex: 0x18A66A))
                     .padding(.top, 22)
@@ -206,7 +206,7 @@ struct NewUserOnboardingView: View {
                         .padding(.top, 12)
                 }
 
-                Text("建议使用本人照片或能代表你的头像\n之后可以在「我 → 个人资料」里更换")
+                Text(Tr("建议使用本人照片或能代表你的头像\n之后可以在「我 → 个人资料」里更换"))
                     .font(.system(size: 12.5))
                     .foregroundColor(C.subLabel.opacity(0.82))
                     .multilineTextAlignment(.center)
@@ -219,11 +219,11 @@ struct NewUserOnboardingView: View {
     private var welcomeStep: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("欢迎开始使用")
+                Text(Tr("欢迎开始使用"))
                     .font(.system(size: 30, weight: .bold))
                     .foregroundColor(C.label)
                     .padding(.top, 36)
-                Text("账号已经创建。下面是星言的主要功能，进入后可随时在「发现」和「我」中找到。")
+                Text(Tr("账号已经创建。下面是星言的主要功能，进入后可随时在「发现」和「我」中找到。"))
                     .font(.system(size: 14.5))
                     .foregroundColor(C.subLabel)
                     .lineSpacing(5)
@@ -242,7 +242,7 @@ struct NewUserOnboardingView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(Color(hex: 0x07C160))
                         .padding(.top, 1)
-                    Text("头像和资料之后可在「我 → 个人信息」中修改；登录设备与隐私权限在「我 → 设置」中管理。")
+                    Text(Tr("头像和资料之后可在「我 → 个人信息」中修改；登录设备与隐私权限在「我 → 设置」中管理。"))
                         .font(.system(size: 12.5))
                         .foregroundColor(C.subLabel)
                         .lineSpacing(4)
@@ -274,10 +274,10 @@ struct NewUserOnboardingView: View {
                         .fill(Color(hex: 0x07C160).opacity(0.10))
                 )
             VStack(alignment: .leading, spacing: 3) {
-                Text(feature.title)
+                Text(Tr(feature.title))
                     .font(.system(size: 15.5, weight: .semibold))
                     .foregroundColor(C.label)
-                Text(feature.detail)
+                Text(Tr(feature.detail))
                     .font(.system(size: 12.5))
                     .foregroundColor(C.subLabel)
                     .fixedSize(horizontal: false, vertical: true)
@@ -307,7 +307,7 @@ struct NewUserOnboardingView: View {
             Button {
                 if step == 0 {
                     guard !avatarPath.isEmpty else {
-                        error = uploading ? "头像正在上传，请稍候" : "请先选择一张头像"
+                        error = uploading ? Tr("头像正在上传，请稍候") : Tr("请先选择一张头像")
                         return
                     }
                     error = ""
@@ -320,7 +320,7 @@ struct NewUserOnboardingView: View {
                     if saving {
                         ProgressView().tint(.white)
                     }
-                    Text(step == 0 ? "继续" : saving ? "正在完成设置…" : "完成，进入星言")
+                    Text(step == 0 ? Tr("继续") : saving ? Tr("正在完成设置…") : Tr("完成，进入星言"))
                         .font(.system(size: 16, weight: .semibold))
                     if step == 0 && !saving {
                         Image(systemName: "arrow.right")
@@ -348,7 +348,7 @@ struct NewUserOnboardingView: View {
                     error = ""
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.86)) { step = 0 }
                 } label: {
-                    Text("返回上一步")
+                    Text(Tr("返回上一步"))
                         .font(.system(size: 13))
                         .foregroundColor(C.subLabel)
                 }
@@ -378,7 +378,7 @@ struct NewUserOnboardingView: View {
                     avatar = nil
                     avatarPath = ""
                     uploading = false
-                    self.error = (error as? APIError)?.errorDescription ?? "头像上传失败，请重试"
+                    self.error = (error as? APIError)?.errorDescription ?? Tr("头像上传失败，请重试")
                 }
             }
         }
@@ -399,7 +399,7 @@ struct NewUserOnboardingView: View {
             } catch {
                 await MainActor.run {
                     saving = false
-                    self.error = (error as? APIError)?.errorDescription ?? "保存失败，请重试"
+                    self.error = (error as? APIError)?.errorDescription ?? Tr("保存失败，请重试")
                 }
             }
         }
