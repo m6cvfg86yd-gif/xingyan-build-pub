@@ -41,77 +41,73 @@ struct MomentCommentsSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                header
-                    .simultaneousGesture(TapGesture().onEnded {
-                        commentFocused = false
-                    })
-                HairLine(inset: 0)
+            ZStack {
+                frostedBackground
 
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            momentPreview
-                            authorLine
-                            if let content = live.content?.trimmingCharacters(in: .whitespacesAndNewlines),
-                               !content.isEmpty {
-                                Text(RichText.linkified(content))
-                                    .font(systemTextFont(15.2, .regular, relativeTo: .body))
-                                    .foregroundColor(C.label)
-                                    .lineSpacing(5.5)
-                                    .multilineTextAlignment(.leading)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .padding(.top, 8)
-                            }
+                VStack(spacing: 0) {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 12) {
+                                momentContextCard
 
-                            if !likes.isEmpty {
-                                likeLine
-                            }
+                                commentsHeader
+                                    .padding(.horizontal, 4)
 
-                            commentsHeader
-
-                            if comments.isEmpty {
-                                VStack(spacing: 8) {
-                                    Text(Tr("还没有评论"))
-                                        .font(pf(15.5, .semibold))
-                                        .foregroundColor(C.label)
-                                    Text(Tr("说点什么，成为第一个评论的人"))
-                                        .font(pf(12.5))
-                                        .foregroundColor(C.subLabel)
+                                if comments.isEmpty {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "bubble.left")
+                                            .font(.title2)
+                                            .foregroundStyle(.secondary)
+                                        Text(Tr("还没有评论"))
+                                            .font(.headline)
+                                        Text(Tr("说点什么，成为第一个评论的人"))
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 42)
+                                    .background(frostedCard)
+                                    .id("moment-comment-empty")
+                                } else {
+                                    ForEach(Array(comments.enumerated()), id: \.offset) { index, item in
+                                        commentRow(item, index: index)
+                                            .id(commentKey(item, index))
+                                    }
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 54)
-                                .padding(.bottom, 50)
-                                .id("moment-comment-empty")
-                            } else {
-                                ForEach(Array(comments.enumerated()), id: \.offset) { index, item in
-                                    if index > 0 { HairLine(inset: 39) }
-                                    commentRow(item, index: index)
-                                        .id(commentKey(item, index))
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.top, 10)
+                            .padding(.bottom, 18)
+                        }
+                        .scrollDismissesKeyboard(.interactively)
+                        .contentShape(Rectangle())
+                        .simultaneousGesture(TapGesture().onEnded {
+                            commentFocused = false
+                        })
+                        .onChange(of: comments.count) { _ in
+                            if let last = comments.last {
+                                withAnimation(.easeOut(duration: 0.22)) {
+                                    proxy.scrollTo(commentKey(last, comments.count - 1), anchor: .bottom)
                                 }
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 18)
                     }
-                    .scrollDismissesKeyboard(.interactively)
-                    .contentShape(Rectangle())
-                    .simultaneousGesture(TapGesture().onEnded {
-                        commentFocused = false
-                    })
-                    .onChange(of: comments.count) { _ in
-                        if let last = comments.last {
-                            withAnimation(.easeOut(duration: 0.22)) {
-                                proxy.scrollTo(commentKey(last, comments.count - 1), anchor: .bottom)
-                            }
-                        }
-                    }
+
+                    composer
                 }
-
-                composer
             }
-            .background(C.cardBg.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle(Tr("全部评论"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel(Tr("关闭"))
+                }
+            }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
@@ -176,30 +172,75 @@ struct MomentCommentsSheet: View {
         .onDisappear { onChanged() }
     }
 
-    private var header: some View {
-        HStack(spacing: 8) {
-            Text(Tr("全部评论"))
-                .font(pf(18, .bold))
-                .foregroundColor(C.label)
-            Text("\(comments.count)")
-                .font(pf(10.5, .medium))
-                .foregroundColor(C.subLabel)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.dyn(0xF1F1EE, 0x292929)))
-            Spacer(minLength: 0)
-            Button { dismiss() } label: {
-                Text(Tr("收起"))
-                    .font(pf(13.5, .medium))
-                    .foregroundColor(C.subLabel)
-                    .padding(.horizontal, 8)
-                    .frame(height: 42)
-            }
-            .buttonStyle(.plain)
+    private var frostedBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(uiColor: .systemBackground),
+                    OrbitTheme.canvas,
+                    Color(uiColor: .secondarySystemBackground)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(OrbitTheme.jade.opacity(0.10))
+                .frame(width: 280, height: 280)
+                .blur(radius: 48)
+                .offset(x: -150, y: -260)
+
+            Circle()
+                .fill(Color(hex: 0x5C83D8).opacity(0.07))
+                .frame(width: 260, height: 260)
+                .blur(radius: 54)
+                .offset(x: 160, y: 280)
+
+            Rectangle()
+                .fill(.ultraThinMaterial)
         }
-        .padding(.horizontal, 16)
-        .frame(height: 54)
-        .background(C.cardBg)
+        .ignoresSafeArea()
+    }
+
+    private var frostedCard: some View {
+        RoundedRectangle(cornerRadius: 17, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay {
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.34), OrbitTheme.divider.opacity(0.75)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.7
+                    )
+            }
+    }
+
+    private var momentContextCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            momentPreview
+            authorLine
+
+            if let content = live.content?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !content.isEmpty {
+                Text(RichText.linkified(content))
+                    .font(systemTextFont(15.2, .regular, relativeTo: .body))
+                    .foregroundColor(C.label)
+                    .lineSpacing(5.5)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 9)
+            }
+
+            if !likes.isEmpty {
+                likeLine
+                    .padding(.top, 4)
+            }
+        }
+        .padding(12)
+        .background(frostedCard)
     }
 
     @ViewBuilder
@@ -340,14 +381,14 @@ struct MomentCommentsSheet: View {
     private var commentsHeader: some View {
         HStack(spacing: 5) {
             Text(Tr("评论"))
-                .font(pf(13, .medium))
+                .font(.headline)
                 .foregroundColor(C.label)
             Text("\(comments.count)")
-                .font(pf(11.5))
+                .font(.caption)
                 .foregroundColor(C.subLabel)
             Spacer(minLength: 0)
             Text(Tr("最新"))
-                .font(pf(11.5))
+                .font(.caption)
                 .foregroundColor(C.subLabel)
         }
         .padding(.top, 11)
@@ -407,9 +448,11 @@ struct MomentCommentsSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(.vertical, 9)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(C.cardBg)
+            .background(frostedCard)
+            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
             .contentShape(Rectangle())
             .offset(x: offset)
             .animation(.easeOut(duration: 0.16), value: offset)
@@ -454,7 +497,7 @@ struct MomentCommentsSheet: View {
                     }
             )
         }
-        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
     }
 
     private var composer: some View {
@@ -506,8 +549,15 @@ struct MomentCommentsSheet: View {
             .padding(.top, 9)
             .padding(.bottom, max(10, L.safeBottom))
         }
-        .background(C.cardBg)
-        .overlay(alignment: .top) { HairLine(inset: 0) }
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            LinearGradient(
+                colors: [.clear, OrbitTheme.divider.opacity(0.72), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 0.7)
+        }
     }
 
     private func send() {
