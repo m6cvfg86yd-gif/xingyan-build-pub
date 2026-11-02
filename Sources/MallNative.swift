@@ -3063,170 +3063,153 @@ struct DDProductCard: View {
     let product: DDProduct
     var onOpen: (() -> Void)? = nil
     var onAddCart: (() -> Void)? = nil
-    private let cardImageHeight: CGFloat = 210
 
     var body: some View {
-
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
                 if let img = product.img, !img.isEmpty {
                     RemoteImage(path: img, icon: "photo", mode: .fill)
                         .frame(maxWidth: .infinity)
-                        .frame(height: cardImageHeight)
-                        .clipped()
+                        .frame(maxHeight: .infinity)
                 } else {
                     ZStack {
                         LinearGradient(
-                            colors: [Color(hex: 0xFFF7F4), Color(hex: 0xF1F6FF)],
+                            colors: [Color(hex: 0xF8F8F8), Color(hex: 0xEFEFEF)],
                             startPoint: .topLeading, endPoint: .bottomTrailing)
-                        Circle()
-                            .fill(Color.white.opacity(0.62))
-                            .frame(width: 138, height: 138)
-                            .blur(radius: 4)
                         Text(product.em)
-                            .font(.system(size: 78))
-                            .shadow(color: Color.black.opacity(0.08), radius: 8, y: 5)
+                            .font(.system(size: 72))
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: cardImageHeight)
+                    .frame(maxHeight: .infinity)
                 }
 
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(Tr(product.isSelfOperated ? "自营" : "第三方"))
-                        .font(pf(9, .bold))
+                        .font(.system(size: 9.5, weight: .semibold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 7)
-                        .frame(height: 20)
-                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(product.isSelfOperated ? DDColor.redDeep : DDColor.blueDeep))
+                        .padding(.horizontal, 8)
+                        .frame(height: 22)
+                        .background(Capsule().fill(
+                            product.isSelfOperated ? DDColor.redDeep : Color.black.opacity(0.62)
+                        ))
                     if let tag = product.tags.first {
                         Text(Tr(tag))
-                            .font(pf(9, .medium))
+                            .font(.system(size: 9.5, weight: .semibold))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 7)
-                            .frame(height: 20)
-                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(Color.black.opacity(0.56)))
+                            .padding(.horizontal, 8)
+                            .frame(height: 22)
+                            .background(Capsule().fill(Color.black.opacity(0.52)))
                     }
                 }
-                .padding(8)
+                .padding(9)
             }
+            .aspectRatio(1, contentMode: .fit)
             .frame(maxWidth: .infinity)
-            .frame(height: cardImageHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 if !product.galleryVideos.isEmpty {
-                    Text(Tr("视频"))
-                        .font(pf(9, .semibold))
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 7)
-                        .frame(height: 20)
-                        .background(Capsule().fill(Color.black.opacity(0.58)))
-                        .padding(8)
+                        .frame(width: 24, height: 24)
+                        .background(Circle().fill(Color.black.opacity(0.55)))
+                        .padding(9)
+                        .accessibilityLabel(Tr("视频"))
                 }
             }
             .overlay(alignment: .bottomLeading) {
                 if product.orig > product.price {
                     Text("\(max(1, Int(((1 - product.price / max(0.01, product.orig)) * 100).rounded())))% OFF")
-                        .font(pf(9, .bold))
+                        .font(.system(size: 9.5, weight: .bold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .frame(height: 20)
-                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.black.opacity(0.72)))
-                        .padding(8)
+                        .padding(.horizontal, 8)
+                        .frame(height: 22)
+                        .background(Capsule().fill(Color.black.opacity(0.68)))
+                        .padding(9)
                 }
             }
 
             Text(product.title)
-                .font(pf(UIConfig.num("mallCardTitle", 14), .medium))
+                .font(.system(size: UIConfig.num("mallCardTitle", 14), weight: .medium))
                 .foregroundColor(DDColor.ink)
-                .lineSpacing(2)
+                .lineSpacing(3)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 9)
-                .padding(.top, 8)
+                .frame(minHeight: 39, alignment: .topLeading)
+                .padding(.horizontal, 10)
+                .padding(.top, 9)
 
-            HStack(spacing: 5) {
-                Text(Tr("券后"))
-                    .font(pf(9))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .frame(height: 18)
-                    .background(RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(DDColor.redDeep))
+            HStack(spacing: 4) {
                 Text(product.tags.count > 1 ? Tr(product.tags[1]) : Tr("包邮"))
-                    .font(pf(9))
+                    .font(.system(size: 10.5, weight: .medium))
                     .foregroundColor(DDColor.red)
-                    .padding(.horizontal, 5)
-                    .frame(height: 18)
-                    .background(RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(DDColor.redLight))
+                Text("·")
+                    .font(.system(size: 10.5))
+                    .foregroundColor(DDColor.weak)
                 Text(Tr(product.sellerBadge))
-                    .font(pf(9))
-                    .foregroundColor(product.isSelfOperated ? DDColor.redDeep : DDColor.blueDeep)
-                    .padding(.horizontal, 5)
-                    .frame(height: 18)
-                    .background(RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(product.isSelfOperated ? DDColor.redLight : Color(hex: 0xEAF2FF)))
+                    .font(.system(size: 10.5))
+                    .foregroundColor(DDColor.sub)
+                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 9)
-            .padding(.top, 6)
+            .padding(.horizontal, 10)
+            .padding(.top, 5)
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text("¥").font(pf(11, .bold)).foregroundColor(DDColor.redDeep)
+                Text("¥")
+                    .font(.system(size: 11.5, weight: .bold))
+                    .foregroundColor(DDColor.redDeep)
                 Text(moneyFmt(product.price))
-                    .font(pf(UIConfig.num("mallCardPrice", 20), .bold))
+                    .font(.system(size: UIConfig.num("mallCardPrice", 21), weight: .bold))
                     .foregroundColor(DDColor.redDeep)
                     .layoutPriority(2)
                 Text("¥" + moneyFmt(product.orig))
-                    .font(pf(10))
+                    .font(.system(size: 10.5))
                     .foregroundColor(DDColor.sub)
                     .strikethrough()
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
+                Spacer(minLength: 4)
+                if let onAddCart {
+                    Button(action: onAddCart) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Circle().fill(DDColor.redDeep))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Tr("加入购物车"))
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 9)
-            .padding(.top, 5)
+            .padding(.horizontal, 10)
+            .padding(.top, 6)
 
             HStack(spacing: 4) {
                 Text(product.shop.isEmpty ? Tr("星言官方旗舰店") : product.shop)
-                    .font(pf(9.5))
+                    .font(.system(size: 10))
                     .foregroundColor(DDColor.sub)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: 2)
                 Text(Tr("已售") + (product.sold.isEmpty ? "1000+" : product.sold))
-                    .font(pf(9.5))
-                    .foregroundColor(DDColor.sub)
+                    .font(.system(size: 10))
+                    .foregroundColor(DDColor.weak)
                     .lineLimit(1)
-                if let onAddCart {
-                    Button(action: onAddCart) {
-                        Text(Tr("加购"))
-                            .font(pf(9.5, .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .frame(height: 24)
-                            .background(Capsule().fill(DDColor.redDeep))
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 9)
-            .padding(.top, 7)
+            .padding(.horizontal, 10)
+            .padding(.top, 6)
             .padding(.bottom, 10)
         }
-        .background(DDColor.cardGrad)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .stroke(DDColor.cardEdge.opacity(0.7), lineWidth: 0.6))
-        .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
-        .shadow(color: DDColor.cardShadow, radius: 14, y: 5)
-        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous)
+            .stroke(DDColor.cardEdge, lineWidth: 0.6))
+        .shadow(color: Color.black.opacity(0.035), radius: 5, y: 2)
+        .contentShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
         .mallOptionalTap(onOpen)
     }
 }
