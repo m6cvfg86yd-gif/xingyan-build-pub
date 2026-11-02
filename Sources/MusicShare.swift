@@ -733,7 +733,6 @@ struct ListenView: View {
     @State private var tracks: [MusicTrack] = []
     @State private var loading = true
     @State private var query = ""
-    @State private var showSearch = false
 
     @State private var tab = 0
 
@@ -798,104 +797,36 @@ struct ListenView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: Tr(sendMode ? "选择音乐" : "听一听"), back: { dismiss() }) {
-                if !sendMode {
-                    HStack(spacing: 0) {
-
-                        if app.me?.ops == true {
-                            Button {
-                                withAnimation(.easeOut(duration: 0.15)) {
-                                    manageMode.toggle()
-                                    pickedTracks = []
-                                }
-                            } label: {
-                                Text(manageMode ? Tr("完成") : Tr("管理"))
-                                    .font(pf(15, .medium))
-                                    .foregroundColor(C.green)
-                                    .frame(height: 44)
-                                    .padding(.horizontal, 8)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        Button { showSearch.toggle() } label: {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(C.label)
-                                .frame(width: 44, height: 44)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-
-            if showSearch {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").font(.system(size: 14.5)).foregroundColor(C.searchIcon)
-                    TextField(Tr("搜索歌名 / 歌手 / 分类"), text: $query).font(pf(15))
-                    if !query.isEmpty {
-                        Button { query = "" } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 15)).foregroundColor(C.searchIcon2)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 12).frame(height: 38)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(C.searchBg))
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(C.hairline, lineWidth: 0.6))
-                .padding(.horizontal, 14).padding(.top, 6).padding(.bottom, 4)
-            }
-
             if !sendMode {
-
-                MusicMineBar { k in mine = k }
-                tabRow
-                if showSearch || tab == 1, cats.count > 1 { catRow }
-                HairLine()
-            }
-
-            content
-
-            if !sendMode, let cur = player.current { miniBar(cur) }
-
-            if manageMode {
-                HStack(spacing: 8) {
-                    Button { showBatchPick = true } label: {
-                        Text(Tr("导入文件")).font(pf(13.5, .medium)).foregroundColor(C.label)
-                            .padding(.horizontal, 12).frame(height: 34)
-                            .background(Capsule().fill(C.pageBg))
-                    }
-                    .buttonStyle(.plain)
-                    Button { showFolderPick = true } label: {
-                        Text(Tr("导入文件夹")).font(pf(13.5, .medium)).foregroundColor(C.label)
-                            .padding(.horizontal, 12).frame(height: 34)
-                            .background(Capsule().fill(C.pageBg))
-                    }
-                    .buttonStyle(.plain)
-                    Spacer(minLength: 0)
-                    Button { Task { await deletePicked() } } label: {
-                        Text(Tr("删除选中") + " \(pickedTracks.count)")
-                            .font(pf(13.5, .medium))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 14).frame(height: 34)
-                            .background(Capsule().fill(pickedTracks.isEmpty ? C.subLabel : C.red))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(pickedTracks.isEmpty)
+                Picker(Tr("内容"), selection: $tab) {
+                    Text(Tr("推荐")).tag(0)
+                    Text(Tr("歌曲")).tag(1)
+                    Text(Tr("朋友推荐")).tag(2)
                 }
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(C.cardBg)
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
             }
-            if !busyText.isEmpty {
-                Text(busyText).font(pf(12)).foregroundColor(C.subLabel)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16).padding(.bottom, 6)
-                    .background(C.cardBg)
+
+            musicList
+        }
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .navigationTitle(Tr(sendMode ? "选择音乐" : "听一听"))
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(
+            text: $query,
+            placement: .navigationBarDrawer(displayMode: .automatic),
+            prompt: Text(Tr("搜索歌名 / 歌手 / 分类"))
+        )
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar { musicToolbar }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !sendMode, let cur = player.current {
+                miniBar(cur)
             }
         }
-        .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
         .hidesTabBar()
         .task {
             tracks = await API.shared.musicTracks()
@@ -907,57 +838,316 @@ struct ListenView: View {
                 MusicMinePage(kind: k).environmentObject(app)
             }
         }
+        .sheet(isPresented: $showIconPick) {
+            PhotoPicker { img in
+                let id = iconPickFor
+                Task {
+                    if let url = try? await API.shared.upload(image: img) {
+                        try? await API.shared.manageSetIcon(kind: "music", id: id, cover: url)
+                        tracks = await API.shared.musicTracks()
+                    }
+                }
+            }
+        }
+        .fileImporter(isPresented: $showBatchPick, allowedContentTypes: [.item],
+                      allowsMultipleSelection: true) { result in
+            if case .success(let urls) = result { importFiles(urls) }
+        }
+        .fileImporter(isPresented: $showFolderPick, allowedContentTypes: [.folder],
+                      allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let dir = urls.first { importFolder(dir) }
+        }
     }
 
-    private var tabRow: some View {
-        HStack(spacing: 22) {
-            ForEach([Tr("推荐"), Tr("歌曲"), Tr("朋友推荐")].indices, id: \.self) { i in
-                Button { tab = i } label: {
-                    VStack(spacing: 6) {
-                        Text([Tr("推荐"), Tr("歌曲"), Tr("朋友推荐")][i])
-                            .font(pf(16, tab == i ? .semibold : .regular))
-                            .foregroundColor(tab == i ? C.label : C.subLabel)
-                        Rectangle()
-                            .fill(tab == i ? C.green : Color.clear)
-                            .frame(width: 22, height: 2.5)
-                            .clipShape(Capsule())
+    @ViewBuilder
+    private var musicList: some View {
+        List {
+            if loading {
+                Section {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text(Tr("正在加载…")).foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity, minHeight: 80)
+                }
+            } else if tracks.isEmpty {
+                Section {
+                    VStack(spacing: 10) {
+                        Image(systemName: "music.note.list")
+                            .font(.system(size: 30, weight: .light))
+                            .foregroundStyle(.secondary)
+                        Text(Tr("曲库还没有歌（后台「音乐（听一听）」里传一首）"))
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                }
+            } else {
+                if !sendMode {
+                    Section {
+                        nativeMineRow
+                    }
+                }
+
+                if manageMode {
+                    Section(header: Text(Tr("音乐管理"))) {
+                        Button {
+                            showBatchPick = true
+                        } label: {
+                            Label(Tr("导入文件"), systemImage: "doc.badge.plus")
+                        }
+                        Button {
+                            showFolderPick = true
+                        } label: {
+                            Label(Tr("导入文件夹"), systemImage: "folder.badge.plus")
+                        }
+                        Button(role: .destructive) {
+                            Task { await deletePicked() }
+                        } label: {
+                            Label(Tr("删除选中") + " (\(pickedTracks.count))",
+                                  systemImage: "trash")
+                        }
+                        .disabled(pickedTracks.isEmpty)
+
+                        if !busyText.isEmpty {
+                            Text(busyText)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                if sendMode || tab == 1 {
+                    Section(header: Text(query.isEmpty ? Tr("全部歌曲") : Tr("搜索结果"))) {
+                        ForEach(matched) { track in
+                            nativeTrackRow(track)
+                        }
+                    }
+                } else if tab == 0 {
+                    Section {
+                        ForEach(recommend) { track in
+                            nativeTrackRow(track)
+                        }
+                    } header: {
+                        HStack {
+                            Text(Tr("今日推荐"))
+                            Spacer()
+                            Button {
+                                batch += 1
+                            } label: {
+                                Label(Tr("换一批"), systemImage: "arrow.triangle.2.circlepath")
+                                    .labelStyle(.titleAndIcon)
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(OrbitTheme.jade)
+                        }
+                    }
+                } else if friends.isEmpty {
+                    Section {
+                        VStack(spacing: 8) {
+                            Image(systemName: "person.2.wave.2")
+                                .font(.title2)
+                                .foregroundStyle(.secondary)
+                            Text(Tr("朋友推荐还没有内容"))
+                                .font(.body)
+                            Text(Tr("你在这一页放一首歌，好友的「朋友推荐」里就会看到你在听什么；\n反过来，好友在听的时候这里也会出现。"))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 150)
+                    }
+                } else {
+                    Section(header: Text(Tr("朋友正在听"))) {
+                        ForEach(friends) { friend in
+                            nativeFriendRow(friend)
+                        }
+                    } footer: {
+                        Text(Tr("好友最近 2 小时在听的歌"))
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .refreshable {
+            tracks = await API.shared.musicTracks()
+            if tab == 2 { await loadFriends() }
+        }
+    }
+
+    private var nativeMineRow: some View {
+        HStack(spacing: 0) {
+            ForEach(MusicMineKind.allCases) { kind in
+                Button {
+                    mine = kind
+                } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: kind.icon)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(OrbitTheme.jade)
+                        Text(Tr(kind.title))
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-    }
 
-    private var catRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                catChip(Tr("全部"), on: cat.isEmpty) { cat = "" }
-                ForEach(cats, id: \.self) { c in
-                    catChip(c, on: cat == c) { cat = (cat == c ? "" : c) }
+                if kind != MusicMineKind.allCases.last {
+                    Divider().frame(height: 34)
                 }
             }
-            .padding(.horizontal, 16)
         }
-        .padding(.bottom, 6)
+        .padding(.vertical, 4)
     }
 
-    private func catChip(_ title: String, on: Bool, tap: @escaping () -> Void) -> some View {
-        Button { tap() } label: {
-            Text(title)
-                .font(pf(13, on ? .semibold : .regular))
-                .foregroundColor(on ? .white : C.label)
-                .padding(.horizontal, 13)
-                .frame(height: 28)
-                .background(Capsule().fill(on ? C.green : C.pageBg))
-                .overlay(Capsule().stroke(C.hairline, lineWidth: 0.5))
-                .contentShape(Capsule())
+    private func nativeTrackRow(_ track: MusicTrack) -> some View {
+        Button {
+            choose(track)
+        } label: {
+            HStack(spacing: 12) {
+                if manageMode {
+                    Image(systemName: pickedTracks.contains(track.id)
+                          ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(pickedTracks.contains(track.id)
+                                         ? OrbitTheme.jade : Color(uiColor: .secondaryLabel))
+                }
+
+                MusicCover(path: track.cover ?? "", size: 54, radius: 8)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(track.title)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(track.artistText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                if !manageMode {
+                    MusicPlayButton(
+                        playing: player.isPlaying(track.id),
+                        loading: player.loadingId == track.id,
+                        size: 32,
+                        tint: player.isPlaying(track.id) ? .white : OrbitTheme.jade,
+                        bg: player.isPlaying(track.id)
+                            ? OrbitTheme.jade : OrbitTheme.jade.opacity(0.10)
+                    )
+                }
+            }
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if app.me?.ops == true && !manageMode {
+                Button {
+                    iconPickFor = track.id
+                    showIconPick = true
+                } label: {
+                    Label(Tr("更换封面"), systemImage: "photo.badge.plus")
+                }
+            }
+        }
+    }
+
+    private func nativeFriendRow(_ friend: FriendNowPlaying) -> some View {
+        let track = friend.asTrack
+        return Button {
+            MusicPlayer.shared.toggle(track)
+        } label: {
+            HStack(spacing: 12) {
+                Avatar(path: friend.avatar ?? "", size: 46, radius: 23)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(friend.name)
+                        .font(.body)
+                    Text(friend.line)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                MusicPlayButton(
+                    playing: player.isPlaying(track.id),
+                    loading: player.loadingId == track.id,
+                    size: 32,
+                    tint: player.isPlaying(track.id) ? .white : OrbitTheme.jade,
+                    bg: player.isPlaying(track.id)
+                        ? OrbitTheme.jade : OrbitTheme.jade.opacity(0.10)
+                )
+            }
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func choose(_ track: MusicTrack) {
+        if manageMode {
+            if pickedTracks.contains(track.id) {
+                pickedTracks.remove(track.id)
+            } else {
+                pickedTracks.insert(track.id)
+            }
+        } else if let onSend, sendMode {
+            onSend(track)
+            dismiss()
+        } else {
+            MusicPlayer.shared.setQueue(tracks)
+            MusicPlayer.shared.toggle(track)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var musicToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            HStack(spacing: 10) {
+                if !sendMode && tab == 1 && cats.count > 1 {
+                    Menu {
+                        Button {
+                            cat = ""
+                        } label: {
+                            if cat.isEmpty { Label(Tr("全部"), systemImage: "checkmark") }
+                            else { Text(Tr("全部")) }
+                        }
+                        ForEach(cats, id: \.self) { value in
+                            Button {
+                                cat = value
+                            } label: {
+                                if cat == value { Label(value, systemImage: "checkmark") }
+                                else { Text(value) }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
+                    .accessibilityLabel(Tr("筛选分类"))
+                }
+
+                if manageMode {
+                    Button(Tr("完成")) {
+                        manageMode = false
+                        pickedTracks = []
+                    }
+                } else if app.me?.ops == true && !sendMode {
+                    Button {
+                        manageMode = true
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel(Tr("管理音乐"))
+                }
+            }
+        }
     }
 
     @ViewBuilder
