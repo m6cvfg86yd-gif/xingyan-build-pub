@@ -23,14 +23,32 @@ struct DiscoverView: View {
         return ""
     }
 
+    private var momentCountText: String {
+        let count = app.moments.count
+        if Lang.isEnglish {
+            return "\(count) new \(count == 1 ? "post" : "posts")"
+        }
+        return "\(count) 条新动态"
+    }
+
+    private var heroStatusText: String {
+        guard !app.moments.isEmpty else {
+            return Tr("记录此刻，也看看朋友们的日常")
+        }
+        if Lang.isEnglish {
+            return "\(momentCountText) · Happening now"
+        }
+        return "\(momentCountText) · 此刻正在发生"
+    }
+
     private var discoverTopHeader: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("世界")
-                    .font(.system(size: 22, weight: .bold))
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(Tr("世界"))
+                    .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(OrbitTheme.ink)
                 Text(app.moments.isEmpty ? Tr("去发现、聊天、生活")
-                                         : "\(app.moments.count) 条新动态")
+                                         : momentCountText)
                     .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.secondary)
                     .lineLimit(1)
@@ -42,11 +60,11 @@ struct DiscoverView: View {
                 path.append("search")
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15.5, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(OrbitTheme.field))
-                    .overlay(Circle().stroke(OrbitTheme.divider, lineWidth: 0.6))
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(OrbitTheme.raised))
+                    .overlay(Circle().stroke(OrbitTheme.divider, lineWidth: 0.7))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("搜索"))
@@ -55,16 +73,10 @@ struct DiscoverView: View {
                 showScan = true
             } label: {
                 Image(systemName: "qrcode.viewfinder")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 16.5, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(
-                        Circle().fill(
-                            LinearGradient(colors: [OrbitTheme.jadeDeep, OrbitTheme.jade],
-                                           startPoint: .topLeading,
-                                           endPoint: .bottomTrailing)
-                        )
-                    )
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(OrbitTheme.jadeDeep))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("扫一扫"))
@@ -90,22 +102,31 @@ struct DiscoverView: View {
 
                         Color.clear.frame(height: L.navH)
 
-                        if let shop = worldShopItem {
-                            worldShopCard(shop)
-                                .padding(.horizontal, 12)
-                                .padding(.top, 4)
-                                .padding(.bottom, 12)
-                        }
+                        VStack(spacing: 18) {
+                            if let hero = worldHeroItem {
+                                worldFeatureCard(hero)
+                            }
 
-                        LazyVGrid(columns: worldColumns, spacing: 12) {
-                            ForEach(worldGridItems) { item in
-                                worldEntryCard(item)
+                            if let shop = worldShopItem {
+                                worldShopCard(shop)
+                            }
+
+                            if !worldGridItems.isEmpty {
+                                VStack(spacing: 12) {
+                                    OrbitSectionLabel(text: Tr("探索"), count: worldGridItems.count)
+                                        .padding(.horizontal, 2)
+
+                                    LazyVGrid(columns: worldColumns, spacing: 12) {
+                                        ForEach(worldGridItems) { item in
+                                            worldEntryCard(item)
+                                        }
+                                    }
+                                }
                             }
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 16)
-
-                        Spacer().frame(height: 20)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .padding(.bottom, 34)
                     }
                     .topScrollTracking($navScrolled, space: "discoverScroll")
                 }
@@ -216,9 +237,13 @@ struct DiscoverView: View {
         visibleWorldItems.first { $0.action == "shop" || $0.action == "mall" }
     }
 
+    private var worldHeroItem: DiscoverItem? {
+        visibleWorldItems.first { $0.action == "moments" }
+    }
+
     private var worldGridItems: [DiscoverItem] {
         visibleWorldItems.filter {
-            $0.action != "shop" && $0.action != "mall"
+            $0.action != "shop" && $0.action != "mall" && $0.action != "moments"
         }
     }
 
@@ -246,81 +271,151 @@ struct DiscoverView: View {
         }
     }
 
+    private func worldFeatureCard(_ item: DiscoverItem) -> some View {
+        Button {
+            open(item)
+        } label: {
+            ZStack(alignment: .leading) {
+                LinearGradient(
+                    colors: [Color(hex: 0x14231D), Color(hex: 0x243E33), Color(hex: 0x172C24)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                Circle()
+                    .stroke(Color.white.opacity(0.08), lineWidth: 0.8)
+                    .frame(width: 210, height: 210)
+                    .offset(x: 146, y: -72)
+
+                Circle()
+                    .stroke(Color.white.opacity(0.055), lineWidth: 0.8)
+                    .frame(width: 138, height: 138)
+                    .offset(x: 196, y: 48)
+
+                if !latestThumb.isEmpty {
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        RemoteImage(path: latestThumb, mode: .fill, maxSide: 420)
+                            .frame(width: 176)
+                            .frame(maxHeight: .infinity)
+                            .clipped()
+                            .mask(
+                                LinearGradient(
+                                    colors: [.clear, .black.opacity(0.34), .black.opacity(0.82)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .opacity(0.86)
+                    }
+                }
+
+                LinearGradient(
+                    colors: [Color(hex: 0x14231D).opacity(0.96),
+                             Color(hex: 0x14231D).opacity(0.62),
+                             .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 8) {
+                        Text(Tr(item.label))
+                            .font(.system(size: 23, weight: .semibold))
+                            .foregroundStyle(.white)
+
+                        if app.showDot("momentsRow", auto: !latestThumb.isEmpty) {
+                            Circle()
+                                .fill(Color(hex: 0xFF5A52))
+                                .frame(width: 7, height: 7)
+                        }
+                    }
+
+                    Text(heroStatusText)
+                        .font(.system(size: 12.5, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.72))
+                        .lineLimit(2)
+                        .padding(.top, 6)
+
+                    Spacer(minLength: 12)
+
+                    HStack(spacing: 7) {
+                        Text(Tr("打开生活圈"))
+                            .font(.system(size: 11.5, weight: .semibold))
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 10.5, weight: .bold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .frame(height: 31)
+                    .background(Capsule().fill(Color.white.opacity(0.12)))
+                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.7))
+                }
+                .padding(18)
+                .frame(maxWidth: 260, maxHeight: .infinity, alignment: .leading)
+            }
+            .frame(height: 178)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 0.8)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(MenuPressStyle())
+        .accessibilityElement(children: .combine)
+    }
+
     private func worldEntryCard(_ item: DiscoverItem) -> some View {
         let accent = Color(hexString: item.color ?? "#4A90D9", fallback: 0x4A90D9)
-        let showMomentThumb = item.action == "moments" && !latestThumb.isEmpty
         return Button {
             open(item)
         } label: {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top) {
+                HStack {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 13, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [accent, accent.opacity(0.72)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(accent.opacity(0.10))
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(accent.opacity(0.13), lineWidth: 0.7)
                         Image(systemName: RowIcon.sf(action: item.action, label: item.label))
-                            .font(.system(size: 21, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 18.5, weight: .semibold))
+                            .foregroundStyle(accent)
                     }
-                    .frame(width: 46, height: 46)
+                    .frame(width: 42, height: 42)
 
-                    Spacer(minLength: 8)
+                    Spacer(minLength: 6)
 
-                    if showMomentThumb {
-                        ZStack(alignment: .topTrailing) {
-                            RemoteImage(path: latestThumb, mode: .fill, maxSide: 220)
-                                .frame(width: 48, height: 46)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            if app.showDot("momentsRow", auto: true) {
-                                Circle()
-                                    .fill(C.red)
-                                    .frame(width: 8, height: 8)
-                                    .offset(x: 2, y: -2)
-                            }
-                        }
-                    } else if item.action == "moments",
-                              app.showDot("momentsRow", auto: !latestThumb.isEmpty) {
-                        Circle()
-                            .fill(C.red)
-                            .frame(width: 9, height: 9)
-                            .padding(.top, 4)
-                            .padding(.trailing, 3)
-                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundStyle(OrbitTheme.tertiary)
+                        .frame(width: 25, height: 25)
+                        .background(Circle().fill(OrbitTheme.field))
                 }
+
+                Spacer(minLength: 0)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(Tr(item.label))
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(OrbitTheme.ink)
                         .lineLimit(1)
                     Text(worldSubtitle(item))
-                        .font(.system(size: 12))
+                        .font(.system(size: 11.5, weight: .regular))
                         .foregroundStyle(OrbitTheme.secondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-
-                HStack(spacing: 5) {
-                    Text(Tr("进入"))
-                        .font(.system(size: 11.5, weight: .medium))
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10.5, weight: .semibold))
-                }
-                .foregroundStyle(accent)
             }
             .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
-            .background(OrbitTheme.cardBackground())
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(OrbitTheme.divider, lineWidth: 0.65)
+            .frame(maxWidth: .infinity, minHeight: 126, alignment: .topLeading)
+            .background {
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .fill(OrbitTheme.raised)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 17, style: .continuous)
+                            .stroke(OrbitTheme.divider, lineWidth: 0.7)
+                    }
             }
             .contentShape(Rectangle())
         }
@@ -332,49 +427,65 @@ struct DiscoverView: View {
         Button {
             open(item)
         } label: {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.white.opacity(0.16))
-                    Image(systemName: "bag.fill")
-                        .font(.system(size: 23, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 50, height: 50)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(Tr("星选商城"))
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                    Text(Tr("自营与第三方好物 · 每日上新"))
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(.white.opacity(0.80))
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                HStack(spacing: 5) {
-                    Text(Tr("进入"))
-                        .font(.system(size: 12, weight: .semibold))
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 11)
-                .frame(height: 30)
-                .background(Capsule().fill(Color.white.opacity(0.16)))
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 92)
-            .background(
+            ZStack(alignment: .leading) {
                 LinearGradient(
-                    colors: [Color(hex: 0xE92818), Color(hex: 0xB90E0A)],
+                    colors: [Color(hex: 0xA51612), Color(hex: 0xD72A20)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                Circle()
+                    .fill(Color.white.opacity(0.055))
+                    .frame(width: 156, height: 156)
+                    .offset(x: 230, y: -54)
+                Circle()
+                    .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+                    .frame(width: 104, height: 104)
+                    .offset(x: 264, y: 44)
+
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            .fill(Color.white.opacity(0.14))
+                        RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            .stroke(Color.white.opacity(0.13), lineWidth: 0.7)
+                        Image(systemName: "bag.fill")
+                            .font(.system(size: 21, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .frame(width: 48, height: 48)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 7) {
+                            Text(Tr("星选商城"))
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.white)
+                            Text(Tr("今日精选"))
+                                .font(.system(size: 9.5, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.88))
+                                .padding(.horizontal, 7)
+                                .frame(height: 20)
+                                .background(Capsule().fill(Color.white.opacity(0.13)))
+                        }
+                        Text(Tr("自营与第三方好物 · 每日上新"))
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.white.opacity(0.72))
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 4)
+
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(Color.white.opacity(0.13)))
+                        .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.7))
+                }
+                .padding(.horizontal, 16)
+            }
+            .frame(height: 96)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(MenuPressStyle())
