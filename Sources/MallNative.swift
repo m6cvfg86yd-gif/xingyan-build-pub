@@ -1998,28 +1998,12 @@ struct DDHomeTab: View {
                                                    value: g.frame(in: .named("ddhome")).minY)
                     })
                     deliveryStrip
-                    sellerGateway(proxy)
                     carousel(proxy)
-                    curatedStrip
                     categoryQuickRail(proxy)
-                    seckill(proxy)
-                    couponRail
-                    sectionTitle(Tr("今日精选"),
-                                 subtitle: Tr("自营与品牌店铺 · 平台保障"),
-                                 right: Tr("更多频道")) { channel = .rank }
-                    promoBoard(onViewAll: {
-                        cate = nil
-                        sellerScope = nil
-                        toGrid(proxy)
-                    })
-
-                    adStrip
-                    sectionTitle(Tr("品牌好价"),
-                                 subtitle: Tr("大牌直降 · 限时补贴"),
-                                 right: Tr("全部好价")) { channel = .subsidy }
-                    dealBoard
-                    sectionTitle(Tr("为你推荐"),
-                                 subtitle: Tr("按热度与优惠智能排序"),
+                    curatedStrip
+                    sellerGateway(proxy)
+                    sectionTitle(Tr("为你精选"),
+                                 subtitle: Tr("品牌、自营与平台甄选"),
                                  right: Tr("全部商品")) {
                         cate = nil
                         sellerScope = nil
@@ -2046,6 +2030,22 @@ struct DDHomeTab: View {
                         .padding(.horizontal, 14).padding(.vertical, 6)
                     }
                     grid.id("dd-grid")
+
+                    seckill(proxy)
+                    sectionTitle(Tr("品牌好价"),
+                                 subtitle: Tr("大牌直降 · 平台补贴"),
+                                 right: Tr("全部好价")) { channel = .subsidy }
+                    dealBoard
+                    couponRail
+                    sectionTitle(Tr("精选会场"),
+                                 subtitle: Tr("主题频道与限时活动"),
+                                 right: Tr("更多频道")) { channel = .rank }
+                    promoBoard(onViewAll: {
+                        cate = nil
+                        sellerScope = nil
+                        toGrid(proxy)
+                    })
+                    adStrip
                     Spacer().frame(height: 16)
                 }
                 .padding(.top, 10)
@@ -2606,7 +2606,7 @@ struct DDHomeTab: View {
                             ZStack(alignment: .bottomTrailing) {
                                 RemoteImage(path: imgs[i], icon: "photo")
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: 146)
+                                    .frame(height: 176)
 
                                 LinearGradient(colors: [.clear, .black.opacity(0.18)],
                                                startPoint: .center, endPoint: .bottom)
@@ -2634,7 +2634,7 @@ struct DDHomeTab: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: 152)
+                .frame(height: 182)
             }
 
             .task(id: imgs.count) {
@@ -2647,7 +2647,99 @@ struct DDHomeTab: View {
                     }
                 }
             }
+        } else if let featured = store.live.sorted(by: {
+            if $0.discountRate != $1.discountRate {
+                return $0.discountRate > $1.discountRate
+            }
+            if $0.salesNum != $1.salesNum {
+                return $0.salesNum > $1.salesNum
+            }
+            return ($0.rating ?? 0) > ($1.rating ?? 0)
+        }).first {
+            mallEditorialHero(featured)
         }
+    }
+
+    private func mallEditorialHero(_ product: DDProduct) -> some View {
+        Button { onOpen(product) } label: {
+            ZStack(alignment: .leading) {
+                LinearGradient(
+                    colors: [Color(hex: 0x2B211D), Color(hex: 0x5B2A22), Color(hex: 0x1B1715)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                Circle()
+                    .stroke(Color.white.opacity(0.08), lineWidth: 0.8)
+                    .frame(width: 210, height: 210)
+                    .offset(x: 205, y: -62)
+
+                if let image = product.img, !image.isEmpty {
+                    HStack {
+                        Spacer(minLength: 0)
+                        RemoteImage(path: image, icon: "photo", mode: .fill, maxSide: 900)
+                            .frame(width: 172)
+                            .frame(maxHeight: .infinity)
+                            .clipped()
+                            .mask(
+                                LinearGradient(colors: [.clear, .black.opacity(0.44), .black],
+                                               startPoint: .leading, endPoint: .trailing)
+                            )
+                    }
+                }
+
+                LinearGradient(
+                    colors: [Color(hex: 0x211915).opacity(0.98),
+                             Color(hex: 0x211915).opacity(0.72),
+                             .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(Tr("星言甄选"))
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(Color(hex: 0xD8B778))
+                        .tracking(1.4)
+
+                    Text(product.title)
+                        .font(.system(size: 23, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .lineSpacing(3)
+                        .padding(.top, 8)
+
+                    Text(Tr("品牌正品 · 平台甄选 · 安心履约"))
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.white.opacity(0.63))
+                        .padding(.top, 7)
+
+                    Spacer(minLength: 10)
+
+                    HStack(spacing: 7) {
+                        Text("¥" + moneyFmt(product.price))
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text(Tr("去看看"))
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .frame(height: 30)
+                            .background(Capsule().fill(Color.white.opacity(0.12)))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.7))
+                    }
+                }
+                .padding(18)
+                .frame(maxWidth: 250, maxHeight: .infinity, alignment: .leading)
+            }
+            .frame(height: 184)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 0.8))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 10)
     }
 
     private func seckill(_ proxy: ScrollViewProxy) -> some View {
