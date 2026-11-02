@@ -279,7 +279,7 @@ enum L {
 
     static var bubblePadHPill: CGFloat { bubblePadH + 3 }
 
-    static var msgLineSpacing: CGFloat { o("msgLineSpacing", 4) }
+    static var msgLineSpacing: CGFloat { o("msgLineSpacing", 5) }
 
     static var bubbleMaxW: CGFloat { o("bubbleMaxW", min(324, max(252, width * 0.73))) }
     static var composerH: CGFloat { o("composerH", 56) }

@@ -4823,11 +4823,12 @@ struct MessageRow: View {
     }
 
     private func textLineSpacing(_ raw: String) -> CGFloat {
-        if L.msgLineSpacing > 0 { return L.msgLineSpacing }
         let lineCount = raw.reduce(1) { count, character in
             count + (character == "\n" ? 1 : 0)
         }
-        return raw.count >= 120 || lineCount >= 5 ? 4 : 2
+        let isLong = raw.count >= 120 || lineCount >= 5
+        let minimum: CGFloat = isLong ? 5.5 : 4
+        return max(minimum, L.msgLineSpacing)
     }
 
     private func richBody(_ raw: String) -> AttributedString {
