@@ -2480,12 +2480,12 @@ struct ChatDetailView: View {
         HStack(spacing: 8) {
             Image(systemName: "speaker.slash.fill")
                 .font(.system(size: 15))
-                .foregroundColor(C.subLabel)
+                .foregroundColor(C.label)
             Text(liveChat.meMuted == true
                  ? Tr("你已被群主禁言，暂时不能发言")
                  : Tr("全员禁言中，只有群主可以发言"))
-                .font(pf(14))
-                .foregroundColor(C.subLabel)
+                .font(pf(14, .medium))
+                .foregroundColor(C.label)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
         }
@@ -2496,14 +2496,7 @@ struct ChatDetailView: View {
         .overlay(alignment: .top) {
             Rectangle().fill(C.navLine).frame(height: 0.5)
         }
-        .background {
-            GlassBackground(shape: Rectangle(),
-                            opacity: UIConfig.num("glassAlpha", 0.8),
-                            edgeAlpha: UIConfig.num("glassEdgeAlpha", 0.65),
-                            seed: 0.31,
-                            native: true)
-            .ignoresSafeArea(edges: .bottom)
-        }
+        .background(ChatTheme.composerBg.ignoresSafeArea(edges: .bottom))
     }
 
     private var activeComposer: some View {
