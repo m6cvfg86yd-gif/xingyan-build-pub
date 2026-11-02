@@ -90,31 +90,20 @@ struct DiscoverView: View {
 
                         Color.clear.frame(height: L.navH)
 
-                        ForEach(grouped.indices, id: \.self) { gi in
-
-                            VStack(spacing: 0) {
-                                ForEach(grouped[gi].indices, id: \.self) { ri in
-                                    let item = grouped[gi][ri]
-                                    if ri > 0 { rowLine }
-                                    MenuRow(icon: "world:" + (item.action ?? "default"),
-                                            iconColor: Color(hexString: item.color ?? "#4A90D9", fallback: 0x4A90D9),
-                title: Tr(item.label),
-                                            badge: item.action == "moments" && app.showDot("momentsRow", auto: !latestThumb.isEmpty),
-                                            thumb: item.action == "moments" ? latestThumb : "",
-                                            onTap: { open(item) },
-
-                                            clearBg: true,
-
-                                            iconTile: true,
-
-                                            sf: RowIcon.sf(action: item.action, label: item.label))
-                                }
-                            }
-                            .background(OrbitTheme.cardBackground())
-                            .padding(.horizontal, 12)
-                            .padding(.top, 3)
-                            .padding(.bottom, 9)
+                        if let shop = worldShopItem {
+                            worldShopCard(shop)
+                                .padding(.horizontal, 12)
+                                .padding(.top, 4)
+                                .padding(.bottom, 12)
                         }
+
+                        LazyVGrid(columns: worldColumns, spacing: 12) {
+                            ForEach(worldGridItems) { item in
+                                worldEntryCard(item)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 16)
 
                         Spacer().frame(height: 20)
                     }
@@ -211,6 +200,179 @@ struct DiscoverView: View {
         return list
     }
 
+    private var visibleWorldItems: [DiscoverItem] {
+        grouped.flatMap { $0 }
+    }
+
+    private var worldShopItem: DiscoverItem? {
+        visibleWorldItems.first { $0.action == "shop" || $0.action == "mall" }
+    }
+
+    private var worldGridItems: [DiscoverItem] {
+        visibleWorldItems.filter {
+            $0.action != "shop" && $0.action != "mall"
+        }
+    }
+
+    private var worldColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ]
+    }
+
+    private func worldSubtitle(_ item: DiscoverItem) -> String {
+        switch item.action ?? "" {
+        case "moments": return Tr("好友动态与日常分享")
+        case "channels": return Tr("短视频与创作者内容")
+        case "live": return Tr("正在直播与热门房间")
+        case "scan": return Tr("扫描二维码与条形码")
+        case "bottle", "shake": return Tr("随机遇见有趣的人")
+        case "look": return Tr("发现值得阅读的内容")
+        case "search": return Tr("搜人、消息与世界内容")
+        case "nearby": return Tr("附近的人与同城动态")
+        case "games": return Tr("小游戏与好友排行榜")
+        case "music": return Tr("听歌、歌单与音乐分享")
+        case "miniapps": return Tr("常用工具与轻量服务")
+        default: return Tr("打开这个功能入口")
+        }
+    }
+
+    private func worldEntryCard(_ item: DiscoverItem) -> some View {
+        let accent = Color(hexString: item.color ?? "#4A90D9", fallback: 0x4A90D9)
+        let showMomentThumb = item.action == "moments" && !latestThumb.isEmpty
+        return Button {
+            open(item)
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [accent, accent.opacity(0.72)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        Image(systemName: RowIcon.sf(action: item.action, label: item.label))
+                            .font(.system(size: 21, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .frame(width: 46, height: 46)
+
+                    Spacer(minLength: 8)
+
+                    if showMomentThumb {
+                        ZStack(alignment: .topTrailing) {
+                            RemoteImage(path: latestThumb, mode: .fill, maxSide: 220)
+                                .frame(width: 48, height: 46)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            if app.showDot("momentsRow", auto: true) {
+                                Circle()
+                                    .fill(C.red)
+                                    .frame(width: 8, height: 8)
+                                    .offset(x: 2, y: -2)
+                            }
+                        }
+                    } else if item.action == "moments",
+                              app.showDot("momentsRow", auto: !latestThumb.isEmpty) {
+                        Circle()
+                            .fill(C.red)
+                            .frame(width: 9, height: 9)
+                            .padding(.top, 4)
+                            .padding(.trailing, 3)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(Tr(item.label))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(OrbitTheme.ink)
+                        .lineLimit(1)
+                    Text(worldSubtitle(item))
+                        .font(.system(size: 12))
+                        .foregroundStyle(OrbitTheme.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 5) {
+                    Text(Tr("进入"))
+                        .font(.system(size: 11.5, weight: .medium))
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10.5, weight: .semibold))
+                }
+                .foregroundStyle(accent)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+            .background(OrbitTheme.cardBackground())
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(OrbitTheme.divider, lineWidth: 0.65)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(MenuPressStyle())
+        .accessibilityElement(children: .combine)
+    }
+
+    private func worldShopCard(_ item: DiscoverItem) -> some View {
+        Button {
+            open(item)
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.white.opacity(0.16))
+                    Image(systemName: "bag.fill")
+                        .font(.system(size: 23, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 50, height: 50)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(Tr("星选商城"))
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text(Tr("自营与第三方好物 · 每日上新"))
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(.white.opacity(0.80))
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                HStack(spacing: 5) {
+                    Text(Tr("进入"))
+                        .font(.system(size: 12, weight: .semibold))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 11)
+                .frame(height: 30)
+                .background(Capsule().fill(Color.white.opacity(0.16)))
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 92)
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: 0xE92818), Color(hex: 0xB90E0A)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(MenuPressStyle())
+        .accessibilityElement(children: .combine)
+    }
+
     private func loadItems() async {
         if let list = try? await API.shared.discover(), !list.isEmpty {
 
@@ -261,11 +423,11 @@ extension DiscoverItem {
             DiscoverItem(id: "d01", label: "生活圈", icon: "i.moments", svg: I.moments,
                          color: "#4A90D9", action: "moments", group: 1, enabled: true),
             DiscoverItem(id: "d02", label: "视频号", icon: "i.channels", svg: I.channels,
-                         color: "#F2943B", action: "soon", group: 2, enabled: true),
+                         color: "#F2943B", action: "channels", group: 2, enabled: true),
             DiscoverItem(id: "d03", label: "直播", icon: "i.live", svg: I.live,
-                         color: "#F4525B", action: "soon", group: 2, enabled: true),
+                         color: "#F4525B", action: "live", group: 2, enabled: true),
             DiscoverItem(id: "d04", label: "扫一扫", icon: "i.scan", svg: I.scan,
-                         color: "#3D83E7", action: "soon", group: 3, enabled: true),
+                         color: "#3D83E7", action: "scan", group: 3, enabled: true),
 
             DiscoverItem(id: "d05", label: "漂流瓶", icon: "i.shake", svg: I.shake,
                          color: "#2E7BD6", action: "bottle", group: 3, enabled: true),
@@ -274,9 +436,9 @@ extension DiscoverItem {
             DiscoverItem(id: "d07", label: "搜一搜", icon: "i.searchRow", svg: I.searchRow,
                          color: "#59C47E", action: "search", group: 4, enabled: true),
             DiscoverItem(id: "d08", label: "附近", icon: "i.nearby", svg: I.nearby,
-                         color: "#3D83E7", action: "soon", group: 5, enabled: true),
+                         color: "#3D83E7", action: "nearby", group: 5, enabled: true),
             DiscoverItem(id: "d10", label: "游戏", icon: "i.game", svg: I.game,
-                         color: "#9A6AE8", action: "soon", group: 7, enabled: true),
+                         color: "#9A6AE8", action: "games", group: 7, enabled: true),
             DiscoverItem(id: "d11", label: "商城", icon: "i.shop", svg: I.wallet,
                          color: "#E02A0F", action: "shop", group: 6, enabled: true)
         ]
