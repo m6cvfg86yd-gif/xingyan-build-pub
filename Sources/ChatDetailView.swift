@@ -4685,7 +4685,8 @@ struct MessageRow: View {
                 .font(pf(L.chatFontSize))
 
                 .foregroundColor(mine && UIConfig.num("bubbleMineWhiteText", 1) > 0 ? ChatTheme.mineInk : ChatTheme.ink)
-                .lineSpacing(L.msgLineSpacing)
+                .lineSpacing(textLineSpacing(message.body))
+                .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, L.bubblePadHPill)
                 .padding(.vertical, L.bubblePadV)
@@ -4701,7 +4702,8 @@ struct MessageRow: View {
             Text(richBody(raw))
                 .font(pf(L.chatFontSize))
                 .foregroundColor(mine && UIConfig.num("bubbleMineWhiteText", 1) > 0 ? ChatTheme.mineInk : ChatTheme.ink)
-                .lineSpacing(L.msgLineSpacing)
+                .lineSpacing(textLineSpacing(raw))
+                .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, L.bubblePadHPill)
                 .padding(.vertical, L.bubblePadV)
@@ -4818,6 +4820,14 @@ struct MessageRow: View {
 
         if let uid = o["userId"] as? String, !uid.isEmpty { return Tr("[名片]") }
         return Tr("[卡片消息]")
+    }
+
+    private func textLineSpacing(_ raw: String) -> CGFloat {
+        if L.msgLineSpacing > 0 { return L.msgLineSpacing }
+        let lineCount = raw.reduce(1) { count, character in
+            count + (character == "\n" ? 1 : 0)
+        }
+        return raw.count >= 120 || lineCount >= 5 ? 4 : 2
     }
 
     private func richBody(_ raw: String) -> AttributedString {

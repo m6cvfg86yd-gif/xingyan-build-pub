@@ -274,14 +274,14 @@ enum L {
     static var chatGapMsg: CGFloat { o("chatMsgGap", 9) }
 
     static var chatGap: CGFloat { o("chatGap", 10) }
-    static var bubblePadH: CGFloat { o("bubblePadH", 12) }
+    static var bubblePadH: CGFloat { o("bubblePadH", 13) }
     static var bubblePadV: CGFloat { o("bubblePadV", 10) }
 
     static var bubblePadHPill: CGFloat { bubblePadH + 3 }
 
-    static var msgLineSpacing: CGFloat { o("msgLineSpacing", 0) }
+    static var msgLineSpacing: CGFloat { o("msgLineSpacing", 4) }
 
-    static var bubbleMaxW: CGFloat { o("bubbleMaxW", min(310, max(240, width * 0.69))) }
+    static var bubbleMaxW: CGFloat { o("bubbleMaxW", min(324, max(252, width * 0.73))) }
     static var composerH: CGFloat { o("composerH", 56) }
     static var composerIconBox: CGFloat { o("composerIconBox", 33) }
     static var composerIcon: CGFloat { o("composerIcon", 28) }
