@@ -1510,7 +1510,6 @@ struct ListenView: View {
 
     private func miniBar(_ t: MusicTrack) -> some View {
         VStack(spacing: 0) {
-            HairLine()
             HStack(spacing: 10) {
                 MusicCover(path: t.cover ?? "", size: 38, radius: 6)
                 VStack(alignment: .leading, spacing: 2) {
@@ -1525,7 +1524,12 @@ struct ListenView: View {
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 14).padding(.vertical, 8)
-            .background(C.cardBg)
+            .background(.ultraThinMaterial)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color(uiColor: .separator).opacity(0.35))
+                    .frame(height: 0.5)
+            }
 
             .contentShape(Rectangle())
             .onTapGesture { MusicSheet.shared.open(t) }
