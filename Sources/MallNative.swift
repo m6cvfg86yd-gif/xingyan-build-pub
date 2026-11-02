@@ -4204,12 +4204,21 @@ struct DDDetailView: View {
     }
 
     private func detailSectionNav(_ proxy: ScrollViewProxy) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 0) {
             detailNavButton("履约", icon: "shippingbox.fill", id: "dd-benefit", proxy: proxy)
+            Divider().frame(height: 28)
             detailNavButton("规格", icon: "slider.horizontal.3", id: "dd-config", proxy: proxy)
+            Divider().frame(height: 28)
             detailNavButton("评价", icon: "star.bubble.fill", id: "dd-review", proxy: proxy)
+            Divider().frame(height: 28)
             detailNavButton("详情", icon: "doc.text.image.fill", id: "dd-detail", proxy: proxy)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(DDColor.cardEdge, lineWidth: 0.7))
+        .shadow(color: Color.black.opacity(0.035), radius: 8, y: 3)
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(DDColor.page)
@@ -4230,10 +4239,6 @@ struct DDDetailView: View {
             .foregroundColor(DDColor.ink)
             .frame(maxWidth: .infinity)
             .frame(height: 48)
-            .background(DDColor.card)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(DDColor.cardEdge, lineWidth: 0.6))
         }
         .buttonStyle(.plain)
     }
@@ -4486,26 +4491,25 @@ struct DDDetailView: View {
         let saved = max(0, product.orig - displayPrice)
         let rating = store.rating(of: product) ?? product.rating ?? 0
         return VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .bottom, spacing: 14) {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(spacing: 6) {
                         Text(Tr("到手价"))
-                            .font(pf(11, .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 7)
-                            .frame(height: 21)
-                            .background(Capsule().fill(DDColor.redDeep))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(DDColor.redDeep)
                         if saved > 0 {
                             Text(Tr("已省 ¥") + moneyFmt(saved))
-                                .font(pf(11, .semibold))
-                                .foregroundColor(DDColor.redDeep)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(DDColor.sub)
                         }
                     }
-                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
                         DDPrice(value: displayPrice, size: 36, color: DDColor.redDeep)
                         if product.orig > displayPrice {
                             Text("¥" + moneyFmt(product.orig))
-                                .font(pf(12.5)).foregroundColor(DDColor.weak).strikethrough()
+                                .font(.system(size: 12.5))
+                                .foregroundColor(DDColor.weak)
+                                .strikethrough()
                         }
                     }
                 }
@@ -4514,87 +4518,97 @@ struct DDDetailView: View {
                     if rating > 0 {
                         HStack(spacing: 3) {
                             Image(systemName: "star.fill").font(.system(size: 10))
-                            Text(String(format: "%.1f", rating)).font(pf(12.5, .semibold))
+                            Text(String(format: "%.1f", rating))
+                                .font(.system(size: 12.5, weight: .semibold))
                         }
-                        .foregroundColor(DDColor.redDeep)
+                        .foregroundColor(DDColor.gold)
                     }
                     Text(product.sold.isEmpty ? Tr("新品上架") : Tr("已售 ") + product.sold)
-                        .font(pf(10.5))
+                        .font(.system(size: 10.5))
                         .foregroundColor(DDColor.sub)
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(LinearGradient(colors: [DDColor.redLight, DDColor.card],
-                                       startPoint: .topLeading, endPoint: .bottomTrailing))
+            .padding(.top, 18)
+            .padding(.bottom, 14)
+
+            VStack(alignment: .leading, spacing: 9) {
+                Text(product.title)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(DDColor.ink)
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let subtitle = product.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.system(size: 13.5))
+                        .foregroundColor(DDColor.sub)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 7) {
+                        productTag(Tr(product.sellerBadge), color: sellerTint)
+                        productTag(Tr(product.isSelfOperated ? "官方正品" : "平台保障"),
+                                   color: sellerTint)
+                        productTag(product.tags.first.map { Tr($0) } ?? Tr("包邮"),
+                                   color: DDColor.red)
+                    }
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 16)
+            .overlay(alignment: .top) { HairLine(inset: 18) }
 
             Button { showShop = true } label: {
-                HStack(spacing: 9) {
+                HStack(spacing: 10) {
                     Image(systemName: product.isSelfOperated ? "checkmark.seal.fill" : "storefront.fill")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(sellerTint)
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(sellerTint.opacity(0.10)))
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(sellerTint.opacity(0.08)))
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 5) {
                             Text(product.shop.isEmpty ? Tr("星言官方旗舰店") : product.shop)
-                                .font(pf(13.5, .medium))
+                                .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(DDColor.ink)
                                 .lineLimit(1)
                             Text(Tr(product.isSelfOperated ? "自营" : "第三方"))
-                                .font(pf(9, .semibold))
+                                .font(.system(size: 9, weight: .semibold))
                                 .foregroundColor(sellerTint)
                                 .padding(.horizontal, 5)
                                 .frame(height: 17)
-                                .background(Capsule().fill(sellerTint.opacity(0.10)))
+                                .background(Capsule().fill(sellerTint.opacity(0.09)))
                         }
                         Text(Tr(product.sellerFulfillment))
-                            .font(pf(11)).foregroundColor(DDColor.sub).lineLimit(1)
+                            .font(.system(size: 11.5))
+                            .foregroundColor(DDColor.sub)
+                            .lineLimit(1)
                     }
                     Spacer(minLength: 4)
                     Text(Tr("进店"))
-                        .font(pf(11.5, .medium))
-                        .foregroundColor(sellerTint)
-                    Chevron(size: 7, line: 1.4).foregroundColor(sellerTint.opacity(0.7))
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundColor(DDColor.sub)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(DDColor.weak)
                 }
                 .padding(.horizontal, 18)
-                .frame(height: 56)
+                .frame(height: 58)
+                .background(DDColor.page.opacity(0.55))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .overlay(alignment: .top) { HairLine(inset: 18) }
-
-            VStack(alignment: .leading, spacing: 9) {
-                Text(product.title)
-                    .font(pf(20, .semibold))
-                    .foregroundColor(DDColor.ink)
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let subtitle = product.subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(pf(13.5))
-                        .foregroundColor(DDColor.sub)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        productTag(Tr(product.sellerBadge), color: sellerTint)
-                        productTag(Tr(product.isSelfOperated ? "官方正品" : "平台保障"),
-                                   color: sellerTint)
-                        productTag(Tr("配送至 ") + (store.addressLine.isEmpty ? Tr("当前地址") : store.addressLine),
-                                   color: DDColor.blueDeep)
-                        ForEach(product.tags.prefix(3), id: \.self) { tag in
-                            productTag(Tr(tag), color: DDColor.red)
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .overlay(alignment: .top) { HairLine(inset: 18) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DDColor.card)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .stroke(Color.white.opacity(0.92), lineWidth: 0.8))
+        .shadow(color: Color.black.opacity(0.07), radius: 18, y: 7)
+        .padding(.horizontal, 10)
+        .padding(.top, -18)
+        .zIndex(2)
     }
 
     private func productTag(_ text: String, color: Color) -> some View {
