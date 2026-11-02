@@ -5507,11 +5507,11 @@ enum FileKind {
         switch ext {
         case "pdf":
             return ("doc.richtext", Color(hex: 0xE5433B), "PDF")
-        case "doc", "docx", "rtf", "pages":
+        case "doc", "docx", "docm", "rtf", "rtfd", "odt", "pages", "wps":
             return ("doc.text", Color(hex: 0x2A6BC4), "WORD")
-        case "xls", "xlsx", "csv", "numbers":
+        case "xls", "xlsx", "xlsm", "xlsb", "csv", "tsv", "ods", "numbers", "et":
             return ("tablecells", Color(hex: 0x1E9E5A), "EXCEL")
-        case "ppt", "pptx", "key":
+        case "ppt", "pptx", "pptm", "pps", "ppsx", "odp", "key", "dps":
             return ("chart.bar.doc.horizontal", Color(hex: 0xE07B1F), "PPT")
         case "zip", "rar", "7z", "tar", "gz":
             return ("doc.zipper", Color(hex: 0xC79A2A), "压缩包")
@@ -5566,83 +5566,135 @@ struct FilePreviewSheet: View {
     @State private var showShare = false
     @State private var favoriting = false
     @State private var showDrop = false
+    @State private var showOfficeInfo = false
+
+    private var officeKind: OfficeDocumentKind? {
+        OfficeDocumentKind(fileName: name)
+    }
 
     var body: some View {
         NavigationStack {
-            QuickLookView(url: local)
-                .ignoresSafeArea(edges: .bottom)
-                .navigationTitle(name)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button(Tr("关闭")) { dismiss() }
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
+            VStack(spacing: 0) {
+                if let kind = officeKind {
+                    OfficeDocumentHeader(kind: kind, name: name, local: local)
+                }
+                QuickLookView(url: local)
+                    .ignoresSafeArea(edges: .bottom)
+            }
+            .navigationTitle(name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(Tr("关闭")) { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if officeKind != nil {
+                        Button { showOfficeInfo = true } label: {
+                            Image(systemName: "info.circle")
+                        }
+                        .accessibilityLabel(Tr("文件信息"))
+                    } else {
                         Button { showShare = true } label: {
                             Image(systemName: "square.and.arrow.up")
                         }
                     }
                 }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    HStack(spacing: 10) {
-                        Button {
-                            favorite()
-                        } label: {
-                            HStack(spacing: 6) {
-                                if favoriting {
-                                    ProgressView().scaleEffect(0.72)
-                                } else {
-                                    Image(systemName: "star")
-                                }
-                                Text(Tr("收藏")).font(pf(14, .medium))
-                            }
-                            .foregroundColor(C.green)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                                .fill(C.cardBg))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(favoriting)
-
-                        Button { showDrop = true } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "dot.radiowaves.left.and.right")
-                                Text(Tr("快传")).font(pf(14, .medium))
-                            }
-                            .foregroundColor(C.label)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                                .fill(C.cardBg))
-                        }
-                        .buttonStyle(.plain)
-
-                        Button { showShare = true } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "square.and.arrow.up")
-                                Text(Tr("分享")).font(pf(14, .medium))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                                .fill(C.green))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.bar)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if let kind = officeKind {
+                    OfficeDocumentActionBar(
+                        kind: kind,
+                        favoriting: favoriting,
+                        onFavorite: favorite,
+                        onPrint: { printDocument() },
+                        onShare: { showShare = true },
+                        onDrop: { showDrop = true },
+                        onInfo: { showOfficeInfo = true }
+                    )
+                } else {
+                    defaultActionBar
                 }
-                .sheet(isPresented: $showShare) { ShareSheet(items: [local]) }
-                .fullScreenCover(isPresented: $showDrop) {
-                    FaceToFaceFileSheet(rows: [], avatar: app.me?.avatarPath ?? "",
-                                        name: app.me?.name ?? "我", ink: C.label,
-                                        mode: .host, initialFiles: [local])
-                        .environmentObject(app)
+            }
+            .sheet(isPresented: $showShare) { ShareSheet(items: [local]) }
+            .sheet(isPresented: $showOfficeInfo) {
+                if let kind = officeKind {
+                    OfficeDocumentInfoSheet(kind: kind, name: name, local: local)
                 }
+            }
+            .fullScreenCover(isPresented: $showDrop) {
+                FaceToFaceFileSheet(rows: [], avatar: app.me?.avatarPath ?? "",
+                                    name: app.me?.name ?? "我", ink: C.label,
+                                    mode: .host, initialFiles: [local])
+                    .environmentObject(app)
+            }
         }
+    }
+
+    private var defaultActionBar: some View {
+        HStack(spacing: 10) {
+            Button {
+                favorite()
+            } label: {
+                HStack(spacing: 6) {
+                    if favoriting {
+                        ProgressView().scaleEffect(0.72)
+                    } else {
+                        Image(systemName: "star")
+                    }
+                    Text(Tr("收藏")).font(pf(14, .medium))
+                }
+                .foregroundColor(C.green)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(C.cardBg))
+            }
+            .buttonStyle(.plain)
+            .disabled(favoriting)
+
+            Button { showDrop = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                    Text(Tr("快传")).font(pf(14, .medium))
+                }
+                .foregroundColor(C.label)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(C.cardBg))
+            }
+            .buttonStyle(.plain)
+
+            Button { showShare = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.and.arrow.up")
+                    Text(Tr("分享")).font(pf(14, .medium))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(C.green))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+
+    private func printDocument() {
+        guard UIPrintInteractionController.canPrint(local) else {
+            app.show(Tr("这个文档暂时无法打印"))
+            return
+        }
+        let controller = UIPrintInteractionController.shared
+        let info = UIPrintInfo.printInfo()
+        info.jobName = name
+        info.outputType = .general
+        controller.printInfo = info
+        controller.printingItem = local
+        _ = controller.present(animated: true, completionHandler: nil)
     }
 
     private func favorite() {

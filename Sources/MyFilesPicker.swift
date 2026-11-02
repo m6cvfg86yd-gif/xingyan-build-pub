@@ -234,9 +234,12 @@ struct MyFilesPickerView: View {
     private func fileColor(_ ext: String) -> Color {
         switch ext.lowercased() {
         case "pdf": return Color(hex: 0xE0533D)
-        case "doc", "docx": return Color(hex: 0x2B579A)
-        case "xls", "xlsx", "csv": return Color(hex: 0x217346)
-        case "ppt", "pptx": return Color(hex: 0xD24726)
+        case "doc", "docx", "docm", "rtf", "rtfd", "odt", "pages", "wps":
+            return Color(hex: 0x2B579A)
+        case "xls", "xlsx", "xlsm", "xlsb", "csv", "tsv", "ods", "numbers", "et":
+            return Color(hex: 0x217346)
+        case "ppt", "pptx", "pptm", "pps", "ppsx", "odp", "key", "dps":
+            return Color(hex: 0xD24726)
         case "zip", "rar", "7z": return Color(hex: 0xB8860B)
         case "mp3", "m4a", "wav": return Color(hex: 0x8E44AD)
         case "mp4", "mov", "avi": return Color(hex: 0x1F6FB2)
