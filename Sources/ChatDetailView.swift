@@ -4840,10 +4840,12 @@ struct MessageRow: View {
         let atMe = message.mentionsUser(myId)
         let mineNames = atMe ? myMentionNames : []
 
-        let baseSize = max(9, (L.chatFontSize * fontScale * CareMode.scale).rounded())
-        let mono = Font.system(size: baseSize, design: .monospaced)
-
-        let base = pfExact(baseSize)
+        let preferredSize = L.chatFontSize * fontScale * CareMode.scale
+        let baseSize = max(12, UIFontMetrics(forTextStyle: .body)
+            .scaledValue(for: preferredSize)
+            .rounded())
+        let mono = Font.system(size: baseSize, weight: .regular, design: .monospaced)
+        let base = Font.system(size: baseSize, weight: .regular, design: .default)
         var out = AttributedString()
         let lines = s.split(separator: "\n", omittingEmptySubsequences: false)
         for (idx, sub) in lines.enumerated() {
