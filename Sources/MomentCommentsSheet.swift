@@ -36,7 +36,7 @@ struct MomentCommentsSheet: View {
     private var comments: [MomentComment] { live.comments ?? [] }
     private var likes: [MomentLike] { live.likes ?? [] }
     private var previewHeight: CGFloat {
-        min(280, max(220, (L.width - 32) * 0.66))
+        min(420, max(280, (L.width - 32) * 0.96))
     }
 
     var body: some View {
