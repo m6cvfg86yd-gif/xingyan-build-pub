@@ -263,7 +263,7 @@ private struct LegacyAICallView: View {
                     .padding(.top, 8)
 
                 if !voice.heard.isEmpty {
-                    Text("你说：\(voice.heard)")
+                    Text(Lang.isEnglish ? "You: \(voice.heard)" : "你说：\(voice.heard)")
                         .font(pf(15))
                         .foregroundColor(Color.white.opacity(0.9))
                         .multilineTextAlignment(.center)

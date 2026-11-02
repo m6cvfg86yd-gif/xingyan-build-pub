@@ -162,12 +162,13 @@ struct ShakePageView: View {
                 ContactCardView(user: u, onOpenChat: { _ in cardUser = nil }, onOpenMoments: { _ in cardUser = nil })
             }
         }
-        .alert("打招呼", isPresented: $showHello) {
+        .alert(Tr("打招呼"), isPresented: $showHello) {
             TextField("说点什么…", text: $helloText)
             Button(Tr("发送")) { sendHello() }
             Button(Tr("取消"), role: .cancel) { }
         } message: {
-            Text("给 \(result?.name ?? "") 发一条消息")
+            Text(Lang.isEnglish ? "Send a message to \(result?.name ?? "")"
+                                : "给 \(result?.name ?? "") 发一条消息")
         }
         .task {
             loc.start()

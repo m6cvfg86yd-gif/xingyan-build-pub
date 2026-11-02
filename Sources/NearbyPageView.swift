@@ -209,7 +209,7 @@ struct NearbyPageView: View {
             Button(Tr("清除位置信息并退出"), role: .destructive) { clearLocation() }
             Button(Tr("取消"), role: .cancel) { }
         }
-        .alert("打招呼", isPresented: Binding(
+        .alert(Tr("打招呼"), isPresented: Binding(
             get: { helloFor != nil },
             set: { if !$0 { helloFor = nil } }
         )) {
@@ -217,7 +217,8 @@ struct NearbyPageView: View {
             Button(Tr("发送")) { sendHello() }
             Button(Tr("取消"), role: .cancel) { helloFor = nil }
         } message: {
-            Text("给 \(helloFor?.name ?? "") 发一条消息")
+            Text(Lang.isEnglish ? "Send a message to \(helloFor?.name ?? "")"
+                                : "给 \(helloFor?.name ?? "") 发一条消息")
         }
         .task {
             loc.start()

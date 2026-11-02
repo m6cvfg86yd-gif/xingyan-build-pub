@@ -116,7 +116,7 @@ struct HarmonyLoginView: View {
                     VStack(spacing: 10) {
                         ProgressView()
                             .tint(accent)
-                        Text("正在进入星言…")
+                        Text(Tr("正在进入星言…"))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(ink)
                     }
@@ -184,7 +184,7 @@ struct HarmonyLoginView: View {
 
     private var phoneFields: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("手机号")
+            Text(Tr("手机号"))
                 .font(.system(size: 13.5, weight: .medium))
                 .foregroundColor(ink)
 

@@ -127,7 +127,7 @@ struct TransferHomeView: View {
         Task {
             do {
                 guard let u = try await API.shared.findUserByAccount(acc) else {
-                    resolveError = "没找到这个账号：\(acc)"
+                    resolveError = Lang.isEnglish ? "Account not found: \(acc)" : "没找到这个账号：\(acc)"
                     return
                 }
                 let c = try await API.shared.directChat(userId: u.id)
@@ -249,7 +249,7 @@ struct TransferPasswordView: View {
             Spacer(minLength: 30)
             Text(Tr("请输入支付密码"))
                 .font(.system(size: 18, weight: .semibold))
-            Text("转账金额 ¥\(amount)")
+            Text(Lang.isEnglish ? "Amount ¥\(amount)" : "转账金额 ¥\(amount)")
                 .font(pfMoney(14))
                 .foregroundColor(.secondary)
 
@@ -303,7 +303,7 @@ struct TransferPasswordView: View {
             }
         }
         .onAppear { focused = true }
-        .alert("忘记支付密码", isPresented: $showForgot) {
+        .alert(Tr("忘记支付密码"), isPresented: $showForgot) {
             Button(Tr("知道了"), role: .cancel) { }
         } message: {
             Text(Tr("支付密码在「我 → 设置 → 安全中心 → 支付密码」里可以重设；重设后回来继续转账。"))

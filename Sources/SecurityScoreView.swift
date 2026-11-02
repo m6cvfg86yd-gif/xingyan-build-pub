@@ -122,7 +122,9 @@ struct SecurityScoreView: View {
             .frame(width: 150, height: 150)
             .padding(.top, 6)
 
-            Text("分数范围 \(data?.min ?? 550) - \(data?.max ?? 850)")
+            Text(Lang.isEnglish
+                 ? "Score range \(data?.min ?? 550)-\(data?.max ?? 850)"
+                 : "分数范围 \(data?.min ?? 550) - \(data?.max ?? 850)")
                 .font(pf(12))
                 .foregroundColor(gray)
                 .padding(.top, 2)

@@ -17,7 +17,7 @@ struct TransferSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("转账给 \(chat.name)")) {
+                Section(header: Text(Lang.isEnglish ? "Transfer to \(chat.name)" : "转账给 \(chat.name)")) {
                     HStack {
                         Text("¥")
                             .font(pfMoney(22))

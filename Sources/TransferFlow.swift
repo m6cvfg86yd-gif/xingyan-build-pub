@@ -82,7 +82,7 @@ struct TransferView: View {
             }
         }
 
-        .alert("转账说明", isPresented: $noteEditing) {
+        .alert(Tr("转账说明"), isPresented: $noteEditing) {
             TextField("", text: $note)
             Button(Tr("好")) { }
             Button(Tr("取消"), role: .cancel) { note = "" }
@@ -210,10 +210,10 @@ struct TransferView: View {
 
             HStack(spacing: L.v(10, 3.2, 13)) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("转账给 \(peerTitle)")
+                    Text(Lang.isEnglish ? "Transfer to \(peerTitle)" : "转账给 \(peerTitle)")
                         .font(pf(17.5, .semibold))
                         .foregroundColor(C.label)
-                    Text("账号：\(chat.name)")
+                    Text(Lang.isEnglish ? "Account: \(chat.name)" : "账号：\(chat.name)")
                         .font(pf(12))
                         .foregroundColor(C.subLabel)
                 }
@@ -271,7 +271,7 @@ struct TransferView: View {
             Button {
                 noteEditing = true
             } label: {
-                Text(note.isEmpty ? "添加转账说明" : note)
+                Text(note.isEmpty ? Tr("添加转账说明") : note)
                     .font(pf(16.5))
                     .foregroundColor(Color.dyn(0x1E4FA3, 0x6F9BE0))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -388,7 +388,7 @@ struct TransferView: View {
                 .padding(.horizontal, L.v(14, 4.3, 18))
                 .frame(height: L.payHeadH)
 
-                Text("向 \(peerTitle)转账")
+                Text(Lang.isEnglish ? "Transfer to \(peerTitle)" : "向 \(peerTitle)转账")
                     .font(pf(15.5))
                     .foregroundColor(C.label)
                     .padding(.top, L.v(9, 3.1, 13))

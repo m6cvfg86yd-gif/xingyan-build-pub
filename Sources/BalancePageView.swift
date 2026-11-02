@@ -60,7 +60,7 @@ struct BalancePageView: View {
         .sheet(isPresented: $showUpgrade) {
             WalletUpgradeView().environmentObject(app)
         }
-        .alert("常见问题", isPresented: Binding(get: { faqAnswer != nil }, set: { if !$0 { faqAnswer = nil } })) {
+        .alert(Tr("常见问题"), isPresented: Binding(get: { faqAnswer != nil }, set: { if !$0 { faqAnswer = nil } })) {
             Button(Tr("知道了"), role: .cancel) { faqAnswer = nil }
         } message: {
             Text(faqAnswer ?? "")

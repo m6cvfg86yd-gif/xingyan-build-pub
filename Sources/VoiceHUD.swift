@@ -240,7 +240,7 @@ struct VoiceHUD: View {
     var body: some View {
         VStack(spacing: 12) {
 
-            Text("滑到这里 转文字")
+            Text(Tr("滑到这里 转文字"))
                 .font(pf(13, willTranscribe ? .semibold : .regular))
                 .foregroundColor(willTranscribe ? .white : .white.opacity(0.62))
                 .padding(.horizontal, 16)
@@ -267,7 +267,9 @@ struct VoiceHUD: View {
                         .foregroundColor(.white.opacity(0.92))
                 }
                 if nearlyDone {
-                    Text("还可以说 \(max(0, maxSeconds - seconds)) 秒")
+                    Text(Lang.isEnglish
+                         ? "\(max(0, maxSeconds - seconds)) sec left"
+                         : "还可以说 \(max(0, maxSeconds - seconds)) 秒")
                         .font(pf(11.5))
                         .foregroundColor(Color(hex: 0xFFB340))
                 }

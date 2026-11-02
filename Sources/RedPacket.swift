@@ -117,7 +117,7 @@ struct RedPacketCard: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     if info.count > 1 {
-                        Text("共 \(info.count) 个")
+                        Text(Lang.isEnglish ? "\(info.count) total" : "共 \(info.count) 个")
                             .font(pf(11.5))
                             .foregroundColor(Color.white.opacity(0.75))
                     }
@@ -813,7 +813,7 @@ struct PayPasswordSheet: View {
                     Image(systemName: "lock.shield.fill")
                         .font(.system(size: 22))
                         .foregroundColor(C.green)
-                    Text("还没设置支付密码")
+                    Text(Tr("还没设置支付密码"))
                         .font(pf(16, .medium))
                         .foregroundColor(C.label)
                     Text("为了安全，发红包 / 转账 / 付款都要先设一个 6 位支付密码\n（我 → 设置 → 账号与安全 → 支付密码）")
@@ -835,7 +835,7 @@ struct PayPasswordSheet: View {
                 Button { run(face: true) } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "faceid").font(.system(size: 15, weight: .semibold))
-                        Text("使用面容")
+                        Text(Tr("使用面容"))
                     }
                     .font(pf(15, .medium))
                     .foregroundColor(C.green)
@@ -1000,14 +1000,14 @@ struct RedPacketOpenView: View {
 
                 if opened {
                     VStack(spacing: 6) {
-                        Text("已存入零钱")
+                        Text(Tr("已存入零钱"))
                             .font(pf(13))
                             .foregroundColor(Color(hex: 0xF7DFA0).opacity(0.9))
                         Button {
                             dismiss()
                             onSeeDetail?(info.id)
                         } label: {
-                            Text("看看大家的手气")
+                            Text(Tr("看看大家的手气"))
                                 .font(pf(15, .medium))
                                 .foregroundColor(Color(hex: 0x8A3A12))
                                 .padding(.horizontal, 22)
@@ -1082,7 +1082,7 @@ struct RedPacketDetailView: View {
                             Image(systemName: "tray")
                                 .font(.system(size: 34))
                                 .foregroundColor(C.subLabel)
-                            Text("红包不存在或者已经删了")
+                            Text(Tr("红包不存在或者已经删了"))
                                 .font(pf(14))
                                 .foregroundColor(C.subLabel)
                         }
