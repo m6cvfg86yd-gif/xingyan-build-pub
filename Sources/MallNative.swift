@@ -4613,7 +4613,7 @@ struct DDDetailView: View {
                             Text(String(format: "%.1f", rating))
                                 .font(.system(size: 12.5, weight: .semibold))
                         }
-                        .foregroundColor(DDColor.gold)
+                        .foregroundColor(Color(hex: 0xB78932))
                     }
                     Text(product.sold.isEmpty ? Tr("新品上架") : Tr("已售 ") + product.sold)
                         .font(.system(size: 10.5))
