@@ -51,7 +51,11 @@ private struct VoiceOrbSurface: View {
 
     private var palette: [Color] { mode.palette }
     private var lowPower: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
-    private var renderScale: CGFloat { lowPower ? 1.25 : 1.65 }
+    private var renderScale: CGFloat {
+        if lowPower { return 1.35 }
+        let targetPoints = 2048 / max(UIScreen.main.scale, 1)
+        return max(1.8, min(4.2, targetPoints / max(canvas, 1)))
+    }
     private var tempo: Double {
         switch mode {
         case .idle: return 0.72
