@@ -960,10 +960,12 @@ struct ListenView: View {
                         .frame(maxWidth: .infinity, minHeight: 150)
                     }
                 } else {
-                    Section(header: Text(Tr("朋友正在听"))) {
+                    Section {
                         ForEach(friends) { friend in
                             nativeFriendRow(friend)
                         }
+                    } header: {
+                        Text(Tr("朋友正在听"))
                     } footer: {
                         Text(Tr("好友最近 2 小时在听的歌"))
                     }
