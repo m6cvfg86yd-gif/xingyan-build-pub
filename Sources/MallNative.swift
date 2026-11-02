@@ -512,8 +512,8 @@ final class DDStore: ObservableObject {
             splash = b.splash ?? DDSplash()
         }
         if products.isEmpty { products = DDStore.seeds }
-        if let count = Int(ProcessInfo.processInfo.environment["MALL_STRESS_COUNT"] ?? ""),
-           count > products.count {
+        let count = Self.benchmarkProductCount
+        if count > products.count {
             products = Self.benchmarkProducts(products, count: count)
         }
         syncCatalogCaches()
@@ -525,6 +525,7 @@ final class DDStore: ObservableObject {
     }
 
     private func save() {
+        guard Self.benchmarkProductCount == 0 else { return }
         let b = Box(products: products, orders: orders, cart: cart,
                     history: history, favs: favs, address: address, banners: banners,
                     views: views, addresses: addresses,
@@ -541,6 +542,10 @@ final class DDStore: ObservableObject {
         live = products.filter { $0.live }
         var seen = Set<String>()
         categories = live.compactMap { seen.insert($0.cate).inserted ? $0.cate : nil }
+    }
+
+    private static var benchmarkProductCount: Int {
+        max(0, Int(ProcessInfo.processInfo.environment["MALL_STRESS_COUNT"] ?? "") ?? 0)
     }
 
     private static func benchmarkProducts(_ source: [DDProduct], count: Int) -> [DDProduct] {
@@ -560,8 +565,12 @@ final class DDStore: ObservableObject {
         guard r.ok else { return }
         if !r.products.isEmpty {
             products = r.products
-            syncCatalogCaches()
         }
+        let stressCount = Self.benchmarkProductCount
+        if stressCount > products.count {
+            products = Self.benchmarkProducts(products, count: stressCount)
+        }
+        syncCatalogCaches()
         banners = r.banners
         if !r.name.isEmpty { mallName = r.name }
         if !r.slogan.isEmpty { mallSlogan = r.slogan }
