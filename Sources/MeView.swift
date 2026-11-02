@@ -473,7 +473,7 @@ struct MeView: View {
                     CardsView()
                 } else if key == "shop" {
 
-                    MallAuthGate { MallNativeView() }
+                    MallAuthGate { MallNativeView(app: app) }
                 } else if key == "eyes" {
 
                     EyesSettingsView()

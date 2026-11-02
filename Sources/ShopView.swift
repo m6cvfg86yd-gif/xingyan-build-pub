@@ -112,7 +112,7 @@ struct ShopView: View {
 
         .fullScreenCover(isPresented: $showMall) {
 
-            MallAuthGate { MallNativeView().environmentObject(app) }
+            MallAuthGate { MallNativeView(app: app) }
         }
     }
 

@@ -168,7 +168,7 @@ struct DiscoverView: View {
 
                     MiniAppsView()
                 } else if key == "shop" || key == "mall" {
-                    MallAuthGate { MallNativeView() }
+                    MallAuthGate { MallNativeView(app: app) }
                         .environmentObject(app)
                 } else if key.hasPrefix("soon:") {
                     ComingSoonView(title: String(key.dropFirst(5)))

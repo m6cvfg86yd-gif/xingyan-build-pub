@@ -319,6 +319,8 @@ final class DDStore: ObservableObject {
     static let shared = DDStore()
 
     @Published private(set) var products: [DDProduct] = []
+    @Published private(set) var live: [DDProduct] = []
+    @Published private(set) var categories: [String] = []
 
     @Published private(set) var banners: [String] = []
 
@@ -510,6 +512,11 @@ final class DDStore: ObservableObject {
             splash = b.splash ?? DDSplash()
         }
         if products.isEmpty { products = DDStore.seeds }
+        if let count = Int(ProcessInfo.processInfo.environment["MALL_STRESS_COUNT"] ?? ""),
+           count > products.count {
+            products = Self.benchmarkProducts(products, count: count)
+        }
+        syncCatalogCaches()
 
         if addresses.isEmpty, !address.isEmpty {
             addresses = [DDAddress(id: "a" + String(Int(Date().timeIntervalSince1970 * 1000)),
@@ -530,7 +537,20 @@ final class DDStore: ObservableObject {
         if let d = try? JSONEncoder().encode(b) { try? d.write(to: fileURL) }
     }
 
-    var live: [DDProduct] { products.filter { $0.live } }
+    private func syncCatalogCaches() {
+        live = products.filter { $0.live }
+        var seen = Set<String>()
+        categories = live.compactMap { seen.insert($0.cate).inserted ? $0.cate : nil }
+    }
+
+    private static func benchmarkProducts(_ source: [DDProduct], count: Int) -> [DDProduct] {
+        guard !source.isEmpty, count > source.count else { return source }
+        return (0..<count).map { index in
+            var product = source[index % source.count]
+            product.id += "-stress-\(index)"
+            return product
+        }
+    }
 
     static var groupOn: Bool { UIConfig.num("mallGroup", 0) > 0 }
 
@@ -538,7 +558,10 @@ final class DDStore: ObservableObject {
         let r = await API.shared.mallData()
 
         guard r.ok else { return }
-        if !r.products.isEmpty { products = r.products }
+        if !r.products.isEmpty {
+            products = r.products
+            syncCatalogCaches()
+        }
         banners = r.banners
         if !r.name.isEmpty { mallName = r.name }
         if !r.slogan.isEmpty { mallSlogan = r.slogan }
@@ -1076,6 +1099,7 @@ final class DDStore: ObservableObject {
     var dislikedProducts: [DDProduct] { products.filter { disliked.contains($0.id) } }
 
     func feed(_ list: [DDProduct]) -> [DDProduct] {
+        if disliked.isEmpty && mutedCates.isEmpty { return list }
         let kept = list.filter { !disliked.contains($0.id) }
         if mutedCates.isEmpty { return kept }
         let sorted = kept.sorted { a, b in
@@ -1133,12 +1157,6 @@ final class DDStore: ObservableObject {
     func reorder(_ o: DDOrder) {
         addCart(o.pid, count: max(1, o.count))
         setCartSpec(o.pid, o.spec)
-    }
-
-    var categories: [String] {
-        var seen: [String] = []
-        for p in live where !seen.contains(p.cate) { seen.append(p.cate) }
-        return seen
     }
 
     func search(_ q: String) -> [DDProduct] {
@@ -1339,7 +1357,7 @@ enum DDMallFloorCfg {
 }
 
 struct MallNativeView: View {
-    @EnvironmentObject private var app: AppState
+    let app: AppState
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var store = DDStore.shared
 
@@ -1818,6 +1836,7 @@ struct MallNativeView: View {
         switch tab {
             case 0: DDHomeTab(topChannel: homeTopChannel,
                               onOpen: openProduct_tap, onCart: { tab = 3 },
+                              appState: app,
                               floorUp: $floorUp, floorPull: $floorPull)
 
             case 1: DDCategoryTab(onOpen: openProduct_tap, onSearch: { showSearch = true })
@@ -1901,14 +1920,13 @@ struct MallNativeView: View {
 }
 
 struct DDHomeTab: View {
-    @EnvironmentObject private var app: AppState
-
     @Environment(\.openURL) private var openLink
     @ObservedObject private var store = DDStore.shared
     var topChannel: Int = 0
     var onOpen: (DDProduct) -> Void
 
     var onCart: () -> Void = { }
+    var appState: AppState
 
     var floorUp: Binding<Bool>? = nil
     var floorPull: Binding<CGFloat>? = nil
@@ -2021,7 +2039,7 @@ struct DDHomeTab: View {
                             Spacer(minLength: 0)
                             Button {
                                 store.restoreAllDisliked()
-                                app.show(Tr("已全部恢复"))
+                                appState.show(Tr("已全部恢复"))
                             } label: {
                                 Text(Tr("全部恢复")).font(pf(12.5, .medium)).foregroundColor(DDColor.red)
                             }
@@ -3044,17 +3062,17 @@ struct DDHomeTab: View {
                                   onOpen: { onOpen(p) },
                                   onAddCart: {
                                       store.addCart(p.id)
-                                      app.show(Tr("已加入购物车"))
+                                      appState.show(Tr("已加入购物车"))
                                   })
                         .contextMenu {
                             Button(role: .destructive) {
                                 store.notInterested(p, muteCate: false)
-                                app.show(Tr("好的，这件不再推给你"))
+                                appState.show(Tr("好的，这件不再推给你"))
                             } label: { Label(Tr("不感兴趣"), systemImage: "hand.thumbsdown") }
                             if !p.cate.isEmpty {
                                 Button {
                                     store.notInterested(p, muteCate: true)
-                                    app.show(Tr("好的，少推「") + Tr(p.cate) + Tr("」"))
+                                    appState.show(Tr("好的，少推「") + Tr(p.cate) + Tr("」"))
                                 } label: { Label(Tr("不感兴趣，少推这一类"), systemImage: "eye.slash") }
                             }
                         }
@@ -3111,9 +3129,9 @@ struct DDHomeTab: View {
                 let r = await store.claimAdCoupon(a.id)
                 if let r = r {
                     if r.already == true {
-                        app.show(Tr("这张券你已经领过了，在「我的 → 卡包」里"))
+                        appState.show(Tr("这张券你已经领过了，在「我的 → 卡包」里"))
                     } else if r.coupon != nil {
-                        app.show(Tr("已发券：") + c.text + Tr("（卡包 / 下单结算都能用）"))
+                        appState.show(Tr("已发券：") + c.text + Tr("（卡包 / 下单结算都能用）"))
                     }
                 }
             }
@@ -3312,7 +3330,6 @@ struct DDProductCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous)
             .stroke(DDColor.cardEdge, lineWidth: 0.6))
-        .shadow(color: Color.black.opacity(0.035), radius: 5, y: 2)
         .contentShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
         .mallOptionalTap(onOpen)
     }
