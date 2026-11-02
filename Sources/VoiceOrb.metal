@@ -108,6 +108,29 @@ static float3 blendAnchors(float position, float3 a, float3 b, float3 c, float3 
     float filamentMask = (1.0 - smoothstep(0.22, 0.92, radial)) *
                           smoothstep(0.08, 0.72, pressure);
 
+    float2 orbitLocalA = rotate2(sphereUV, -0.30);
+    float2 orbitA = float2(orbitLocalA.x / 0.90, orbitLocalA.y / 0.315);
+    float orbitRadiusA = length(orbitA);
+    float orbitAngleA = atan2(orbitA.y, orbitA.x);
+    float orbitBandA = exp(-pow((orbitRadiusA - 1.0) / 0.028, 2.0));
+    float orbitArcA = smoothstep(0.02, 0.70, cos(orbitAngleA - 0.42 - t * 0.15));
+    float orbitCometA = pow(sat(cos(orbitAngleA - 0.92 - t * 0.82) * 0.5 + 0.5),
+                            46.0);
+
+    float2 orbitLocalB = rotate2(sphereUV, 0.44);
+    float2 orbitB = float2(orbitLocalB.x / 0.84, orbitLocalB.y / 0.245);
+    float orbitRadiusB = length(orbitB);
+    float orbitAngleB = atan2(orbitB.y, orbitB.x);
+    float orbitBandB = exp(-pow((orbitRadiusB - 1.0) / 0.022, 2.0));
+    float orbitArcB = smoothstep(0.08, 0.74, cos(orbitAngleB - 3.18 + t * 0.12));
+    float orbitCometB = pow(sat(cos(orbitAngleB - 2.72 + t * 0.68) * 0.5 + 0.5),
+                            42.0);
+
+    float stars = pow(smoothstep(0.73, 0.98,
+                                 valueNoise(rotate2(tube * 21.0, -spin * 0.18) +
+                                            float2(9.3, t * 0.035))),
+                      8.0) * (1.0 - smoothstep(0.58, 0.96, radial));
+
     float3 keyDirection = normalize(float3(-0.48, -0.62, 0.62));
     float3 keyHalf = normalize(keyDirection + float3(0.0, 0.0, 1.0));
     float keyDiffuse = sat(dot(sphereNormal, keyDirection));
@@ -122,14 +145,16 @@ static float3 blendAnchors(float position, float3 a, float3 b, float3 c, float3 
     float2 lowerReflection = (sphereUV - float2(0.35, 0.43)) / float2(0.48, 0.26);
     float reflectedWindow = exp(-dot(lowerReflection, lowerReflection) * 1.75);
 
-    float3 darkGlass = float3(0.010, 0.014, 0.030);
-    float3 innerVolume = mix(darkGlass, color * 0.64, pressure * 0.78);
+    float3 darkGlass = float3(0.006, 0.009, 0.024);
+    float3 innerVolume = mix(darkGlass, color * 0.42, pressure * 0.58);
     float3 reflectedEnvironment = mix(float3(1.0, 1.0, 1.0),
                                       color * 1.24 + 0.035,
                                       sat(0.34 - sphereNormal.y * 0.21));
 
-    float3 output = innerVolume * (0.20 + keyDiffuse * 0.17 + facing * 0.18);
-    output += color * pressure * sphereMask * (0.34 + energy * 0.34);
+    float3 orbitColorA = mix(color, float3(0.38, 0.88, 1.0), 0.64);
+    float3 orbitColorB = mix(color, float3(1.0, 0.38, 0.76), 0.62);
+    float3 output = innerVolume * (0.14 + keyDiffuse * 0.12 + facing * 0.13);
+    output += color * pressure * sphereMask * (0.20 + energy * 0.24);
     output += mix(color, reflectedEnvironment, 0.62) *
               rollingBand * filamentMask * (0.035 + high * 0.12);
     output += mix(color, float3(1.0), 0.46) *
@@ -144,6 +169,16 @@ static float3 blendAnchors(float position, float3 a, float3 b, float3 c, float3 
     output += float3(1.0, 0.995, 1.0) * softWindow * 0.30;
     output += reflectedEnvironment * reflectedWindow * 0.035;
     output += color * halo * (0.080 + energy * 0.12);
+    output += orbitColorA * orbitBandA * orbitArcA *
+              sphereMask * (0.42 + energy * 0.32);
+    output += mix(orbitColorA, float3(1.0), 0.62) * orbitBandA *
+              orbitCometA * sphereMask * (1.10 + energy * 0.42);
+    output += orbitColorB * orbitBandB * orbitArcB *
+              sphereMask * (0.34 + energy * 0.28);
+    output += mix(orbitColorB, float3(1.0), 0.58) * orbitBandB *
+              orbitCometB * sphereMask * (0.94 + energy * 0.38);
+    output += mix(color, float3(1.0), 0.70) * stars *
+              sphereMask * (0.10 + high * 0.35);
     output *= 0.94 + sphereZ * 0.08;
 
     float dispersion = (radial - 0.93) * 0.052 * clamp(glass, 0.0, 1.5);
