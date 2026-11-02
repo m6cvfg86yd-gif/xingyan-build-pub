@@ -2724,29 +2724,24 @@ struct ChatDetailView: View {
                 }
                 .padding(.horizontal, 8)
                 .frame(height: L.inputH)
-                .background(
-                    ZStack {
-
-                        GlassBackground(shape: Capsule(style: .continuous),
-                                        opacity: UIConfig.num("inputGlassAlpha", 0.55),
-                                        seed: 0.45)
-                        Capsule(style: .continuous)
-                            .fill(recorder.recording
-                                  ? (recorder.willCancel ? Color.dyn(0xFFF1F1, 0x3A2A2A) : Color.dyn(0xF2F2F2, 0x242427))
-                                  : ChatTheme.composerBg)
-                            .opacity(UIConfig.num("inputGlassTint", 0.35))
-                    }
-                )
-                .overlay(
-                    ZStack {
-
-                        if recorder.recording {
-                            Capsule(style: .continuous)
-                                .stroke(recorder.willCancel ? C.red.opacity(0.6) : C.green.opacity(0.6),
-                                        lineWidth: 1.2)
-                        }
-                    }
-                )
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(recorder.recording
+                              ? (recorder.willCancel
+                                 ? Color.dyn(0xFFF1F1, 0x3A2A2A)
+                                 : Color.dyn(0xF2F2F2, 0x242427))
+                              : Color(uiColor: .secondarySystemBackground))
+                }
+                .overlay {
+                    Capsule(style: .continuous)
+                        .stroke(
+                            recorder.recording
+                                ? (recorder.willCancel ? C.red.opacity(0.6) : C.green.opacity(0.6))
+                                : (focused ? Color.accentColor.opacity(0.48)
+                                           : Color(uiColor: .separator).opacity(0.32)),
+                            lineWidth: focused || recorder.recording ? 1 : 0.5
+                        )
+                }
 
                 if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 
@@ -2786,14 +2781,14 @@ struct ChatDetailView: View {
                     Button {
                         sendText()
                     } label: {
-                        Text(Tr("发送"))
-                            .font(pf(16, .medium))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 13)
-                            .frame(height: 32)
-                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(C.green))
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 32, weight: .semibold))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, C.green)
+                            .frame(width: 36, height: 36)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(Tr("发送"))
                 }
             }
             .padding(.leading, 10)
