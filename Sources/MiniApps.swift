@@ -163,17 +163,13 @@ struct MiniAppCardBubble: View {
 
 struct MiniAppsView: View {
     @EnvironmentObject var app: AppState
-    @Environment(\.dismiss) private var dismiss
     @State private var items: [MiniApp] = []
     @State private var loading = true
     @State private var search = ""
     @State private var category = ""
-    @State private var capability: MiniAppCapabilityCategory?
     @State private var favoriteIds: Set<String> = []
     @State private var recentIds: [String] = []
 
-    private let cols = Array(repeating: GridItem(.flexible(), spacing: 14), count: 3)
-    private let capabilityCols = Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
     private let favKey = "mini.favorites"
     private let recentKey = "mini.recent"
 
@@ -209,63 +205,70 @@ struct MiniAppsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            NavBar(title: Tr("小程序"), back: { dismiss() })
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    hero
-                    searchBar
-                    categoryStrip
-
-                    if loading {
-                        HStack(spacing: 10) {
-                            ProgressView()
-                            Text(Tr("正在加载…")).font(pf(15)).foregroundColor(C.subLabel)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 30)
-                    } else {
-                        if search.isEmpty && category.isEmpty && !recent.isEmpty {
-                            sectionTitle(Tr("最近使用"))
-                            horizontalApps(recent)
-                        }
-
-                        if search.isEmpty && category.isEmpty && !favorites.isEmpty {
-                            sectionTitle(Tr("我的收藏"))
-                            horizontalApps(favorites)
-                        }
-
-                        sectionTitle(categoryTitle)
-                        if filtered.isEmpty {
-                            emptyServiceCard
-                        } else {
-                            LazyVGrid(columns: cols, spacing: 18) {
-                                ForEach(filtered) { it in
-                                    appTile(it)
-                                }
-                            }
-                        }
-
-                        if search.isEmpty && category.isEmpty {
-                            sectionTitle(Tr("能力类目"))
-                            LazyVGrid(columns: capabilityCols, spacing: 10) {
-                                ForEach(MiniAppCapabilityCategory.all) { c in
-                                    capabilityTile(c)
-                                }
-                            }
+        List {
+            if loading {
+                Section {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text(Tr("正在加载…"))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 72)
+                }
+            } else {
+                if search.isEmpty && category.isEmpty && !recent.isEmpty {
+                    Section(header: Text(Tr("最近使用"))) {
+                        ForEach(recent) { item in
+                            appRow(item)
                         }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-                .padding(.bottom, 28)
+
+                if search.isEmpty && category.isEmpty && !favorites.isEmpty {
+                    Section(header: Text(Tr("我的收藏"))) {
+                        ForEach(favorites) { item in
+                            appRow(item)
+                        }
+                    }
+                }
+
+                Section(header: Text(categoryTitle)) {
+                    if filtered.isEmpty {
+                        emptyServiceRow
+                    } else {
+                        ForEach(filtered) { item in
+                            appRow(item)
+                        }
+                    }
+                }
+
+                if search.isEmpty && category.isEmpty {
+                    Section {
+                        NavigationLink {
+                            MiniAppCategoryListView(items: items, selection: $category)
+                        } label: {
+                            Label(Tr("浏览全部服务类目"), systemImage: "square.grid.2x2")
+                        }
+                    } footer: {
+                        Text(Tr("后台新增的小程序会自动归入对应类目，不用重新出包。"))
+                    }
+                }
             }
-            .background(C.pageBg)
         }
-        .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
+        .listStyle(.insetGrouped)
+        .navigationTitle(Tr("小程序"))
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(
+            text: $search,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: Text(Tr("搜索小程序、服务或能力"))
+        )
+        .toolbar(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                categoryMenu
+            }
+        }
         .hidesTabBar()
         .task {
             items = await API.shared.miniApps()
@@ -273,82 +276,39 @@ struct MiniAppsView: View {
             recentIds = UserDefaults.standard.stringArray(forKey: recentKey) ?? []
             loading = false
         }
-        .sheet(item: $capability) { c in
-            MiniAppCapabilitySheet(category: c)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
     }
 
-    private var hero: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(Tr("星言小程序"))
-                    .font(pf(21, .bold))
-                    .foregroundColor(.white)
-                Text(Tr("生活服务、内容、工具与企业能力统一接入"))
-                    .font(pf(12))
-                    .foregroundColor(.white.opacity(0.82))
-                    .lineLimit(2)
-            }
-            Spacer(minLength: 0)
-            Image(systemName: "square.grid.2x2.fill")
-                .font(.system(size: 34, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 96)
-        .background(LinearGradient(colors: [Color(hex: 0x2458D8), Color(hex: 0x4A9BFF)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-
-    private var searchBar: some View {
-        HStack(spacing: 7) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(C.subLabel)
-            TextField(Tr("搜索小程序、服务或能力"), text: $search)
-                .font(.system(size: 14))
-            if !search.isEmpty {
-                Button { search = "" } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundColor(C.subLabel)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 40)
-        .background(C.cardBg)
-        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-    }
-
-    private var categoryStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                categoryChip(id: "", title: Tr("全部"))
-                ForEach(MiniAppCapabilityCategory.all) { c in
-                    categoryChip(id: c.id, title: Tr(c.title))
-                }
-            }
-        }
-    }
-
-    private func categoryChip(id: String, title: String) -> some View {
-        Button {
-            withAnimation(.easeOut(duration: 0.16)) {
-                category = id
+    private var categoryMenu: some View {
+        Menu {
+            Button {
+                category = ""
                 search = ""
+            } label: {
+                if category.isEmpty {
+                    Label(Tr("全部服务"), systemImage: "checkmark")
+                } else {
+                    Text(Tr("全部服务"))
+                }
+            }
+            Divider()
+            ForEach(MiniAppCapabilityCategory.all) { item in
+                Button {
+                    category = item.id
+                    search = ""
+                } label: {
+                    if category == item.id {
+                        Label(Tr(item.title), systemImage: "checkmark")
+                    } else {
+                        Text(Tr(item.title))
+                    }
+                }
             }
         } label: {
-            Text(title)
-                .font(pf(12.5, category == id ? .semibold : .regular))
-                .foregroundColor(category == id ? .white : C.label)
-                .padding(.horizontal, 12)
-                .frame(height: 30)
-                .background(Capsule().fill(category == id ? C.green : C.cardBg))
+            Image(systemName: category.isEmpty
+                  ? "line.3.horizontal.decrease.circle"
+                  : "line.3.horizontal.decrease.circle.fill")
         }
-        .buttonStyle(.plain)
+        .accessibilityLabel(Tr("筛选服务类目"))
     }
 
     private var categoryTitle: String {
@@ -357,122 +317,100 @@ struct MiniAppsView: View {
         return Tr("全部服务")
     }
 
-    private func sectionTitle(_ t: String) -> some View {
-        HStack(spacing: 8) {
-            Text(t).font(pf(17, .semibold)).foregroundColor(C.label)
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func horizontalApps(_ rows: [MiniApp]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 14) {
-                ForEach(rows) { it in
-                    appTile(it).frame(width: 76)
-                }
-            }
-        }
-    }
-
-    private func appTile(_ it: MiniApp) -> some View {
+    private func appRow(_ item: MiniApp) -> some View {
         Button {
-            runApp(it)
+            runApp(item)
         } label: {
-            tile(it)
+            HStack(spacing: 12) {
+                appIcon(item)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    if let desc = item.desc, !desc.isEmpty {
+                        Text(desc)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    Text(categoryTitle(for: item))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                if favoriteIds.contains(item.id) {
+                    Image(systemName: "star.fill")
+                        .font(.caption)
+                        .foregroundStyle(.yellow)
+                        .accessibilityLabel(Tr("已收藏"))
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .contextMenu {
             Button {
-                toggleFavorite(it)
+                toggleFavorite(item)
             } label: {
-                Label(favoriteIds.contains(it.id) ? Tr("取消收藏") : Tr("收藏"),
-                      systemImage: favoriteIds.contains(it.id) ? "star.slash" : "star")
+                Label(favoriteIds.contains(item.id) ? Tr("取消收藏") : Tr("收藏"),
+                      systemImage: favoriteIds.contains(item.id) ? "star.slash" : "star")
             }
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button {
+                toggleFavorite(item)
+            } label: {
+                Label(favoriteIds.contains(item.id) ? Tr("取消收藏") : Tr("收藏"),
+                      systemImage: favoriteIds.contains(item.id) ? "star.slash" : "star")
+            }
+            .tint(.orange)
         }
     }
 
-    private func tile(_ it: MiniApp) -> some View {
+    private func appIcon(_ item: MiniApp) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(uiColor: .tertiarySystemFill))
+
+            Text(item.iconText)
+                .font(.system(size: 22))
+
+            if let cover = item.cover, !cover.isEmpty {
+                RemoteImage(path: cover)
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+        }
+        .frame(width: 44, height: 44)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var emptyServiceRow: some View {
         VStack(spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x1B1F27)],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                Text(it.iconText).font(.system(size: 30))
-
-                if let cv = it.cover, !cv.isEmpty {
-                    RemoteImage(path: cv)
-                        .frame(width: 62, height: 62)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
-            }
-            .frame(width: 62, height: 62)
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(C.hairline, lineWidth: 0.6))
-            .overlay(alignment: .topTrailing) {
-                if favoriteIds.contains(it.id) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 17, height: 17)
-                        .background(Circle().fill(Color(hex: 0xE3A126)))
-                        .offset(x: 4, y: -4)
-                }
-            }
-
-            Text(it.name)
-                .font(pf(13))
-                .foregroundColor(C.label)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var emptyServiceCard: some View {
-        VStack(spacing: 9) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 28))
-                .foregroundColor(C.subLabel.opacity(0.7))
+            Image(systemName: "square.stack.3d.up")
+                .font(.title2)
+                .foregroundStyle(.secondary)
             Text(Tr("这个能力已经预留，具体服务还没有接入"))
-                .font(pf(14, .medium))
-                .foregroundColor(C.label)
+                .font(.body)
             Text(Tr("后台添加小程序入口后会自动出现在这里，不用重新出包"))
-                .font(pf(12))
-                .foregroundColor(C.subLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
-        .background(C.cardBg)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
-    private func capabilityTile(_ c: MiniAppCapabilityCategory) -> some View {
-        let count = items.filter { categoryId(for: $0) == c.id }.count
-        return Button {
-            capability = c
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: c.symbol)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(c.tint)
-                    .frame(width: 38, height: 38)
-                    .background(c.tint.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(Tr(c.title)).font(pf(13.5, .medium)).foregroundColor(C.label).lineLimit(1)
-                    Text(count > 0 ? "\(count) " + Tr("项服务") : Tr("能力已预留"))
-                        .font(pf(10.5)).foregroundColor(C.subLabel).lineLimit(1)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 11)
-            .frame(height: 58)
-            .background(C.cardBg)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        .padding(.vertical, 18)
     }
 
     private func runApp(_ it: MiniApp) {
@@ -490,14 +428,7 @@ struct MiniAppsView: View {
     }
 
     private func categoryId(for app: MiniApp) -> String {
-        if let c = app.category, !c.isEmpty { return c }
-        let raw = (app.name + " " + (app.group ?? "") + " " + (app.desc ?? "")).lowercased()
-        for c in MiniAppCapabilityCategory.all {
-            if raw.contains(c.title.lowercased()) { return c.id }
-            for e in c.examples where raw.contains(e.lowercased()) { return c.id }
-        }
-        if app.isGame { return "games" }
-        return "tools"
+        miniAppCategoryId(for: app)
     }
 
     private func categoryTitle(for app: MiniApp) -> String {
@@ -505,63 +436,100 @@ struct MiniAppsView: View {
     }
 }
 
-struct MiniAppCapabilitySheet: View {
-    let category: MiniAppCapabilityCategory
+private func miniAppCategoryId(for app: MiniApp) -> String {
+    if let category = app.category, !category.isEmpty { return category }
+    let raw = (app.name + " " + (app.group ?? "") + " " + (app.desc ?? "")).lowercased()
+    for category in MiniAppCapabilityCategory.all {
+        if raw.contains(category.title.lowercased()) { return category.id }
+        for example in category.examples where raw.contains(example.lowercased()) {
+            return category.id
+        }
+    }
+    if app.isGame { return "games" }
+    return "tools"
+}
+
+private struct MiniAppCategoryListView: View {
     @Environment(\.dismiss) private var dismiss
+    let items: [MiniApp]
+    @Binding var selection: String
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 13) {
-                        Image(systemName: category.symbol)
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundColor(category.tint)
-                            .frame(width: 54, height: 54)
-                            .background(category.tint.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(Tr(category.title)).font(pf(20, .bold)).foregroundColor(C.label)
-                            Text(Tr(category.subtitle)).font(pf(12)).foregroundColor(C.subLabel)
-                        }
-                    }
-
-                    Text(Tr("已预留的服务能力"))
-                        .font(pf(15, .semibold))
-                        .foregroundColor(C.label)
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
-                                        GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                        ForEach(category.examples, id: \.self) { name in
-                            Text(Tr(name))
-                                .font(pf(12.5))
-                                .foregroundColor(C.label)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 11)
-                                .frame(height: 38)
-                                .background(C.cardBg)
-                                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                        }
-                    }
-
-                    Text(Tr("这些能力由后台按类目配置具体服务入口；上线后会自动进入搜索、最近使用和收藏。"))
-                        .font(pf(12))
-                        .foregroundColor(C.subLabel)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(C.fieldBg)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
-                .padding(16)
+        List {
+            Section {
+                categoryRow(
+                    title: Tr("全部服务"),
+                    subtitle: Tr("显示所有已接入的小程序与游戏"),
+                    symbol: "square.grid.2x2",
+                    tint: .blue,
+                    count: items.count,
+                    id: ""
+                )
             }
-            .background(C.pageBg.ignoresSafeArea())
-            .navigationTitle(Tr("能力详情"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(Tr("完成")) { dismiss() }
+
+            Section {
+                ForEach(MiniAppCapabilityCategory.all) { category in
+                    categoryRow(
+                        title: Tr(category.title),
+                        subtitle: Tr(category.subtitle),
+                        symbol: category.symbol,
+                        tint: category.tint,
+                        count: items.filter { miniAppCategoryId(for: $0) == category.id }.count,
+                        id: category.id
+                    )
                 }
             }
         }
+        .listStyle(.insetGrouped)
+        .navigationTitle(Tr("服务类目"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func categoryRow(title: String,
+                             subtitle: String,
+                             symbol: String,
+                             tint: Color,
+                             count: Int,
+                             id: String) -> some View {
+        Button {
+            selection = id
+            dismiss()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 32, height: 32)
+                    .background(tint.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if selection == id {
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(.accentColor)
+                }
+            }
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
