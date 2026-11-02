@@ -842,23 +842,15 @@ struct NavBar<Right: View>: View {
             HStack(spacing: 0) {
                 if let back = back {
                     Button(action: back) {
-                        FlexIcon(custom: IconOverrides.custom("nav.back"), size: 20,
-                                 color: C.label, symbol: "chevron.left", weight: .medium)
-                            .frame(width: useFloating ? 36 : 44, height: useFloating ? 36 : L.navH)
-                            .background {
-                                if useFloating {
-                                    GlassBackground(shape: Circle(),
-                                                    shadow: true,
-                                                    seed: 0.10,
-                                                    darkEdgeOff: true)
-                                }
-                            }
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                            .frame(width: 44, height: 44)
                     }
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
-                    .frame(width: 44, height: 44)
                     .accessibilityLabel(Tr("返回"))
-                    .padding(.leading, useFloating ? 10 : 0)
+                    .padding(.leading, useFloating ? 2 : 0)
                 }
                 if let leftExtra = leftExtra {
                     if useFloating && leftExtraGlass {

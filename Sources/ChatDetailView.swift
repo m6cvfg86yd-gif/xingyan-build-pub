@@ -2230,8 +2230,10 @@ struct ChatDetailView: View {
                 RemoteImage(path: cfg.image, mode: .fit, maxSide: 200)
                     .frame(width: side, height: side)
             } else {
-                SVGIcon(markup: I.plusCircle, size: side,
-                        color: optionalHexColor(cfg.color) ?? C.chatBarIcon)
+                Image(systemName: "plus.circle")
+                    .font(.system(size: side, weight: .regular))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(panel == .plus ? C.green : (optionalHexColor(cfg.color) ?? C.chatBarIcon))
             }
         }
         .frame(width: L.composerIconBox, height: L.composerIconBox)
@@ -2751,11 +2753,15 @@ struct ChatDetailView: View {
                             focused = false
                             panel = (panel == .emoji) ? .none : .emoji
                         } label: {
-                            SVGIcon(markup: I.smile, size: L.composerIcon, color: C.chatBarIcon)
+                            Image(systemName: "face.smiling")
+                                .font(.system(size: L.composerIcon, weight: .regular))
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(panel == .emoji ? C.green : C.chatBarIcon)
                                 .frame(width: L.composerIconBox, height: L.composerIconBox)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("表情"))
 
                         Button {
                             focused = false
@@ -2770,13 +2776,10 @@ struct ChatDetailView: View {
                             plusIcon
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("更多功能"))
                     }
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal, 2)
                     .frame(height: L.composerIconBox + 8)
-                    .background {
-                        GlassBackground(shape: Capsule(style: .continuous), shadow: true, seed: 0.45)
-                            .opacity(panel == .none ? 0.9 : 1)
-                    }
                 } else {
                     Button {
                         sendText()
