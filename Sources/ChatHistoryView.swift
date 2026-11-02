@@ -3,12 +3,12 @@ import SwiftUI
 struct ChatHistoryView: View {
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
-    @Environment(\.dismiss) private var dismiss
 
     @State private var info: API.StorageInfo?
     @State private var loading = true
     @State private var busy = false
     @State private var confirmAll = false
+    @State private var confirmChat: API.StorageChat?
     @State private var doneTip = ""
 
     @State private var shareFile: ShareFile?
@@ -17,119 +17,183 @@ struct ChatHistoryView: View {
     @State private var importBusy = false
     @State private var importTip = ""
 
-    private func mb(_ b: Int) -> String {
-        let v = Double(b) / 1024 / 1024
-        if v < 0.1 { return String(format: "%.0f KB", v * 1024) }
-        if v < 1024 { return String(format: "%.1f MB", v) }
-        return String(format: "%.2f GB", v / 1024)
+    private func mb(_ bytes: Int) -> String {
+        let value = Double(bytes) / 1024 / 1024
+        if value < 0.1 { return String(format: "%.0f KB", value * 1024) }
+        if value < 1024 { return String(format: "%.1f MB", value) }
+        return String(format: "%.2f GB", value / 1024)
     }
 
-    private func title(_ c: API.StorageChat) -> String {
-        let t = c.title
-        return t.isEmpty ? Tr("聊天") : t
+    private func title(_ chat: API.StorageChat) -> String {
+        chat.title.isEmpty ? Tr("聊天") : chat.title
+    }
+
+    private var cleanupChats: [API.StorageChat] {
+        (info?.chats ?? []).filter { $0.bytes > 1024 }.sorted {
+            if $0.bytes == $1.bytes { return $0.title < $1.title }
+            return $0.bytes > $1.bytes
+        }
+    }
+
+    private var totalMessages: Int {
+        (info?.chats ?? []).reduce(0) { $0 + $1.messages }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            NavBar(title: Tr("聊天记录管理"), back: { dismiss() })
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    VStack(spacing: 6) {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: 9) {
+                    HStack(alignment: .firstTextBaseline) {
                         Text(loading ? "…" : mb(info?.total ?? 0))
-                            .font(pfMoney(32, .medium)).foregroundColor(C.label)
-                        Text(Tr("你这边的聊天记录总共占用")).font(pf(12.5)).foregroundColor(C.subLabel)
-                        if !doneTip.isEmpty {
-                            Text(doneTip).font(pf(12.5)).foregroundColor(C.green)
-                        }
+                            .font(.system(size: 34, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(Tr("聊天记录"))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 9)
+                            .frame(height: 24)
+                            .background(
+                                Capsule().fill(Color(uiColor: .tertiarySystemFill))
+                            )
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 22)
-                    .background(C.cardBg)
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(Tr("备份与迁移")).font(pf(13)).foregroundColor(C.subLabel)
-                            .padding(.horizontal, 8).padding(.bottom, 6)
-                        GroupCard {
-                            backupRow(Tr("导出聊天记录（可再导入）"),
-                                      detail: exportBusy ? Tr("导出中…") : Tr("JSON 备份文件，换手机后导入即可")) {
-                                exportChats(json: true)
-                            }
-                            HairLine(inset: 16)
-                            backupRow(Tr("导出为文本（给人看）"),
-                                      detail: Tr("TXT，电脑上直接打开阅读")) {
-                                exportChats(json: false)
-                            }
-                            HairLine(inset: 16)
-                            backupRow(Tr("从文件导入聊天记录"),
-                                      detail: importBusy ? Tr("导入中…") : (importTip.isEmpty ? Tr("选一个导出的 JSON 备份") : importTip)) {
-                                showImport = true
-                            }
-                        }
+                    Text(Tr("你这边的聊天记录总共占用"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 14) {
+                        Label("\(info?.chats.count ?? 0) " + Tr("个会话"),
+                              systemImage: "bubble.left.and.bubble.right")
+                        Label("\(totalMessages) " + Tr("条消息"),
+                              systemImage: "text.bubble")
                     }
-                    .padding(.horizontal, 8).padding(.top, 12)
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(Tr("按会话清空（只清你自己这边）")).font(pf(13)).foregroundColor(C.subLabel)
-                            .padding(.horizontal, 8).padding(.bottom, 6)
-                        GroupCard {
-                            let list = (info?.chats ?? []).filter { $0.bytes > 1024 }
-                            if list.isEmpty {
-                                Text(Tr("没有可清理的会话")).font(pf(14)).foregroundColor(C.subLabel)
-                                    .frame(maxWidth: .infinity).padding(.vertical, 22)
-                            } else {
-                                ForEach(Array(list.enumerated()), id: \.offset) { idx, c in
-                                    if idx > 0 { HairLine(inset: 16) }
-                                    HStack(spacing: 10) {
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            Text(title(c)).font(pf(15.5)).foregroundColor(C.label).lineLimit(1)
-                                            Text(mb(c.bytes) + (c.messages > 0 ? (" · \(c.messages) 条") : ""))
-                                                .font(pf(12)).foregroundColor(C.subLabel)
-                                        }
-                                        Spacer(minLength: 6)
-                                        Button { clear(c.id) } label: {
-                                            Text(Tr("清空")).font(pf(13.5)).foregroundColor(C.red)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    .padding(.horizontal, 16).frame(height: 58)
-                                }
-                            }
-                        }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    if !doneTip.isEmpty {
+                        Label(doneTip, systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.green)
                     }
-                    .padding(.horizontal, 8).padding(.top, 12)
-
-                    Button { confirmAll = true } label: {
-                        Text(busy ? Tr("清理中…") : Tr("清空全部聊天记录"))
-                            .font(pf(16.5)).foregroundColor(C.red)
-                            .frame(maxWidth: .infinity).frame(height: 50)
-                            .background(C.cardBg)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 8).padding(.top, 16)
-                    .disabled(busy)
-
-                    Text(Tr("清空只影响你自己：对方那边的记录还在。导出的 JSON 备份换手机后导入即可（重复导入不会产生重复消息）。"))
-                        .font(pf(12.5)).foregroundColor(C.subLabel)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24).padding(.top, 14)
-                    Color.clear.frame(height: 26)
                 }
+                .padding(.vertical, 5)
             }
-            .background(C.pageBg)
+
+            Section {
+                backupRow(
+                    title: Tr("导出聊天记录"),
+                    detail: exportBusy ? Tr("正在导出…")
+                        : Tr("JSON 备份，换手机后可再导入"),
+                    symbol: "square.and.arrow.up",
+                    color: Color(hex: 0x3478F6)
+                ) {
+                    exportChats(json: true)
+                }
+
+                backupRow(
+                    title: Tr("导出为文本"),
+                    detail: Tr("TXT 文件，可直接阅读"),
+                    symbol: "doc.text",
+                    color: Color(hex: 0x64748B)
+                ) {
+                    exportChats(json: false)
+                }
+
+                backupRow(
+                    title: Tr("从文件导入"),
+                    detail: importBusy ? Tr("正在导入…")
+                        : (importTip.isEmpty ? Tr("选择导出的 JSON 备份") : importTip),
+                    symbol: "square.and.arrow.down",
+                    color: Color(hex: 0x22C55E)
+                ) {
+                    showImport = true
+                }
+            } header: {
+                Text(Tr("备份与迁移"))
+            } footer: {
+                Text(Tr("导出的 JSON 备份可在新手机上重新导入；重复导入不会产生重复消息。"))
+            }
+
+            Section {
+                if loading {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text(Tr("正在读取聊天记录…"))
+                            .foregroundStyle(.secondary)
+                    }
+                } else if cleanupChats.isEmpty {
+                    Label(Tr("没有可清理的会话"), systemImage: "checkmark.circle")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(cleanupChats) { chat in
+                        chatRow(chat)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    confirmChat = chat
+                                } label: {
+                                    Label(Tr("清空"), systemImage: "trash")
+                                }
+                                .disabled(busy)
+                            }
+                    }
+                }
+            } header: {
+                HStack {
+                    Text(Tr("按会话清理"))
+                    Spacer()
+                    if !loading {
+                        Text("\(cleanupChats.count) " + Tr("个会话"))
+                            .textCase(nil)
+                    }
+                }
+            } footer: {
+                Text(Tr("左滑会话可以清空记录；只清空你这台手机上的内容，对方仍会保留。"))
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    confirmAll = true
+                } label: {
+                    HStack {
+                        Label(Tr("清空全部聊天记录"), systemImage: "trash")
+                        Spacer()
+                        if busy {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                    }
+                }
+                .disabled(busy || cleanupChats.isEmpty)
+            } footer: {
+                Text(Tr("清空后这台手机上的聊天记录不能恢复，建议先导出备份。"))
+            }
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
+        .listStyle(.insetGrouped)
+        .navigationTitle(Tr("聊天记录管理"))
+        .navigationBarTitleDisplayMode(.large)
         .hidesTabBar()
         .task { await load() }
-        .sheet(item: $shareFile) { f in ShareSheet(items: [f.url]) }
-        .fileImporter(isPresented: $showImport, allowedContentTypes: [.json, .item],
+        .sheet(item: $shareFile) { file in
+            ShareSheet(items: [file.url])
+        }
+        .fileImporter(isPresented: $showImport,
+                      allowedContentTypes: [.json, .item],
                       allowsMultipleSelection: false) { result in
             handleImport(result)
         }
-        .confirmationDialog(Tr("清空全部聊天记录？"), isPresented: $confirmAll, titleVisibility: .visible) {
+        .confirmationDialog(Tr("清空这个会话的聊天记录？"),
+                            isPresented: Binding(
+                                get: { confirmChat != nil },
+                                set: { if !$0 { confirmChat = nil } }
+                            ),
+                            titleVisibility: .visible) {
+            Button(Tr("清空"), role: .destructive) {
+                if let chat = confirmChat { clear(chat.id) }
+                confirmChat = nil
+            }
+            Button(Tr("取消"), role: .cancel) { confirmChat = nil }
+        }
+        .confirmationDialog(Tr("清空全部聊天记录？"),
+                            isPresented: $confirmAll,
+                            titleVisibility: .visible) {
             Button(Tr("清空"), role: .destructive) { clearAll() }
             Button(Tr("取消"), role: .cancel) { }
         } message: {
@@ -137,27 +201,69 @@ struct ChatHistoryView: View {
         }
     }
 
-    private func load() async {
-        info = try? await API.shared.storage()
-        loading = false
+    private func chatRow(_ chat: API.StorageChat) -> some View {
+        HStack(spacing: 12) {
+            Avatar(path: chat.avatar ?? "", size: 40, radius: 12)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title(chat))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text("\(chat.messages) " + Tr("条消息"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Text(mb(chat.bytes))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        .contentShape(Rectangle())
     }
 
-    private func backupRow(_ title: String, detail: String, action: @escaping () -> Void) -> some View {
+    private func backupRow(title: String,
+                           detail: String,
+                           symbol: String,
+                           color: Color,
+                           action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(color)
+                    )
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(pf(15.5)).foregroundColor(C.label).lineLimit(1)
-                    Text(detail).font(pf(12)).foregroundColor(C.subLabel).lineLimit(2)
+                    Text(title)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
                 Spacer(minLength: 6)
-                Chevron(size: 9, line: 1.6)
+                if exportBusy || importBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
             }
-            .padding(.horizontal, 16)
-            .frame(minHeight: 58)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(exportBusy || importBusy)
+    }
+
+    private func load() async {
+        info = try? await API.shared.storage()
+        loading = false
     }
 
     private func exportChats(json: Bool) {
@@ -169,8 +275,8 @@ struct ChatHistoryView: View {
                 let dump = try await API.shared.exportChats(format: json ? "json" : "txt")
                 let text: String
                 if json {
-                    let obj = dump.payload ?? [:]
-                    let data = try JSONSerialization.data(withJSONObject: obj,
+                    let object = dump.payload ?? [:]
+                    let data = try JSONSerialization.data(withJSONObject: object,
                                                           options: [.prettyPrinted, .sortedKeys])
                     text = String(data: data, encoding: .utf8) ?? "{}"
                 } else {
@@ -178,7 +284,8 @@ struct ChatHistoryView: View {
                 }
                 if let url = writeTempFile(name: dump.fileName, text: text) {
                     shareFile = ShareFile(url: url)
-                    doneTip = Tr("已导出 ") + "\(dump.chats)" + Tr(" 个会话 / ") + "\(dump.total)" + Tr(" 条消息，选「存储到文件」保存")
+                    doneTip = Tr("已导出 ") + "\(dump.chats)" + Tr(" 个会话 / ")
+                        + "\(dump.total)" + Tr(" 条消息")
                 } else {
                     app.show(Tr("写文件失败"))
                 }
@@ -198,7 +305,7 @@ struct ChatHistoryView: View {
             app.show(importTip)
             return
         }
-        guard let obj = try? JSONSerialization.jsonObject(with: data) else {
+        guard let object = try? JSONSerialization.jsonObject(with: data) else {
             importTip = Tr("这不是聊天记录备份文件")
             app.show(importTip)
             return
@@ -206,15 +313,16 @@ struct ChatHistoryView: View {
         importBusy = true
         Task {
             do {
-                let r = try await API.shared.importChats(payload: obj)
-                importTip = Tr("导入完成：新增 ") + "\(r.imported)" + Tr(" 条，跳过（已存在）") + "\(r.skipped)" + Tr(" 条")
+                let result = try await API.shared.importChats(payload: object)
+                importTip = Tr("导入完成：新增 ") + "\(result.imported)"
+                    + Tr(" 条，跳过（已存在）") + "\(result.skipped)" + Tr(" 条")
                 doneTip = importTip
                 await load()
                 await app.loadChats()
             } catch {
-                let msg = (error as? APIError)?.errorDescription ?? Tr("导入失败")
-                importTip = msg
-                app.show(msg)
+                let message = (error as? APIError)?.errorDescription ?? Tr("导入失败")
+                importTip = message
+                app.show(message)
             }
             importBusy = false
         }
@@ -223,8 +331,8 @@ struct ChatHistoryView: View {
     private func clear(_ chatId: String) {
         busy = true
         Task {
-            if let err = await API.shared.clearChat(chatId: chatId) {
-                app.show(err)
+            if let error = await API.shared.clearChat(chatId: chatId) {
+                app.show(error)
             } else {
                 app.forgetChatHistory(chatId, notify: false)
                 doneTip = Tr("已清空一个会话")
@@ -238,7 +346,7 @@ struct ChatHistoryView: View {
     private func clearAll() {
         busy = true
         Task {
-            let ids = (info?.chats ?? []).map { $0.id }
+            let ids = (info?.chats ?? []).map(\.id)
             var failed = 0
             for id in ids {
                 if await API.shared.clearChat(chatId: id) == nil {
