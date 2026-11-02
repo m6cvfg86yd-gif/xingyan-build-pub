@@ -91,6 +91,55 @@ private struct VoiceOrbSurface: View {
 
         ZStack {
             shader
+
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.42), Color.clear],
+                        center: UnitPoint(x: 0.30, y: 0.24),
+                        startRadius: 0,
+                        endRadius: renderCanvas * 0.26
+                    )
+                )
+                .frame(width: renderCanvas * 0.84,
+                       height: renderCanvas * 0.84)
+                .blendMode(.screen)
+                .allowsHitTesting(false)
+
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.50),
+                                 Color.white.opacity(0.06),
+                                 Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: renderCanvas * 0.22,
+                       height: renderCanvas * 0.075)
+                .rotationEffect(.degrees(-32))
+                .offset(x: -renderCanvas * 0.15,
+                        y: -renderCanvas * 0.22)
+                .blur(radius: 1.4)
+                .blendMode(.screen)
+                .allowsHitTesting(false)
+
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.70),
+                                 Color.white.opacity(0.08),
+                                 colors[3].opacity(0.42)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.25
+                )
+                .frame(width: renderCanvas * 0.84,
+                       height: renderCanvas * 0.84)
+                .blur(radius: 0.35)
+                .allowsHitTesting(false)
         }
         .frame(width: renderCanvas, height: renderCanvas)
         .scaleEffect(1 / renderScale)
@@ -324,6 +373,8 @@ struct VoiceHUD: View {
                                 canvas: 258)
                     .scaleEffect(scale)
                     .offset(y: reduceMotion ? 0 : float)
+                    .shadow(color: c2.opacity(0.32 + amp * 0.22),
+                            radius: 24, y: 10)
             } else {
 
                 Circle()
@@ -464,6 +515,8 @@ struct VoiceOrb: View {
                                     canvas: canvas)
                         .scaleEffect(scale)
                         .offset(y: reduceMotion ? 0 : float)
+                        .shadow(color: c2.opacity(0.30 + Double(amp) * 0.24),
+                                radius: 22, y: 9)
                 } else {
 
                     ZStack {
