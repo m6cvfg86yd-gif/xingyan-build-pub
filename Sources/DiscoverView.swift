@@ -197,6 +197,13 @@ struct DiscoverView: View {
         } else {
             list.append(mall)
         }
+        if !list.contains(where: { $0.action == "miniapps" }) {
+            list.append(
+                DiscoverItem(id: "d12", label: "小程序", icon: "i.miniapps",
+                             svg: "", color: "#239B68", action: "miniapps",
+                             group: 8, enabled: true)
+            )
+        }
         return list
     }
 
@@ -437,6 +444,8 @@ extension DiscoverItem {
                          color: "#59C47E", action: "search", group: 4, enabled: true),
             DiscoverItem(id: "d08", label: "附近", icon: "i.nearby", svg: I.nearby,
                          color: "#3D83E7", action: "nearby", group: 5, enabled: true),
+            DiscoverItem(id: "d09", label: "小程序", icon: "i.miniapps", svg: "",
+                         color: "#239B68", action: "miniapps", group: 6, enabled: true),
             DiscoverItem(id: "d10", label: "游戏", icon: "i.game", svg: I.game,
                          color: "#9A6AE8", action: "games", group: 7, enabled: true),
             DiscoverItem(id: "d11", label: "商城", icon: "i.shop", svg: I.wallet,
