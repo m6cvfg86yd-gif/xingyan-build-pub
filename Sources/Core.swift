@@ -489,6 +489,14 @@ func pf(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
     pfExact(max(9, (size * fontScale * CareMode.scale).rounded()), weight)
 }
 
+func systemTextFont(_ size: CGFloat,
+                    _ weight: Font.Weight = .regular,
+                    relativeTo style: UIFont.TextStyle = .body) -> Font {
+    let preferred = max(11, size * fontScale * CareMode.scale)
+    let scaled = UIFontMetrics(forTextStyle: style).scaledValue(for: preferred)
+    return .system(size: scaled.rounded(), weight: weight)
+}
+
 enum CareMode {
     static var on: Bool { UserDefaults.standard.bool(forKey: "chris.careMode") }
     static var scale: CGFloat { on ? 1.18 : 1.0 }

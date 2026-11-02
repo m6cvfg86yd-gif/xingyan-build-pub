@@ -1966,9 +1966,10 @@ struct MomentRow: View {
 
                     Text(RichText.linkified(content))
 
-                        .font(pf(17.3))
+                        .font(systemTextFont(16.5, .regular, relativeTo: .body))
                         .foregroundColor(C.label)
-                        .lineSpacing(1)
+                        .lineSpacing(6)
+                        .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 6)
                 }

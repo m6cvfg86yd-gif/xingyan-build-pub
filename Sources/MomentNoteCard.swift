@@ -59,9 +59,10 @@ struct MomentNoteCard: View {
             if let content = moment.content?.trimmingCharacters(in: .whitespacesAndNewlines),
                !content.isEmpty {
                 Text(RichText.linkified(content))
-                    .font(pf(14.2, .medium))
+                    .font(systemTextFont(14.2, .regular, relativeTo: .subheadline))
                     .foregroundColor(C.label)
-                    .lineSpacing(2)
+                    .lineSpacing(4)
+                    .multilineTextAlignment(.leading)
                     .lineLimit(5)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, (images.isEmpty && !isVideo) ? 2 : 9)

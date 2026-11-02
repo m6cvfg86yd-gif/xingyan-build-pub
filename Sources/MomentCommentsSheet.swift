@@ -56,9 +56,10 @@ struct MomentCommentsSheet: View {
                             if let content = live.content?.trimmingCharacters(in: .whitespacesAndNewlines),
                                !content.isEmpty {
                                 Text(RichText.linkified(content))
-                                    .font(pf(14.2))
+                                    .font(systemTextFont(15.2, .regular, relativeTo: .body))
                                     .foregroundColor(C.label)
-                                    .lineSpacing(2)
+                                    .lineSpacing(5.5)
+                                    .multilineTextAlignment(.leading)
                                     .fixedSize(horizontal: false, vertical: true)
                                     .padding(.top, 8)
                             }
@@ -399,9 +400,10 @@ struct MomentCommentsSheet: View {
                             .foregroundColor(C.subLabel)
                     }
                     Text(item.content ?? "")
-                        .font(pf(14.5))
+                        .font(systemTextFont(14.5, .regular, relativeTo: .subheadline))
                         .foregroundColor(C.label)
-                        .lineSpacing(2)
+                        .lineSpacing(4)
+                        .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
