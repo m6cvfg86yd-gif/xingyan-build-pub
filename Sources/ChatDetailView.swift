@@ -954,7 +954,8 @@ struct ChatDetailView: View {
                        }
                    ) : nil,
                    leftExtra: selectMode ? nil : leftUnreadBadge,
-                   floating: true) {
+                   floating: true,
+                   rightGlass: false) {
                 HStack(spacing: 0) {
 
                     if selectMode {
@@ -985,12 +986,13 @@ struct ChatDetailView: View {
                                 : "单聊三点点击 \(chat.id)")
                             if isGroup { showGroupInfo = true } else { showChatInfo = true }
                         } label: {
-                            Text("⋯")
-                                .font(pf(22))
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(C.label)
                                 .frame(width: 44, height: 36)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("更多"))
                     }
                 }
             }
