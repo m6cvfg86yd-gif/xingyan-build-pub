@@ -1077,6 +1077,7 @@ final class DDStore: ObservableObject {
 
     func feed(_ list: [DDProduct]) -> [DDProduct] {
         let kept = list.filter { !disliked.contains($0.id) }
+        if mutedCates.isEmpty { return kept }
         let sorted = kept.sorted { a, b in
             let ma = mutedCates.contains(a.cate) ? 1 : 0
             let mb = mutedCates.contains(b.cate) ? 1 : 0
@@ -1916,12 +1917,9 @@ struct DDHomeTab: View {
     @State private var showAdViews = false
     @State private var showAddressHome = false
 
-    @State private var topY: CGFloat = 0
+    @State private var atTop = true
     @State private var cate: String? = nil
     @State private var sellerScope: String? = nil
-    @State private var secs = 2 * 3600 + 41 * 60 + 33
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
     private var list: [DDProduct] {
         let category = cate == nil ? store.live : store.live.filter { $0.cate == cate }
         let base: [DDProduct]
@@ -2042,13 +2040,16 @@ struct DDHomeTab: View {
             }
             .background(DDColor.page)
             .coordinateSpace(name: "ddhome")
-            .onPreferenceChange(DDFloorOffsetKey.self) { topY = $0 }
+            .onPreferenceChange(DDFloorOffsetKey.self) { y in
+                let next = y > -1
+                if next != atTop { atTop = next }
+            }
 
             .simultaneousGesture(
                 DragGesture(minimumDistance: 12)
                     .onChanged { v in
 
-                        guard !(floorUp?.wrappedValue ?? false), topY > -1 else { return }
+                        guard !(floorUp?.wrappedValue ?? false), atTop else { return }
                         let dy = v.translation.height
 
                         if dy < -8 {
@@ -2093,8 +2094,6 @@ struct DDHomeTab: View {
                         floorTick = 0
                     }
             )
-            .onReceive(ticker) { _ in if secs > 0 { secs -= 1 } }
-
             .sheet(item: $channel) { k in
                 DDChannelView(kind: k, onCart: { channel = nil; onCart() })
                     .environmentObject(app)
@@ -2647,10 +2646,7 @@ struct DDHomeTab: View {
                     VStack(spacing: 5) {
                         Text(Tr("限时")).font(pf(14, .semibold)).foregroundColor(.white)
                         Text(Tr("秒杀")).font(pf(14, .semibold)).foregroundColor(.white)
-                        Text(clockText)
-                            .font(pf(9.5, .semibold)).foregroundColor(.white)
-                            .padding(.horizontal, 5).frame(height: 16)
-                            .background(Capsule().fill(Color.black.opacity(0.22)))
+                        DDSeckillClock()
                     }
                     .frame(width: 74)
                     .frame(maxHeight: .infinity)
@@ -2699,13 +2695,6 @@ struct DDHomeTab: View {
                 .strikethrough()
         }
         .frame(width: 82)
-    }
-
-    private var clockText: String {
-        let h = secs / 3600
-        let m = (secs % 3600) / 60
-        let s = secs % 60
-        return String(format: "%02d:%02d:%02d", h, m, s)
     }
 
     private func sellerGateway(_ proxy: ScrollViewProxy) -> some View {
@@ -3046,11 +3035,34 @@ private extension View {
     }
 }
 
+private struct DDSeckillClock: View {
+    @State private var seconds = 2 * 3600 + 41 * 60 + 33
+    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    private var text: String {
+        String(format: "%02d:%02d:%02d",
+               seconds / 3600,
+               (seconds % 3600) / 60,
+               seconds % 60)
+    }
+
+    var body: some View {
+        Text(text)
+            .font(pf(9.5, .semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 5)
+            .frame(height: 16)
+            .background(Capsule().fill(Color.black.opacity(0.22)))
+            .onReceive(ticker) { _ in
+                if seconds > 0 { seconds -= 1 }
+            }
+    }
+}
+
 struct DDProductCard: View {
     let product: DDProduct
     var onOpen: (() -> Void)? = nil
     var onAddCart: (() -> Void)? = nil
-    @ObservedObject private var store = DDStore.shared
     private let cardImageHeight: CGFloat = 210
 
     var body: some View {
