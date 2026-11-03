@@ -2940,6 +2940,121 @@ struct MusicPlayingView: View {
         }
     }
 
+    private var landscapeLyrics: some View {
+        Group {
+            if lyricLines.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "text.alignleft")
+                        .font(.system(size: 24, weight: .light))
+                    Text(Tr("这首歌还没有歌词"))
+                        .font(.system(size: 14, weight: .medium))
+                }
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView(showsIndicators: false) {
+                        LazyVStack(alignment: .leading, spacing: 13) {
+                            Color.clear.frame(height: 42)
+                            ForEach(lyricLines) { line in
+                                KaraokeLyricText(
+                                    text: line.text,
+                                    progress: line.id == lyricIndex ? currentLyricProgress : 0,
+                                    font: .system(
+                                        size: line.id == lyricIndex ? 22 : 17,
+                                        weight: line.id == lyricIndex ? .semibold : .regular
+                                    ),
+                                    baseColor: line.id == lyricIndex
+                                        ? Color.primary.opacity(0.30)
+                                        : Color.primary.opacity(0.62),
+                                    activeColor: OrbitTheme.jade
+                                )
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .id(line.id)
+                                .contentShape(Rectangle())
+                                .onTapGesture { seekTo(line.time) }
+                            }
+                            Color.clear.frame(height: 48)
+                        }
+                        .padding(.horizontal, 12)
+                    }
+                    .onAppear {
+                        proxy.scrollTo(lyricIndex, anchor: .center)
+                    }
+                    .onChange(of: lyricIndex) { index in
+                        withAnimation(.easeInOut(duration: 0.46)) {
+                            proxy.scrollTo(index, anchor: .center)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: 21, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 21, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
+    }
+
+    private var landscapeControlStrip: some View {
+        HStack(spacing: 0) {
+            transportControls(playSize: 54, iconSize: 21, spacing: 25)
+
+            Spacer(minLength: 14)
+
+            Button {
+                likeIt()
+            } label: {
+                ZStack {
+                    if heartBurst { HeartBurst(intensity: 1.15) }
+                    Image(systemName: liked ? "heart.fill" : "heart")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(liked ? Color(hex: 0xFF4868) : Color.primary)
+                }
+                .frame(width: 40, height: 40)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(liked ? Tr("取消赞") : Tr("赞"))
+
+            Button {
+                showQueue = true
+            } label: {
+                Image(systemName: "list.bullet")
+                    .font(.system(size: 19, weight: .semibold))
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Tr("播放列表"))
+
+            Button {
+                shareSystem = true
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 19, weight: .semibold))
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Tr("分享"))
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 60)
+        .background(
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: 21, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 21, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
+        }
+    }
+
     private var queueSheet: some View {
         NavigationStack {
             List {
@@ -3468,33 +3583,39 @@ struct MusicPlayingView: View {
                     }
                 }
 
-            VStack(spacing: 9) {
+            VStack(spacing: 8) {
                 compactTitleBlock
-                rollingLyrics
-                controlDock(compact: true)
+                landscapeLyrics
+                progressBlock(compact: true)
+                landscapeControlStrip
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(.horizontal, max(20, size.width * 0.04))
         .padding(.top, 2)
         .padding(.bottom, max(10, L.safeBottom))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     var body: some View {
         NavigationStack {
             GeometryReader { geo in
                 let landscape = geo.size.width > geo.size.height
+                let contentSize = CGSize(
+                    width: geo.size.width,
+                    height: max(1, geo.size.height - 52)
+                )
                 ZStack {
                     FullPlayerAmbient(track: t)
 
                     VStack(spacing: 0) {
                         playerTopBar(landscape: landscape)
 
-                        ScrollView(showsIndicators: false) {
-                            Group {
-                                if landscape {
-                                    landscapePlayer(size: geo.size)
-                                } else {
+                        if landscape {
+                            landscapePlayer(size: contentSize)
+                        } else {
+                            ScrollView(showsIndicators: false) {
+                                Group {
                                     portraitPlayer
                                 }
                             }
