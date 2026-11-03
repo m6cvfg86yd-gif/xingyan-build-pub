@@ -115,8 +115,6 @@ struct ChatRow: View {
         HStack(alignment: .center, spacing: 12) {
             avatarBlock
             textColumn
-            Spacer(minLength: 6)
-            rightColumn
         }
         .padding(.horizontal, 14)
         .frame(height: L.rowH)
@@ -172,7 +170,7 @@ struct ChatRow: View {
 
     private var textColumn: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
+            HStack(alignment: .center, spacing: 5) {
                 Text(displayTitle)
                     .font(.system(size: 15.5, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
@@ -197,12 +195,20 @@ struct ChatRow: View {
                             height: L.v(11.5, 3.2, 13))
                     .fixedSize()
 
+                Spacer(minLength: 6)
+
+                Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(OrbitTheme.tertiary)
+                    .monospacedDigit()
+                    .fixedSize()
             }
             mentionPreview
                 .font(.system(size: 12.5))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var mentionPreview: Text {
@@ -244,15 +250,6 @@ struct ChatRow: View {
         if chat.bot == "qqnews" { return "看看今天的热点" }
         if chat.showsOfficialMark { return "查看官方内容" }
         return "新的会话"
-    }
-
-    private var rightColumn: some View {
-        VStack(alignment: .trailing, spacing: 7) {
-            Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
-                .font(.system(size: 10.5, weight: .medium))
-                .foregroundStyle(OrbitTheme.tertiary)
-                .fixedSize()
-        }
     }
 
     @ViewBuilder
