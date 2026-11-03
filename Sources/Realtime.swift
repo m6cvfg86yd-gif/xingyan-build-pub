@@ -198,6 +198,10 @@ final class Realtime: ObservableObject {
                             Task { @MainActor in
                                 guard self.socketToken == expectedToken,
                                       API.shared.token == expectedToken else { return }
+                                if !self.connected {
+                                    self.connected = true
+                                    API.shared.markOnline()
+                                }
                                 self.handle(t)
                             }
                         }
@@ -213,17 +217,22 @@ final class Realtime: ObservableObject {
                 }
             }
         }
-        connected = true
-        API.shared.markOnline()
         rxClock.touch()
+
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 12_000_000_000)
+            guard let self, self.socket === task, !self.connected, !Task.isCancelled else { return }
+            AppLog.info("实时连接 12 秒未收到首包，重新连接", net: true)
+            self.start()
+        }
 
         heartbeat?.cancel()
         heartbeat = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
                 if Task.isCancelled { return }
                 guard let self = self else { return }
-                if Date().timeIntervalSince(self.rxClock.value) > 35 {
+                if Date().timeIntervalSince(self.rxClock.value) > 25 {
                     self.connected = false
                     self.start()
                     return

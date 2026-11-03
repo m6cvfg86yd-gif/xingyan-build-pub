@@ -13,8 +13,8 @@
     },
     {
       "path": "Sources/Realtime.swift",
-      "size": 18622,
-      "sha256": "a396a0fb6bb90b336a541b93d4fcbe1052e218ec50274133813ea3b62a508ef6"
+      "size": 19099,
+      "sha256": "4257577ed75fef17802137886c69ee48329834965fcb7151aa5d7d61b4636f5c"
     },
     {
       "path": "Sources/CallAudio.swift",
