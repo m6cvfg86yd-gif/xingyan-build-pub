@@ -1418,6 +1418,7 @@ struct MallNativeView: View {
                     .clipped()
                 tabBar
             }
+        .environmentObject(app)
         .frame(maxWidth: .infinity)
         .background(DDColor.page.ignoresSafeArea())
 
