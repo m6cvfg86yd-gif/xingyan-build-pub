@@ -50,6 +50,8 @@ struct User: Codable, Identifiable, Hashable {
     var balance: Double?
 
     var relation: String?
+    var ipProvince: String?
+    var deviceModel: String?
 
     var momentCount: Int?
 

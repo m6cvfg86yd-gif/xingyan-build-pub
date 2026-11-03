@@ -18,6 +18,8 @@ struct ContactCardWechat: View {
     let isBot: Bool
 
     let relation: String
+    let networkProvince: String
+    let deviceModel: String
 
     let onClose: () -> Void
     let onAvatar: () -> Void
@@ -156,6 +158,14 @@ struct ContactCardWechat: View {
                         .foregroundColor(gray)
                         .lineLimit(1)
                 }
+                Text(Tr("网络属地") + "  " + networkProvince)
+                    .font(pf(11.5))
+                    .foregroundColor(gray)
+                    .lineLimit(1)
+                Text(Tr("手机型号") + "  " + deviceModel)
+                    .font(pf(11.5))
+                    .foregroundColor(gray)
+                    .lineLimit(1)
             }
             Spacer(minLength: 0)
             ZStack {

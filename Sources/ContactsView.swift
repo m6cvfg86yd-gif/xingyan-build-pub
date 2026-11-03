@@ -794,6 +794,14 @@ struct ContactCardView: View {
         return u.name
     }
     private var isBot: Bool { u.bot == true }
+    private var networkProvinceText: String {
+        let v = (u.ipProvince ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return v.isEmpty ? Tr("未知") : v
+    }
+    private var deviceModelText: String {
+        let v = (u.deviceModel ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return v.isEmpty ? Tr("未知") : v
+    }
 
     private var isEyesBot: Bool { (u.username ?? "").lowercased() == "housekeeper" }
     private var relation: String {
@@ -822,6 +830,8 @@ struct ContactCardView: View {
                                    phone: phone,
                                    momentCount: thumbs.count,
                                    momentsRange: u.momentsRange ?? "all",
+                                   networkProvince: networkProvinceText,
+                                   deviceModel: deviceModelText,
                                    onClose: { dismiss() },
                                    onMessage: { openChat() },
                                    onVoice: { startCall(video: false) },
@@ -878,6 +888,8 @@ struct ContactCardView: View {
                     Button("个性签名：\(b)") { }
                 }
                 Button("地区：\((u.region?.isEmpty == false) ? u.region! : "未知")") { }
+                Button("网络属地：" + networkProvinceText) { }
+                Button("手机型号：" + deviceModelText) { }
             }
             Button(Tr("取消"), role: .cancel) { }
         }
@@ -921,6 +933,8 @@ struct ContactCardView: View {
                           thumbs: thumbs,
                           isBot: isBot,
                           relation: relation,
+                          networkProvince: networkProvinceText,
+                          deviceModel: deviceModelText,
                           onClose: { dismiss() },
                           onAvatar: { if !avatarPath.isEmpty { showBigAvatar = true } },
                           onMessage: { openChat() },
@@ -1222,6 +1236,12 @@ struct ContactCardView: View {
                 PanelRow(symbol: "phone.fill", colors: PanelTint.green,
                          title: Tr("电话"), value: phone) { showPhone = true }
             }
+            PanelDivider()
+            PanelRow(symbol: "network", colors: PanelTint.blue,
+                     title: Tr("网络属地"), value: networkProvinceText, chevron: false) { }
+            PanelDivider()
+            PanelRow(symbol: "iphone", colors: PanelTint.gray,
+                     title: Tr("手机型号"), value: deviceModelText, chevron: false) { }
 
             if !isBot && relation == "friend" {
 

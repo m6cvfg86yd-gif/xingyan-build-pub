@@ -76,10 +76,16 @@ async function main() {
   const logs = [];
   let child;
   try {
+    const bobSeed = user('u_stranger_bob', 'stranger_bob', 'Bob');
+    bobSeed.devices = [{
+      id: 'dev_bob', ip: '127.0.0.1', province: '浙江省',
+      model: 'iPhone18,4', deviceMachine: 'iPhone18,4',
+      device: 'iPhone', at: new Date().toISOString()
+    }];
     fs.writeFileSync(path.join(dataDir, 'users.json'), JSON.stringify({
       users: [
         user('u_stranger_alice', 'stranger_alice', 'Alice'),
-        user('u_stranger_bob', 'stranger_bob', 'Bob')
+        bobSeed
       ]
     }, null, 2));
     fs.writeFileSync(path.join(dataDir, 'security.json'), JSON.stringify({ sliderLogin: 0 }, null, 2));
@@ -103,7 +109,13 @@ async function main() {
     const alice = await login(base, 'stranger_alice');
     const bob = await login(base, 'stranger_bob');
 
-    let response = await call(base, alice.cookie, 'POST', '/api/chats/direct', {
+    let response = await call(base, alice.cookie, 'GET', '/api/users/' + bob.user.id);
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.ok(response.data.user.ipProvince, '名片缺少网络属地');
+    assert.ok(response.data.user.deviceModel, '名片缺少手机型号');
+    assert.notEqual(response.data.user.ipProvince, '127.0.0.1');
+
+    response = await call(base, alice.cookie, 'POST', '/api/chats/direct', {
       userId: bob.user.id
     });
     assert.equal(response.status, 200, JSON.stringify(response.data));

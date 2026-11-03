@@ -20,6 +20,8 @@ struct ContactCardNew: View {
     let momentCount: Int
 
     let momentsRange: String
+    let networkProvince: String
+    let deviceModel: String
     let onClose: () -> Void
     let onMessage: () -> Void
     let onVoice: () -> Void
@@ -76,6 +78,8 @@ struct ContactCardNew: View {
         var list: [(String, String)] = []
         if !remark.isEmpty { list.append(("备注", remark)) }
         if !phone.isEmpty { list.append(("手机号", phone)) }
+        list.append(("网络属地", networkProvince))
+        list.append(("手机型号", deviceModel))
         return list
     }
 

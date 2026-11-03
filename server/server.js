@@ -17305,6 +17305,17 @@ async function handleApi(req, res, pathname, query) {
     const online = onlineUserIds();
     const meta = metaOf(user.id, u.id);
     const addedAt = f ? (f.respondedAt || f.createdAt || '') : '';
+    const deviceRows = Array.isArray(u.devices) ? u.devices : [];
+    const latestDevice = deviceRows.find((d) => d && (d.model || d.deviceMachine))
+      || deviceRows.find((d) => d && d.province)
+      || deviceRows[0]
+      || {};
+    const ipProvince = latestDevice.province
+      || (latestDevice.ip ? await provinceForIp(latestDevice.ip) : '');
+    const deviceModel = friendlyModelName(latestDevice.model)
+      || friendlyModelName(latestDevice.deviceMachine)
+      || friendlyModelName(latestDevice.device)
+      || '';
     ok(res, {
       user: Object.assign(memberProfile(u, user.id), {
         relation: !f ? (u.id === user.id ? 'self' : 'none') : (f.status === 'accepted' ? 'friend' : (f.fromId === user.id ? 'requested' : 'incoming')),
@@ -17323,7 +17334,9 @@ async function handleApi(req, res, pathname, query) {
         noMoments: meta.noMoments === true,
         chatOnly: meta.chatOnly === true,
         addedAt,
-        source: f && f.fromId === user.id ? 'me' : (f ? 'them' : '')
+        source: f && f.fromId === user.id ? 'me' : (f ? 'them' : ''),
+        ipProvince: String(ipProvince || '').slice(0, 40),
+        deviceModel: String(deviceModel || '').slice(0, 60)
       }, (meta.remark && String(meta.remark).trim()) ? { nickname: String(meta.remark).trim() } : {})
     });
     return;
