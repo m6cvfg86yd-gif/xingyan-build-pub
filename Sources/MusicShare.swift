@@ -2645,7 +2645,6 @@ struct MusicPlayingView: View {
                 if let t, player.current?.id != t.id { MusicPlayer.shared.play(t) }
                 Task { await refreshLike() }
             }
-            .onDisappear { MusicSheet.shared.close() }
             .tint(OrbitTheme.jade)
         }
         .swipeBack { closeMe() }
