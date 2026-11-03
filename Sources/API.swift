@@ -1572,6 +1572,9 @@ final class API {
         "43.242.194.89:8443",
         "u.598218.xyz"
     ]
+    private static let retiredEndpoints: Set<String> = [
+        "43.242.194.89:5443"
+    ]
 
     private var lastRotate = Date.distantPast
 
@@ -1623,13 +1626,23 @@ final class API {
 
         list.append(contentsOf: backups.filter { API.trustedHost($0) })
         var seen = Set<String>()
-        return list.filter { !$0.isEmpty && API.trustedHost($0) && seen.insert($0).inserted }
+        return list.filter {
+            !$0.isEmpty
+                && !API.retiredEndpoints.contains(API.normalizeServer($0))
+                && API.trustedHost($0)
+                && seen.insert($0).inserted
+        }
     }
 
     func setBackups(_ list: [String]) {
         var seen = Set<String>()
         let clean = list.map { API.normalizeServer($0) }
-            .filter { !$0.isEmpty && API.trustedHost($0) && seen.insert($0).inserted }
+            .filter {
+                !$0.isEmpty
+                    && !API.retiredEndpoints.contains($0)
+                    && API.trustedHost($0)
+                    && seen.insert($0).inserted
+            }
         guard !clean.isEmpty else { return }
         backups = Array(clean.prefix(6))
         UserDefaults.standard.set(backups, forKey: "chris.backups")
@@ -1705,7 +1718,7 @@ final class API {
 
     func setServer(_ value: String) {
         let v = API.normalizeServer(value)
-        guard !v.isEmpty else { return }
+        guard !v.isEmpty, !API.retiredEndpoints.contains(v) else { return }
         server = v
         UserDefaults.standard.set(v, forKey: "chris.server")
     }
