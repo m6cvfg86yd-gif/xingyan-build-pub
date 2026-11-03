@@ -6,11 +6,14 @@ struct DiscoverView: View {
 
     @State private var navScrolled: CGFloat = 0
     @ObservedObject private var lang = LangStore.shared
+    @ObservedObject private var musicLibrary = MusicLibrary.shared
+    @ObservedObject private var musicPlayer = MusicPlayer.shared
     @EnvironmentObject var app: AppState
     @State private var path = NavigationPath()
 
     @State private var items: [DiscoverItem] = []
     @State private var loaded = false
+    @State private var worldArtwork: [String: String] = [:]
 
     @State private var showScan = false
     @ObservedObject private var realtime = Realtime.shared
@@ -194,6 +197,7 @@ struct DiscoverView: View {
         }
         .task {
             if !loaded { await loadItems() }
+            if worldArtwork.isEmpty { await loadWorldArtwork() }
         }
         .fullScreenCover(isPresented: $showScan) {
             ScannerView { text in handleScanned(text, app: app) }
@@ -275,6 +279,41 @@ struct DiscoverView: View {
         case "miniapps": return Tr("常用工具与轻量服务")
         default: return Tr("打开这个功能入口")
         }
+    }
+
+    private func worldArtworkPath(_ item: DiscoverItem) -> String {
+        switch item.action ?? "" {
+        case "music":
+            let recent = musicLibrary.recents.first?.cover ?? ""
+            if !recent.isEmpty { return recent }
+            return musicPlayer.current?.cover ?? worldArtwork["music"] ?? ""
+        case "channels":
+            return latestThumb.isEmpty ? (worldArtwork["channels"] ?? "") : latestThumb
+        default:
+            return worldArtwork[item.action ?? ""] ?? ""
+        }
+    }
+
+    private func loadWorldArtwork() async {
+        async let appRequest = API.shared.miniApps()
+        async let musicRequest = API.shared.musicTracks()
+        let apps = await appRequest
+        let tracks = await musicRequest
+        var artwork: [String: String] = [:]
+        if let cover = apps.first(where: {
+            !$0.isGame && !($0.cover ?? "").isEmpty
+        })?.cover {
+            artwork["miniapps"] = cover
+        }
+        if let cover = apps.first(where: {
+            $0.isGame && !($0.cover ?? "").isEmpty
+        })?.cover {
+            artwork["games"] = cover
+        }
+        if let cover = tracks.first(where: { !($0.cover ?? "").isEmpty })?.cover {
+            artwork["music"] = cover
+        }
+        worldArtwork = artwork
     }
 
     private func worldFeatureCard(_ item: DiscoverItem) -> some View {
@@ -374,55 +413,83 @@ struct DiscoverView: View {
 
     private func worldEntryCard(_ item: DiscoverItem) -> some View {
         let accent = Color(hexString: item.color ?? "#4A90D9", fallback: 0x4A90D9)
+        let artwork = worldArtworkPath(item)
         return Button {
             open(item)
         } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(accent.opacity(0.10))
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(accent.opacity(0.13), lineWidth: 0.7)
-                        Image(systemName: RowIcon.sf(action: item.action, label: item.label))
-                            .font(.system(size: 18.5, weight: .semibold))
-                            .foregroundStyle(accent)
-                    }
-                    .frame(width: 42, height: 42)
-
-                    Spacer(minLength: 6)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9.5, weight: .bold))
-                        .foregroundStyle(OrbitTheme.tertiary)
-                        .frame(width: 25, height: 25)
-                        .background(Circle().fill(OrbitTheme.field))
+            ZStack(alignment: .bottomLeading) {
+                if artwork.isEmpty {
+                    LinearGradient(
+                        colors: [
+                            accent.opacity(0.96),
+                            accent.opacity(0.78),
+                            Color(hex: 0x17201C)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                } else {
+                    RemoteImage(path: artwork, mode: .fill, maxSide: 720)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
                 }
 
-                Spacer(minLength: 0)
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(artwork.isEmpty ? 0.02 : 0.05),
+                        Color.black.opacity(artwork.isEmpty ? 0.08 : 0.25),
+                        Color.black.opacity(artwork.isEmpty ? 0.42 : 0.68)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(Tr(item.label))
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(OrbitTheme.ink)
-                        .lineLimit(1)
-                    Text(worldSubtitle(item))
-                        .font(.system(size: 11.5, weight: .regular))
-                        .foregroundStyle(OrbitTheme.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 126, alignment: .topLeading)
-            .background {
-                RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .fill(OrbitTheme.raised)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 17, style: .continuous)
-                            .stroke(OrbitTheme.divider, lineWidth: 0.7)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(artwork.isEmpty ? 0.18 : 0.20))
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(Color.white.opacity(0.20), lineWidth: 0.7)
+                            Image(systemName: RowIcon.sf(action: item.action, label: item.label))
+                                .font(.system(size: 18.5, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
+                        .frame(width: 42, height: 42)
+
+                        Spacer(minLength: 6)
+
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 27, height: 27)
+                            .background(Circle().fill(Color.white.opacity(0.16)))
+                            .overlay(Circle().stroke(Color.white.opacity(0.16), lineWidth: 0.7))
                     }
+
+                    Spacer(minLength: 28)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(Tr(item.label))
+                            .font(.system(size: 16.5, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Text(worldSubtitle(item))
+                            .font(.system(size: 11.5, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.74))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(14)
             }
+            .frame(maxWidth: .infinity, minHeight: 148, maxHeight: 148)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 0.7)
+            }
+            .shadow(color: accent.opacity(0.10), radius: 10, y: 5)
             .contentShape(Rectangle())
         }
         .buttonStyle(MenuPressStyle())
