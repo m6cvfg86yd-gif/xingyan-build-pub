@@ -796,17 +796,17 @@ struct ChatDetailView: View {
 
         if let synced = app.me?.chatBackgrounds?[chat.id],
            !synced.isEmpty, synced != "auto" {
-            return synced
+            return normalizedChatBackground(synced)
         }
         let per = ChatBgStore.shared.get(chat.id)
-        if !per.isEmpty, per != "auto" { return per }
+        if !per.isEmpty, per != "auto" { return normalizedChatBackground(per) }
         let v = app.me?.chatBackground ?? "auto"
         if v.isEmpty || v == "auto" {
 
             let def = app.defaultChatBackground
-            return (def == "auto") ? "" : def
+            return (def == "auto") ? "" : normalizedChatBackground(def)
         }
-        return v
+        return normalizedChatBackground(v)
     }
 
     private var groupAnnouncement: String {
@@ -835,9 +835,13 @@ struct ChatDetailView: View {
                     ZStack {
                         ChatTheme.page
                         if !backgroundPath.isEmpty {
-                            RemoteImage(path: backgroundPath)
-                                .id(backgroundPath)
-                            if scheme == .dark {
+                            if let solid = chatBackgroundSolidColor(backgroundPath) {
+                                solid
+                            } else {
+                                RemoteImage(path: backgroundPath)
+                                    .id(backgroundPath)
+                            }
+                            if scheme == .dark, chatBackgroundSolidColor(backgroundPath) == nil {
                                 LinearGradient(
                                     stops: [
                                         .init(color: Color.black.opacity(0.56), location: 0),

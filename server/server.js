@@ -937,6 +937,9 @@ function safeChatBackgroundRef(v) {
   if (direct !== null) return direct;
   const s = String(v == null ? '' : v).trim();
   if (!s) return '';
+  if (s === 'solid:white' || s === 'solid:black') return s;
+  if (s === '/bg/bw1.jpg') return 'solid:white';
+  if (s === '/bg/bw2.jpg') return 'solid:black';
   const cfg = db.chatBg || normalizeChatBg(null);
   if (s === String(cfg.default || '')) return s;
   if ((cfg.presets || []).some((item) => String(item && item.path || '') === s)) return s;
@@ -1445,30 +1448,35 @@ const ME_ACTIONS = ['service', 'favorites', 'moments', 'works', 'stickers', 'set
 const CHAT_BG_FILE = 'chat-bg.json';
 const CHAT_BG_PRESETS_MAX = 12;
 const DEFAULT_CHAT_BG = {
-  version: 2,
-  default: '/bg/bw1.jpg',
+  version: 3,
+  default: 'solid:white',
   presets: [
-    { path: '/bg/bw1.jpg', name: '流光晨雾' },
-    { path: '/bg/bw2.jpg', name: '深空石墨' },
-    { path: '/bg/bw3.jpg', name: '雾蓝丝绸' },
-    { path: '/bg/bw4.jpg', name: '苔原微光' },
-    { path: '/bg/bw5.jpg', name: '烟粉云霞' },
-    { path: '/bg/bw6.jpg', name: '黑曜星砂' }
+    { path: 'solid:white', name: '纯白' },
+    { path: 'solid:black', name: '纯黑' }
   ]
 };
 function normalizeChatBg(o) {
   const src = (o && typeof o === 'object') ? o : {};
   const list = Array.isArray(src.presets) ? src.presets : DEFAULT_CHAT_BG.presets;
-  const presets = list.slice(0, CHAT_BG_PRESETS_MAX).map((it, i) => {
+  const presets = list.map((it, i) => {
     if (typeof it === 'string') return { path: it, name: '壁纸 ' + (i + 1) };
     const p = String((it && it.path) || '').slice(0, 500);
     let nm = String((it && it.name) || '').slice(0, 24);
     if (!nm) nm = '壁纸 ' + (i + 1);
     return { path: p, name: nm };
-  }).filter((it) => it.path);
+  }).map((it) => {
+    if (it.path === '/bg/bw1.jpg') return { path: 'solid:white', name: '纯白' };
+    if (it.path === '/bg/bw2.jpg') return { path: 'solid:black', name: '纯黑' };
+    return it;
+  }).filter((it) => it.path === 'solid:white' || it.path === 'solid:black')
+    .slice(0, CHAT_BG_PRESETS_MAX);
+  const def = String(src.default || '').slice(0, 500);
+  const defaultPath = def === '/bg/bw2.jpg' || def === 'solid:black'
+    ? 'solid:black'
+    : (def === '/bg/bw1.jpg' || def === 'solid:white' || !def ? 'solid:white' : def);
   return {
-    version: Math.max(1, Number(src.version) || DEFAULT_CHAT_BG.version),
-    default: String(src.default || '').slice(0, 500),
+    version: Math.max(DEFAULT_CHAT_BG.version, Number(src.version) || DEFAULT_CHAT_BG.version),
+    default: defaultPath,
     presets: presets.length ? presets : DEFAULT_CHAT_BG.presets
   };
 }

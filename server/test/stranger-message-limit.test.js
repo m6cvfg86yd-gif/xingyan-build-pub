@@ -109,7 +109,16 @@ async function main() {
     const alice = await login(base, 'stranger_alice');
     const bob = await login(base, 'stranger_bob');
 
-    let response = await call(base, alice.cookie, 'GET', '/api/users/' + bob.user.id);
+    let response = await call(base, alice.cookie, 'GET', '/api/chat-bg');
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.default, 'solid:white');
+    assert.deepEqual(response.data.presets.map((x) => x.path), ['solid:white', 'solid:black']);
+    response = await call(base, alice.cookie, 'PATCH', '/api/me', {
+      chatBackground: 'solid:black'
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+
+    response = await call(base, alice.cookie, 'GET', '/api/users/' + bob.user.id);
     assert.equal(response.status, 200, JSON.stringify(response.data));
     assert.ok(response.data.user.ipProvince, '名片缺少网络属地');
     assert.ok(response.data.user.deviceModel, '名片缺少手机型号');

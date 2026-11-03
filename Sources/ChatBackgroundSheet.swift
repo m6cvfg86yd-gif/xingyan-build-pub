@@ -1,6 +1,22 @@
 import SwiftUI
 import UIKit
 
+func normalizedChatBackground(_ path: String) -> String {
+    switch path.trimmingCharacters(in: .whitespacesAndNewlines) {
+    case "/bg/bw1.jpg", "solid:white": return "solid:white"
+    case "/bg/bw2.jpg", "solid:black": return "solid:black"
+    default: return path
+    }
+}
+
+func chatBackgroundSolidColor(_ path: String) -> Color? {
+    switch normalizedChatBackground(path) {
+    case "solid:white": return .white
+    case "solid:black": return .black
+    default: return nil
+    }
+}
+
 final class ChatBgStore: ObservableObject {
     static let shared = ChatBgStore()
 
@@ -41,7 +57,7 @@ struct ChatBackgroundSheet: View {
     @State private var picking = false
     @State private var busy = false
 
-    static let presets: [String] = ["/bg/bw1.jpg", "/bg/bw2.jpg"]
+    static let presets: [String] = ["solid:white", "solid:black"]
 
     static let names: [String] = ["白色", "黑色"]
 
@@ -54,7 +70,9 @@ struct ChatBackgroundSheet: View {
     }
 
     private func versioned(_ p: String) -> String {
-        guard !remoteVersion.isEmpty, !p.hasPrefix("data:") else { return p }
+        guard !remoteVersion.isEmpty,
+              !p.hasPrefix("data:"),
+              normalizedChatBackground(p).hasPrefix("/") else { return p }
         return p + (p.contains("?") ? "&" : "?") + "v=" + remoteVersion
     }
 
@@ -95,11 +113,12 @@ struct ChatBackgroundSheet: View {
                             Button { pick(item.path, cacheKey: versioned(item.path)) } label: {
                                 VStack(spacing: 5) {
                                     ZStack {
-                                        RemoteImage(path: versioned(item.path), mode: .fill)
-                                            .frame(maxWidth: .infinity)
-                                            .frame(height: 148)
-                                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                        if current == item.path {
+                                        if let solid = chatBackgroundSolidColor(item.path) {
+                                            solid
+                                        } else {
+                                            RemoteImage(path: versioned(item.path), mode: .fill)
+                                        }
+                                        if normalizedChatBackground(current) == item.path {
                                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                                 .stroke(C.green, lineWidth: 2.5)
                                             Image(systemName: "checkmark.circle.fill")
@@ -110,6 +129,11 @@ struct ChatBackgroundSheet: View {
                                                        alignment: .topTrailing)
                                         }
                                     }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 148)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(C.hairline, lineWidth: 0.6))
                                     if !item.name.isEmpty {
                                         Text(Tr(item.name))
                                             .font(pf(11.5))
@@ -185,7 +209,7 @@ struct ChatBackgroundSheet: View {
         remoteVersion = r.version ?? ""
 
         if let def = r.default, !def.isEmpty, (app.me?.chatBackground ?? "auto") == "auto" {
-            app.defaultChatBackground = def
+            app.defaultChatBackground = normalizedChatBackground(def)
         }
     }
 
@@ -297,6 +321,7 @@ struct ChatBackgroundSheet: View {
 
     private func primeBackgroundCache(path: String, cacheKey: String = "", image: UIImage? = nil) {
         guard !path.isEmpty, path != "auto" else { return }
+        guard chatBackgroundSolidColor(path) == nil else { return }
         if let image = image {
             ImageStore.shared.put(path, image)
             if let data = image.jpegData(compressionQuality: 0.86) {
