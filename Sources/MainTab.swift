@@ -107,10 +107,7 @@ struct MainTabView: View {
                     .frame(height: max(49, L.tabH - 6))
 
                     .background {
-                        if scheme == .dark {
-                            C.tabBg
-                                .ignoresSafeArea(edges: .bottom)
-                        } else if UIConfig.num("tabBarOpaqueBg", 0) > 0 {
+                        if scheme != .dark && UIConfig.num("tabBarOpaqueBg", 0) > 0 {
                             Color.dyn(0xFFFFFF, 0x0B1813)
                                 .ignoresSafeArea(edges: .bottom)
                         }

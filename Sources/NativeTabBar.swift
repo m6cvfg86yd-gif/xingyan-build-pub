@@ -14,10 +14,6 @@ private final class CompactDotTabBar: UITabBar {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        if clearsNativeBackdrop {
-            backgroundColor = UIColor(C.tabBg)
-            isOpaque = true
-        }
         updateNativeBackdropVisibility()
         let slot = bounds.width / 4
         for index in 0..<4 {
@@ -244,12 +240,12 @@ struct NativeTabBar: UIViewRepresentable {
         )
         if scheme == .dark {
             appearance.backgroundEffect = nil
-            appearance.backgroundColor = UIColor(C.tabBg)
+            appearance.backgroundColor = .clear
             appearance.backgroundImage = UIImage()
             bar.backgroundImage = UIImage()
             bar.shadowImage = UIImage()
-            bar.backgroundColor = UIColor(C.tabBg)
-            bar.isOpaque = true
+            bar.backgroundColor = .clear
+            bar.isOpaque = false
         } else {
             appearance.backgroundColor = UIColor(red: 0.955, green: 0.982,
                                                  blue: 0.970, alpha: 0.68)
@@ -285,7 +281,7 @@ struct NativeTabBar: UIViewRepresentable {
         }
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
-        bar.isTranslucent = scheme != .dark
+        bar.isTranslucent = true
         if let bar = bar as? CompactDotTabBar {
             bar.clearsNativeBackdrop = scheme == .dark
         }
