@@ -11,6 +11,7 @@ struct MainTabView: View {
 
     @ObservedObject private var musicSheet = MusicSheet.shared
     @ObservedObject private var musicDock = MusicDockState.shared
+    @ObservedObject private var musicPlayer = MusicPlayer.shared
 
     @ObservedObject private var mallSheet = MallSheet.shared
 
@@ -88,6 +89,11 @@ struct MainTabView: View {
                     .transition(.opacity)
                     .allowsHitTesting(false)
                 }
+            }
+
+            if musicPlayer.current != nil {
+                GlobalMusicAmbient()
+                    .transition(.opacity)
             }
 
             if !app.tabBarHidden && scheme == .dark {
@@ -203,7 +209,7 @@ struct MainTabView: View {
         }
 
         .overlay {
-            if musicSheet.open && !musicDock.active {
+            if musicSheet.open && !musicDock.foregroundActive {
                 MusicPlayingView()
                     .transition(.move(edge: .bottom))
                     .zIndex(60)
@@ -222,7 +228,8 @@ struct MainTabView: View {
                 .environmentObject(app)
         }
 
-        .overlay(MiniPlayerBall(hidden: app.openChat != nil || musicSheet.open || musicDock.active))
+        .overlay(MiniPlayerBall(hidden: app.openChat != nil || musicSheet.open
+                                || musicDock.foregroundActive))
 
         .fullScreenCover(item: $app.openChat) { c in
 
@@ -230,6 +237,11 @@ struct MainTabView: View {
                 ChatDetailView(chat: c).environmentObject(app)
             }
 
+            .overlay {
+                if musicPlayer.current != nil {
+                    GlobalMusicAmbient()
+                }
+            }
             .overlay(MiniPlayerBall())
 
             .overlay {
@@ -267,6 +279,7 @@ struct MainTabView: View {
         }
         .onChange(of: tab) { value in
             loadedTabs.insert(value)
+            musicDock.setForegroundTab(value)
         }
         .onChange(of: app.me?.id) { _ in
             loadedTabs = [tab]
