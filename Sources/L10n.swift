@@ -435,6 +435,8 @@ enum L10n {
         "筛选分类": "Filter by category",
         "管理音乐": "Manage music",
         "今日推荐": "Today's picks",
+        "为你推荐": "For You",
+        "继续播放": "Keep Listening",
         "换一批": "Refresh",
         "导入文件": "Import files",
         "导入文件夹": "Import folder",

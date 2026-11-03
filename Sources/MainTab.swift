@@ -91,7 +91,7 @@ struct MainTabView: View {
                 }
             }
 
-            if musicPlayer.current != nil {
+            if musicPlayer.playing {
                 GlobalMusicAmbient()
                     .transition(.opacity)
             }
@@ -228,7 +228,7 @@ struct MainTabView: View {
             }
 
             .overlay {
-                if musicPlayer.current != nil {
+                if musicPlayer.playing {
                     GlobalMusicAmbient()
                 }
             }

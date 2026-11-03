@@ -91,7 +91,7 @@ struct GlobalMusicAmbient: View {
 
     var body: some View {
         GeometryReader { geo in
-            if let cover = player.current?.cover, !cover.isEmpty {
+            if player.playing, let cover = player.current?.cover, !cover.isEmpty {
                 RemoteImage(path: cover, mode: .fill, maxSide: 720)
                     .frame(width: geo.size.width * 1.16,
                            height: geo.size.height * 1.04)
@@ -117,6 +117,7 @@ struct GlobalMusicAmbient: View {
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
+        .animation(.easeInOut(duration: 0.45), value: player.playing)
         .animation(.easeInOut(duration: 0.55), value: player.current?.cover)
     }
 }

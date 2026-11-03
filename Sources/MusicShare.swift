@@ -815,7 +815,7 @@ struct ListenView: View {
         }
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(Tr(sendMode ? "选择音乐" : "听一听"))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(
             text: $query,
             placement: .navigationBarDrawer(displayMode: .automatic),
@@ -922,7 +922,7 @@ struct ListenView: View {
     private var topAmbientGlow: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
-                if !ambientCover.isEmpty {
+                if player.playing, !ambientCover.isEmpty {
                     RemoteImage(path: ambientCover, mode: .fill, maxSide: 520)
                         .frame(width: geo.size.width * 1.18,
                                height: 330)
@@ -938,22 +938,25 @@ struct ListenView: View {
                     )
                 }
 
-                LinearGradient(
-                    stops: [
-                        .init(color: OrbitTheme.jade.opacity(scheme == .dark ? 0.08 : 0.05),
-                              location: 0),
-                        .init(color: Color.clear, location: 0.46),
-                        .init(color: Color(uiColor: .systemGroupedBackground), location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                if player.playing {
+                    LinearGradient(
+                        stops: [
+                            .init(color: OrbitTheme.jade.opacity(scheme == .dark ? 0.08 : 0.05),
+                                  location: 0),
+                            .init(color: Color.clear, location: 0.46),
+                            .init(color: Color(uiColor: .systemGroupedBackground), location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
             }
             .frame(width: geo.size.width, height: 330)
         }
         .frame(height: 330)
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
+        .animation(.easeInOut(duration: 0.35), value: player.playing)
         .animation(.easeInOut(duration: 0.45), value: ambientCover)
     }
 
@@ -1027,37 +1030,183 @@ struct ListenView: View {
     }
 
     private var musicTabRail: some View {
-        HStack(spacing: 4) {
-            ForEach(Array([Tr("推荐"), Tr("歌曲"), Tr("朋友推荐")].enumerated()), id: \.offset) { index, title in
+        HStack(spacing: 28) {
+            ForEach(Array([Tr("推荐"), Tr("音乐"), Tr("朋友")].enumerated()), id: \.offset) { index, title in
                 Button {
                     withAnimation(.easeOut(duration: 0.18)) { tab = index }
                 } label: {
-                    Text(title)
-                        .font(.subheadline.weight(tab == index ? .semibold : .medium))
-                        .foregroundStyle(tab == index ? Color.primary : Color.secondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 36)
-                        .background {
-                            if tab == index {
-                                Capsule()
-                                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                                    .shadow(color: .black.opacity(scheme == .dark ? 0 : 0.08),
-                                            radius: 7, y: 2)
-                            }
-                        }
-                        .contentShape(Capsule())
+                    VStack(spacing: 5) {
+                        Text(title)
+                            .font(.system(size: 17, weight: tab == index ? .semibold : .regular))
+                            .foregroundStyle(tab == index ? Color.primary : Color.secondary)
+                        Capsule()
+                            .fill(tab == index ? OrbitTheme.jade : Color.clear)
+                            .frame(width: 18, height: 2.5)
+                    }
+                    .frame(height: 38, alignment: .bottom)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
+            Spacer(minLength: 0)
         }
-        .padding(4)
-        .background(.thinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.primary.opacity(0.06), lineWidth: 0.6))
         .padding(.horizontal, 20)
     }
 
     @ViewBuilder
     private var musicHomeContent: some View {
+        if let lead = homeLead {
+            let heroHeight = min(max(500, L.height * 0.58), 660)
+            let isCurrent = player.current?.id == lead.id
+            let lyrics = MusicLyrics.parse(
+                lead.lyrics ?? "",
+                duration: isCurrent ? player.total : 0
+            )
+            let lyricIndex = MusicLyrics.current(lyrics, at: isCurrent ? player.seconds : 0)
+            let currentLyric = lyrics.indices.contains(lyricIndex) ? lyrics[lyricIndex].text : ""
+            let nextLyric = lyrics.indices.contains(lyricIndex + 1) ? lyrics[lyricIndex + 1].text : ""
+
+            Button {
+                MusicPlayer.shared.setQueue(tracks)
+                if !player.isPlaying(lead.id) { player.toggle(lead) }
+                MusicSheet.shared.open(lead)
+            } label: {
+                ZStack(alignment: .bottomLeading) {
+                    RemoteImage(path: lead.cover ?? "", mode: .fill, maxSide: 1400)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: heroHeight)
+                        .clipped()
+
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black.opacity(0.08), location: 0),
+                            .init(color: .clear, location: 0.30),
+                            .init(color: .black.opacity(0.30), location: 0.58),
+                            .init(color: .black.opacity(0.94), location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            Text(Tr(isCurrent ? "正在播放" : "为你推荐"))
+                                .font(.system(size: 11.5, weight: .semibold))
+                                .tracking(0.8)
+                                .foregroundStyle(.white.opacity(0.86))
+                                .textCase(.uppercase)
+                            Spacer(minLength: 0)
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.84))
+                                .frame(width: 34, height: 34)
+                                .background(.black.opacity(0.20), in: Circle())
+                        }
+
+                        Spacer(minLength: 24)
+
+                        if !currentLyric.isEmpty {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(currentLyric)
+                                    .font(.system(size: 16.5, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                Text(nextLyric.isEmpty ? " " : nextLyric)
+                                    .font(.system(size: 13.5, weight: .regular))
+                                    .foregroundStyle(.white.opacity(0.62))
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.bottom, 18)
+                        }
+
+                        HStack(alignment: .bottom, spacing: 18) {
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text(lead.title)
+                                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.76)
+                                Text(lead.artistText)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.72))
+                                    .lineLimit(1)
+                            }
+
+                            Spacer(minLength: 6)
+
+                            ZStack {
+                                Circle().fill(.white.opacity(0.94))
+                                if player.loadingId == lead.id {
+                                    ProgressView().tint(.black)
+                                } else {
+                                    Image(systemName: player.isPlaying(lead.id) ? "pause.fill" : "play.fill")
+                                        .font(.system(size: 19, weight: .bold))
+                                        .foregroundStyle(.black)
+                                        .offset(x: player.isPlaying(lead.id) ? 0 : 1.5)
+                                }
+                            }
+                            .frame(width: 58, height: 58)
+                            .shadow(color: .black.opacity(0.24), radius: 16, y: 8)
+                        }
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.top, 14)
+                    .padding(.bottom, 24)
+                }
+                .frame(height: heroHeight)
+                .clipped()
+            }
+            .buttonStyle(.plain)
+        }
+
+        musicLibraryCards
+            .padding(.horizontal, 18)
+            .padding(.top, 20)
+            .padding(.bottom, 30)
+
+        musicSectionHeader(Tr("继续播放"))
+        LazyVStack(spacing: 0) {
+            ForEach(Array(recommend.filter { $0.id != homeLead?.id }.prefix(6))) { track in
+                premiumTrackRow(track)
+            }
+        }
+
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) { tab = 1 }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "music.note.list")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.jade)
+                    .frame(width: 30, height: 30)
+                    .background(OrbitTheme.jade.opacity(0.10), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Tr("全部歌曲"))
+                        .font(.system(size: 15.5, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text("\(tracks.count) " + Tr("首"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 62)
+            .background(Color.primary.opacity(0.035),
+                        in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 34)
+    }
+
+    @ViewBuilder
+    private var musicHomeContentLegacy: some View {
         if let lead = homeLead {
             Button {
                 if player.current?.id == lead.id {
@@ -1204,40 +1353,31 @@ struct ListenView: View {
         HStack(spacing: 8) {
             ForEach(MusicMineKind.allCases) { kind in
                 Button { mine = kind } label: {
-                    HStack(spacing: 7) {
+                    VStack(alignment: .leading, spacing: 9) {
                         Image(systemName: kind.icon)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 30, height: 30)
-                            .background(
-                                LinearGradient(
-                                    colors: libraryColors(kind),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            )
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(OrbitTheme.jade)
+                            .frame(width: 32, height: 32)
+                            .background(OrbitTheme.jade.opacity(0.10), in: Circle())
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(Tr(kind.title))
-                                .font(.system(size: 12.5, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                            Text(libraryCount(kind))
-                                .font(.system(size: 10.5))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
+                        Text(Tr(kind.title))
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                        Text(libraryCount(kind))
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .frame(height: 64)
-                    .background(.regularMaterial,
+                    .padding(12)
+                    .frame(height: 104)
+                    .background(Color.primary.opacity(0.035),
                                 in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
+                            .stroke(Color.primary.opacity(0.045), lineWidth: 0.5)
                     }
                     .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
@@ -1352,16 +1492,15 @@ struct ListenView: View {
         Button {
             withAnimation(.easeOut(duration: 0.16)) { action() }
         } label: {
-            Text(title)
-                .font(.subheadline.weight(selected ? .semibold : .regular))
-                .foregroundStyle(selected ? .white : Color.primary)
-                .padding(.horizontal, 14)
-                .frame(height: 34)
-                .background(
-                    selected ? OrbitTheme.jade : Color(uiColor: .secondarySystemGroupedBackground),
-                    in: Capsule()
-                )
-                .overlay(Capsule().stroke(Color.primary.opacity(selected ? 0 : 0.06), lineWidth: 0.6))
+            VStack(spacing: 5) {
+                Text(title)
+                    .font(.system(size: 14.5, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(selected ? Color.primary : Color.secondary)
+                Capsule()
+                    .fill(selected ? OrbitTheme.jade : Color.clear)
+                    .frame(width: 14, height: 2)
+            }
+            .frame(height: 34)
         }
         .buttonStyle(.plain)
     }
@@ -1410,14 +1549,14 @@ struct ListenView: View {
                 Spacer(minLength: 8)
 
                 if !manageMode {
-                    MusicPlayButton(
-                        playing: player.isPlaying(track.id),
-                        loading: player.loadingId == track.id,
-                        size: 36,
-                        tint: player.isPlaying(track.id) ? .white : OrbitTheme.jade,
-                        bg: player.isPlaying(track.id)
-                            ? OrbitTheme.jade : OrbitTheme.jade.opacity(0.11)
-                    )
+                    if player.loadingId == track.id {
+                        ProgressView().scaleEffect(0.72)
+                    } else {
+                        Image(systemName: player.isPlaying(track.id) ? "pause.fill" : "play.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(player.isPlaying(track.id) ? OrbitTheme.jade : Color.secondary)
+                            .frame(width: 30, height: 30)
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -2156,12 +2295,13 @@ final class MusicSheet: ObservableObject {
 private struct FullPlayerAmbient: View {
     let track: MusicTrack?
     @Environment(\.colorScheme) private var scheme
+    @ObservedObject private var player = MusicPlayer.shared
 
     var body: some View {
         ZStack {
             Color(uiColor: .systemBackground)
 
-            if let cover = track?.cover, !cover.isEmpty {
+            if player.playing, let cover = track?.cover, !cover.isEmpty {
                 RemoteImage(path: cover, mode: .fill, maxSide: 900)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .scaleEffect(1.16)
@@ -2184,6 +2324,7 @@ private struct FullPlayerAmbient: View {
             )
         }
         .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.4), value: player.playing)
         .animation(.easeInOut(duration: 0.55), value: track?.cover)
     }
 }
@@ -2603,21 +2744,19 @@ struct MusicPlayingView: View {
                             }
                         }
 
-                    rollingLyrics
-
                     VStack(spacing: 5) {
                         Text(t?.title ?? "")
-                            .font(.title2.weight(.bold))
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
                         Text(t?.artistText ?? "")
-                            .font(.title3)
+                            .font(.system(size: 15.5, weight: .regular))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity)
 
-                    coverLyricSwitch
+                    rollingLyrics
 
                     VStack(spacing: 2) {
                         Slider(value: Binding(
