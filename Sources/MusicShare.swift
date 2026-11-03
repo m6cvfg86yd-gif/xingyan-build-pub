@@ -786,19 +786,14 @@ struct ListenView: View {
         return Array(list.prefix(12))
     }
 
+    private var homeLead: MusicTrack? {
+        player.current ?? recommend.first
+    }
+
     private func recRank(_ id: String) -> UInt64 {
         var h = UInt64(truncatingIfNeeded: batch &* 2654435761) &+ 1469598103934665603
         for b in id.utf8 { h = (h ^ UInt64(b)) &* 1099511628211 }
         return h
-    }
-
-    private var artists: [(String, String)] {
-        var seen: [String: String] = [:]
-        tracks.forEach { t in
-            let a = (t.artist ?? "").isEmpty ? "未知歌手" : t.artist!
-            if seen[a] == nil { seen[a] = t.cover ?? "" }
-        }
-        return seen.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
     }
 
     var body: some View {
@@ -1049,23 +1044,27 @@ struct ListenView: View {
 
     @ViewBuilder
     private var musicHomeContent: some View {
-        if let lead = recommend.first {
+        if let lead = homeLead {
             Button {
-                MusicPlayer.shared.setQueue(tracks)
-                MusicPlayer.shared.toggle(lead)
+                if player.current?.id == lead.id {
+                    player.toggle(lead)
+                } else {
+                    player.setQueue(tracks)
+                    player.toggle(lead)
+                }
                 MusicSheet.shared.open(lead)
             } label: {
                 ZStack(alignment: .bottomLeading) {
                     RemoteImage(path: lead.cover ?? "", mode: .fill, maxSide: 900)
-                        .frame(height: 348)
+                        .frame(height: 420)
                         .clipped()
 
                     LinearGradient(
                         stops: [
-                            .init(color: .black.opacity(0.18), location: 0),
-                            .init(color: .black.opacity(0.08), location: 0.32),
-                            .init(color: .black.opacity(0.44), location: 0.64),
-                            .init(color: .black.opacity(0.92), location: 1)
+                            .init(color: .black.opacity(0.16), location: 0),
+                            .init(color: .clear, location: 0.33),
+                            .init(color: .black.opacity(0.34), location: 0.62),
+                            .init(color: .black.opacity(0.94), location: 1)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -1080,7 +1079,7 @@ struct ListenView: View {
 
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 8) {
-                            Text(Tr("今日精选"))
+                            Text(Tr(player.current == nil ? "今日精选" : "正在播放"))
                                 .font(.system(size: 12, weight: .semibold))
                                 .tracking(0.8)
                                 .foregroundStyle(.white.opacity(0.94))
@@ -1099,17 +1098,10 @@ struct ListenView: View {
                         Spacer(minLength: 24)
 
                         HStack(alignment: .bottom, spacing: 16) {
-                            MusicCover(path: lead.cover ?? "", size: 92, radius: 16)
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .stroke(.white.opacity(0.28), lineWidth: 0.8)
-                                }
-                                .shadow(color: .black.opacity(0.32), radius: 16, y: 8)
-
                             VStack(alignment: .leading, spacing: 7) {
                                 Spacer(minLength: 0)
                                 Text(lead.title)
-                                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                                    .font(.system(size: 32, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
                                     .lineLimit(2)
                                     .minimumScaleFactor(0.78)
@@ -1120,7 +1112,7 @@ struct ListenView: View {
                                     .lineLimit(1)
                             }
 
-                            Spacer(minLength: 4)
+                            Spacer(minLength: 8)
 
                             MusicPlayButton(
                                 playing: player.isPlaying(lead.id),
@@ -1132,18 +1124,18 @@ struct ListenView: View {
                             .shadow(color: OrbitTheme.jade.opacity(0.34), radius: 18, y: 8)
                         }
                     }
-                    .padding(22)
+                    .padding(24)
                 }
-                .frame(height: 348)
-                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .frame(height: 420)
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
                         .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
                 }
                 .shadow(color: .black.opacity(scheme == .dark ? 0.32 : 0.18),
                         radius: 28, y: 16)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 30)
+                .padding(.bottom, 26)
             }
             .buttonStyle(.plain)
         }
@@ -1161,36 +1153,37 @@ struct ListenView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 34)
+            .padding(.bottom, 30)
         }
 
-        musicSectionHeader(Tr("全部歌曲"))
-        ForEach(Array(recommend.prefix(8).enumerated()), id: \.element.id) { index, track in
-            premiumTrackRow(track, rank: index + 1)
-        }
-
-        if artists.count > 1 {
-            musicSectionHeader(Tr("推荐音乐人"))
-                .padding(.top, 22)
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 16) {
-                    ForEach(Array(artists.prefix(12).enumerated()), id: \.offset) { _, artist in
-                        VStack(spacing: 8) {
-                            MusicCover(path: artist.1, size: 72, radius: 36)
-                                .overlay(Circle().stroke(Color.white.opacity(0.75), lineWidth: 1))
-                                .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
-                            Text(artist.0)
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                                .frame(width: 82)
-                        }
-                    }
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) { tab = 1 }
+        } label: {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(Tr("全部歌曲"))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text("\(tracks.count) " + Tr("首") + " · " + Tr("查看完整曲库"))
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 66)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
             }
         }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 38)
     }
 
     private var musicLibraryCards: some View {
@@ -2394,25 +2387,34 @@ struct MusicPlayingView: View {
             Button {
                 showLyrics = true
             } label: {
-                VStack(spacing: 6) {
-                    Text(currentLyricText)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .id("lyric-current-\(lyricIndex)")
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .move(edge: .top).combined(with: .opacity)
-                        ))
-                    Text(nextLyricText)
-                        .font(.system(size: 14.5, weight: .regular))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .id("lyric-next-\(lyricIndex)")
-                        .transition(.opacity)
+                VStack(alignment: .leading, spacing: 7) {
+                    ZStack(alignment: .leading) {
+                        Text(currentLyricText)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .id("lyric-current-\(lyricIndex)")
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .bottom).combined(with: .opacity),
+                                removal: .move(edge: .top).combined(with: .opacity)
+                            ))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+                    .clipped()
+
+                    ZStack(alignment: .leading) {
+                        Text(nextLyricText)
+                            .font(.system(size: 14.5, weight: .regular))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .id("lyric-next-\(lyricIndex)")
+                            .transition(.opacity)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 19, alignment: .leading)
+                    .clipped()
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 54, alignment: .leading)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
