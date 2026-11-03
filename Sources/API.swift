@@ -1523,12 +1523,11 @@ final class API {
 
     private(set) var token: String = ""
 
-    private(set) var server: String = "43.242.194.89:443"
+    private(set) var server: String = "u.598218.xyz:8443"
 
     private(set) var backups: [String] = API.builtinBackups
 
     static let trustedHosts: Set<String> = [
-        "43.242.194.89",
         "u.598218.xyz"
     ]
     static func trustedHost(_ s: String) -> Bool {
@@ -1568,11 +1567,13 @@ final class API {
         return false
     }
 
-    static let builtinBackups: [String] = [
-        "43.242.194.89:8443"
-    ]
+    static let builtinBackups: [String] = []
     private static let retiredEndpoints: Set<String> = [
-        "43.242.194.89:5443"
+        "43.242.194.89:443",
+        "43.242.194.89:8443",
+        "43.242.194.89:5443",
+        "u.598218.xyz:443",
+        "u.598218.xyz:5443"
     ]
 
     private var lastRotate = Date.distantPast
