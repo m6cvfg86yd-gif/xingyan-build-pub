@@ -23,9 +23,7 @@ struct GroupInfoView: View {
     @State private var showRename = false
     @State private var nameDraft = ""
     @State private var showSearch = false
-    @State private var membersExpanded = false
-    @State private var visibleMemberLimit = 20
-    @State private var expandingMembers = false
+    @State private var showAllMembers = false
     @State private var showComplaint = false
 
     @State private var showGroupBg = false
@@ -167,6 +165,10 @@ struct GroupInfoView: View {
                     await app.loadChats()
                 }
             }
+        }
+        .navigationDestination(isPresented: $showAllMembers) {
+            GroupMembersPage(chat: chat, members: members, ownerId: ownerId)
+                .environmentObject(app)
         }
         .onReceive(NotificationCenter.default.publisher(for: ChatSearchJump.didRequest)) { note in
             guard let target = ChatSearchJump.destination(from: note),
@@ -520,8 +522,7 @@ struct GroupInfoView: View {
     }
 
     private var visibleMembers: [User] {
-        let limit = membersExpanded ? visibleMemberLimit : min(20, members.count)
-        return Array(members.prefix(min(limit, members.count)))
+        Array(members.prefix(20))
     }
 
     private var memberCard: some View {
@@ -596,11 +597,10 @@ struct GroupInfoView: View {
                         }
                     }
 
-                    if members.count > 20 && !membersExpanded {
+                    if members.count > 20 {
                         VStack(spacing: 6) {
                             Button {
-                                membersExpanded = true
-                                visibleMemberLimit = min(60, members.count)
+                                showAllMembers = true
                             } label: {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -639,12 +639,6 @@ struct GroupInfoView: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 16)
                 .padding(.bottom, 16)
-            }
-            if membersExpanded && visibleMemberLimit < members.count {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .onAppear { loadNextMemberBatch() }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -759,20 +753,6 @@ struct GroupInfoView: View {
         .padding(.top, 10)
     }
 
-    private func loadNextMemberBatch() {
-        guard membersExpanded, !expandingMembers, visibleMemberLimit < members.count else { return }
-        expandingMembers = true
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 40_000_000)
-            guard membersExpanded else {
-                expandingMembers = false
-                return
-            }
-            visibleMemberLimit = min(members.count, visibleMemberLimit + 60)
-            expandingMembers = false
-        }
-    }
-
     private var dangerCard: some View {
         GroupCard {
             ChatInfoTextRow(title: Tr("清空聊天记录"), destructive: true) { confirmClear = true }
@@ -781,6 +761,127 @@ struct GroupInfoView: View {
             ChatInfoDivider()
             ChatInfoTextRow(title: isOwner ? "解散并退出群聊" : "退出群聊",
                             destructive: true) { confirmQuit = true }
+        }
+    }
+}
+
+struct GroupMembersPage: View {
+    @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    let chat: Chat
+    let members: [User]
+    let ownerId: String
+
+    @State private var query = ""
+    @State private var selected: User? = nil
+
+    private let columns = Array(
+        repeating: GridItem(.flexible(minimum: 0), spacing: 12, alignment: .top),
+        count: 5
+    )
+
+    private var filtered: [User] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return members }
+        return members.filter {
+            $0.name.localizedCaseInsensitiveContains(q)
+                || ($0.username ?? "").localizedCaseInsensitiveContains(q)
+                || ($0.remark ?? "").localizedCaseInsensitiveContains(q)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            NavBar(title: Tr("全部群成员"), back: { dismiss() }) {
+                Text("\(members.count)")
+                    .font(pf(13, .semibold))
+                    .foregroundColor(C.subLabel)
+                    .padding(.trailing, 14)
+            }
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 14) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(C.subLabel)
+                        TextField(Tr("搜索群成员"), text: $query)
+                            .font(pf(15))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        if !query.isEmpty {
+                            Button { query = "" } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(C.subLabel.opacity(0.7))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 13)
+                    .frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(C.cardBg))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(C.hairline, lineWidth: 0.6))
+
+                    GroupCard {
+                        LazyVGrid(columns: columns, spacing: 18) {
+                            ForEach(filtered) { u in
+                                Button { selected = u } label: {
+                                    VStack(spacing: 7) {
+                                        Avatar(path: u.avatarPath, size: 54, radius: 11,
+                                               level: u.qqLevel ?? 0)
+                                        Text(u.groupName)
+                                            .font(pf(11.5))
+                                            .foregroundColor(C.label)
+                                            .lineLimit(1)
+                                        if u.id == ownerId {
+                                            Text(Tr("群主"))
+                                                .font(pf(9.5, .medium))
+                                                .foregroundColor(C.green)
+                                                .lineLimit(1)
+                                        } else {
+                                            Text(u.id == app.me?.id ? Tr("我") : " ")
+                                                .font(pf(9.5))
+                                                .foregroundColor(C.subLabel)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 18)
+                    }
+
+                    if filtered.isEmpty {
+                        Text(Tr("没有找到群成员"))
+                            .font(pf(13))
+                            .foregroundColor(C.subLabel)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 36)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+                .padding(.bottom, 30)
+            }
+        }
+        .background(C.pageBg.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        .swipeBack { dismiss() }
+        .navigationDestination(isPresented: Binding(
+            get: { selected != nil },
+            set: { if !$0 { selected = nil } }
+        )) {
+            if let u = selected {
+                ContactCardView(user: u,
+                                onOpenChat: { _ in selected = nil },
+                                onOpenMoments: { _ in selected = nil })
+                    .environmentObject(app)
+            }
         }
     }
 }
