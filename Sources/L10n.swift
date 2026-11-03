@@ -448,6 +448,8 @@ enum L10n {
         "好友最近 2 小时在听的歌": "Songs friends played in the last 2 hours",
         "搜索歌名 / 歌手 / 分类": "Search songs, artists, or categories",
         "分类": "Categories",
+        "分类探索": "Explore Categories",
+        "我的音乐": "My Music",
         "随机播放": "Shuffle play",
         "这个分类还没有歌曲": "No songs in this category yet.",
         "华语": "Mandarin",

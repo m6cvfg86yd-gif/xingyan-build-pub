@@ -24,14 +24,14 @@ struct MusicDockedPlayerBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            MusicCover(path: player.current?.cover ?? "", size: 42, radius: 5)
-            VStack(alignment: .leading, spacing: 2) {
+            MusicCover(path: player.current?.cover ?? "", size: 40, radius: 8)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(player.current?.title ?? "")
-                    .font(.subheadline.weight(.medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.primary)
                     .lineLimit(1)
                 Text(player.current?.artistText ?? "")
-                    .font(.caption)
+                    .font(.system(size: 13))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
@@ -44,44 +44,33 @@ struct MusicDockedPlayerBar: View {
                 } else {
                     Image(systemName: player.playing ? "pause.fill" : "play.fill")
                         .font(.system(size: 20, weight: .semibold))
-                        .frame(width: 38, height: 38)
+                        .frame(width: 44, height: 44)
                 }
             }
             .buttonStyle(.plain)
-            Button {
-                player.next()
-            } label: {
-                Image(systemName: "forward.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 36, height: 38)
-            }
-            .buttonStyle(.plain)
-            .disabled(player.queue.count < 2)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.regularMaterial)
-        }
-        .overlay(alignment: .bottom) {
-            GeometryReader { geo in
-                Capsule()
-                    .fill(C.green)
-                    .frame(width: max(0, geo.size.width * player.progress), height: 2)
-            }
-            .frame(height: 2)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 0.6)
-        }
-        .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(height: 64)
+        .background(.thinMaterial,
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture {
             if let track = player.current { MusicSheet.shared.open(track) }
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    if value.translation.height < -44,
+                       abs(value.translation.height) > abs(value.translation.width) {
+                        if let track = player.current { MusicSheet.shared.open(track) }
+                    } else if abs(value.translation.width) > 52,
+                              abs(value.translation.width) > abs(value.translation.height) {
+                        if value.translation.width < 0 { player.next() }
+                        else { player.prev() }
+                    }
+                }
+        )
     }
 }
 

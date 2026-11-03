@@ -1187,17 +1187,24 @@ struct ListenView: View {
 
     @ViewBuilder
     private var musicHomeContent: some View {
-        musicLibraryCards
-            .padding(.horizontal, 18)
-            .padding(.top, 18)
-            .padding(.bottom, 28)
+        musicSectionHeader(Tr("为你推荐"), refresh: true)
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 16) {
+                ForEach(Array(recommend.prefix(8))) { track in
+                    recommendationHeroCard(track)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 4)
+        }
+        .padding(.bottom, 30)
 
-        if cats.count > 1 {
-            musicSectionHeader(Tr("分类"))
+        if !musicLibrary.recents.isEmpty {
+            musicSectionHeader(Tr("最近播放"))
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 14) {
-                    ForEach(cats, id: \.self) { value in
-                        categoryLargeCard(value)
+                LazyHStack(spacing: 12) {
+                    ForEach(Array(musicLibrary.recents.prefix(8))) { recent in
+                        recentPlaybackCard(recent.asTrack)
                     }
                 }
                 .padding(.horizontal, 18)
@@ -1205,28 +1212,27 @@ struct ListenView: View {
             .padding(.bottom, 26)
         }
 
-        musicSectionHeader(Tr("为你推荐"), refresh: true)
-
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 14) {
-                ForEach(Array(recommend.prefix(10))) { track in
-                    largeSongCard(track)
+        if cats.count > 1 {
+            musicSectionHeader(Tr("分类探索"))
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 16),
+                    GridItem(.flexible(), spacing: 16)
+                ],
+                spacing: 16
+            ) {
+                ForEach(cats, id: \.self) { value in
+                    categoryLargeCard(value)
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 28)
+        }
+
+        musicSectionHeader(Tr("我的音乐"))
+        musicLibraryCards
             .padding(.horizontal, 18)
-            .padding(.vertical, 4)
-        }
-        .padding(.bottom, 28)
-
-        if !musicLibrary.recents.isEmpty {
-            musicSectionHeader(Tr("最近播放"))
-            LazyVStack(spacing: 0) {
-                ForEach(Array(musicLibrary.recents.prefix(4))) { recent in
-                    premiumTrackRow(recent.asTrack)
-                }
-            }
-            .padding(.bottom, 18)
-        }
+            .padding(.bottom, 26)
 
         Button {
             withAnimation(.easeOut(duration: 0.18)) { tab = 1 }
@@ -1301,8 +1307,123 @@ struct ListenView: View {
         .buttonStyle(.plain)
     }
 
+    private var recommendationCardWidth: CGFloat {
+        max(238, L.width - 72)
+    }
+
+    private func playRecommended(_ track: MusicTrack) {
+        var queue = recommend
+        if let index = queue.firstIndex(where: { $0.id == track.id }) {
+            queue.swapAt(0, index)
+        } else if queue.isEmpty {
+            queue = [track]
+        }
+        MusicPlayer.shared.setQueue(queue)
+        MusicPlayer.shared.play(track)
+        MusicSheet.shared.open(track)
+    }
+
+    private func recommendationHeroCard(_ track: MusicTrack) -> some View {
+        let width = recommendationCardWidth
+        let height = width * 0.75
+        return Button {
+            playRecommended(track)
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                if (track.cover ?? "").isEmpty {
+                    LinearGradient(
+                        colors: [OrbitTheme.jade.opacity(0.92), Color(hex: 0x145E42)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                } else {
+                    RemoteImage(path: track.cover ?? "", mode: .fill, maxSide: 1400)
+                }
+
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0.46),
+                        .init(color: .black.opacity(0.18), location: 0.68),
+                        .init(color: .black.opacity(0.78), location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(track.displayCategory)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .tracking(0.5)
+                        .foregroundStyle(.white.opacity(0.68))
+                        .textCase(.uppercase)
+                    Text(track.title)
+                        .font(.system(size: 22, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                    Text(track.artistText)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.70))
+                        .lineLimit(1)
+                }
+                .padding(16)
+                .frame(width: width * 0.74, alignment: .leading)
+
+                ZStack {
+                    Circle().fill(.ultraThinMaterial)
+                    Image(systemName: player.isPlaying(track.id) ? "pause.fill" : "play.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                        .offset(x: player.isPlaying(track.id) ? 0 : 1)
+                }
+                .frame(width: 44, height: 44)
+                .padding(14)
+                .frame(maxWidth: .infinity, maxHeight: .infinity,
+                       alignment: .bottomTrailing)
+            }
+            .frame(width: width, height: height)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(.white.opacity(0.12), lineWidth: 0.6)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func recentPlaybackCard(_ track: MusicTrack) -> some View {
+        Button {
+            playRecommended(track)
+        } label: {
+            HStack(spacing: 10) {
+                MusicCover(path: track.cover ?? "", size: 48, radius: 8)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(track.title)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(track.artistText)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(width: 142, alignment: .leading)
+            }
+            .padding(.horizontal, 9)
+            .frame(width: 224, height: 64)
+            .background(.thinMaterial,
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
     private var largeMusicCardSide: CGFloat {
         min(286, max(226, L.width * 0.68))
+    }
+
+    private var categoryGridSide: CGFloat {
+        max(124, (L.width - 56) / 2)
     }
 
     private func categoryTracks(_ value: String) -> [MusicTrack] {
@@ -1387,13 +1508,13 @@ struct ListenView: View {
                                alignment: .topTrailing)
                 }
             }
-            .frame(width: 178, height: 120)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .frame(width: categoryGridSide, height: categoryGridSide)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(.white.opacity(0.13), lineWidth: 0.6)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -3106,7 +3227,7 @@ struct MusicPlayingView: View {
         }
     }
 
-    private var landscapeLyrics: some View {
+    private var lyricsViewport: some View {
         Group {
             if lyricLines.isEmpty {
                 VStack(spacing: 10) {
@@ -3276,12 +3397,12 @@ struct MusicPlayingView: View {
     }
 
     private var portraitArtworkSide: CGFloat {
-        min(356, L.width - 50, L.height * 0.43)
+        min(360, L.width - 40, L.height * 0.43)
     }
 
     private func artworkSize(in size: CGSize) -> CGFloat {
         if size.width > size.height {
-            return min(310, size.height - 94, size.width * 0.34)
+            return min(size.height - 44, size.width * 0.38)
         }
         return portraitArtworkSide
     }
@@ -3298,10 +3419,10 @@ struct MusicPlayingView: View {
                     }
                     .transition(.opacity)
             } else {
-                MusicCover(path: t?.cover ?? "", size: side, radius: 20)
+                MusicCover(path: t?.cover ?? "", size: side, radius: 24)
                     .scaleEffect(player.playing ? 1 + player.level * 0.012 : 1)
                     .overlay {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
                             .stroke(.white.opacity(0.18), lineWidth: 0.7)
                     }
                     .shadow(color: .black.opacity(0.22), radius: 34, y: 18)
@@ -3472,11 +3593,11 @@ struct MusicPlayingView: View {
     private var titleBlock: some View {
         VStack(spacing: 5) {
             Text(t?.title ?? "")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .font(.system(size: 26, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
             Text(t?.artistText ?? "")
-                .font(.system(size: 15.5, weight: .regular))
+                .font(.system(size: 17, weight: .regular))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -3486,12 +3607,12 @@ struct MusicPlayingView: View {
     private var compactTitleBlock: some View {
         VStack(spacing: 3) {
             Text(t?.title ?? "")
-                .font(.system(size: 21, weight: .bold, design: .rounded))
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
             Text(t?.artistText ?? "")
-                .font(.system(size: 13, weight: .regular))
+                .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -3506,7 +3627,7 @@ struct MusicPlayingView: View {
                 ZStack(alignment: .leading) {
                     Capsule()
                         .fill(Color.white.opacity(0.20))
-                        .frame(height: compact ? 3.5 : 4.5)
+                        .frame(height: 2)
 
                     Capsule()
                         .fill(
@@ -3517,22 +3638,18 @@ struct MusicPlayingView: View {
                             )
                         )
                         .frame(width: max(0, width * value),
-                               height: compact ? 3.5 : 4.5)
+                               height: 2)
                         .shadow(color: Color.white.opacity(0.30),
                                 radius: dragging ? 7 : 3)
 
-                    Circle()
-                        .fill(Color(uiColor: .systemBackground))
-                        .frame(width: dragging ? 17 : 14,
-                               height: dragging ? 17 : 14)
-                        .overlay {
-                            Circle().stroke(Color.white, lineWidth: 1.5)
-                        }
-                        .shadow(color: Color.white.opacity(0.30),
-                                radius: dragging ? 9 : 5)
-                        .offset(x: min(max(width * value
-                                           - (dragging ? 8.5 : 7), 0),
-                                      max(0, width - (dragging ? 17 : 14))))
+                    if dragging {
+                        Capsule()
+                            .fill(Color.white)
+                            .frame(width: 1.5, height: 18)
+                            .shadow(color: .white.opacity(0.42), radius: 5)
+                            .offset(x: min(max(width * value - 0.75, 0),
+                                          max(0, width - 1.5)))
+                    }
                 }
                 .frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
@@ -3566,7 +3683,7 @@ struct MusicPlayingView: View {
                     }
                 }
             }
-            .frame(height: compact ? 27 : 32)
+            .frame(height: 44)
 
             HStack {
                 Text(musicTime(dragging ? dragValue * player.total : player.seconds))
@@ -3575,7 +3692,7 @@ struct MusicPlayingView: View {
                 Text(musicTime(player.total))
                     .foregroundStyle(.secondary)
             }
-            .font(.system(size: compact ? 10.5 : 11.5,
+            .font(.system(size: compact ? 13 : 14,
                           weight: .medium,
                           design: .monospaced))
             .padding(.horizontal, 3)
@@ -3694,7 +3811,7 @@ struct MusicPlayingView: View {
     private var portraitPlayer: some View {
         VStack(spacing: 14) {
             artworkPanel
-                .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .onTapGesture {
                     withAnimation(.easeInOut(duration: 0.22)) {
                         flipped.toggle()
@@ -3703,7 +3820,8 @@ struct MusicPlayingView: View {
 
             titleBlock
 
-            rollingLyrics
+            lyricsViewport
+                .frame(height: min(220, max(150, L.height * 0.25)))
 
             controlDock(compact: false)
         }
@@ -3716,7 +3834,7 @@ struct MusicPlayingView: View {
         let side = artworkSize(in: size)
         return HStack(spacing: max(20, min(38, size.width * 0.035))) {
             artworkPanel(side: side)
-                .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .onTapGesture {
                     withAnimation(.easeInOut(duration: 0.22)) {
                         flipped.toggle()
@@ -3725,7 +3843,7 @@ struct MusicPlayingView: View {
 
             VStack(spacing: 8) {
                 compactTitleBlock
-                landscapeLyrics
+                lyricsViewport
                 progressBlock(compact: true)
                 landscapeControlStrip
             }
@@ -3751,15 +3869,20 @@ struct MusicPlayingView: View {
                     VStack(spacing: 0) {
                         playerTopBar(landscape: landscape)
 
-                        if landscape {
-                            landscapePlayer(size: contentSize)
-                        } else {
-                            ScrollView(showsIndicators: false) {
-                                Group {
-                                    portraitPlayer
+                        Group {
+                            if landscape {
+                                landscapePlayer(size: contentSize)
+                                    .transition(.opacity)
+                            } else {
+                                ScrollView(showsIndicators: false) {
+                                    Group {
+                                        portraitPlayer
+                                    }
                                 }
+                                .transition(.opacity)
                             }
                         }
+                        .animation(.easeInOut(duration: 0.38), value: landscape)
                     }
                 }
             }
