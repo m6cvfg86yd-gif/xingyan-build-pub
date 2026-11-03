@@ -727,6 +727,7 @@ struct ListenView: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.scenePhase) private var scenePhase
 
     var sendTo: Chat? = nil
     var onSend: ((MusicTrack) -> Void)? = nil
@@ -734,6 +735,7 @@ struct ListenView: View {
     @State private var tracks: [MusicTrack] = []
     @State private var loading = true
     @State private var query = ""
+    @State private var lastTracksRefresh = Date.distantPast
 
     @State private var tab = 0
 
@@ -828,8 +830,7 @@ struct ListenView: View {
         .hidesTabBar()
         .swipeBack { dismiss() }
         .task {
-            tracks = await API.shared.musicTracks()
-            loading = false
+            await refreshTracks(force: true)
         }
 
         .fullScreenCover(item: $mine) { k in
@@ -867,6 +868,10 @@ struct ListenView: View {
         .onDisappear {
             if !sendMode { musicDock.detach() }
         }
+        .onChange(of: scenePhase) { phase in
+            guard phase == .active else { return }
+            Task { await refreshTracks() }
+        }
         .sheet(isPresented: $showIconPick) {
             PhotoPicker { img in
                 let id = iconPickFor
@@ -892,6 +897,17 @@ struct ListenView: View {
         if let cover = player.current?.cover, !cover.isEmpty { return cover }
         if let cover = recommend.first?.cover, !cover.isEmpty { return cover }
         return tracks.first?.cover ?? ""
+    }
+
+    @MainActor
+    private func refreshTracks(force: Bool = false) async {
+        if !force, Date().timeIntervalSince(lastTracksRefresh) < 15 { return }
+        let fresh = await API.shared.musicTracks()
+        if !fresh.isEmpty || tracks.isEmpty {
+            tracks = fresh
+        }
+        lastTracksRefresh = Date()
+        loading = false
     }
 
     private var topAmbientGlow: some View {
