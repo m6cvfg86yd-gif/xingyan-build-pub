@@ -82,11 +82,14 @@ def add_vignette(image: Image.Image) -> Image.Image:
     return Image.alpha_composite(image, shade)
 
 
-def build_icon() -> Image.Image:
+def build_icon(
+    top: tuple[int, int, int] = (100, 255, 178),
+    bottom: tuple[int, int, int] = (24, 205, 126),
+) -> Image.Image:
     background = diagonal_gradient(
         SIZE,
-        (35, 226, 133),
-        (5, 158, 94),
+        top,
+        bottom,
     ).convert("RGBA")
     background = add_vignette(background)
 
