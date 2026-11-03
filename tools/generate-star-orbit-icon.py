@@ -83,8 +83,8 @@ def add_vignette(image: Image.Image) -> Image.Image:
 
 
 def build_icon(
-    top: tuple[int, int, int] = (100, 255, 178),
-    bottom: tuple[int, int, int] = (24, 205, 126),
+    top: tuple[int, int, int] = (89, 222, 112),
+    bottom: tuple[int, int, int] = (28, 173, 73),
 ) -> Image.Image:
     background = diagonal_gradient(
         SIZE,
@@ -96,7 +96,7 @@ def build_icon(
     # Diffuse top-left light gives the green material depth without a glossy bevel.
     ambient = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     ambient_draw = ImageDraw.Draw(ambient)
-    ambient_draw.ellipse((190, 110, 1640, 1560), fill=(104, 255, 184, 72))
+    ambient_draw.ellipse((190, 110, 1640, 1560), fill=(112, 255, 150, 66))
     ambient = ambient.filter(ImageFilter.GaussianBlur(250))
     background = Image.alpha_composite(background, ambient)
 
