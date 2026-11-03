@@ -796,21 +796,27 @@ struct ListenView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if !sendMode {
-                Picker(Tr("内容"), selection: $tab) {
-                    Text(Tr("推荐")).tag(0)
-                    Text(Tr("歌曲")).tag(1)
-                    Text(Tr("朋友推荐")).tag(2)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-            }
+        ZStack(alignment: .top) {
+            Color(uiColor: .systemGroupedBackground)
+                .ignoresSafeArea()
+            topAmbientGlow
 
-            musicList
+            VStack(spacing: 0) {
+                if !sendMode {
+                    Picker(Tr("内容"), selection: $tab) {
+                        Text(Tr("推荐")).tag(0)
+                        Text(Tr("歌曲")).tag(1)
+                        Text(Tr("朋友推荐")).tag(2)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+                }
+
+                musicList
+            }
         }
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(Tr(sendMode ? "选择音乐" : "听一听"))
@@ -821,6 +827,7 @@ struct ListenView: View {
             prompt: Text(Tr("搜索歌名 / 歌手 / 分类"))
         )
         .toolbar(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar { musicToolbar }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !sendMode, let cur = player.current {
@@ -857,6 +864,50 @@ struct ListenView: View {
                       allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let dir = urls.first { importFolder(dir) }
         }
+    }
+
+    private var ambientCover: String {
+        if let cover = player.current?.cover, !cover.isEmpty { return cover }
+        if let cover = recommend.first?.cover, !cover.isEmpty { return cover }
+        return tracks.first?.cover ?? ""
+    }
+
+    private var topAmbientGlow: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .top) {
+                if !ambientCover.isEmpty {
+                    RemoteImage(path: ambientCover, mode: .fill, maxSide: 520)
+                        .frame(width: geo.size.width * 1.18,
+                               height: 330)
+                        .blur(radius: 72, opaque: false)
+                        .saturation(1.08)
+                        .opacity(scheme == .dark ? 0.34 : 0.28)
+                } else {
+                    RadialGradient(
+                        colors: [OrbitTheme.jade.opacity(0.24), .clear],
+                        center: .top,
+                        startRadius: 8,
+                        endRadius: 240
+                    )
+                }
+
+                LinearGradient(
+                    stops: [
+                        .init(color: OrbitTheme.jade.opacity(scheme == .dark ? 0.08 : 0.05),
+                              location: 0),
+                        .init(color: Color.clear, location: 0.46),
+                        .init(color: Color(uiColor: .systemGroupedBackground), location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .frame(width: geo.size.width, height: 330)
+        }
+        .frame(height: 330)
+        .ignoresSafeArea(edges: .top)
+        .allowsHitTesting(false)
+        .animation(.easeInOut(duration: 0.45), value: ambientCover)
     }
 
     @ViewBuilder
@@ -1908,18 +1959,22 @@ struct MusicPlayingView: View {
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
+                VStack(spacing: 18) {
                     artworkPanel
-
-                    coverLyricSwitch
+                        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.22)) {
+                                flipped.toggle()
+                            }
+                        }
 
                     VStack(spacing: 5) {
                         Text(t?.title ?? "")
-                            .font(.title3.weight(.semibold))
+                            .font(.title2.weight(.bold))
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
                         Text(t?.artistText ?? "")
-                            .font(.subheadline)
+                            .font(.title3)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -2027,7 +2082,7 @@ struct MusicPlayingView: View {
                 .padding(.bottom, max(28, L.safeBottom + 16))
             }
             .background(Color(uiColor: .systemBackground).ignoresSafeArea())
-            .navigationTitle(Tr("正在播放"))
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -2077,6 +2132,7 @@ struct MusicPlayingView: View {
                 Task { await refreshLike() }
             }
             .onDisappear { MusicSheet.shared.close() }
+            .tint(OrbitTheme.jade)
         }
     }
 }

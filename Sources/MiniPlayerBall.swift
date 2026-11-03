@@ -32,37 +32,69 @@ struct MiniPlayerBall: View {
     private var miniBar: some View {
         VStack {
             Spacer(minLength: 0)
-            HStack(spacing: 10) {
-                MusicCover(path: player.current?.cover ?? "", size: 36, radius: 6)
+            HStack(spacing: 12) {
+                MusicCover(path: player.current?.cover ?? "", size: 42, radius: 5)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(player.current?.title ?? "").font(pf(14)).foregroundColor(C.label).lineLimit(1)
-                    Text(player.current?.artistText ?? "").font(pf(11.5)).foregroundColor(C.subLabel).lineLimit(1)
+                    Text(player.current?.title ?? "")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    Text(player.current?.artistText ?? "")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
                 }
-                Spacer(minLength: 6)
+                Spacer(minLength: 4)
                 Button {
                     if let t = MusicPlayer.shared.current { MusicPlayer.shared.toggle(t) }
                 } label: {
-                    MusicPlayButton(playing: player.playing,
-                                    loading: !player.loadingId.isEmpty && player.loadingId == (player.current?.id ?? ""),
-                                    size: 32, tint: .white, bg: C.green)
+                    if !player.loadingId.isEmpty && player.loadingId == (player.current?.id ?? "") {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: player.playing ? "pause.fill" : "play.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .frame(width: 38, height: 38)
+                    }
                 }
                 .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 12).padding(.vertical, 8)
-            .background {
-                ZStack {
-                    Rectangle().fill(.bar)
-                    C.cardBg.opacity(0.55)
+                Button {
+                    MusicPlayer.shared.next()
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(width: 36, height: 38)
                 }
+                .buttonStyle(.plain)
+                .disabled(player.queue.count < 2)
             }
-            .overlay(alignment: .top) { HairLine() }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.regularMaterial)
+            }
+            .overlay(alignment: .bottom) {
+                GeometryReader { geo in
+                    Capsule()
+                        .fill(C.green)
+                        .frame(width: max(0, geo.size.width * player.progress), height: 2)
+                }
+                .frame(height: 2)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.6)
+            }
+            .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .contentShape(Rectangle())
             .onTapGesture { openPlayer() }
             .gesture(DragGesture(minimumDistance: 10).onEnded { v in
 
                 if v.translation.height > 40 { MusicPlayer.shared.stop() }
             })
-            .padding(.bottom, L.safeBottom + L.tabH)
+            .padding(.horizontal, 10)
+            .padding(.bottom, L.safeBottom + L.tabH + 8)
         }
         .ignoresSafeArea()
         .opacity(showing ? 1 : 0)

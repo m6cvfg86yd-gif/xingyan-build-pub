@@ -293,8 +293,6 @@ struct MusicLikesPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: Tr("我喜欢"), back: { dismiss() })
-
             if loading {
                 HStack(spacing: 10) { ProgressView(); Text(Tr("正在加载…")).font(pf(15)).foregroundColor(C.subLabel) }
                     .frame(maxWidth: .infinity).frame(height: 90)
@@ -308,9 +306,8 @@ struct MusicLikesPage: View {
             }
         }
         .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
-        .hidesTabBar()
+        .navigationTitle(Tr("我喜欢的音乐"))
+        .navigationBarTitleDisplayMode(.large)
         .sheet(item: $addFor) { t in AddToPlaylistSheet(track: t) }
         .task {
             tracks = await API.shared.musicTracks()
@@ -355,16 +352,6 @@ struct MusicRecentsPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: Tr("最近播放"), back: { dismiss() }) {
-                if !lib.recents.isEmpty {
-                    Button { confirmClear = true } label: {
-                        Text(Tr("清空")).font(pf(15)).foregroundColor(C.subLabel)
-                            .frame(height: 40).padding(.horizontal, 10).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
             if list.isEmpty {
                 MusicEmptyState(icon: "clock.arrow.circlepath", title: Tr("还没有播放记录"),
                                 hint: Tr("去「听一听」里点一首歌，这里就会记下来"))
@@ -374,9 +361,15 @@ struct MusicRecentsPage: View {
             }
         }
         .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
-        .hidesTabBar()
+        .navigationTitle(Tr("最近播放"))
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            if !lib.recents.isEmpty {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(Tr("清空")) { confirmClear = true }
+                }
+            }
+        }
         .sheet(item: $addFor) { t in AddToPlaylistSheet(track: t) }
         .alert(Tr("清空最近播放？"), isPresented: $confirmClear) {
             Button(Tr("取消"), role: .cancel) { }
@@ -410,14 +403,6 @@ struct MusicPlaylistsPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: Tr("我的歌单"), back: { dismiss() }) {
-                Button { name = ""; ask = .new } label: {
-                    Text(Tr("新建")).font(pf(15, .medium)).foregroundColor(C.green)
-                        .frame(height: 40).padding(.horizontal, 10).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-
             if lib.playlists.isEmpty {
                 MusicEmptyState(icon: "music.note.list", title: Tr("还没有歌单"),
                                 hint: Tr("点右上角「新建」建一个，再往里加歌"))
@@ -435,9 +420,19 @@ struct MusicPlaylistsPage: View {
             }
         }
         .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
-        .hidesTabBar()
+        .navigationTitle(Tr("我的歌单"))
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    name = ""
+                    ask = .new
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel(Tr("新建歌单"))
+            }
+        }
         .navigationDestination(isPresented: $showOpen) { MusicPlaylistPage(listId: openId) }
         .alert(askTitle, isPresented: Binding(
             get: { ask != .none },
@@ -548,17 +543,6 @@ struct MusicPlaylistPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: pl?.name ?? Tr("歌单"), back: { dismiss() }) {
-                Menu {
-                    Button(Tr("重命名")) { name = pl?.name ?? ""; rename = true }
-                    Button(Tr("删除歌单"), role: .destructive) { confirmDel = true }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 15, weight: .semibold)).foregroundColor(C.label)
-                        .frame(width: 40, height: 40).contentShape(Rectangle())
-                }
-            }
-
             head
 
             if songs.isEmpty && !lib.songs(in: listId).isEmpty {
@@ -575,9 +559,18 @@ struct MusicPlaylistPage: View {
             }
         }
         .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
-        .hidesTabBar()
+        .navigationTitle(pl?.name ?? Tr("歌单"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button(Tr("重命名")) { name = pl?.name ?? ""; rename = true }
+                    Button(Tr("删除歌单"), role: .destructive) { confirmDel = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
         .sheet(item: $addFor) { t in AddToPlaylistSheet(track: t) }
         .navigationDestination(isPresented: $showPick) { MusicPickPage(listId: listId) }
         .alert(Tr("重命名歌单"), isPresented: $rename) {
@@ -686,30 +679,6 @@ struct MusicPickPage: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: Tr("加入歌曲"), back: { dismiss() }) {
-                Button { dismiss() } label: {
-                    Text(Tr("完成")).font(pf(15, .medium)).foregroundColor(C.green)
-                        .frame(height: 40).padding(.horizontal, 10).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").font(.system(size: 14.5)).foregroundColor(C.searchIcon)
-                TextField(Tr("搜索歌名 / 歌手"), text: $query).font(pf(15))
-                if !query.isEmpty {
-                    Button { query = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 15)).foregroundColor(C.searchIcon2)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 12).frame(height: 38)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(C.searchBg))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(C.hairline, lineWidth: 0.6))
-            .padding(.horizontal, 14).padding(.top, 4).padding(.bottom, 6)
-
             if loading {
                 HStack(spacing: 10) { ProgressView(); Text(Tr("正在加载…")).font(pf(15)).foregroundColor(C.subLabel) }
                     .frame(maxWidth: .infinity).frame(height: 90)
@@ -730,9 +699,14 @@ struct MusicPickPage: View {
             }
         }
         .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
-        .hidesTabBar()
+        .navigationTitle(Tr("加入歌曲"))
+        .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $query, prompt: Text(Tr("搜索歌名 / 歌手")))
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button(Tr("完成")) { dismiss() }
+            }
+        }
         .task {
             tracks = await API.shared.musicTracks()
             loading = false
