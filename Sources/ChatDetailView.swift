@@ -2375,6 +2375,11 @@ struct ChatDetailView: View {
         if app.contacts.isEmpty { return true }
         if app.contacts.contains(where: { $0.id == peerId }) { return true }
         if serverPeerRelation == "friend" || serverPeerRelation == "self" { return true }
+        /* 非好友也有服务端限定的陌生人消息额度（默认 5 条）。
+           客户端保留输入框；第 6 条会收到服务端明确提示并引导加好友。 */
+        if peerRelationChecked, serverPeerRelation == "none" { return true }
+        if peerRelationChecked, serverPeerRelation == "requested" { return true }
+        if peerRelationChecked, serverPeerRelation == "incoming" { return true }
         return !peerRelationChecked
     }
 

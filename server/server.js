@@ -2123,6 +2123,7 @@ const DEFAULT_IM = {
   transfer: true,         // 转账
   gift: true,             // 礼物
   allowStranger: false,   // 不是好友也能私聊
+  strangerMessageLimit: 5, // 非好友最多发送几条消息；0 = 不允许
   recallMinutes: 2,       // 多久内能撤回（0 = 不许撤回）
   maxTextLen: 4000,       // 单条文字最多多少字
   allowCreateGroup: true, // 允许建群
@@ -2423,6 +2424,7 @@ const messageCache = new Map();
    （哪怕开关后来被关掉，也要把已经发出去的那几条烧干净）。 */
 const burnWatch = new Set();
 const BURN_HOLD_MS = 20000;     // CHRIS_BURN_V1 看过 20 秒后焚毁（2026-10-13 用户定）
+const BURN_FEATURE_ENABLED = false; // 产品要求关闭新的阅后即焚；已发出的焚毁消息仍按原计时清理
 
 /** 面对面建群：同一个 4 位数字在有效期内进同一个群 */
 const FACE_ROOM_WINDOW_MS = 3 * 60 * 1000;
@@ -7805,12 +7807,56 @@ function handleSocket(user, socket) {
 
 /* ------------------------------------------------------------------ 消息 */
 
+const STRANGER_MESSAGE_COUNTS_FILE = 'stranger-message-counts.json';
+
+function readStrangerMessageCounts() {
+  const data = readJson(path.join(DATA_DIR, STRANGER_MESSAGE_COUNTS_FILE), { counts: {} });
+  if (!data || typeof data !== 'object' || !data.counts || typeof data.counts !== 'object') {
+    return { counts: {} };
+  }
+  return data;
+}
+
+function strangerMessageKey(userId, chatId) {
+  return String(userId || '') + '|' + String(chatId || '');
+}
+
+function strangerMessagesUsed(userId, chatId) {
+  const data = readStrangerMessageCounts();
+  return Math.max(0, Number(data.counts[strangerMessageKey(userId, chatId)]) || 0);
+}
+
+function noteStrangerMessage(userId, chatId) {
+  const data = readStrangerMessageCounts();
+  const key = strangerMessageKey(userId, chatId);
+  data.counts[key] = Math.max(0, Number(data.counts[key]) || 0) + 1;
+  writeJson(path.join(DATA_DIR, STRANGER_MESSAGE_COUNTS_FILE), data);
+  return data.counts[key];
+}
+
+function clearStrangerMessagesBetween(a, b) {
+  const data = readStrangerMessageCounts();
+  const prefixA = String(a || '') + '|';
+  const prefixB = String(b || '') + '|';
+  Object.keys(data.counts).forEach((key) => {
+    if (key.indexOf(prefixA) === 0 || key.indexOf(prefixB) === 0) delete data.counts[key];
+  });
+  writeJson(path.join(DATA_DIR, STRANGER_MESSAGE_COUNTS_FILE), data);
+}
+
 function directFriendMessageError(user, chatId) {
   const chat = db.chats.find((c) => c.id === chatId);
   if (!chat || chat.type !== 'direct') return '';
+  if (chat.bot || chat.oaId) return '';
   const peerId = chat.memberIds.find((id) => id !== user.id);
-  if (!peerId || peerId === user.id || friendSetCached(user.id).has(peerId) || readIm().allowStranger) return '';
-  return '你还不是他（她）朋友，请先发送朋友验证请求，对方验证通过后才能聊天';
+  if (!peerId || peerId === user.id || friendSetCached(user.id).has(peerId)) return '';
+  const im = readIm();
+  if (im.allowStranger) return '';
+  const limit = Math.max(0, Math.min(1000, Number(im.strangerMessageLimit) || 0));
+  if (limit <= 0) return '你还不是他（她）朋友，请先发送朋友验证请求，对方验证通过后才能聊天';
+  const used = strangerMessagesUsed(user.id, chatId);
+  if (used < limit) return '';
+  return '陌生消息最多发送 ' + limit + ' 条，请先发送朋友验证，对方通过后才能继续聊天';
 }
 
 function deliverMessage(user, chatId, kind, content, clientId, mentionHint, mediaExtra) {
@@ -7965,7 +8011,7 @@ function deliverMessage(user, chatId, kind, content, clientId, mentionHint, medi
     recalled: false
   };
   /* CHRIS_BURN_V1 阅后即焚：这个会话开着就标上，读一次之后服务端会把它清掉 */
-  if (chat.burn) {
+  if (BURN_FEATURE_ENABLED && chat.burn) {
     message.burn = true;
     burnWatch.add(chat.id);          // 让服务端定时器盯着这个会话（不依赖客户端来扫）
     /* CHRIS_BURN_LOG_V1：便于排查「阅后即焚没生效」 */
@@ -17393,6 +17439,7 @@ async function handleApi(req, res, pathname, query) {
       exist.respondedAt = now();
       saveFriendships();
       forgetFriendSetCache(exist.fromId, exist.toId);
+      clearStrangerMessagesBetween(exist.fromId, exist.toId);
       /* 互相加好友（对方先加过我）：同样立刻在两个人的「微信」首页开出会话 */
       const c2 = openChatForFriendship(exist.fromId, exist.toId);
       sendTo(target.id, { type: 'friend', action: 'accepted', user: publicUser(user) });
@@ -17408,6 +17455,7 @@ async function handleApi(req, res, pathname, query) {
       db.friendships.push(auto);
       saveFriendships();
       forgetFriendSetCache(target.id, user.id);
+      clearStrangerMessagesBetween(target.id, user.id);
       const c0 = openChatForFriendship(target.id, user.id);
       sendTo(target.id, { type: 'friend', action: 'accepted', user: publicUser(user) });
       sendTo(user.id, { type: 'chat', chatId: c0 ? c0.id : '' });
@@ -17595,6 +17643,7 @@ async function handleApi(req, res, pathname, query) {
       f.respondedAt = now();
       saveFriendships();
       forgetFriendSetCache(f.fromId, f.toId);
+      clearStrangerMessagesBetween(f.fromId, f.toId);
       /* 通过好友以后，两个人的「微信」首页立刻各多一个会话（不用等谁先说话） */
       const newChat = openChatForFriendship(f.fromId, f.toId);
       /* 和微信一样：通过以后聊天里留一条系统提示 */
@@ -17669,7 +17718,10 @@ async function handleApi(req, res, pathname, query) {
     const target = findUser(str(body.userId, 40));
     if (!target) return fail(res, 404, '用户不存在');
     // 自己给自己发消息也允许（名片里的「发消息」按钮）
-    if (target.id !== user.id && !friendIds(user.id).includes(target.id) && !readIm().allowStranger) {
+    const im = readIm();
+    const strangerLimit = Math.max(0, Math.min(1000, Number(im.strangerMessageLimit) || 0));
+    if (target.id !== user.id && !friendIds(user.id).includes(target.id)
+        && !im.allowStranger && strangerLimit <= 0) {
       return fail(res, 403, '先加为好友才能聊天');
     }
     let chat = directChatBetween(user.id, target.id);
@@ -18134,6 +18186,15 @@ async function handleApi(req, res, pathname, query) {
     const result = deliverMessage(user, parts[1], body.kind || 'text', clean, body.clientId, body.mentions,
       { imgW: body.imgW, imgH: body.imgH, quote: body.quote });
     if (result.error) return fail(res, 422, result.error);
+    const sentChat = db.chats.find((c) => c.id === parts[1]);
+    if (sentChat && sentChat.type === 'direct' && !sentChat.bot && !sentChat.oaId) {
+      const peerId = sentChat.memberIds.find((id) => id !== user.id);
+      const im = readIm();
+      if (peerId && !friendSetCached(user.id).has(peerId) && !im.allowStranger
+          && Number(im.strangerMessageLimit) > 0) {
+        noteStrangerMessage(user.id, sentChat.id);
+      }
+    }
     /* 自己刚发的这条：群里要带上群昵称（客户端是直接拿这条追加到列表里的） */
     let sent = result.message;
     if (sent) {
@@ -18402,11 +18463,11 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'chats' && parts[2] === 'burn' && method === 'POST') {
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat || !chat.memberIds.includes(user.id)) return fail(res, 404, '会话不存在');
-    const body = await readBody(req);
-    chat.burn = body.on !== false;
+    await readBody(req);
+    chat.burn = false;
     saveChats();
     chat.memberIds.forEach((id) => sendTo(id, { type: 'chat', action: 'updated', chat: chatSummary(chat, id) }));
-    ok(res, { burn: !!chat.burn });
+    ok(res, { burn: false, disabled: true });
     return;
   }
 

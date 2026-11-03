@@ -17,9 +17,6 @@ struct GroupInfoView: View {
 
     @State private var muted = false
 
-    @State private var burn = false
-
-    @State private var faceForBurn = false
     @State private var announce = ""
     @State private var showAnnounce = false
     @State private var announceDraft = ""
@@ -128,7 +125,6 @@ struct GroupInfoView: View {
             let live = app.chats.first { $0.id == chat.id } ?? chat
             pinned = live.pinned == true
             muted = live.muted == true
-            burn = live.burn == true
             muteAll = live.muteAll == true
             if let r = try? await API.shared.chatMembers(chatId: chat.id) {
                 members = r.members
@@ -732,36 +728,6 @@ struct GroupInfoView: View {
                     await app.loadChats()
                 }
             }
-            ChatInfoDivider()
-            ChatInfoToggleRow(title: Tr("阅后即焚"),
-                              subtitle: burn ? Tr("群里发的消息，看过 20 秒后自动消失") : nil,
-                              isOn: burn) { v in
-                if v {
-                    faceForBurn = true
-                } else {
-                    burn = false
-                    Task {
-                        _ = await API.shared.setChatBurn(chatId: chat.id, on: false)
-                        await app.loadChats()
-                    }
-                }
-            }
-            .sheet(isPresented: $faceForBurn) {
-                FaceVerifyFlowView { ok in
-                    faceForBurn = false
-                    if ok {
-                        burn = true
-                        Task {
-                            burn = await API.shared.setChatBurn(chatId: chat.id, on: true)
-                            await app.loadChats()
-                            app.show(Tr("人脸验证通过，阅后即焚已打开"))
-                        }
-                    } else {
-                        app.show(Tr("人脸验证没通过，阅后即焚先保持关闭"))
-                    }
-                }
-                .environmentObject(app)
-            }
         }
     }
 
@@ -1140,8 +1106,6 @@ struct DirectChatInfoView: View {
     let chat: Chat
     var onExitChat: () -> Void = {}
 
-    @State private var faceForBurn = false
-
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
 
@@ -1149,7 +1113,6 @@ struct DirectChatInfoView: View {
     @State private var pinned = false
     @State private var muted = false
 
-    @State private var burn = false
     @State private var showSearch = false
     @State private var showCard = false
 
@@ -1203,7 +1166,6 @@ struct DirectChatInfoView: View {
             let live = app.chats.first { $0.id == chat.id } ?? chat
             pinned = live.pinned == true
             muted = live.muted == true
-            burn = live.burn == true
             if let r = try? await API.shared.chatMembers(chatId: chat.id) {
                 peer = r.members.first { $0.id != app.me?.id }
             }
@@ -1347,36 +1309,6 @@ struct DirectChatInfoView: View {
                     await app.loadChats()
                 }
             }
-            ChatInfoDivider()
-            ChatInfoToggleRow(title: Tr("阅后即焚"),
-                              subtitle: burn ? Tr("这个人发的消息，看过 20 秒后自动消失") : nil,
-                              isOn: burn) { v in
-                if v {
-                    faceForBurn = true
-                } else {
-                    burn = false
-                    Task {
-                        _ = await API.shared.setChatBurn(chatId: chat.id, on: false)
-                        await app.loadChats()
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $faceForBurn) {
-            FaceVerifyFlowView { ok in
-                faceForBurn = false
-                if ok {
-                    burn = true
-                    Task {
-                        burn = await API.shared.setChatBurn(chatId: chat.id, on: true)
-                        await app.loadChats()
-                        app.show(Tr("人脸验证通过，阅后即焚已打开"))
-                    }
-                } else {
-                    app.show(Tr("人脸验证没通过，阅后即焚先保持关闭"))
-                }
-            }
-            .environmentObject(app)
         }
     }
 
