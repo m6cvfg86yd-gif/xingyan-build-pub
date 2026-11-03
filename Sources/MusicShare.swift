@@ -2675,7 +2675,7 @@ struct MusicPlayingView: View {
 
     @State private var loopTick = false
 
-    private var t: MusicTrack? { sheet.track ?? player.current }
+    private var t: MusicTrack? { player.current ?? sheet.track }
     private var lyricLines: [MusicLyricLine] {
         MusicLyrics.parse(t?.lyrics ?? "", duration: player.total)
     }
