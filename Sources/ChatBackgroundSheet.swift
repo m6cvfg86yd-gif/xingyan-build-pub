@@ -51,6 +51,7 @@ final class ChatBgStore: ObservableObject {
 struct ChatBackgroundSheet: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
 
     var chatId: String = ""
 
@@ -61,19 +62,10 @@ struct ChatBackgroundSheet: View {
 
     static let names: [String] = ["白色", "黑色"]
 
-    @State private var remoteVersion = ""
-
     private var shownPresets: [(path: String, name: String)] {
         Self.presets.enumerated().map { idx, path in
             (path, Self.names[min(idx, Self.names.count - 1)])
         }
-    }
-
-    private func versioned(_ p: String) -> String {
-        guard !remoteVersion.isEmpty,
-              !p.hasPrefix("data:"),
-              normalizedChatBackground(p).hasPrefix("/") else { return p }
-        return p + (p.contains("?") ? "&" : "?") + "v=" + remoteVersion
     }
 
     private var inChat: Bool { !chatId.isEmpty }
@@ -89,128 +81,157 @@ struct ChatBackgroundSheet: View {
     }
 
     var body: some View {
-
-        VStack(spacing: 0) {
-            NavBar(title: Tr(inChat ? "选择背景图" : "聊天背景"), back: { dismiss() }) {
-                Button { dismiss() } label: {
-                    Text(Tr("完成")).font(pf(15.5)).foregroundColor(C.label)
-                        .padding(.horizontal, 14).frame(height: 32)
+        NavigationStack {
+            List {
+                Section {
+                    backgroundPreview
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                 }
-                .buttonStyle(.plain)
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(Tr("基础背景 · 黑白场景"))
-                        .font(pf(13))
-                        .foregroundColor(C.subLabel)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 6)
 
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                              spacing: 12) {
-
-                        ForEach(Array(shownPresets.enumerated()), id: \.offset) { _, item in
-                            Button { pick(item.path, cacheKey: versioned(item.path)) } label: {
-                                VStack(spacing: 5) {
+                Section {
+                    HStack(spacing: 14) {
+                        ForEach(shownPresets, id: \.path) { item in
+                            Button { pick(item.path) } label: {
+                                VStack(spacing: 8) {
                                     ZStack {
                                         if let solid = chatBackgroundSolidColor(item.path) {
                                             solid
                                         } else {
-                                            RemoteImage(path: versioned(item.path), mode: .fill)
+                                            ChatTheme.page
                                         }
                                         if normalizedChatBackground(current) == item.path {
-                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                                .stroke(C.green, lineWidth: 2.5)
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .font(.system(size: 19))
-                                                .foregroundColor(C.green)
-                                                .padding(5)
-                                                .frame(maxWidth: .infinity, maxHeight: .infinity,
-                                                       alignment: .topTrailing)
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundColor(item.path == "solid:white" ? .black : .white)
                                         }
                                     }
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: 148)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .stroke(C.hairline, lineWidth: 0.6))
-                                    if !item.name.isEmpty {
-                                        Text(Tr(item.name))
-                                            .font(pf(11.5))
-                                            .foregroundColor(C.subLabel)
-                                            .lineLimit(1)
-                                    }
+                                    .frame(height: 128)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .stroke(normalizedChatBackground(current) == item.path
+                                                ? Color.accentColor : Color.secondary.opacity(0.18),
+                                                lineWidth: normalizedChatBackground(current) == item.path ? 2.5 : 0.7))
+                                    Text(Tr(item.name))
+                                        .font(.footnote)
+                                        .foregroundColor(.secondary)
                                 }
+                                .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.plain)
+                            .disabled(busy)
                         }
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                } header: {
+                    Text(Tr("纯色壁纸"))
+                } footer: {
+                    Text(Tr("不依赖网络，白底和黑底始终可用。"))
+                }
 
-                    Rectangle().fill(C.pageBg).frame(height: 8).padding(.top, 12)
-
-                    VStack(spacing: 0) {
-                        Button { pick("auto") } label: {
-                            HStack {
-                                Text(inChat ? Tr("使用全局背景") : Tr("默认背景"))
-                                    .font(pf(16)).foregroundColor(C.label)
-                                Spacer(minLength: 0)
-                                if current == "auto" {
-                                    Image(systemName: "checkmark").foregroundColor(C.green)
-                                }
+                Section {
+                    Button { pick("auto") } label: {
+                        HStack {
+                            Text(inChat ? Tr("使用全局背景") : Tr("系统默认背景"))
+                            Spacer()
+                            if current == "auto" {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.accentColor)
                             }
-                            .padding(.horizontal, 16)
-                            .frame(height: 52)
-                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(.borderless)
-                        .disabled(busy)
-
-                        HairLine(inset: 16)
-
-                        Button { picking = true } label: {
-                            HStack {
-                                Text(Tr("从相册选一张")).font(pf(16)).foregroundColor(C.label)
-                                Spacer(minLength: 0)
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(C.subLabel)
-                            }
-                            .padding(.horizontal, 16)
-                            .frame(height: 52)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(busy)
                     }
-                    .background(C.cardBg)
+                    .disabled(busy)
 
-                    if busy {
-                        HStack { Spacer(); ProgressView(); Spacer() }.padding(.top, 14)
+                    Button { picking = true } label: {
+                        HStack {
+                            Text(Tr("从相册选择"))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .disabled(busy)
+                }
+
+                if busy {
+                    Section {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
                     }
                 }
-                .padding(.bottom, 26)
             }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
             .background(C.pageBg)
+            .navigationTitle(Tr(inChat ? "选择背景图" : "聊天背景"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(Tr("完成")) { dismiss() }
+                }
+            }
+            .sheet(isPresented: $picking) {
+                PhotoPicker { image in upload(image) }
+            }
         }
-        .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
-        .hidesTabBar()
-        .sheet(isPresented: $picking) {
-            PhotoPicker { image in upload(image) }
-        }
-
-        .task { await loadRemote() }
+        .tint(.accentColor)
     }
 
-    private func loadRemote() async {
-        guard let r = await API.shared.chatBackgrounds() else { return }
-        remoteVersion = r.version ?? ""
+    private var backgroundPreview: some View {
+        let path = current == "auto"
+            ? normalizedChatBackground(app.defaultChatBackground)
+            : normalizedChatBackground(current)
+        return ZStack {
+            if let solid = chatBackgroundSolidColor(path) {
+                solid
+            } else if !path.isEmpty {
+                RemoteImage(path: path, mode: .fill)
+            } else {
+                ChatTheme.page
+            }
 
-        if let def = r.default, !def.isEmpty, (app.me?.chatBackground ?? "auto") == "auto" {
-            app.defaultChatBackground = normalizedChatBackground(def)
+            VStack(spacing: 10) {
+                HStack {
+                    Text(Tr("今天"))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .frame(height: 22)
+                        .background(.thinMaterial, in: Capsule())
+                    Spacer()
+                }
+                HStack {
+                    Text(Tr("默认背景预览"))
+                        .font(.system(size: 14))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    Spacer(minLength: 60)
+                }
+                HStack {
+                    Spacer(minLength: 78)
+                    Text(Tr("黑白都保持清晰"))
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+            }
+            .padding(16)
         }
+        .frame(height: 235)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(Color.secondary.opacity(0.15), lineWidth: 0.7))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
 
     private func pick(_ path: String, cacheKey: String = "") {
