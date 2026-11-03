@@ -790,6 +790,15 @@ struct ListenView: View {
         player.current ?? recommend.first
     }
 
+    private var artists: [(String, String)] {
+        var seen: [String: String] = [:]
+        tracks.forEach { t in
+            let name = (t.artist ?? "").isEmpty ? "未知歌手" : t.artist!
+            if seen[name] == nil { seen[name] = t.cover ?? "" }
+        }
+        return seen.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
+    }
+
     private func recRank(_ id: String) -> UInt64 {
         var h = UInt64(truncatingIfNeeded: batch &* 2654435761) &+ 1469598103934665603
         for b in id.utf8 { h = (h ^ UInt64(b)) &* 1099511628211 }
