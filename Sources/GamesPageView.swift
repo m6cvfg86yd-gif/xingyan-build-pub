@@ -42,6 +42,7 @@ struct GamesPageView: View {
 
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var games: [MiniApp] = []
     @State private var shareApp: MiniApp?
 
@@ -66,6 +67,9 @@ struct GamesPageView: View {
     private let subInk = C.subLabel
 
     @State private var loading = true
+    @State private var isVisible = false
+    @State private var isInteracting = false
+    @State private var lastInteraction = Date.distantPast
 
     @State private var showAdmin = false
 
@@ -98,43 +102,53 @@ struct GamesPageView: View {
             .background(pageBg)
 
             ScrollView {
+                LazyVStack(spacing: 0) {
 
-                if !bannerGames.isEmpty { banner }
+                    if !bannerGames.isEmpty { banner }
 
-                if !recentGames.isEmpty { recentRow }
+                    if !recentGames.isEmpty { recentRow }
 
-                if !list.isEmpty { rankEntry }
+                    if !list.isEmpty { rankEntry }
 
-                ForEach(groups, id: \.0) { g in
-                    HStack(spacing: 6) {
-                        Text(g.0).font(pf(15, .medium)).foregroundColor(ink)
-                        Spacer(minLength: 0)
-                        Text(Lang.isEnglish ? "\(g.1.count)" : "\(g.1.count) 款")
-                            .font(pf(11)).foregroundColor(subInk)
+                    ForEach(groups, id: \.0) { g in
+                        HStack(spacing: 6) {
+                            Text(g.0).font(pf(15, .medium)).foregroundColor(ink)
+                            Spacer(minLength: 0)
+                            Text(Lang.isEnglish ? "\(g.1.count)" : "\(g.1.count) 款")
+                                .font(pf(11)).foregroundColor(subInk)
+                        }
+                        .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 9)
+
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 10),
+                            GridItem(.flexible(), spacing: 10)
+                        ], alignment: .leading, spacing: 10) {
+                            ForEach(g.1) { g2 in posterCard(g2) }
+                        }
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 9)
 
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 10),
-                        GridItem(.flexible(), spacing: 10)
-                    ], alignment: .leading, spacing: 10) {
-                        ForEach(g.1) { g2 in posterCard(g2) }
-                    }
-                    .padding(.horizontal, 16)
-                }
-
-                if loading {
-                    HStack(spacing: 10) {
-                        ProgressView().tint(subInk)
-                        Text(Tr("正在加载…")).font(pf(14)).foregroundColor(subInk)
-                    }
-                    .frame(maxWidth: .infinity).padding(.top, 30)
-                } else if list.isEmpty {
-                    Text(Tr("游戏暂时没准备好，点一下再试"))
-                        .font(pf(14)).foregroundColor(subInk)
+                    if loading {
+                        HStack(spacing: 10) {
+                            ProgressView().tint(subInk)
+                            Text(Tr("正在加载…")).font(pf(14)).foregroundColor(subInk)
+                        }
                         .frame(maxWidth: .infinity).padding(.top, 30)
+                    } else if list.isEmpty {
+                        Text(Tr("游戏暂时没准备好，点一下再试"))
+                            .font(pf(14)).foregroundColor(subInk)
+                            .frame(maxWidth: .infinity).padding(.top, 30)
+                    }
                 }
             }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8)
+                    .onChanged { _ in isInteracting = true }
+                    .onEnded { _ in
+                        isInteracting = false
+                        lastInteraction = Date()
+                    }
+            )
         }
         .background(pageBg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
@@ -169,9 +183,15 @@ struct GamesPageView: View {
         .onChange(of: games.count) { _ in bannerIndex = 0 }
         .onReceive(tick) { _ in
             let n = bannerGames.count
-            guard n > 1 else { return }
+            guard n > 1,
+                  isVisible,
+                  scenePhase == .active,
+                  !isInteracting,
+                  Date().timeIntervalSince(lastInteraction) > 1.2 else { return }
             withAnimation(.easeInOut(duration: 0.4)) { bannerIndex = (bannerIndex + 1) % n }
         }
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
         .navigationDestination(isPresented: $showDetail) {
             if let g = detail {
                 GameDetailView(game: g) { pick in
@@ -206,7 +226,7 @@ struct GamesPageView: View {
             LinearGradient(colors: [Color(hex: 0x1B1E26), Color(hex: 0x0E1015)],
                            startPoint: .top, endPoint: .bottom)
             if !wp.isEmpty {
-                RemoteImage(path: wp, mode: .fill)
+                RemoteImage(path: wp, mode: .fill, maxSide: 1000)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
                     .overlay(Color.black.opacity(0.35))
@@ -248,7 +268,7 @@ struct GamesPageView: View {
             LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
             if let cv = g.cover, !cv.isEmpty {
-                RemoteImage(path: cv, mode: .fill)
+                RemoteImage(path: cv, mode: .fill, maxSide: 1200)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
             } else {
@@ -256,7 +276,7 @@ struct GamesPageView: View {
                 let wp = UIConfig.text("gamesWallpaper", "").trimmingCharacters(in: .whitespaces)
                 ZStack {
                     if !wp.isEmpty {
-                        RemoteImage(path: wp, mode: .fill)
+                        RemoteImage(path: wp, mode: .fill, maxSide: 1200)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipped()
                             .overlay(Color.black.opacity(0.30))
@@ -386,7 +406,7 @@ struct GamesPageView: View {
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
             Text(g.iconText).font(.system(size: size * 0.42))
             if let cv = g.cover, !cv.isEmpty {
-                RemoteImage(path: cv, mode: .fill)
+                RemoteImage(path: cv, mode: .fill, maxSide: max(96, size * 3))
                     .frame(width: size, height: size)
                     .clipShape(Circle())
             }
@@ -403,7 +423,7 @@ struct GamesPageView: View {
                     Text(g.iconText).font(.system(size: 46))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     if let cv = g.cover, !cv.isEmpty {
-                        RemoteImage(path: cv, mode: .fill)
+                        RemoteImage(path: cv, mode: .fill, maxSide: 640)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipped()
                     }
@@ -451,7 +471,7 @@ struct GamesPageView: View {
                                                  startPoint: .topLeading, endPoint: .bottomTrailing))
                         Text(g.iconText).font(.system(size: 30))
                         if let cv = g.cover, !cv.isEmpty {
-                            RemoteImage(path: cv)
+                            RemoteImage(path: cv, maxSide: 240)
                                 .frame(width: 72, height: 72)
                                 .clipShape(Circle())
                         }
@@ -951,7 +971,7 @@ struct GamesPageAdminSheet: View {
                             .frame(width: 96, height: 56)
                             .overlay {
                                 if !wallpaper.isEmpty {
-                                    RemoteImage(path: wallpaper, mode: .fill)
+                                    RemoteImage(path: wallpaper, mode: .fill, maxSide: 480)
                                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                                 }
                             }
@@ -998,6 +1018,16 @@ struct GamesPageAdminSheet: View {
     }
 }
 
+private let gamePerformanceJS = """
+(() => {
+  window.addEventListener('DOMContentLoaded', () => {
+    const style = document.createElement('style');
+    style.textContent = 'html,body{overscroll-behavior:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}canvas{touch-action:none;}';
+    document.head && document.head.appendChild(style);
+  });
+})();
+"""
+
 struct GameWebView: UIViewRepresentable {
     let index: URL
 
@@ -1026,6 +1056,10 @@ struct GameWebView: UIViewRepresentable {
 
         cfg.userContentController.addUserScript(
             WKUserScript(source: WebSafeArea.js, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        cfg.userContentController.addUserScript(
+            WKUserScript(source: gamePerformanceJS,
+                         injectionTime: .atDocumentStart,
+                         forMainFrameOnly: true))
         if !rankJs.isEmpty {
             cfg.userContentController.addUserScript(
                 WKUserScript(source: rankJs, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -1043,10 +1077,16 @@ struct GameWebView: UIViewRepresentable {
             cfg.userContentController.add(context.coordinator.room, name: "chrisRoom")
         }
         let v = WKWebView(frame: .zero, configuration: cfg)
-        v.isOpaque = false
-        v.backgroundColor = UIColor(red: 0.043, green: 0.055, blue: 0.09, alpha: 1)
+        let gameBackground = UIColor(red: 0.043, green: 0.055, blue: 0.09, alpha: 1)
+        v.isOpaque = true
+        v.backgroundColor = gameBackground
+        v.underPageBackgroundColor = gameBackground
+        v.allowsLinkPreview = false
         v.scrollView.bounces = false
         v.scrollView.isScrollEnabled = false
+        v.scrollView.showsVerticalScrollIndicator = false
+        v.scrollView.showsHorizontalScrollIndicator = false
+        v.scrollView.backgroundColor = gameBackground
         v.scrollView.contentInsetAdjustmentBehavior = .never
         v.loadFileURL(index, allowingReadAccessTo: dir ?? index.deletingLastPathComponent())
         box?.web = v

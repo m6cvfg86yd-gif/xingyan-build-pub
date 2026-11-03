@@ -51,7 +51,7 @@ struct GameDetailView: View {
                            startPoint: .topLeading, endPoint: .bottomTrailing)
             Text(game.iconText).font(.system(size: 76))
             if let cv = game.cover, !cv.isEmpty {
-                RemoteImage(path: cv, mode: .fill)
+                RemoteImage(path: cv, mode: .fill, maxSide: 1200)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
             }

@@ -928,7 +928,8 @@ struct Avatar: View {
                 .frame(width: size, height: size)
                 .clipShape(shape)
             } else {
-                RemoteImage(path: path, icon: "person.fill")
+                RemoteImage(path: path, icon: "person.fill",
+                            maxSide: max(96, size * 3))
                     .id(path)
                     .frame(width: size, height: size)
                     .clipShape(shape)

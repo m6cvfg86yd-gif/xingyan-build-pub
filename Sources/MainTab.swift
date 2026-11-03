@@ -91,7 +91,7 @@ struct MainTabView: View {
                 }
             }
 
-            if musicPlayer.playing {
+            if musicPlayer.playing && app.openMiniApp == nil {
                 GlobalMusicAmbient()
                     .transition(.opacity)
             }
@@ -218,7 +218,8 @@ struct MainTabView: View {
                 .environmentObject(app)
         }
 
-        .overlay(MiniPlayerBall(hidden: app.openChat != nil || musicSheet.open
+        .overlay(MiniPlayerBall(hidden: app.openMiniApp != nil
+                                || app.openChat != nil || musicSheet.open
                                 || musicDock.foregroundActive))
 
         .fullScreenCover(item: $app.openChat) { c in
