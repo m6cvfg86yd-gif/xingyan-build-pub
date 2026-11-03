@@ -1955,9 +1955,9 @@ final class API {
 
     private static func offlineScope() -> String {
         let token = API.shared.token
-        if token.isEmpty { return "guest" }
         var hash: UInt64 = 0xcbf29ce484222325
-        for byte in token.utf8 {
+        let identity = token + "|" + API.shared.server.lowercased()
+        for byte in identity.utf8 {
             hash = (hash ^ UInt64(byte)) &* 0x100000001b3
         }
         return String(format: "%016llx", hash)
