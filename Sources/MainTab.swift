@@ -96,13 +96,6 @@ struct MainTabView: View {
                     .transition(.opacity)
             }
 
-            if !app.tabBarHidden && scheme == .dark {
-                C.tabBg
-                    .frame(height: max(49, L.tabH - 6) + L.safeBottom + 20)
-                    .ignoresSafeArea(edges: .bottom)
-                    .allowsHitTesting(false)
-            }
-
             if !app.tabBarHidden {
                 NativeTabBar(selection: $tab,
                              uiVersion: app.uiVersion,
