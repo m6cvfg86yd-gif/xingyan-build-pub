@@ -993,8 +993,8 @@ struct ChatDetailView: View {
                             Image(systemName: "ellipsis")
                                 .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(C.label)
-                                .frame(width: 52, height: 44)
-                                .contentShape(Rectangle())
+                                .frame(width: 44, height: 36)
+                                .contentShape(Rectangle().inset(by: -8))
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(Tr("更多"))
