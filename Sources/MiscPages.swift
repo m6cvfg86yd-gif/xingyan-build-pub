@@ -1372,10 +1372,11 @@ struct FriendsStatusView: View {
             NavigationStack { FriendStatusView(user: u).environmentObject(app) }
         }
         .task {
-            let list = await API.shared.friendsNowPlaying()
-            var m: [String: FriendNowPlaying] = [:]
-            for f in list { m[f.id] = f }
-            listening = m
+            if let list = await API.shared.friendsNowPlaying() {
+                var m: [String: FriendNowPlaying] = [:]
+                for f in list { m[f.id] = f }
+                listening = m
+            }
         }
     }
 
