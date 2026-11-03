@@ -1582,7 +1582,7 @@ struct MallNativeView: View {
         }
     }
 
-    private var titles = ["商城", "分类", "消息", "购物车", "我的"]
+    var titles = ["商城", "分类", "消息", "购物车", "我的"]
     private let homeChannels = ["星选", "好价", "热门", "上新"]
 
     private func openSplashTarget() {
@@ -2135,7 +2135,7 @@ struct DDHomeTab: View {
             )
             .sheet(item: $channel) { k in
                 DDChannelView(kind: k, onCart: { channel = nil; onCart() })
-                    .environmentObject(app)
+                    .environmentObject(appState)
             }
 
             .sheet(isPresented: $showVipAd) {
@@ -2143,19 +2143,19 @@ struct DDHomeTab: View {
                     showVipAd = false
                     onOpen(p)
                 }
-                .environmentObject(app)
+                .environmentObject(appState)
             }
             .fullScreenCover(isPresented: $showMusicAd) {
-                NavigationStack { ListenView().environmentObject(app) }
+                NavigationStack { ListenView().environmentObject(appState) }
             }
 
-            .sheet(isPresented: $showAdOrders) { DDOrdersView().environmentObject(app) }
+            .sheet(isPresented: $showAdOrders) { DDOrdersView().environmentObject(appState) }
             .sheet(isPresented: $showAdFav) {
                 DDFavView(onOpen: { p in
                     showAdFav = false
                     onOpen(p)
                 })
-                .environmentObject(app)
+                .environmentObject(appState)
             }
             .sheet(isPresented: $showAdViews) {
                 DDViewsView(onOpen: { p in
@@ -2164,7 +2164,7 @@ struct DDHomeTab: View {
                 })
             }
             .sheet(isPresented: $showAddressHome) {
-                DDAddressListView().environmentObject(app)
+                DDAddressListView().environmentObject(appState)
             }
         }
     }
