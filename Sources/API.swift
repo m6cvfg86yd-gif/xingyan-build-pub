@@ -2176,8 +2176,11 @@ final class API {
         ])
     }
 
-    func friendsNowPlaying() async -> [FriendNowPlaying] {
-        guard let p: NowPlayingPayload = try? await get("/api/music/friends", as: NowPlayingPayload.self) else { return [] }
+    func friendsNowPlaying() async -> [FriendNowPlaying]? {
+        guard let p: NowPlayingPayload = try? await get("/api/music/friends",
+                                                         as: NowPlayingPayload.self) else {
+            return nil
+        }
         return p.list ?? []
     }
 

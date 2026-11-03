@@ -1010,6 +1010,14 @@ struct ListenView: View {
         .onChange(of: scenePhase) { phase in
             guard phase == .active else { return }
             Task { await refreshTracks() }
+            if tab == 2 { Task { await loadFriends() } }
+        }
+        .task(id: tab) {
+            guard tab == 2 else { return }
+            while !Task.isCancelled {
+                await loadFriends()
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+            }
         }
         .sheet(isPresented: $showIconPick) {
             PhotoPicker { img in
@@ -2445,8 +2453,10 @@ struct ListenView: View {
     }
 
     private func loadFriends() async {
-        friends = await API.shared.friendsNowPlaying()
-        friendsLoaded = true
+        if let fresh = await API.shared.friendsNowPlaying() {
+            friends = fresh
+            friendsLoaded = true
+        }
     }
 
     private func row(_ t: MusicTrack, rank: Int? = nil) -> some View {

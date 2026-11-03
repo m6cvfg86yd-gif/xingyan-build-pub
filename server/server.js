@@ -5029,6 +5029,7 @@ const BAN_STRIKES = 60;
 const BAN_MS = 60 * 60 * 1000;
 const ipStrikes = new Map();     // ip -> { t, n }
 const ipBans = new Map();        // ip -> until(ms)
+const musicNowState = new Map(); // userId -> { track, at }
 let secStateDirty = false;
 
 function securityStatePath() { return path.join(DATA_DIR, 'security-state.json'); }
@@ -15363,6 +15364,57 @@ async function handleApi(req, res, pathname, query) {
       friendRequests: pendingFriendRequests(user.id),
       momentUnread: momentUnread(user.id)
     });
+    return;
+  }
+
+  /* 听一听：最近播放状态只保留 2 小时，好友页只返回已通过的好友。 */
+  if (parts[0] === 'music' && parts[1] === 'now' && method === 'POST') {
+    const body = await readBody(req);
+    const trackId = str(body.id, 80);
+    if (!trackId) return fail(res, 422, '缺少歌曲');
+    musicNowState.set(user.id, {
+      track: {
+        id: trackId,
+        title: str(body.title, 120),
+        artist: str(body.artist, 80),
+        cover: str(body.cover, 300),
+        url: str(body.url, 500)
+      },
+      at: Date.now()
+    });
+    if (musicNowState.size > 5000) {
+      const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+      musicNowState.forEach((row, id) => {
+        if (!row || Number(row.at) < cutoff) musicNowState.delete(id);
+      });
+    }
+    ok(res, { ok: true });
+    return;
+  }
+
+  if (parts[0] === 'music' && parts[1] === 'friends' && method === 'GET') {
+    const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+    const list = [];
+    friendIds(user.id).forEach((friendId) => {
+      const row = musicNowState.get(friendId);
+      if (!row || Number(row.at) < cutoff || !row.track) return;
+      const friend = findUser(friendId);
+      if (!friend || friend.banned) return;
+      const visible = publicUser(friend) || {};
+      list.push({
+        id: friendId,
+        name: displayNameFor(user.id, friend),
+        avatar: visible.avatarPath || visible.avatar || '',
+        trackId: row.track.id,
+        title: row.track.title,
+        artist: row.track.artist,
+        cover: row.track.cover,
+        url: row.track.url,
+        at: row.at
+      });
+    });
+    list.sort((a, b) => Number(b.at) - Number(a.at));
+    ok(res, { list });
     return;
   }
 
