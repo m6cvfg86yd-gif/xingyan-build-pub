@@ -62,6 +62,7 @@ struct ChatBackgroundSheet: View {
     @Environment(\.colorScheme) private var scheme
 
     var chatId: String = ""
+    var modal: Bool = false
 
     @State private var picking = false
     @State private var busy = false
@@ -90,8 +91,7 @@ struct ChatBackgroundSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 Section {
                     backgroundPreview
                         .listRowInsets(EdgeInsets())
@@ -180,14 +180,15 @@ struct ChatBackgroundSheet: View {
             .navigationTitle(Tr(inChat ? "选择背景图" : "聊天背景"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(Tr("完成")) { dismiss() }
+                if modal {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(Tr("完成")) { dismiss() }
+                    }
                 }
             }
             .sheet(isPresented: $picking) {
                 PhotoPicker { image in upload(image) }
             }
-        }
         .tint(.accentColor)
     }
 

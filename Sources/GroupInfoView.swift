@@ -150,7 +150,10 @@ struct GroupInfoView: View {
         }
         .navigationDestination(isPresented: $showSearch) { ChatSearchView(chat: chat) }
         .sheet(isPresented: $showGroupBg) {
-            ChatBackgroundSheet(chatId: chat.id).environmentObject(app)
+            NavigationStack {
+                ChatBackgroundSheet(chatId: chat.id, modal: true)
+                    .environmentObject(app)
+            }
         }
         .sheet(isPresented: $showComplaint) {
             GroupComplaintView(chatId: chat.id, groupName: chat.name)
@@ -1310,7 +1313,10 @@ struct DirectChatInfoView: View {
             }
         }
         .sheet(isPresented: $showChatBg) {
-            ChatBackgroundSheet(chatId: chat.id).environmentObject(app)
+            NavigationStack {
+                ChatBackgroundSheet(chatId: chat.id, modal: true)
+                    .environmentObject(app)
+            }
         }
         .navigationDestination(isPresented: $showCard) {
             if let p = peer {
