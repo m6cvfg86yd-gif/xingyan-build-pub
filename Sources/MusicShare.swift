@@ -1055,6 +1055,109 @@ struct ListenView: View {
 
     @ViewBuilder
     private var musicHomeContent: some View {
+        musicLibraryCards
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+            .padding(.bottom, 28)
+
+        musicSectionHeader(Tr("为你推荐"), refresh: true)
+
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: 14),
+                GridItem(.flexible(), spacing: 14)
+            ],
+            spacing: 20
+        ) {
+            ForEach(Array(recommend.prefix(8))) { track in
+                discoveryCard(track)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 28)
+
+        if !musicLibrary.recents.isEmpty {
+            musicSectionHeader(Tr("最近播放"))
+            LazyVStack(spacing: 0) {
+                ForEach(Array(musicLibrary.recents.prefix(4))) { recent in
+                    premiumTrackRow(recent.asTrack)
+                }
+            }
+            .padding(.bottom, 18)
+        }
+
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) { tab = 1 }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "music.note.list")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.jade)
+                    .frame(width: 30, height: 30)
+                    .background(OrbitTheme.jade.opacity(0.10), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Tr("全部歌曲"))
+                        .font(.system(size: 15.5, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text("\(tracks.count) " + Tr("首"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 62)
+            .background(Color.primary.opacity(0.035),
+                        in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 18)
+        .padding(.bottom, 34)
+    }
+
+    private var discoveryArtworkSide: CGFloat {
+        max(128, (L.width - 50) / 2)
+    }
+
+    private func discoveryCard(_ track: MusicTrack) -> some View {
+        Button {
+            choose(track)
+        } label: {
+            VStack(alignment: .leading, spacing: 9) {
+                ZStack(alignment: .bottomTrailing) {
+                    MusicCover(path: track.cover ?? "",
+                               size: discoveryArtworkSide,
+                               radius: 16)
+                    if player.isPlaying(track.id) {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(.black.opacity(0.34), in: Circle())
+                            .padding(8)
+                    }
+                }
+
+                Text(track.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(track.artistText)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var musicHomeContentHero: some View {
         if let lead = homeLead {
             let heroHeight = min(max(500, L.height * 0.58), 660)
             let isCurrent = player.current?.id == lead.id
