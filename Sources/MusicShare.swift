@@ -3098,12 +3098,6 @@ struct MusicPlayingView: View {
                 .frame(height: 66, alignment: .leading)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(.thinMaterial,
-                            in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .stroke(Color.primary.opacity(0.045), lineWidth: 0.5)
-                }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -3163,15 +3157,6 @@ struct MusicPlayingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: 21, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 21, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
     }
 
     private var landscapeControlStrip: some View {
@@ -3217,14 +3202,6 @@ struct MusicPlayingView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 60)
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: 21, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 21, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
-        }
     }
 
     private var queueSheet: some View {
@@ -3528,20 +3505,20 @@ struct MusicPlayingView: View {
                 let width = max(geo.size.width, 1)
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.primary.opacity(0.10))
+                        .fill(Color.white.opacity(0.20))
                         .frame(height: compact ? 3.5 : 4.5)
 
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [OrbitTheme.jade.opacity(0.72), OrbitTheme.jade],
+                                colors: [Color.white.opacity(0.70), Color.white],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .frame(width: max(0, width * value),
                                height: compact ? 3.5 : 4.5)
-                        .shadow(color: OrbitTheme.jade.opacity(0.30),
+                        .shadow(color: Color.white.opacity(0.30),
                                 radius: dragging ? 7 : 3)
 
                     Circle()
@@ -3549,9 +3526,9 @@ struct MusicPlayingView: View {
                         .frame(width: dragging ? 17 : 14,
                                height: dragging ? 17 : 14)
                         .overlay {
-                            Circle().stroke(OrbitTheme.jade, lineWidth: 2)
+                            Circle().stroke(Color.white, lineWidth: 1.5)
                         }
-                        .shadow(color: OrbitTheme.jade.opacity(0.32),
+                        .shadow(color: Color.white.opacity(0.30),
                                 radius: dragging ? 9 : 5)
                         .offset(x: min(max(width * value
                                            - (dragging ? 8.5 : 7), 0),
@@ -3712,15 +3689,6 @@ struct MusicPlayingView: View {
         }
         .padding(.horizontal, compact ? 14 : 16)
         .padding(.vertical, compact ? 11 : 14)
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: compact ? 23 : 28, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: compact ? 23 : 28, style: .continuous)
-                .stroke(Color.primary.opacity(0.07), lineWidth: 0.6)
-        }
-        .shadow(color: .black.opacity(0.12), radius: 24, y: 12)
     }
 
     private var portraitPlayer: some View {
