@@ -2146,6 +2146,41 @@ final class MusicSheet: ObservableObject {
     }
 }
 
+private struct FullPlayerAmbient: View {
+    let track: MusicTrack?
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            Color(uiColor: .systemBackground)
+
+            if let cover = track?.cover, !cover.isEmpty {
+                RemoteImage(path: cover, mode: .fill, maxSide: 900)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .scaleEffect(1.16)
+                    .blur(radius: 96, opaque: false)
+                    .saturation(scheme == .dark ? 1.24 : 1.08)
+                    .opacity(scheme == .dark ? 0.30 : 0.18)
+                    .id(cover)
+                    .transition(.opacity)
+            }
+
+            LinearGradient(
+                stops: [
+                    .init(color: Color(uiColor: .systemBackground).opacity(0.10), location: 0),
+                    .init(color: Color(uiColor: .systemBackground).opacity(0.44), location: 0.42),
+                    .init(color: Color(uiColor: .systemBackground).opacity(0.90), location: 0.78),
+                    .init(color: Color(uiColor: .systemBackground), location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.55), value: track?.cover)
+    }
+}
+
 struct MusicPlayingView: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject private var player = MusicPlayer.shared
@@ -2173,6 +2208,21 @@ struct MusicPlayingView: View {
     @State private var loopTick = false
 
     private var t: MusicTrack? { sheet.track ?? player.current }
+    private var lyricLines: [MusicLyricLine] {
+        MusicLyrics.parse(t?.lyrics ?? "", duration: player.total)
+    }
+    private var lyricIndex: Int {
+        let index = MusicLyrics.current(lyricLines, at: player.seconds)
+        return index < 0 ? 0 : index
+    }
+    private var currentLyricText: String {
+        guard lyricLines.indices.contains(lyricIndex) else { return "" }
+        return lyricLines[lyricIndex].text
+    }
+    private var nextLyricText: String {
+        guard lyricLines.indices.contains(lyricIndex + 1) else { return "" }
+        return lyricLines[lyricIndex + 1].text
+    }
 
     private func closeMe() {
         MusicSheet.shared.close()
@@ -2336,6 +2386,39 @@ struct MusicPlayingView: View {
         }
         .pickerStyle(.segmented)
         .frame(width: 184)
+    }
+
+    @ViewBuilder
+    private var rollingLyrics: some View {
+        if !lyricLines.isEmpty {
+            Button {
+                showLyrics = true
+            } label: {
+                VStack(spacing: 6) {
+                    Text(currentLyricText)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .id("lyric-current-\(lyricIndex)")
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .top).combined(with: .opacity)
+                        ))
+                    Text(nextLyricText)
+                        .font(.system(size: 14.5, weight: .regular))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .id("lyric-next-\(lyricIndex)")
+                        .transition(.opacity)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .animation(.easeInOut(duration: 0.34), value: lyricIndex)
+            .accessibilityLabel(Tr("打开完整歌词"))
+        }
     }
 
     private var queueSheet: some View {
@@ -2502,6 +2585,8 @@ struct MusicPlayingView: View {
                             }
                         }
 
+                    rollingLyrics
+
                     VStack(spacing: 5) {
                         Text(t?.title ?? "")
                             .font(.title2.weight(.bold))
@@ -2617,9 +2702,12 @@ struct MusicPlayingView: View {
                 .padding(.top, 12)
                 .padding(.bottom, max(28, L.safeBottom + 16))
             }
-            .background(Color(uiColor: .systemBackground).ignoresSafeArea())
+            .background {
+                FullPlayerAmbient(track: t)
+            }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
