@@ -47,7 +47,7 @@ struct DeferredChatView: View {
         if !synced.isEmpty, synced != "auto" { return synced }
         let per = ChatBgStore.shared.get(chat.id)
         if !per.isEmpty, per != "auto" { return per }
-        let v = app.me?.chatBackground ?? "auto"
+        let v = effectiveGlobalChatBackground(app.me?.chatBackground)
         if v.isEmpty || v == "auto" {
             let def = app.defaultChatBackground
             return def == "auto" ? "" : def

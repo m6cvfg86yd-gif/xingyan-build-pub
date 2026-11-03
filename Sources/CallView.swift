@@ -105,7 +105,7 @@ struct CallView: View {
     private var tint: CGFloat { UIConfig.num("callGlassTint", 0.45) }
 
     private var bgPath: String {
-        let v = app.me?.chatBackground ?? "auto"
+        let v = effectiveGlobalChatBackground(app.me?.chatBackground)
         if v.isEmpty || v == "auto" {
             let def = app.defaultChatBackground
             return (def == "auto") ? "" : def

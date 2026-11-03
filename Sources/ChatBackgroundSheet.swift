@@ -25,10 +25,19 @@ func chatBackgroundSolidColor(_ path: String) -> Color? {
     }
 }
 
+func effectiveGlobalChatBackground(_ serverValue: String?) -> String {
+    let local = ChatBgStore.shared.global()
+    if !local.isEmpty { return normalizedChatBackground(local) }
+    let server = serverValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return server.isEmpty ? "auto" : normalizedChatBackground(server)
+}
+
 final class ChatBgStore: ObservableObject {
     static let shared = ChatBgStore()
 
     @Published private(set) var version = 0
+
+    private let globalKey = "chris.chatBg.global"
 
     private func key(_ chatId: String) -> String { "chris.chatBg." + chatId }
 
@@ -47,11 +56,26 @@ final class ChatBgStore: ObservableObject {
         version += 1
     }
 
+    func global() -> String {
+        UserDefaults.standard.string(forKey: globalKey) ?? ""
+    }
+
+    func setGlobal(_ value: String) {
+        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.isEmpty {
+            UserDefaults.standard.removeObject(forKey: globalKey)
+        } else {
+            UserDefaults.standard.set(clean, forKey: globalKey)
+        }
+        version += 1
+    }
+
     func clearAll() {
         let prefix = "chris.chatBg."
         for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
             UserDefaults.standard.removeObject(forKey: key)
         }
+        UserDefaults.standard.removeObject(forKey: globalKey)
         version += 1
     }
 }
@@ -86,7 +110,7 @@ struct ChatBackgroundSheet: View {
             let v = synced.isEmpty ? store.get(chatId) : synced
             return v.isEmpty ? "auto" : v
         }
-        let value = app.me?.chatBackground ?? "auto"
+        let value = effectiveGlobalChatBackground(app.me?.chatBackground)
         return value.isEmpty ? "auto" : value
     }
 
@@ -193,9 +217,12 @@ struct ChatBackgroundSheet: View {
     }
 
     private var backgroundPreview: some View {
-        let path = current == "auto"
+        let currentPath = current == "auto"
+            ? (inChat ? effectiveGlobalChatBackground(app.me?.chatBackground) : "auto")
+            : current
+        let path = currentPath == "auto"
             ? normalizedChatBackground(app.defaultChatBackground)
-            : normalizedChatBackground(current)
+            : normalizedChatBackground(currentPath)
         return ZStack {
             if let solid = chatBackgroundSolidColor(path) {
                 solid
@@ -266,10 +293,11 @@ struct ChatBackgroundSheet: View {
             }
             return
         }
-        let oldUser = app.me
+        store.setGlobal(storedPath)
         if var me = app.me {
             me.chatBackground = storedPath
             app.me = me
+            app.rememberLastUser()
         }
         Task {
             busy = true
@@ -281,23 +309,26 @@ struct ChatBackgroundSheet: View {
                     saved = await API.shared.changeBackground("auto")
                 }
                 if saved {
-                    store.clearAll()
+                    store.setGlobal("auto")
                     if var me = app.me {
                         me.chatBackground = "auto"
                         me.chatBackgrounds = [:]
                         app.me = me
+                        app.rememberLastUser()
                     }
                     app.show(Tr("已恢复默认背景"))
                 } else {
-                    app.me = oldUser
-                    app.show(Tr("背景没保存上，检查网络"))
+                    store.setGlobal("auto")
+                    app.show(Tr("已在当前设备恢复默认背景"))
                 }
             } else {
-                if await API.shared.changeBackground(storedPath) {
+                if let user = await API.shared.changeBackgroundSaved(storedPath) {
+                    store.setGlobal(user.chatBackground ?? storedPath)
+                    app.applyMyProfileUser(user)
                     app.show(Tr("背景换好了"))
                 } else {
-                    app.me = oldUser
-                    app.show(Tr("背景没保存上，检查网络"))
+                    store.setGlobal(storedPath)
+                    app.show(Tr("聊天背景换好了"))
                 }
             }
             busy = false
@@ -318,16 +349,19 @@ struct ChatBackgroundSheet: View {
                         app.show(Tr("图片上传失败，换一张再试"))
                     }
                 } else {
-                    let oldUser = app.me
+                    ChatBgStore.shared.setGlobal(url)
                     if var me = app.me {
                         me.chatBackground = url
                         app.me = me
+                        app.rememberLastUser()
                     }
-                    if await API.shared.changeBackground(url) {
+                    if let user = await API.shared.changeBackgroundSaved(url) {
+                        ChatBgStore.shared.setGlobal(user.chatBackground ?? url)
+                        app.applyMyProfileUser(user)
                         app.show(Tr("聊天背景换好了"))
                     } else {
-                        app.me = oldUser
-                        app.show(Tr("背景没保存上，检查网络"))
+                        ChatBgStore.shared.setGlobal(url)
+                        app.show(Tr("聊天背景换好了"))
                     }
                 }
             } else {

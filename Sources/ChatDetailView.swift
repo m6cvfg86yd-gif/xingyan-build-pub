@@ -800,7 +800,7 @@ struct ChatDetailView: View {
         }
         let per = ChatBgStore.shared.get(chat.id)
         if !per.isEmpty, per != "auto" { return normalizedChatBackground(per) }
-        let v = app.me?.chatBackground ?? "auto"
+        let v = effectiveGlobalChatBackground(app.me?.chatBackground)
         if v.isEmpty || v == "auto" {
 
             let def = app.defaultChatBackground

@@ -4774,6 +4774,14 @@ private struct StarredPayload: Decodable {
         }
     }
 
+    func changeBackgroundSaved(_ path: String) async -> User? {
+        do {
+            return try await updateMeChecked(["chatBackground": path])
+        } catch {
+            return nil
+        }
+    }
+
     @discardableResult
     func changeChatBackground(chatId: String, path: String) async -> [String: String]? {
         struct P: Decodable { var chatBackgrounds: [String: String]? }

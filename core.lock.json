@@ -3,8 +3,8 @@
   "files": [
     {
       "path": "Sources/API.swift",
-      "size": 197239,
-      "sha256": "643d9cd900ad2eccc3530056978a2feeddcba2a4c332102450e1c80fa694f71b"
+      "size": 197445,
+      "sha256": "b80d3236d57b40a134c326e240aef5174f7d6395ebff2c72c26b4de16ae80f40"
     },
     {
       "path": "Sources/App.swift",
@@ -33,8 +33,8 @@
     },
     {
       "path": "Sources/CallView.swift",
-      "size": 45644,
-      "sha256": "13f33ee77cd3b404598d4f10fd5f61c76e64cfba9f91216e7386c716cbff7bc8"
+      "size": 45665,
+      "sha256": "c3012305b19f8ad3d25c80d61f01c41ef94462d80aaac2336baa1e14ff441cc9"
     },
     {
       "path": "Sources/AICall.swift",
@@ -73,8 +73,8 @@
     },
     {
       "path": "Sources/ChatDetailView.swift",
-      "size": 226873,
-      "sha256": "20480b1e99e023fe4dd1306e215d1f97a7c1ee221945a42ae64ace18ebb1f205"
+      "size": 226894,
+      "sha256": "49f6d2fe9d61b63eb58c015c6a1ce04364864b6686a2e3d85fa4168c9ea0fcff"
     },
     {
       "path": "Sources/GroupInfoView.swift",
@@ -98,8 +98,8 @@
     },
     {
       "path": "Sources/ChatDeferred.swift",
-      "size": 1513,
-      "sha256": "4f977270e8097420a4411b1494de51f4cd7e150f0673ff20295c9f778a2d23bb"
+      "size": 1534,
+      "sha256": "b4a03f0856c38a7f86a3815529dd239fce70b4809f0d08bfb774814e35125ce1"
     }
   ]
 }
