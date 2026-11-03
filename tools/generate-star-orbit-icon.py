@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,136 +11,187 @@ SIZE = 2048
 CENTER = SIZE / 2
 
 
-def lerp(a: float, b: float, t: float) -> float:
-    return a + (b - a) * t
-
-
-def bezier(p0, p1, p2, p3, t: float):
-    u = 1 - t
-    return (
-        u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
-        u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1],
-    )
+def diagonal_gradient(
+    size: int,
+    top: tuple[int, int, int],
+    bottom: tuple[int, int, int],
+) -> Image.Image:
+    y, x = np.mgrid[0:size, 0:size]
+    t = np.clip((x * 0.36 + y * 0.64) / (size - 1), 0, 1)
+    t = t * t * (3 - 2 * t)
+    arr = np.zeros((size, size, 3), dtype=np.uint8)
+    for channel in range(3):
+        arr[..., channel] = (
+            top[channel] + (bottom[channel] - top[channel]) * t
+        ).astype(np.uint8)
+    return Image.fromarray(arr, "RGB")
 
 
 def star_mask(size: int, outer: float, inner: float) -> Image.Image:
-    """Four-point star with softly curved arms, centred on a transparent canvas."""
-    c = size / 2
+    """Four-point star with softly curved arms, centered on a transparent canvas."""
+    center = size / 2
     points = [
-        (c, c - outer),
-        (c + inner, c - inner),
-        (c + outer * 0.84, c),
-        (c + inner, c + inner),
-        (c, c + outer),
-        (c - inner, c + inner),
-        (c - outer * 0.84, c),
-        (c - inner, c - inner),
+        (center, center - outer),
+        (center + inner, center - inner * 0.95),
+        (center + outer * 0.84, center),
+        (center + inner, center + inner * 0.95),
+        (center, center + outer),
+        (center - inner, center + inner * 0.95),
+        (center - outer * 0.84, center),
+        (center - inner, center - inner * 0.95),
     ]
 
     def catmull_rom(p0, p1, p2, p3, t: float):
         t2, t3 = t * t, t * t * t
         return (
-            0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t
-                   + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2
-                   + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
-            0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t
-                   + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2
-                   + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3),
+            0.5
+            * (
+                2 * p1[0]
+                + (-p0[0] + p2[0]) * t
+                + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2
+                + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3
+            ),
+            0.5
+            * (
+                2 * p1[1]
+                + (-p0[1] + p2[1]) * t
+                + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2
+                + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3
+            ),
         )
 
     curve = []
-    for i in range(len(points)):
-        p0 = points[(i - 1) % len(points)]
-        p1 = points[i]
-        p2 = points[(i + 1) % len(points)]
-        p3 = points[(i + 2) % len(points)]
-        for step in range(24):
-            curve.append(catmull_rom(p0, p1, p2, p3, step / 24))
+    for index in range(len(points)):
+        p0 = points[(index - 1) % len(points)]
+        p1 = points[index]
+        p2 = points[(index + 1) % len(points)]
+        p3 = points[(index + 2) % len(points)]
+        for step in range(32):
+            curve.append(catmull_rom(p0, p1, p2, p3, step / 32))
 
-    m = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(m).polygon(curve, fill=255)
-    return m
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).polygon(curve, fill=255)
+    return mask
 
 
-def diagonal_gradient(size: int, top: tuple[int, int, int],
-                      bottom: tuple[int, int, int]) -> Image.Image:
-    y, x = np.mgrid[0:size, 0:size]
-    t = np.clip((x * 0.34 + y * 0.66) / (size - 1), 0, 1)
-    arr = np.zeros((size, size, 3), dtype=np.uint8)
-    for i in range(3):
-        arr[..., i] = (top[i] + (bottom[i] - top[i]) * t).astype(np.uint8)
-    return Image.fromarray(arr, "RGB")
+def add_vignette(image: Image.Image) -> Image.Image:
+    radial = Image.radial_gradient("L").resize((SIZE, SIZE), Image.Resampling.BICUBIC)
+    edge_alpha = ImageOps.invert(radial).point(lambda value: int(value * 0.14))
+    shade = Image.new("RGBA", (SIZE, SIZE), (0, 69, 43, 255))
+    shade.putalpha(edge_alpha)
+    return Image.alpha_composite(image, shade)
 
 
 def build_icon() -> Image.Image:
-    bg = diagonal_gradient(SIZE, (16, 48, 39), (4, 13, 11)).convert("RGBA")
+    background = diagonal_gradient(
+        SIZE,
+        (35, 226, 133),
+        (5, 158, 94),
+    ).convert("RGBA")
+    background = add_vignette(background)
 
-    # A restrained central atmosphere keeps the icon dimensional without looking glossy.
-    glow = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glow)
-    gd.ellipse((330, 240, 1718, 1628), fill=(45, 150, 119, 48))
-    glow = glow.filter(ImageFilter.GaussianBlur(190))
-    bg = Image.alpha_composite(bg, glow)
+    # Diffuse top-left light gives the green material depth without a glossy bevel.
+    ambient = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    ambient_draw = ImageDraw.Draw(ambient)
+    ambient_draw.ellipse((190, 110, 1640, 1560), fill=(104, 255, 184, 72))
+    ambient = ambient.filter(ImageFilter.GaussianBlur(250))
+    background = Image.alpha_composite(background, ambient)
 
-    # Tilted orbit, one quiet jade ellipse and one champagne-gold ellipse.
-    ring = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    rd = ImageDraw.Draw(ring)
-    rd.ellipse((318, 704, 1730, 1360), outline=(112, 203, 169, 86), width=22)
-    ring = ring.rotate(-27, resample=Image.Resampling.BICUBIC, center=(CENTER, CENTER))
-    ring = ring.filter(ImageFilter.GaussianBlur(0.7))
-    bg = Image.alpha_composite(bg, ring)
+    # The orbit is deliberately restrained so the mark stays legible at 60 pt.
+    orbit = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    orbit_draw = ImageDraw.Draw(orbit)
+    orbit_draw.ellipse(
+        (326, 704, 1722, 1344),
+        outline=(232, 255, 245, 112),
+        width=23,
+    )
+    orbit = orbit.rotate(-25, resample=Image.Resampling.BICUBIC, center=(CENTER, CENTER))
+    orbit = orbit.filter(ImageFilter.GaussianBlur(0.55))
+    background = Image.alpha_composite(background, orbit)
 
-    ring2 = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    rd2 = ImageDraw.Draw(ring2)
-    rd2.arc((430, 760, 1618, 1308), 194, 338, fill=(224, 196, 132, 176), width=27)
-    ring2 = ring2.rotate(-27, resample=Image.Resampling.BICUBIC, center=(CENTER, CENTER))
-    bg = Image.alpha_composite(bg, ring2)
+    accent_orbit = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    accent_draw = ImageDraw.Draw(accent_orbit)
+    accent_draw.arc(
+        (420, 760, 1628, 1302),
+        198,
+        337,
+        fill=(255, 226, 163, 146),
+        width=18,
+    )
+    accent_orbit = accent_orbit.rotate(
+        -25,
+        resample=Image.Resampling.BICUBIC,
+        center=(CENTER, CENTER),
+    )
+    background = Image.alpha_composite(background, accent_orbit)
 
-    # Main four-point star: ivory at the crown, warm champagne gold at the roots.
-    mask = star_mask(1500, 720, 208)
-    star_layer = Image.new("RGBA", (1500, 1500), (0, 0, 0, 0))
-    gold = diagonal_gradient(1500, (255, 249, 226), (207, 161, 86)).convert("RGBA")
-    gold.putalpha(mask)
-    star_layer.alpha_composite(gold)
-    star_layer = star_layer.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+    star_size = 1536
+    mask = star_mask(star_size, 650, 192)
+    star = Image.new("RGBA", (star_size, star_size), (0, 0, 0, 0))
+    star_fill = diagonal_gradient(
+        star_size,
+        (255, 255, 253),
+        (220, 255, 240),
+    ).convert("RGBA")
+    star_fill.putalpha(mask)
+    star.alpha_composite(star_fill)
+    star = star.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
 
     shadow = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    shadow.paste((0, 0, 0, 105), (0, 0), star_layer.getchannel("A"))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(48))
-    shadow = ImageChops.offset(shadow, 0, 34)
-    bg = Image.alpha_composite(bg, shadow)
-    bg = Image.alpha_composite(bg, star_layer)
+    shadow.paste((0, 45, 29, 92), (0, 0), star.getchannel("A"))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(46))
+    shadow = ImageChops.offset(shadow, 6, 28)
+    background = Image.alpha_composite(background, shadow)
+    background = Image.alpha_composite(background, star)
 
-    # A clipped inner highlight makes the mark feel cut from solid material.
-    shine = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(shine)
-    sd.ellipse((740, 280, 1300, 840), fill=(255, 255, 248, 28))
-    shine.putalpha(ImageChops.multiply(shine.getchannel("A"), star_layer.getchannel("A")))
-    bg = Image.alpha_composite(bg, shine)
+    # One soft clipped highlight keeps the star from looking like flat vector art.
+    highlight = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    highlight_draw = ImageDraw.Draw(highlight)
+    highlight_draw.ellipse((700, 250, 1280, 830), fill=(255, 255, 255, 36))
+    highlight.putalpha(
+        ImageChops.multiply(highlight.getchannel("A"), star.getchannel("A"))
+    )
+    background = Image.alpha_composite(background, highlight)
 
-    d = ImageDraw.Draw(bg)
-    # Two satellites on the orbit become readable at very small sizes.
-    d.ellipse((1510, 510, 1570, 570), fill=(255, 250, 231, 238))
-    d.ellipse((1488, 488, 1592, 592), outline=(255, 250, 231, 42), width=8)
-    d.ellipse((482, 1435, 520, 1473), fill=(112, 203, 169, 205))
+    detail = ImageDraw.Draw(background)
+    # Two restrained eyes sit inside the widest part of the star.
+    detail.rounded_rectangle(
+        (954, 974, 998, 1042),
+        radius=22,
+        fill=(3, 111, 69, 255),
+    )
+    detail.rounded_rectangle(
+        (1050, 974, 1094, 1042),
+        radius=22,
+        fill=(3, 111, 69, 255),
+    )
+    detail.ellipse((1514, 500, 1590, 576), fill=(255, 255, 252, 244))
+    detail.ellipse((1488, 474, 1616, 602), outline=(236, 255, 245, 42), width=8)
+    detail.ellipse((486, 1416, 542, 1472), fill=(188, 255, 221, 224))
 
-    # Very low-contrast inner rim gives the icon a crafted edge without text.
     rim = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    ImageDraw.Draw(rim).rounded_rectangle((3, 3, SIZE - 4, SIZE - 4), radius=448,
-                                          outline=(247, 245, 239, 28), width=5)
-    return Image.alpha_composite(bg, rim).convert("RGB")
+    ImageDraw.Draw(rim).rounded_rectangle(
+        (4, 4, SIZE - 5, SIZE - 5),
+        radius=446,
+        outline=(245, 255, 250, 32),
+        width=5,
+    )
+    return Image.alpha_composite(background, rim).convert("RGB")
 
 
 def main() -> None:
     icon = build_icon()
     icon.resize((1024, 1024), Image.Resampling.LANCZOS).save(
-        ROOT / "app-icon-starorbit-1024.png", optimize=True
+        ROOT / "app-icon-starorbit-1024.png",
+        optimize=True,
     )
     icon.resize((120, 120), Image.Resampling.LANCZOS).save(
-        ROOT / "AppIcon60x60@2x.png", optimize=True
+        ROOT / "AppIcon60x60@2x.png",
+        optimize=True,
     )
     icon.resize((180, 180), Image.Resampling.LANCZOS).save(
-        ROOT / "AppIcon60x60@3x.png", optimize=True
+        ROOT / "AppIcon60x60@3x.png",
+        optimize=True,
     )
 
 
