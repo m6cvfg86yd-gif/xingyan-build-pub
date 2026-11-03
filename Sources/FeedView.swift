@@ -1,6 +1,7 @@
 import SwiftUI
 import AVKit
 import PhotosUI
+import UIKit
 
 struct FeedAuthor: Decodable, Hashable {
     var id: String?
@@ -1140,6 +1141,7 @@ struct FeedPlayerSheet: View {
     @State private var liked = false
     @State private var likes = 0
     @State private var index = 0
+    @State private var heartBurst = false
 
     private var list: [FeedItem] { all.isEmpty ? [item] : all }
     private var cur: FeedItem { list[min(index, list.count - 1)] }
@@ -1174,13 +1176,24 @@ struct FeedPlayerSheet: View {
                     }
                     Spacer(minLength: 12)
                     Button {
+                        let willLike = !liked
                         liked.toggle(); likes += liked ? 1 : -1
+                        if willLike {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            heartBurst = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                                heartBurst = false
+                            }
+                        }
                         Task { _ = try? await API.shared.feedLike(cur.id) }
                     } label: {
                         VStack(spacing: 4) {
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 26))
-                                .foregroundColor(liked ? Color(hex: 0xFF4D6D) : .white)
+                            ZStack {
+                                Image(systemName: "heart.fill")
+                                    .font(.system(size: 26))
+                                    .foregroundColor(liked ? Color(hex: 0xFF4D6D) : .white)
+                                if heartBurst { HeartBurst() }
+                            }
                             Text("\(likes)").font(pf(12.5)).foregroundColor(.white)
                         }
                     }
@@ -1204,6 +1217,7 @@ struct FeedPlayerSheet: View {
             index = list.firstIndex(where: { $0.id == item.id }) ?? 0
             liked = cur.liked ?? false
             likes = cur.likes ?? 0
+            heartBurst = false
             load(cur)
         }
 
