@@ -173,49 +173,18 @@ struct MomentCommentsSheet: View {
     }
 
     private var frostedBackground: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(uiColor: .systemBackground),
-                    OrbitTheme.canvas,
-                    Color(uiColor: .secondarySystemBackground)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            Circle()
-                .fill(OrbitTheme.jade.opacity(0.10))
-                .frame(width: 280, height: 280)
-                .blur(radius: 48)
-                .offset(x: -150, y: -260)
-
-            Circle()
-                .fill(Color(hex: 0x5C83D8).opacity(0.07))
-                .frame(width: 260, height: 260)
-                .blur(radius: 54)
-                .offset(x: 160, y: 280)
-
-            Rectangle()
-                .fill(.ultraThinMaterial)
-        }
-        .ignoresSafeArea()
+        Color(uiColor: .systemGroupedBackground)
+            .ignoresSafeArea()
     }
 
     private var frostedCard: some View {
         RoundedRectangle(cornerRadius: 17, style: .continuous)
-            .fill(.ultraThinMaterial)
+            .fill(Color(uiColor: .secondarySystemGroupedBackground))
             .overlay {
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: [.white.opacity(0.34), OrbitTheme.divider.opacity(0.75)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 0.7
-                    )
+                    .stroke(Color.primary.opacity(0.055), lineWidth: 0.6)
             }
+            .shadow(color: .black.opacity(0.035), radius: 8, y: 3)
     }
 
     private var momentContextCard: some View {
@@ -549,14 +518,11 @@ struct MomentCommentsSheet: View {
             .padding(.top, 9)
             .padding(.bottom, max(10, L.safeBottom))
         }
-        .background(.ultraThinMaterial)
+        .background(.bar)
         .overlay(alignment: .top) {
-            LinearGradient(
-                colors: [.clear, OrbitTheme.divider.opacity(0.72), .clear],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            .frame(height: 0.7)
+            Rectangle()
+                .fill(Color(uiColor: .separator))
+                .frame(height: 0.5)
         }
     }
 
