@@ -1401,7 +1401,7 @@ struct FriendsStatusView: View {
                 ZStack {
                     Image(systemName: liked(u) ? "heart.fill" : "heart")
                         .font(.system(size: 17))
-                        .foregroundColor(liked(u) ? Color(hex: 0xFF5A5A) : C.subLabel)
+                        .foregroundColor(liked(u) ? Color(hex: 0xFF4868) : C.subLabel)
                     if bursting == u.id { HeartBurst() }
                     if likeCount(u) > 0 {
                         Text("\(likeCount(u))")
@@ -1436,7 +1436,7 @@ struct FriendsStatusView: View {
         localMine[u.id] = now
         localLikes[u.id] = max(0, likeCount(u) + (now ? 1 : -1))
         if now { bursting = u.id }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
             if bursting == u.id { bursting = "" }
         }
         Task {
@@ -1553,35 +1553,100 @@ struct StatusRingIcon: View {
 }
 
 struct HeartBurst: View {
+    var intensity: CGFloat = 1.15
     @State private var t: CGFloat = 0
 
     var body: some View {
         ZStack {
-            Image(systemName: "heart.fill")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(Color(hex: 0xFF4F67))
-                .scaleEffect(1 + t * 1.9)
-                .opacity(Double(1 - t))
+            Circle()
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            Color(hex: 0xFF315A), Color(hex: 0xFF86A2),
+                            Color(hex: 0xFFC45C), Color(hex: 0xFF315A)
+                        ],
+                        center: .center
+                    ),
+                    style: StrokeStyle(lineWidth: 2.2 * intensity, lineCap: .round)
+                )
+                .frame(width: 20, height: 20)
+                .scaleEffect(0.45 + t * 5.6 * intensity)
+                .opacity(Double(1 - t) * 0.78)
 
-            ForEach(0..<14, id: \.self) { i in
-                let angle = Double(i) / 14 * 2 * Double.pi
-                let distance = CGFloat(12 + (i % 4) * 3) + t * CGFloat(34 + (i % 3) * 8)
-                Image(systemName: i % 4 == 0 ? "sparkle" : "heart.fill")
-                    .font(.system(size: i % 4 == 0 ? 7.5 : 9.5, weight: .bold))
-                    .foregroundStyle(i % 3 == 0
-                                     ? Color(hex: 0xFFB15C)
-                                     : (i % 2 == 0 ? Color(hex: 0xFF4F67) : Color(hex: 0xFF86A0)))
-                    .rotationEffect(.degrees(Double(t) * Double(35 + i * 17)))
-                    .scaleEffect(1.05 - t * 0.5)
+            Circle()
+                .fill(RadialGradient(
+                    colors: [.white.opacity(0.72), Color(hex: 0xFF7792).opacity(0.18), .clear],
+                    center: .center,
+                    startRadius: 1,
+                    endRadius: 28 * intensity
+                ))
+                .frame(width: 58 * intensity, height: 58 * intensity)
+                .scaleEffect(0.25 + t * 1.35)
+                .opacity(Double(1 - t) * 0.66)
+
+            ZStack {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 18 * intensity, weight: .bold))
+                    .foregroundStyle(LinearGradient(
+                        colors: [Color(hex: 0xFF8FA6), Color(hex: 0xFF3D62), Color(hex: 0xE9204C)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .shadow(color: Color(hex: 0xFF3158).opacity(0.50),
+                            radius: 9 * intensity, y: 2)
+
+                Image(systemName: "sparkle")
+                    .font(.system(size: 5.5 * intensity, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .offset(x: -3.6 * intensity, y: -3.8 * intensity)
+            }
+            .scaleEffect(1 + t * 2.15)
+            .opacity(Double(1 - t))
+
+            ForEach(0..<22, id: \.self) { i in
+                let angle = Double(i) / 22 * 2 * Double.pi + Double(i % 3) * 0.11
+                let distance = CGFloat(15 + (i % 5) * 3)
+                    + t * CGFloat(48 + (i % 4) * 10) * intensity
+                Group {
+                    if i % 6 == 0 {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 8.5 * intensity, weight: .bold))
+                            .foregroundStyle(Color(hex: i % 2 == 0 ? 0xFFD36A : 0xFFFFFF))
+                    } else if i % 5 == 0 {
+                        Circle()
+                            .fill(Color(hex: 0xFFD978))
+                            .frame(width: 3.2 * intensity, height: 3.2 * intensity)
+                    } else {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: (i % 3 == 0 ? 8 : 10) * intensity,
+                                           weight: .bold))
+                            .foregroundStyle(i % 2 == 0
+                                             ? Color(hex: 0xFF4F72)
+                                             : Color(hex: 0xFF9BB0))
+                    }
+                }
+                    .rotationEffect(.degrees(Double(t) * Double(45 + i * 13)))
+                    .scaleEffect(1.12 - t * 0.46)
                     .offset(x: CGFloat(cos(angle)) * distance,
-                            y: CGFloat(sin(angle)) * distance)
+                            y: CGFloat(sin(angle)) * distance - t * 7 * intensity)
                     .opacity(Double(1 - t))
+            }
+
+            ForEach(0..<8, id: \.self) { i in
+                Capsule()
+                    .fill(i % 2 == 0
+                          ? Color(hex: 0xFF6F8D).opacity(0.72)
+                          : Color(hex: 0xFFC65C).opacity(0.64))
+                    .frame(width: 1.7 * intensity, height: 8 * intensity)
+                    .offset(y: -(21 * intensity + t * 66 * intensity))
+                    .rotationEffect(.degrees(Double(i) / 8 * 360))
+                    .opacity(Double(1 - t) * 0.72)
             }
         }
         .frame(width: 0, height: 0)
         .allowsHitTesting(false)
         .onAppear {
-            withAnimation(.easeOut(duration: 0.68)) { t = 1 }
+            withAnimation(.easeOut(duration: 0.86)) { t = 1 }
         }
     }
 }

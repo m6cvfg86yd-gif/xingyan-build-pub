@@ -68,8 +68,8 @@
     },
     {
       "path": "Sources/PushCenter.swift",
-      "size": 7780,
-      "sha256": "c49cf8ca8275a8a177ae1da719bcff894fdffc8fd8b873f1377eac48107b4c0f"
+      "size": 8791,
+      "sha256": "43fd00e046bf48dc973a8d3b295bc4c3ab97502ff663731e2794132e12849bc1"
     },
     {
       "path": "Sources/ChatDetailView.swift",

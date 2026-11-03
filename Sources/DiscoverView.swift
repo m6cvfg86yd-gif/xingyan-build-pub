@@ -2678,7 +2678,7 @@ struct MomentRow: View {
     private func burstHeart() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         heartBurst = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { heartBurst = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { heartBurst = false }
     }
 
     private var actionBar: some View {

@@ -203,7 +203,7 @@ struct MomentNoteCard: View {
                 withAnimation(.spring(response: 0.22, dampingFraction: 0.58)) {
                     heartBounce = true
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
                     heartBounce = false
                 }
                 onLike()

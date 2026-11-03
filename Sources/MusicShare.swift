@@ -2609,6 +2609,7 @@ struct MusicPlayingView: View {
 
     @State private var likedNow: Bool? = nil
     @State private var likeCountNow: Int? = nil
+    @State private var heartBurst = false
     @State private var shareTo = false
     @State private var shareSystem = false
 
@@ -2658,10 +2659,16 @@ struct MusicPlayingView: View {
     }
 
     private func playerAction(icon: String, name: String, count: Int?,
-                              tint: Color, tap: @escaping () -> Void) -> some View {
+                              tint: Color, burst: Bool = false,
+                              tap: @escaping () -> Void) -> some View {
         Button { tap() } label: {
             VStack(spacing: 3) {
-                Image(systemName: icon).font(.system(size: 21)).foregroundColor(tint)
+                ZStack {
+                    if burst { HeartBurst(intensity: 1.35) }
+                    Image(systemName: icon)
+                        .font(.system(size: 21, weight: .semibold))
+                        .foregroundColor(tint)
+                }
                 if let c = count, c > 0 {
                     Text("\(c)").font(pf(11.5)).foregroundColor(C.subLabel)
                 }
@@ -2678,6 +2685,13 @@ struct MusicPlayingView: View {
         let now = !liked
         likedNow = now
         likeCountNow = max(0, likeCount + (now ? 1 : -1))
+        if now {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            heartBurst = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                heartBurst = false
+            }
+        }
         Task {
             if let r = await API.shared.musicLike(track.id) {
                 likedNow = r.liked
@@ -3147,7 +3161,8 @@ struct MusicPlayingView: View {
                 icon: liked ? "heart.fill" : "heart",
                 name: Tr("赞"),
                 count: likeCount,
-                tint: liked ? Color(hex: 0xFF5A5A) : Color.primary
+                tint: liked ? Color(hex: 0xFF4868) : Color.primary,
+                burst: heartBurst
             ) {
                 likeIt()
             }
