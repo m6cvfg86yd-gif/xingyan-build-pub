@@ -129,7 +129,7 @@ struct NativeGlassPlusButton: View {
         Button(action: action) {
             Image(systemName: "plus")
                 .font(.system(size: 16.5, weight: .semibold))
-                .foregroundStyle(OrbitTheme.ink)
+                .foregroundStyle(Color(hex: 0x34C759))
                 .frame(width: 38, height: 38)
                 .contentShape(Circle())
         }
