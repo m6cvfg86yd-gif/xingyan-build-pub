@@ -16,6 +16,8 @@ struct MomentCommentsSheet: View {
     @State private var sending = false
     @State private var likeBusy = false
     @State private var heartBurst = false
+    @State private var commentHeartBurst = ""
+    @State private var commentLikeBusy: Set<String> = []
     @State private var deleting: MomentComment?
     @State private var previewIndex = 0
     @State private var fullViewerIndex: Int?
@@ -113,8 +115,6 @@ struct MomentCommentsSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
         .confirmationDialog(Tr("删除这条评论？"),
                             isPresented: Binding(get: { deleting != nil },
                                                  set: { if !$0 { deleting = nil } }),
@@ -426,6 +426,9 @@ struct MomentCommentsSheet: View {
                         .lineSpacing(4)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    commentActions(item)
+                        .padding(.top, 3)
                 }
             }
             .padding(.horizontal, 12)
@@ -446,9 +449,7 @@ struct MomentCommentsSheet: View {
                     swipeOffsets[openSwipeKey] = 0
                     self.openSwipeKey = nil
                 }
-                guard item.userId != app.me?.id else { return }
-                replyToId = item.userId ?? ""
-                replyToName = item.nickname ?? ""
+                beginReply(item)
             }
             .simultaneousGesture(
                 LongPressGesture(minimumDuration: 0.45).onEnded { _ in
@@ -478,6 +479,107 @@ struct MomentCommentsSheet: View {
             )
         }
         .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+    }
+
+    private func commentActions(_ item: MomentComment) -> some View {
+        let id = item.id ?? ""
+        let liked = commentLiked(item)
+        let count = (item.likes ?? []).count
+        return HStack(spacing: 18) {
+            Button {
+                beginReply(item)
+            } label: {
+                Label(Tr("回复"), systemImage: "arrowshape.turn.up.left")
+                    .font(pf(12, .medium))
+                    .foregroundColor(C.subLabel)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 0)
+
+            Button {
+                toggleCommentLike(item)
+            } label: {
+                HStack(spacing: 4) {
+                    ZStack {
+                        if commentHeartBurst == id, !id.isEmpty {
+                            HeartBurst(intensity: 0.92)
+                        }
+                        Image(systemName: liked ? "heart.fill" : "heart")
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundColor(liked ? Color(hex: 0xFF4868) : C.subLabel)
+                    }
+                    if count > 0 {
+                        Text("\(count)")
+                            .font(pf(11.5, .medium))
+                            .foregroundColor(liked ? Color(hex: 0xFF4868) : C.subLabel)
+                            .contentTransition(.numericText())
+                    }
+                }
+                .frame(height: 28)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(commentLikeBusy.contains(id))
+            .accessibilityLabel(liked ? Tr("取消赞") : Tr("赞"))
+        }
+        .animation(.easeOut(duration: 0.18), value: count)
+    }
+
+    private func beginReply(_ item: MomentComment) {
+        replyToId = item.userId ?? ""
+        replyToName = item.nickname ?? ""
+        commentFocused = true
+    }
+
+    private func commentLiked(_ item: MomentComment) -> Bool {
+        if let liked = item.likedByMe { return liked }
+        return (item.likes ?? []).contains { $0.userId == app.me?.id }
+    }
+
+    private func toggleCommentLike(_ item: MomentComment) {
+        guard let id = item.id,
+              let index = comments.firstIndex(where: { $0.id == id }),
+              !commentLikeBusy.contains(id) else { return }
+        let before = comments
+        let liked = commentLiked(item)
+        var updated = comments[index]
+        var nextLikes = updated.likes ?? []
+        if liked {
+            nextLikes.removeAll { $0.userId == app.me?.id }
+        } else {
+            nextLikes.append(MomentLike(
+                userId: app.me?.id,
+                nickname: app.me?.name ?? Tr("我"),
+                at: ISO8601DateFormatter().string(from: Date())
+            ))
+        }
+        updated.likes = nextLikes
+        updated.likedByMe = !liked
+        var next = comments
+        next[index] = updated
+        live.comments = next
+        commentLikeBusy.insert(id)
+
+        if !liked {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            commentHeartBurst = id
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                if commentHeartBurst == id { commentHeartBurst = "" }
+            }
+        }
+
+        Task {
+            if let error = await API.shared.likeMomentComment(
+                momentId: live.id,
+                commentId: id
+            ) {
+                live.comments = before
+                app.show(error)
+            }
+            commentLikeBusy.remove(id)
+        }
     }
 
     private var composer: some View {
@@ -544,8 +646,19 @@ struct MomentCommentsSheet: View {
         let targetName = replyToName
         sending = true
         Task {
-            if let error = await API.shared.commentMoment(id: live.id, text: value, replyTo: targetId) {
+            let result = await API.shared.commentMoment(
+                id: live.id,
+                text: value,
+                replyTo: targetId
+            )
+            if let error = result.error {
                 app.show(error)
+            } else if let fresh = result.moment {
+                live = fresh
+                text = ""
+                replyToId = ""
+                replyToName = ""
+                onChanged()
             } else {
                 let item = MomentComment(id: UUID().uuidString,
                                          userId: app.me?.id,

@@ -6226,7 +6226,13 @@ function visibleMoment(m, viewerId) {
       nickname: displayNameFor(viewerId, findUser(c.userId)),
       replyToName: c.replyTo ? displayNameFor(viewerId, findUser(c.replyTo)) : '',
       content: c.content,
-      at: c.at
+      at: c.at,
+      likes: (c.likes || []).filter((l) => __canSeeInteract(l.userId)).map((l) => ({
+        userId: l.userId,
+        nickname: displayNameFor(viewerId, findUser(l.userId)),
+        at: l.at
+      })),
+      likedByMe: (c.likes || []).some((l) => l.userId === viewerId)
     })),
     mine: m.authorId === viewerId
   };
@@ -9376,7 +9382,7 @@ async function housekeeperCommand(user, text, chat, bot) {
     if (!mm) return '「' + who + '」最近没发朋友圈。';
     if (!momentAudience(mm.authorId).includes(user.id)) return '看不到「' + who + '」的朋友圈（对方设了权限）。';
     if (!mm.comments) mm.comments = [];
-    mm.comments.push({ id: uid('cm'), userId: user.id, content: m[2].trim(), replyTo: null, at: now() });
+    mm.comments.push({ id: uid('cm'), userId: user.id, content: m[2].trim(), replyTo: null, at: now(), likes: [] });
     saveMoments();
     const views = visibleMoment(mm, user.id);
     momentAudience(mm.authorId).forEach((id) => {
@@ -19168,7 +19174,37 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
 
-  if (parts[0] === 'moments' && method === 'POST' && parts[2] === 'comments') {
+  if (parts[0] === 'moments' && method === 'POST' && parts[2] === 'comments' && parts[4] === 'like') {
+    const m = db.moments.find((x) => x.id === parts[1]);
+    if (!m) return fail(res, 404, '动态不存在');
+    if (!momentAudience(m.authorId).includes(user.id)) return fail(res, 403, '看不到这条动态');
+    const cBlocked = riskBlocked(user);
+    if (cBlocked) return fail(res, 429, '账号功能被临时限制，还有 ' + cBlocked + ' 分钟（如有疑问请联系管理员）');
+    const comment = (m.comments || []).find((c) => c.id === parts[3]);
+    if (!comment) return fail(res, 404, '这条评论不在了');
+    if (!Array.isArray(comment.likes)) comment.likes = [];
+    const at = comment.likes.findIndex((l) => l.userId === user.id);
+    const liked = at < 0;
+    if (liked) comment.likes.push({ userId: user.id, at: now() });
+    else comment.likes.splice(at, 1);
+    saveMoments();
+
+    const views = visibleMoment(m, user.id);
+    const visibleComment = (views.comments || []).find((c) => c.id === comment.id);
+    momentAudience(m.authorId).forEach((id) => {
+      sendTo(id, {
+        type: 'moment',
+        action: 'comment-like',
+        momentId: m.id,
+        commentId: comment.id,
+        comment: visibleComment || null
+      });
+    });
+    ok(res, { liked, count: comment.likes.length });
+    return;
+  }
+
+  if (parts[0] === 'moments' && method === 'POST' && parts[2] === 'comments' && parts.length === 3) {
     const m = db.moments.find((x) => x.id === parts[1]);
     if (!m) return fail(res, 404, '动态不存在');
     if (!momentAudience(m.authorId).includes(user.id)) return fail(res, 403, '看不到这条动态');
@@ -19180,7 +19216,7 @@ async function handleApi(req, res, pathname, query) {
     if (!content) return fail(res, 422, '评论不能为空');
     const replyTo = str(body.replyTo, 40) || null;
     if (!m.comments) m.comments = [];
-    m.comments.push({ id: uid('cm'), userId: user.id, content, replyTo, at: now() });
+    m.comments.push({ id: uid('cm'), userId: user.id, content, replyTo, at: now(), likes: [] });
     saveMoments();
     /* 朋友圈消息列表：评论了谁的动态就通知谁；回复某人的评论，被回复的人也收一条 */
     const newCommentId = m.comments[m.comments.length - 1].id;

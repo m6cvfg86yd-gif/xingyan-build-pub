@@ -485,6 +485,8 @@ struct MomentComment: Codable, Hashable {
     var replyToName: String?
     var content: String?
     var at: String?
+    var likes: [MomentLike]? = nil
+    var likedByMe: Bool? = nil
 }
 
 struct Moment: Codable, Identifiable, Hashable {
@@ -560,6 +562,9 @@ private struct MomentNoticesPayload: Decodable {
     var items: [MomentNotice]?
     var unread: Int?
     var total: Int?
+}
+private struct MomentCommentCreatePayload: Decodable {
+    var moment: Moment?
 }
 
 private struct ChatsPayload: Decodable { var chats: [Chat] }
@@ -5215,15 +5220,30 @@ private struct StarredPayload: Decodable {
         _ = try? await request("POST", "/api/moments/seen", body: [:])
     }
 
-    func commentMoment(id: String, text: String, replyTo: String = "") async -> String? {
+    func commentMoment(id: String, text: String,
+                       replyTo: String = "") async -> (moment: Moment?, error: String?) {
         var b: [String: Any] = ["content": text]
 
         if !replyTo.isEmpty { b["replyTo"] = replyTo }
         do {
-            _ = try await request("POST", "/api/moments/\(id)/comments", body: b)
+            let raw = try await request("POST", "/api/moments/\(id)/comments", body: b)
+            let payload = try? decode(raw, as: MomentCommentCreatePayload.self)
+            return (payload?.moment, nil)
+        } catch {
+            return (nil, (error as? APIError)?.errorDescription ?? "评论失败")
+        }
+    }
+
+    func likeMomentComment(momentId: String, commentId: String) async -> String? {
+        do {
+            _ = try await request(
+                "POST",
+                "/api/moments/\(momentId)/comments/\(commentId)/like",
+                body: [:]
+            )
             return nil
         } catch {
-            return (error as? APIError)?.errorDescription ?? "评论失败"
+            return (error as? APIError)?.errorDescription ?? "点赞失败"
         }
     }
 

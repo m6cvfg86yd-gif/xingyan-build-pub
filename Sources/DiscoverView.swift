@@ -1106,7 +1106,7 @@ struct MomentsView: View {
                                     set: { if !$0 { momentVideo = nil } })) {
             if let u = momentVideo { VideoPlayerSheet(url: u) }
         }
-        .sheet(item: $commentsSheet) { moment in
+        .fullScreenCover(item: $commentsSheet) { moment in
             MomentCommentsSheet(moment: moment) {
                 Task { await reload() }
             }

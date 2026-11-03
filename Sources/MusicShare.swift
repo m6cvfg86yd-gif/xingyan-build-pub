@@ -125,6 +125,37 @@ private struct KaraokeLyricText: View {
     }
 }
 
+private struct MusicPulseBars: View {
+    let level: CGFloat
+    let playing: Bool
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 0.08, paused: !playing)) { timeline in
+            let time = timeline.date.timeIntervalSinceReferenceDate
+            HStack(alignment: .center, spacing: 2.4) {
+                ForEach(0..<7, id: \.self) { index in
+                    let wave = CGFloat((sin(time * 4.4 + Double(index) * 1.16) + 1) / 2)
+                    let energy: CGFloat = playing
+                        ? (0.16 + level * 0.84) * (0.42 + wave * 0.58)
+                        : 0.10
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [OrbitTheme.jade.opacity(0.50),
+                                         OrbitTheme.jade],
+                                startPoint: .bottom,
+                                endPoint: .top
+                            )
+                        )
+                        .frame(width: 2.2, height: 2.5 + energy * 13.5)
+                }
+            }
+            .frame(width: 34, height: 18)
+            .accessibilityHidden(true)
+        }
+    }
+}
+
 enum MusicLyrics {
 
     static func parse(_ raw: String, duration: Double) -> [MusicLyricLine] {
@@ -313,6 +344,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published private(set) var seconds: Double = 0
     @Published private(set) var total: Double = 0
     @Published private(set) var loadingId = ""
+    @Published private(set) var level: CGFloat = 0
 
     var player: AVAudioPlayer?
 
@@ -493,6 +525,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
             player = p
             p.delegate = self
             p.enableRate = true
+            p.isMeteringEnabled = true
             p.prepareToPlay()
             p.play()
             p.rate = rate
@@ -605,6 +638,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         player = try? AVAudioPlayer(data: data)
         player?.delegate = self
         player?.enableRate = true
+        player?.isMeteringEnabled = true
         player?.prepareToPlay()
         player?.play()
         player?.rate = rate
@@ -620,6 +654,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         player?.pause()
         stream?.pause()
         playing = false
+        level = 0
         stopTimer()
         syncNowPlaying()
     }
@@ -629,6 +664,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         player = nil
         stopStream()
         playing = false
+        level = 0
         current = nil
         progress = 0
         seconds = 0
@@ -676,6 +712,10 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
             seconds = p.currentTime
             total = p.duration
             progress = p.duration > 0 ? min(1, p.currentTime / p.duration) : 0
+            p.updateMeters()
+            let db = p.averagePower(forChannel: 0)
+            let normalized = CGFloat(max(0, min(1, (db + 48) / 48)))
+            level = level * 0.54 + normalized * 0.46
         } else if let st = stream {
 
             let cur = CMTimeGetSeconds(st.currentTime())
@@ -683,6 +723,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
             seconds = cur.isFinite ? max(0, cur) : 0
             if dur.isFinite, dur > 0 { total = dur }
             progress = (dur.isFinite && dur > 0) ? min(1, max(0, seconds / dur)) : 0
+            level = 0
         } else {
             return
         }
@@ -699,6 +740,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     private func finished() {
         playing = false
+        level = 0
         progress = 0
         seconds = 0
         stopTimer()
@@ -2532,12 +2574,13 @@ private struct FullPlayerAmbient: View {
                     RemoteImage(path: cover, mode: .fill, maxSide: 1200)
                         .frame(width: max(640, geo.size.width * 1.52),
                                height: max(760, geo.size.height * 1.52))
-                        .scaleEffect(drifting ? 1.24 : 1.12)
+                        .scaleEffect((drifting ? 1.24 : 1.12) + player.level * 0.075)
                         .offset(x: drifting ? geo.size.width * 0.075 : -geo.size.width * 0.055,
                                 y: drifting ? -geo.size.height * 0.035 : geo.size.height * 0.055)
                         .blur(radius: 92, opaque: false)
                         .saturation(scheme == .dark ? 1.34 : 1.14)
-                        .opacity(scheme == .dark ? 0.50 : 0.30)
+                        .opacity((scheme == .dark ? 0.50 : 0.30)
+                                 + Double(player.level) * 0.10)
                         .id(cover)
                         .transition(.opacity)
 
@@ -2548,7 +2591,8 @@ private struct FullPlayerAmbient: View {
                         .blur(radius: 110, opaque: false)
                         .saturation(1.28)
                         .blendMode(scheme == .dark ? .screen : .softLight)
-                        .opacity(scheme == .dark ? 0.18 : 0.12)
+                        .opacity((scheme == .dark ? 0.18 : 0.12)
+                                 + Double(player.level) * 0.08)
                         .id("detail-\(cover)")
                         .transition(.opacity)
                 }
@@ -2584,6 +2628,7 @@ private struct FullPlayerAmbient: View {
         .onAppear { drifting = true }
         .animation(.easeInOut(duration: 14).repeatForever(autoreverses: true),
                    value: drifting)
+        .animation(.linear(duration: 0.28), value: player.level)
         .animation(.easeInOut(duration: 0.4), value: player.playing)
         .animation(.easeInOut(duration: 0.55), value: track?.cover)
     }
@@ -2973,6 +3018,7 @@ struct MusicPlayingView: View {
                     .transition(.opacity)
             } else {
                 MusicCover(path: t?.cover ?? "", size: side, radius: 20)
+                    .scaleEffect(player.playing ? 1 + player.level * 0.012 : 1)
                     .overlay {
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .stroke(.white.opacity(0.18), lineWidth: 0.7)
@@ -2986,14 +3032,17 @@ struct MusicPlayingView: View {
             if !flipped, let cover = t?.cover, !cover.isEmpty {
                 RemoteImage(path: cover, mode: .fill, maxSide: 520)
                     .frame(width: side * 0.92, height: side * 0.92)
-                    .scaleEffect(1.18)
+                    .scaleEffect(1.18 + player.level * 0.16)
                     .blur(radius: 40, opaque: false)
                     .saturation(1.2)
-                    .opacity(player.playing ? 0.20 : 0.10)
+                    .opacity(player.playing
+                             ? 0.18 + Double(player.level) * 0.18
+                             : 0.10)
                     .allowsHitTesting(false)
             }
         }
         .animation(.easeInOut(duration: 0.20), value: flipped)
+        .animation(.linear(duration: 0.28), value: player.level)
     }
 
     private var artworkPanel: some View {
@@ -3063,6 +3112,7 @@ struct MusicPlayingView: View {
                 .tracking(0.8)
                 .foregroundStyle(OrbitTheme.jade)
             Spacer(minLength: 8)
+            MusicPulseBars(level: player.level, playing: player.playing)
             Text(t?.displayCategory ?? "")
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(.secondary)
@@ -3079,6 +3129,7 @@ struct MusicPlayingView: View {
 
             Spacer(minLength: 8)
 
+            MusicPulseBars(level: player.level, playing: player.playing)
             Text(t?.displayCategory ?? "")
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(.secondary)
