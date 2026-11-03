@@ -993,12 +993,14 @@ struct ChatDetailView: View {
                             Image(systemName: "ellipsis")
                                 .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(C.label)
-                                .frame(width: 44, height: 36)
+                                .frame(width: 52, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(Tr("更多"))
                     }
                 }
+                .zIndex(2)
             }
             .background {
 
