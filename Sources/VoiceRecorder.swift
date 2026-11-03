@@ -22,6 +22,7 @@ final class VoiceRecorder: NSObject, ObservableObject {
     private var startedAt = Date()
 
     private var ampSmooth: Double = 0
+    private var waveformSamples: [CGFloat] = []
 
     private let haptic = UIImpactFeedbackGenerator(style: .medium)
     private let hapticLight = UIImpactFeedbackGenerator(style: .light)
@@ -54,6 +55,7 @@ final class VoiceRecorder: NSObject, ObservableObject {
         startedAt = Date()
         seconds = 0
         level = 0
+        waveformSamples = []
         willCancel = false
         recording = true
 
@@ -86,6 +88,7 @@ final class VoiceRecorder: NSObject, ObservableObject {
         let release = Double(UIConfig.num("voiceOrbRelease", 0.16))
         ampSmooth += (raw - ampSmooth) * (raw > ampSmooth ? attack : release)
         level = CGFloat(max(0.04, min(1, ampSmooth)))
+        waveformSamples.append(level)
     }
 
     var stale: Bool {
@@ -102,6 +105,7 @@ final class VoiceRecorder: NSObject, ObservableObject {
         seconds = 0
         level = 0
         ampSmooth = 0
+        waveformSamples = []
         willCancel = false
         willTranscribe = false
     }
@@ -117,31 +121,51 @@ final class VoiceRecorder: NSObject, ObservableObject {
         willCancel = c
     }
 
-    func end() -> (url: URL, seconds: Int)? {
+    func end() -> (url: URL, seconds: Int, waveform: [CGFloat])? {
         guard let r = rec, let url = fileURL else {
             recording = false
             return nil
         }
         let secs = Int(Date().timeIntervalSince(startedAt).rounded())
         let cancelled = willCancel || secs < 1
+        let waveform = compactWaveform(waveformSamples)
         r.stop()
         rec = nil
         ticker?.invalidate()
         ticker = nil
         recording = false
         level = 0
+        ampSmooth = 0
+        waveformSamples = []
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         if cancelled {
             try? FileManager.default.removeItem(at: url)
             return nil
         }
         hapticLight.impactOccurred()
-        return (url, max(1, secs))
+        return (url, max(1, secs), waveform)
     }
 
     func cancel() {
         willCancel = true
         _ = end()
+    }
+
+    private func compactWaveform(_ samples: [CGFloat], target: Int = 36) -> [CGFloat] {
+        guard !samples.isEmpty else { return [] }
+        let compact: [CGFloat]
+        if samples.count <= target {
+            compact = samples
+        } else {
+            let bucket = Double(samples.count) / Double(target)
+            compact = (0..<target).map { i in
+                let start = min(samples.count - 1, Int(Double(i) * bucket))
+                let end = min(samples.count, max(start + 1, Int(Double(i + 1) * bucket)))
+                return samples[start..<end].max() ?? 0.08
+            }
+        }
+        let peak = max(0.08, compact.max() ?? 0.08)
+        return compact.map { max(0.10, min(1, $0 / peak)) }
     }
 }
 

@@ -3543,7 +3543,7 @@ struct ChatDetailView: View {
 
     private func finishVoice() {
         guard let got = recorder.end() else { return }
-        sendVoice(url: got.url, seconds: got.seconds)
+        sendVoice(url: got.url, seconds: got.seconds, waveform: got.waveform)
     }
 
     private func transcribeMessage(_ m: Message) {
@@ -3597,7 +3597,7 @@ struct ChatDetailView: View {
         }
     }
 
-    private func sendVoice(url: URL, seconds: Int) {
+    private func sendVoice(url: URL, seconds: Int, waveform: [CGFloat]) {
         Task {
             uploading = true
             defer { uploading = false }
@@ -3619,7 +3619,17 @@ struct ChatDetailView: View {
             ]
             do {
                 let up = try await API.shared.rawUpload(payload)
-                let body = "{\"url\":\"\(up.url)\",\"seconds\":\(seconds),\"bytes\":\(data.count)}"
+                var info: [String: Any] = [
+                    "url": up.url,
+                    "seconds": seconds,
+                    "bytes": data.count
+                ]
+                if !waveform.isEmpty {
+                    info["wave"] = waveform.map { Double(($0 * 1000).rounded() / 1000) }
+                }
+                let body = (try? JSONSerialization.data(withJSONObject: info))
+                    .flatMap { String(data: $0, encoding: .utf8) }
+                    ?? "{\"url\":\"\(up.url)\",\"seconds\":\(seconds)}"
                 send(kind: "audio", content: body)
             } catch {
                 app.show((error as? APIError)?.errorDescription ?? "语音发送失败")
@@ -5031,36 +5041,62 @@ struct MessageRow: View {
         let scrubbing = voiceScrub >= 0
 
         let dot: Double = scrubbing ? voiceScrub : (playing ? voicePlayer.progress : 0)
-        let shown: Int = {
-            if scrubbing, voicePlayer.total > 0 { return max(0, Int((voicePlayer.total * dot).rounded())) }
-            if playing { return max(0, Int(voicePlayer.elapsed.rounded())) }
-            return secs
+        let total = playing && voicePlayer.total > 0 ? voicePlayer.total : Double(secs)
+        let elapsed: Double = {
+            if scrubbing { return max(0, total * dot) }
+            if playing { return max(0, min(total, voicePlayer.elapsed)) }
+            return 0
         }()
-
-        let width = min(252, 118 + CGFloat(secs) * 2.6)
+        let levels = voiceLevels(o, count: 36)
+        let width = min(278, 188 + CGFloat(secs) * 1.65)
+        let live = playing || scrubbing
 
         return VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             if mine { Spacer(minLength: 0) }
-            if mine {
-                Text(playing || scrubbing ? "\(shown)″" : "\(secs)″")
-                    .font(pfMoney(12.5))
-                    .foregroundColor(playing || scrubbing ? C.green : ChatTheme.secondary)
-                    .frame(minWidth: 26, alignment: .trailing)
-                voiceTrack(playing: playing)
-                speakerIcon(playing: playing)
-            } else {
-                speakerIcon(playing: playing)
-                voiceTrack(playing: playing)
-                Text(playing || scrubbing ? "\(shown)″" : "\(secs)″")
-                    .font(pfMoney(12.5))
-                    .foregroundColor(playing || scrubbing ? C.green : ChatTheme.secondary)
-                    .frame(minWidth: 26, alignment: .leading)
+
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(mine ? Color.white.opacity(0.18) : C.green.opacity(0.11))
+                    Circle()
+                        .stroke(mine ? Color.white.opacity(0.24) : C.green.opacity(0.18),
+                                lineWidth: 0.7)
+                    Image(systemName: playing ? "pause.fill" : "play.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(mine ? Color.white : C.green)
+                        .offset(x: playing ? 0 : 1)
+                }
+                .frame(width: 34, height: 34)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    voiceProgressTrack(levels: levels, progress: dot, live: live)
+                        .frame(height: 24)
+
+                    HStack(spacing: 4) {
+                        Text(voiceClock(elapsed))
+                            .foregroundStyle(live
+                                ? (mine ? Color.white : C.green)
+                                : (mine ? ChatTheme.mineInk.opacity(0.62) : ChatTheme.secondary))
+                        Text("/")
+                            .foregroundStyle(mine
+                                ? ChatTheme.mineInk.opacity(0.34)
+                                : ChatTheme.secondary.opacity(0.45))
+                        Text(voiceClock(total))
+                            .foregroundStyle(mine
+                                ? ChatTheme.mineInk.opacity(0.62)
+                                : ChatTheme.secondary)
+                        Spacer(minLength: 0)
+                    }
+                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                }
+                .frame(maxWidth: .infinity)
             }
+            .padding(.horizontal, 11)
+            .frame(width: width, height: 58, alignment: .leading)
+
             if !mine { Spacer(minLength: 0) }
         }
-        .padding(.horizontal, 12)
-        .frame(width: width, height: 40, alignment: mine ? .trailing : .leading)
         .background(BubbleFill(mine: mine, tail: showTail, seed: bubbleSeed(message.id)))
 
         .overlay(alignment: .topTrailing) {
@@ -5082,6 +5118,82 @@ struct MessageRow: View {
         }
 
         if playing || scrubbing { speedChip }
+        }
+    }
+
+    private func voiceClock(_ seconds: Double) -> String {
+        let value = max(0, Int(seconds.rounded()))
+        return String(format: "%d:%02d", value / 60, value % 60)
+    }
+
+    private func voiceLevels(_ info: [String: Any], count: Int) -> [CGFloat] {
+        if let raw = info["wave"] as? [Double], raw.count >= 4 {
+            let values = raw.prefix(count).map { CGFloat(max(0.08, min(1, $0))) }
+            return values.isEmpty ? waveHeights(message.id, count) : values
+        }
+        if let raw = info["wave"] as? [NSNumber], raw.count >= 4 {
+            return raw.prefix(count).map { CGFloat(max(0.08, min(1, $0.doubleValue))) }
+        }
+        return waveHeights(message.id, count)
+    }
+
+    private func voiceProgressTrack(levels: [CGFloat], progress: Double, live: Bool) -> some View {
+        GeometryReader { geo in
+            let width = max(24, geo.size.width)
+            let height = max(12, geo.size.height)
+            let count = max(4, levels.count)
+            let gap: CGFloat = count > 28 ? 1.1 : 1.7
+            let barWidth = max(1.2, (width - gap * CGFloat(count - 1)) / CGFloat(count))
+            let clamped = min(1, max(0, progress))
+
+            ZStack(alignment: .leading) {
+                Canvas { context, size in
+                    for i in 0..<count {
+                        let at = (Double(i) + 0.5) / Double(count)
+                        let level = levels[min(i, levels.count - 1)]
+                        let barHeight = max(3.5, level * (size.height - 2))
+                        let rect = CGRect(
+                            x: CGFloat(i) * (barWidth + gap),
+                            y: (size.height - barHeight) / 2,
+                            width: barWidth,
+                            height: barHeight
+                        )
+                        let path = Path(roundedRect: rect, cornerRadius: barWidth / 2)
+                        let color = at <= clamped && live
+                            ? (mine ? Color.white.opacity(0.96) : C.green)
+                            : (mine ? Color.white.opacity(0.28) : ChatTheme.ink.opacity(0.20))
+                        context.fill(path, with: .color(color))
+                    }
+                }
+
+                if live {
+                    Circle()
+                        .fill(mine ? Color.white : C.green)
+                        .frame(width: 8, height: 8)
+                        .overlay(Circle().stroke(mine ? C.green.opacity(0.42)
+                                                      : Color.white.opacity(0.92),
+                                                 lineWidth: 1.5))
+                        .shadow(color: (mine ? Color.black : C.green).opacity(0.22),
+                                radius: 3, y: 1)
+                        .position(x: min(width - 4, max(4, width * clamped)),
+                                  y: height / 2)
+                }
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        let fraction = min(1, max(0, Double(value.location.x / width)))
+                        voiceScrub = fraction
+                        playedVoice.insert(message.id)
+                        VoicePlayed.markPlayed(message.id)
+                        if voicePlayer.playingID != message.id, let url = voiceURL() {
+                            voicePlayer.toggle(id: message.id, url: url)
+                        }
+                        voicePlayer.seek(to: fraction)
+                    }
+                    .onEnded { _ in voiceScrub = -1 }
+            )
         }
     }
 
@@ -5107,49 +5219,6 @@ struct MessageRow: View {
         return API.shared.assetURL(path)
     }
 
-    private func voiceTrack(playing: Bool) -> some View {
-        let f: Double = voiceScrub >= 0 ? voiceScrub : (playing ? voicePlayer.progress : 0)
-        let live = playing || voiceScrub >= 0
-        return GeometryReader { geo in
-            let w = max(24, geo.size.width)
-
-            let n = max(10, min(40, Int(w / 4.3)))
-            let step = w / CGFloat(n)
-            let hs = waveHeights(message.id, n)
-            HStack(spacing: 0) {
-                ForEach(0..<n, id: \.self) { i in
-                    let at = (Double(i) + 0.5) / Double(n)
-                    let on = live && at <= f
-                    Capsule()
-                        .fill(on ? C.green : ChatTheme.ink.opacity(0.22))
-
-                        .frame(width: on && at + 1.0 / Double(n) > f ? 3.4 : 2.6,
-                               height: 5 + hs[i] * 13)
-                        .frame(width: step)
-                }
-            }
-            .frame(height: geo.size.height, alignment: .center)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { v in
-                        let nf = min(1, max(0, Double(v.location.x / w)))
-                        voiceScrub = nf
-                        playedVoice.insert(message.id)
-                        VoicePlayed.markPlayed(message.id)
-                        if voicePlayer.playingID != message.id, let url = voiceURL() {
-                            voicePlayer.toggle(id: message.id, url: url)
-                        }
-                        voicePlayer.seek(to: nf)
-                    }
-                    .onEnded { _ in voiceScrub = -1 }
-            )
-        }
-
-        .frame(height: 26)
-        .frame(maxWidth: .infinity)
-    }
-
     private func waveHeights(_ id: String, _ n: Int) -> [CGFloat] {
 
         var seed: UInt64 = 0x9E3779B97F4A7C15
@@ -5165,11 +5234,6 @@ struct MessageRow: View {
             out.append(CGFloat(0.30 + v * 0.70))
         }
         return out
-    }
-
-    private func speakerIcon(playing: Bool) -> some View {
-        SVGIcon(markup: I.speaker, size: 20,
-                color: playing ? C.green : ChatTheme.ink)
     }
 
     private var imagesGridBubble: some View {
