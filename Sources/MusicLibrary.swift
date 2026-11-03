@@ -313,6 +313,7 @@ struct MusicLikesPage: View {
             tracks = await API.shared.musicTracks()
             loading = false
         }
+        .swipeBack { dismiss() }
     }
 
     private func unlikeView(_ t: MusicTrack) -> AnyView {
@@ -375,6 +376,7 @@ struct MusicRecentsPage: View {
             Button(Tr("取消"), role: .cancel) { }
             Button(Tr("清空"), role: .destructive) { lib.clearRecents() }
         }
+        .swipeBack { dismiss() }
     }
 
     private func addView(_ t: MusicTrack) -> AnyView {
@@ -467,6 +469,7 @@ struct MusicPlaylistsPage: View {
                 Text(Tr("歌单里的歌不会被删掉，只是从这个歌单里移出去"))
             }
         }
+        .swipeBack { dismiss() }
     }
 
     private var askTitle: String {
@@ -590,6 +593,7 @@ struct MusicPlaylistPage: View {
         .task {
             all = await API.shared.musicTracks()
         }
+        .swipeBack { dismiss() }
     }
 
     private var head: some View {
@@ -711,6 +715,7 @@ struct MusicPickPage: View {
             tracks = await API.shared.musicTracks()
             loading = false
         }
+        .swipeBack { dismiss() }
     }
 
     private func row(_ t: MusicTrack) -> some View {
