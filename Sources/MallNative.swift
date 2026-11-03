@@ -1400,7 +1400,7 @@ struct MallNativeView: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        NavigationStack(path: $productPath) {
+        ZStack {
             VStack(spacing: 0) {
                 header
 
@@ -1481,7 +1481,7 @@ struct MallNativeView: View {
             })
         }
         .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
+        .swipeBack { if productPath.isEmpty { dismiss() } }
         .hidesTabBar()
         .sheet(isPresented: $showSearch) {
             DDSearchView { p in
@@ -1563,22 +1563,28 @@ struct MallNativeView: View {
         .ddLight()
 
         .preferredColorScheme(.light)
-        .navigationDestination(for: DDProduct.self) { product in
+        if let product = productPath.last {
             DDDetailView(
                 product: product,
                 onCart: { tab = 3 },
                 onOpenOther: { next in
-                    if !productPath.isEmpty {
-                        productPath[productPath.count - 1] = next
-                    } else {
-                        productPath.append(next)
+                    withAnimation(.easeOut(duration: 0.22)) {
+                        if !productPath.isEmpty {
+                            productPath[productPath.count - 1] = next
+                        } else {
+                            productPath.append(next)
+                        }
                     }
                 },
                 onDismiss: {
-                    if !productPath.isEmpty { productPath.removeLast() }
+                    withAnimation(.easeOut(duration: 0.22)) {
+                        if !productPath.isEmpty { productPath.removeLast() }
+                    }
                 }
             )
             .environmentObject(app)
+            .transition(.move(edge: .trailing))
+            .zIndex(10)
         }
         }
     }
@@ -1858,7 +1864,9 @@ struct MallNativeView: View {
 
     private func openProduct_tap(_ p: DDProduct) {
         store.recordView(p.id)
-        productPath.append(p)
+        withAnimation(.easeOut(duration: 0.22)) {
+            productPath.append(p)
+        }
     }
 
     private var tabBar: some View {
