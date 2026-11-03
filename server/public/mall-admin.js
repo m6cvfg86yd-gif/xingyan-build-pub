@@ -174,7 +174,7 @@
       '</div><div class="grid2"><section class="panel"><div class="panel-head"><h3>最近订单</h3><span class="spacer"></span>' +
       '<button class="btn small" data-nav="orders">全部订单</button></div><div class="table-wrap"><table><thead><tr>' +
       '<th>订单</th><th>买家</th><th>金额</th><th>状态</th><th>时间</th></tr></thead><tbody>' +
-      (orders.length ? orders.map((o) => '<tr><td>' + esc(o.id) + '<div class="hint">' + esc((o.items || []).join('、')).slice(0, 60) +
+      (orders.length ? orders.map((o) => '<tr data-action="order-detail" data-id="' + esc(o.id) + '"><td>' + esc(o.id) + '<div class="hint">' + esc((o.items || []).join('、')).slice(0, 60) +
         '</div></td><td>' + esc(o.buyer || '—') + '</td><td class="money">' + money(o.total) + '</td><td>' +
         statusTag(o.status) + '</td><td>' + fmt(o.at) + '</td></tr>').join('') :
         '<tr><td colspan="5"><div class="empty-state">还没有订单</div></td></tr>') +
@@ -206,7 +206,7 @@
       '<span class="spacer"></span><button class="btn primary" data-action="product-new">＋ 新建商品</button></div>' +
       '<section class="panel"><div class="table-wrap"><table><thead><tr><th>商品</th><th>分类</th><th>售价</th><th>成本</th>' +
       '<th>库存</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
-      (rows.length ? rows.map((p) => '<tr><td class="title-cell"><div class="product-line">' + img(p) +
+      (rows.length ? rows.map((p) => '<tr data-action="product-edit" data-id="' + esc(p.id) + '"><td class="title-cell"><div class="product-line">' + img(p) +
         '<div><b>' + esc(p.title) + '</b><small>' + esc(p.id) + ' · ' + esc(p.shop || '未绑定店铺') + '</small></div></div></td>' +
         '<td>' + esc(p.cate || '其它') + '</td><td class="money">' + money(p.price) + '</td><td class="money">' +
         money(p.cost) + '</td><td>' + stockOf(p) + '</td><td>' + statusTag(p.on === false ? 'closed' : 'done').replace('已完成', '在售') +
@@ -240,7 +240,7 @@
       '<th>供应商</th><th>最近调整</th></tr></thead><tbody>' +
       rows.map((p) => {
         const logs = (DATA.admin.inventoryLogs || []).filter((x) => x.productId === p.id);
-        return '<tr><td class="title-cell"><div class="product-line">' + img(p) + '<div><b>' + esc(p.title) +
+        return '<tr data-action="inventory-edit" data-id="' + esc(p.id) + '"><td class="title-cell"><div class="product-line">' + img(p) + '<div><b>' + esc(p.title) +
           '</b><small>' + esc(p.id) + '</small></div></div></td><td><b>' + stockOf(p) + '</b></td><td>' +
           (stockOf(p) <= 10 ? tag('需要补货', 'red') : tag('正常', 'green')) + '</td><td>' + esc(p.warehouse || '默认仓') +
           '</td><td>' + esc(p.supplier || '—') + '</td><td>' + fmt(logs[0] && logs[0].at) + '</td></tr>';
@@ -304,7 +304,7 @@
       '</select><span class="spacer"></span><button class="btn" data-action="orders-export">导出当前列表</button></div>' +
       '<section class="panel"><div class="table-wrap"><table><thead><tr><th>订单</th><th>买家</th><th>商品</th><th>金额</th>' +
       '<th>状态</th><th>物流</th><th>时间</th><th>操作</th></tr></thead><tbody>' +
-      (rows.length ? rows.map((o) => '<tr><td><b>' + esc(o.id) + '</b><div class="hint">' +
+      (rows.length ? rows.map((o) => '<tr data-action="order-detail" data-id="' + esc(o.id) + '"><td><b>' + esc(o.id) + '</b><div class="hint">' +
         esc(o.payWay || '未选择支付') + '</div></td><td>' + esc(o.buyer || '—') + '</td><td class="title-cell">' +
         esc((o.items || []).join('、')).slice(0, 100) + '</td><td class="money">' + money(o.total) + '</td><td>' +
         statusTag(o.status) + '</td><td>' + esc(o.express ? ((o.express.company || '') + ' ' + (o.express.no || '')) : '—') +
@@ -333,7 +333,7 @@
       (DATA.admin.couponClaims || []).length + ' 张</span></div><span class="spacer"></span>' +
       '<button class="btn primary" data-action="coupon-new">＋ 新建优惠券</button></div><section class="panel"><div class="table-wrap"><table>' +
       '<thead><tr><th>名称</th><th>优惠</th><th>门槛</th><th>总量</th><th>每人限领</th><th>有效期</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
-      (rows.length ? rows.map((c) => '<tr><td><b>' + esc(c.title) + '</b><div class="hint">' + esc(c.id) +
+      (rows.length ? rows.map((c) => '<tr data-action="coupon-edit" data-id="' + esc(c.id) + '"><td><b>' + esc(c.title) + '</b><div class="hint">' + esc(c.id) +
         (used.has(c.id) ? ' · 已发放' : '') + '</div></td><td>' + (c.kind === 'discount' ? (Number(c.off) || 0) + ' 折' : money(c.off)) +
         '</td><td>' + money(c.min) + '</td><td>' + (c.total || '不限') + '</td><td>' + (c.perUser || 1) +
         '</td><td>' + (c.days || 7) + ' 天</td><td>' + tag(c.enabled === false ? '停用' : '启用', c.enabled === false ? 'gray' : 'green') +
@@ -347,7 +347,7 @@
     return '<div class="toolbar"><div><h3 class="section-title">' + esc(title) + '</h3><span class="hint">' + esc(hint) +
       '</span></div><span class="spacer"></span><button class="btn primary" data-action="generic-new" data-key="' + key +
       '">＋ 新建</button></div><section class="panel"><div class="sub-grid" style="padding:16px">' +
-      (rows.length ? rows.map((x) => '<article class="mini-card"><b>' + esc(x.name || x.title || x.id) + '</b><small>' +
+      (rows.length ? rows.map((x) => '<article class="mini-card" data-action="generic-edit" data-key="' + key + '" data-id="' + esc(x.id) + '"><b>' + esc(x.name || x.title || x.id) + '</b><small>' +
         esc(x.description || x.desc || x.address || '') + '</small><div class="actions" style="margin-top:13px">' +
         '<button class="btn small" data-action="generic-edit" data-key="' + key + '" data-id="' + esc(x.id) + '">编辑</button>' +
         '<button class="btn small danger" data-action="generic-delete" data-key="' + key + '" data-id="' + esc(x.id) +
@@ -523,9 +523,10 @@
       '>启用</option><option value="false"' + (item.enabled === false ? ' selected' : '') + '>停用</option></select></div></div>' +
       '<div class="form-actions"><button class="btn" data-close>取消</button><button class="btn primary" data-action="generic-save">保存</button></div>';
   }
-  function inventoryForm() {
+  function inventoryForm(productId) {
     return '<h3>调整库存</h3><div class="form-grid"><div class="field full"><label>商品</label><select id="ifProduct">' +
-      DATA.mall.products.map((p) => '<option value="' + esc(p.id) + '">' + esc(p.title) + '（当前 ' + stockOf(p) + '）</option>').join('') +
+      DATA.mall.products.map((p) => '<option value="' + esc(p.id) + '"' + (p.id === productId ? ' selected' : '') + '>' +
+        esc(p.title) + '（当前 ' + stockOf(p) + '）</option>').join('') +
       '</select></div><div class="field"><label>新库存</label><input id="ifStock" type="number" value="0"></div>' +
       '<div class="field"><label>原因</label><input id="ifReason" placeholder="盘点、补货、损耗"></div></div>' +
       '<div class="form-actions"><button class="btn" data-close>取消</button><button class="btn primary" data-action="inventory-save">保存库存</button></div>';
@@ -582,6 +583,15 @@
       if (action === 'order-detail') return openModal(orderDetail(DATA.admin.orders.find((o) => String(o.id) === String(id))));
       if (action === 'order-save') return submitOrder();
       if (action === 'inventory-adjust') return openModal(inventoryForm());
+      if (action === 'inventory-edit') {
+        const p = productById(id);
+        if (!p) return;
+        const form = inventoryForm(id);
+        openModal(form);
+        const input = $('ifStock');
+        if (input) input.value = String(stockOf(p));
+        return;
+      }
       if (action === 'inventory-save') {
         await api('/malladmin', { method: 'POST', body: { action: 'inventory.adjust',
           productId: $('ifProduct').value, stock: Number($('ifStock').value) || 0, reason: $('ifReason').value } });

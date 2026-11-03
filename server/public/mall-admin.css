@@ -206,6 +206,8 @@ th, td { padding: 12px 14px; border-bottom: 1px solid #edf0f3; text-align: left;
 th { color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .04em; background: #fafbfc; }
 td { font-size: 12px; }
 tbody tr:hover { background: #fafbfc; }
+tbody tr[data-action], article[data-action] { cursor: pointer; }
+tbody tr[data-action]:active, article[data-action]:active { background: #f4f6f8; }
 .title-cell { min-width: 240px; white-space: normal; }
 .thumb { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; background: #f0f2f5; }
 .product-line { display: flex; align-items: center; gap: 11px; }
