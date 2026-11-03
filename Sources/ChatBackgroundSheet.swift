@@ -98,7 +98,7 @@ struct ChatBackgroundSheet: View {
                                         if let solid = chatBackgroundSolidColor(item.path) {
                                             solid
                                         } else {
-                                            ChatTheme.page
+                                            C.pageBg
                                         }
                                         if normalizedChatBackground(current) == item.path {
                                             Image(systemName: "checkmark")
@@ -192,7 +192,7 @@ struct ChatBackgroundSheet: View {
             } else if !path.isEmpty {
                 RemoteImage(path: path, mode: .fill)
             } else {
-                ChatTheme.page
+                C.pageBg
             }
 
             VStack(spacing: 10) {
