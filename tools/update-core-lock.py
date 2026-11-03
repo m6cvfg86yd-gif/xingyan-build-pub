@@ -7,15 +7,16 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-LOCK = ROOT / "core.lock.json"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--lock", default="core.lock.json")
     parser.add_argument("paths", nargs="+", help="Repository-relative paths to refresh")
     args = parser.parse_args()
 
-    data = json.loads(LOCK.read_text(encoding="utf-8"))
+    lock = ROOT / args.lock
+    data = json.loads(lock.read_text(encoding="utf-8"))
     entries = {item["path"]: item for item in data["files"]}
     for relative in args.paths:
         if relative not in entries:
@@ -24,7 +25,7 @@ def main() -> None:
         content = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
         entries[relative]["size"] = len(content)
         entries[relative]["sha256"] = hashlib.sha256(content).hexdigest()
-    LOCK.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    lock.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("updated: " + ", ".join(args.paths))
 
 
