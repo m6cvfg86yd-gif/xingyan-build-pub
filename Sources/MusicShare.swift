@@ -805,22 +805,7 @@ struct ListenView: View {
                 .ignoresSafeArea()
             topAmbientGlow
 
-            VStack(spacing: 0) {
-                if !sendMode {
-                    Picker(Tr("内容"), selection: $tab) {
-                        Text(Tr("推荐")).tag(0)
-                        Text(Tr("歌曲")).tag(1)
-                        Text(Tr("朋友推荐")).tag(2)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 4)
-                }
-
-                musicList
-            }
+            musicList
         }
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(Tr(sendMode ? "选择音乐" : "听一听"))
@@ -1043,7 +1028,7 @@ struct ListenView: View {
         .padding(4)
         .background(.thinMaterial, in: Capsule())
         .overlay(Capsule().stroke(Color.primary.opacity(0.06), lineWidth: 0.6))
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 20)
     }
 
     @ViewBuilder
@@ -1056,89 +1041,111 @@ struct ListenView: View {
             } label: {
                 ZStack(alignment: .bottomLeading) {
                     RemoteImage(path: lead.cover ?? "", mode: .fill, maxSide: 900)
-                        .frame(height: 270)
+                        .frame(height: 348)
                         .clipped()
 
                     LinearGradient(
                         stops: [
-                            .init(color: .black.opacity(0.02), location: 0),
-                            .init(color: .black.opacity(0.22), location: 0.45),
-                            .init(color: .black.opacity(0.86), location: 1)
+                            .init(color: .black.opacity(0.18), location: 0),
+                            .init(color: .black.opacity(0.08), location: 0.32),
+                            .init(color: .black.opacity(0.44), location: 0.64),
+                            .init(color: .black.opacity(0.92), location: 1)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 7) {
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.10), .clear],
+                        center: .topTrailing,
+                        startRadius: 6,
+                        endRadius: 240
+                    )
+
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 8) {
                             Text(Tr("今日精选"))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.92))
-                                .padding(.horizontal, 10)
-                                .frame(height: 26)
-                                .background(.ultraThinMaterial, in: Capsule())
+                                .font(.system(size: 12, weight: .semibold))
+                                .tracking(0.8)
+                                .foregroundStyle(.white.opacity(0.94))
+                                .padding(.horizontal, 12)
+                                .frame(height: 28)
+                                .background(.black.opacity(0.22), in: Capsule())
+                                .overlay(Capsule().stroke(.white.opacity(0.18), lineWidth: 0.7))
 
                             if !lead.categoryText.isEmpty {
                                 Text(lead.categoryText)
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.78))
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.76))
                             }
                         }
 
-                        Spacer(minLength: 0)
+                        Spacer(minLength: 24)
 
-                        Text(lead.title)
-                            .font(.system(size: 27, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .lineLimit(2)
-                            .shadow(color: .black.opacity(0.25), radius: 8, y: 3)
-                        Text(lead.artistText)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.78))
-                            .lineLimit(1)
+                        HStack(alignment: .bottom, spacing: 16) {
+                            MusicCover(path: lead.cover ?? "", size: 92, radius: 16)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(.white.opacity(0.28), lineWidth: 0.8)
+                                }
+                                .shadow(color: .black.opacity(0.32), radius: 16, y: 8)
+
+                            VStack(alignment: .leading, spacing: 7) {
+                                Spacer(minLength: 0)
+                                Text(lead.title)
+                                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.78)
+                                    .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
+                                Text(lead.artistText)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.76))
+                                    .lineLimit(1)
+                            }
+
+                            Spacer(minLength: 4)
+
+                            MusicPlayButton(
+                                playing: player.isPlaying(lead.id),
+                                loading: player.loadingId == lead.id,
+                                size: 62,
+                                tint: .white,
+                                bg: OrbitTheme.jade.opacity(0.96)
+                            )
+                            .shadow(color: OrbitTheme.jade.opacity(0.34), radius: 18, y: 8)
+                        }
                     }
-                    .padding(20)
-                    .padding(.bottom, 8)
-
-                    MusicPlayButton(
-                        playing: player.isPlaying(lead.id),
-                        loading: player.loadingId == lead.id,
-                        size: 58,
-                        tint: .white,
-                        bg: OrbitTheme.jade.opacity(0.96)
-                    )
-                    .shadow(color: .black.opacity(0.22), radius: 14, y: 6)
-                    .padding(18)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(22)
                 }
-                .frame(height: 270)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .frame(height: 348)
+                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.white.opacity(0.14), lineWidth: 0.7)
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
                 }
-                .shadow(color: .black.opacity(scheme == .dark ? 0.28 : 0.16),
-                        radius: 22, y: 12)
+                .shadow(color: .black.opacity(scheme == .dark ? 0.32 : 0.18),
+                        radius: 28, y: 16)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 24)
+                .padding(.bottom, 30)
             }
             .buttonStyle(.plain)
         }
 
         musicLibraryCards
-            .padding(.horizontal, 16)
-            .padding(.bottom, 26)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 34)
 
         musicSectionHeader(Tr("今日推荐"), refresh: true)
 
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 14) {
+            LazyHStack(spacing: 16) {
                 ForEach(Array(recommend.prefix(10).enumerated()), id: \.element.id) { index, track in
                     musicMixCard(track, rank: index + 1)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 28)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 34)
         }
 
         musicSectionHeader(Tr("全部歌曲"))
@@ -1171,46 +1178,45 @@ struct ListenView: View {
     }
 
     private var musicLibraryCards: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             ForEach(MusicMineKind.allCases) { kind in
                 Button { mine = kind } label: {
-                    VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 7) {
                         Image(systemName: kind.icon)
-                            .font(.system(size: 21, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
-                            .frame(width: 42, height: 42)
+                            .frame(width: 30, height: 30)
                             .background(
                                 LinearGradient(
                                     colors: libraryColors(kind),
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                             )
-                            .shadow(color: libraryColors(kind).last?.opacity(0.24) ?? .clear,
-                                    radius: 8, y: 4)
 
-                        VStack(alignment: .leading, spacing: 3) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(Tr(kind.title))
-                                .font(.footnote.weight(.semibold))
+                                .font(.system(size: 12.5, weight: .semibold))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                             Text(libraryCount(kind))
-                                .font(.caption2)
+                                .font(.system(size: 10.5))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                    .frame(minHeight: 128)
+                    .padding(8)
+                    .frame(height: 64)
                     .background(.regularMaterial,
-                                in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
                     }
-                    .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -1262,15 +1268,15 @@ struct ListenView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 12)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 14)
     }
 
     private func musicMixCard(_ track: MusicTrack, rank: Int) -> some View {
         Button { choose(track) } label: {
             VStack(alignment: .leading, spacing: 9) {
                 ZStack(alignment: .bottomTrailing) {
-                    MusicCover(path: track.cover ?? "", size: 164, radius: 18)
+                    MusicCover(path: track.cover ?? "", size: 184, radius: 20)
                         .shadow(color: .black.opacity(0.14), radius: 12, y: 7)
 
                     MusicPlayButton(
@@ -1292,7 +1298,7 @@ struct ListenView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            .frame(width: 164, alignment: .leading)
+            .frame(width: 184, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
