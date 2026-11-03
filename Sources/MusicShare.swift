@@ -832,7 +832,7 @@ struct ListenView: View {
             }
         }
         .hidesTabBar()
-        .swipeBack { dismiss() }
+        .swipeBack { leaveListen() }
         .task {
             await refreshTracks(force: true)
         }
@@ -851,7 +851,7 @@ struct ListenView: View {
                 }
 
                 if musicSheet.open {
-                    MusicPlayingView()
+                    MusicPlayingView(onExit: leaveListen)
                         .transition(.move(edge: .bottom))
                         .zIndex(60)
                 }
@@ -860,7 +860,7 @@ struct ListenView: View {
         }
         .overlay {
             if !sendMode && musicSheet.open {
-                MusicPlayingView()
+                MusicPlayingView(onExit: leaveListen)
                     .transition(.move(edge: .bottom))
                     .zIndex(60)
             }
@@ -895,6 +895,11 @@ struct ListenView: View {
                       allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let dir = urls.first { importFolder(dir) }
         }
+    }
+
+    private func leaveListen() {
+        MusicSheet.shared.close()
+        dismiss()
     }
 
     private var ambientCover: String {
@@ -2188,6 +2193,7 @@ struct MusicPlayingView: View {
     @ObservedObject private var player = MusicPlayer.shared
     @ObservedObject private var sheet = MusicSheet.shared
     @Environment(\.dismiss) private var dismiss
+    var onExit: (() -> Void)? = nil
     @State private var dragging = false
     @State private var dragValue: Double = 0
 
@@ -2228,6 +2234,7 @@ struct MusicPlayingView: View {
 
     private func closeMe() {
         MusicSheet.shared.close()
+        onExit?()
     }
 
     private var liked: Bool {
