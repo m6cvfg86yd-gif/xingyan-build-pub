@@ -250,6 +250,8 @@ enum L10n {
         "打开这个功能入口": "Open this feature",
         "打开生活圈": "Open Life Circle",
         "记录此刻，也看看朋友们的日常": "Share the moment and see what friends are doing",
+        "分享了一段新视频": "Shared a new video",
+        "分享了一张新照片": "Shared a new photo",
         "此刻正在发生": "Happening now",
         "星选商城": "Xingyan Select",
         "今日精选": "Today's picks",

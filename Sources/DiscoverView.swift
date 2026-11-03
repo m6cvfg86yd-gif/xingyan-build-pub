@@ -26,6 +26,43 @@ struct DiscoverView: View {
         return ""
     }
 
+    private var latestMoment: Moment? {
+        app.moments.first
+    }
+
+    private var latestMomentAuthor: String {
+        if let name = latestMoment?.author?.name, !name.isEmpty { return name }
+        if latestMoment?.mine == true, let name = app.me?.name, !name.isEmpty { return name }
+        return Tr("生活圈")
+    }
+
+    private var latestMomentAvatar: String {
+        if let avatar = latestMoment?.author?.avatarPath, !avatar.isEmpty { return avatar }
+        if latestMoment?.mine == true { return app.me?.avatarPath ?? "" }
+        return ""
+    }
+
+    private var latestMomentText: String {
+        let text = (latestMoment?.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty { return String(text.prefix(58)) }
+        if latestMoment?.video != nil { return Tr("分享了一段新视频") }
+        if latestThumb.isEmpty { return Tr("记录此刻，也看看朋友们的日常") }
+        return Tr("分享了一张新照片")
+    }
+
+    private var latestMomentMedia: [String] {
+        var out: [String] = []
+        for moment in app.moments {
+            if let image = moment.images?.first, !image.isEmpty, !out.contains(image) {
+                out.append(image)
+            } else if let cover = moment.videoCover, !cover.isEmpty, !out.contains(cover) {
+                out.append(cover)
+            }
+            if out.count == 3 { break }
+        }
+        return out
+    }
+
     private var momentCountText: String {
         let count = app.moments.count
         if Lang.isRussian {
@@ -320,91 +357,138 @@ struct DiscoverView: View {
         Button {
             open(item)
         } label: {
-            ZStack(alignment: .leading) {
-                LinearGradient(
-                    colors: [Color(hex: 0x14231D), Color(hex: 0x243E33), Color(hex: 0x172C24)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-
-                Circle()
-                    .stroke(Color.white.opacity(0.08), lineWidth: 0.8)
-                    .frame(width: 210, height: 210)
-                    .offset(x: 146, y: -72)
-
-                Circle()
-                    .stroke(Color.white.opacity(0.055), lineWidth: 0.8)
-                    .frame(width: 138, height: 138)
-                    .offset(x: 196, y: 48)
-
-                if !latestThumb.isEmpty {
-                    HStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        RemoteImage(path: latestThumb, mode: .fill, maxSide: 420)
-                            .frame(width: 176)
-                            .frame(maxHeight: .infinity)
-                            .clipped()
-                            .mask(
-                                LinearGradient(
-                                    colors: [.clear, .black.opacity(0.34), .black.opacity(0.82)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .opacity(0.86)
-                    }
+            ZStack(alignment: .bottomLeading) {
+                if latestThumb.isEmpty {
+                    LinearGradient(
+                        colors: [Color(hex: 0x10271F), Color(hex: 0x275F4E), Color(hex: 0x0F1B17)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                } else {
+                    RemoteImage(path: latestThumb, mode: .fill, maxSide: 900)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
                 }
 
                 LinearGradient(
-                    colors: [Color(hex: 0x14231D).opacity(0.96),
-                             Color(hex: 0x14231D).opacity(0.62),
-                             .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
+                    stops: [
+                        .init(color: .black.opacity(0.05), location: 0),
+                        .init(color: .black.opacity(0.18), location: 0.38),
+                        .init(color: .black.opacity(0.88), location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
+
+                Circle()
+                    .stroke(Color.white.opacity(0.10), lineWidth: 0.8)
+                    .frame(width: 230, height: 230)
+                    .offset(x: 220, y: -104)
+                Circle()
+                    .stroke(Color.white.opacity(0.06), lineWidth: 0.8)
+                    .frame(width: 150, height: 150)
+                    .offset(x: 272, y: 52)
 
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 8) {
-                        Text(Tr(item.label))
-                            .font(.system(size: 23, weight: .semibold))
-                            .foregroundStyle(.white)
+                        HStack(spacing: 7) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text(Tr(item.label))
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(.white.opacity(0.94))
+                        .padding(.horizontal, 11)
+                        .frame(height: 30)
+                        .background(.ultraThinMaterial, in: Capsule())
 
                         if app.showDot("momentsRow", auto: !latestThumb.isEmpty) {
                             Circle()
                                 .fill(Color(hex: 0xFF5A52))
                                 .frame(width: 7, height: 7)
                         }
+
+                        Spacer(minLength: 6)
+
+                        Text(momentCountText)
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.86))
+                            .padding(.horizontal, 10)
+                            .frame(height: 27)
+                            .background(Color.black.opacity(0.22), in: Capsule())
                     }
 
-                    Text(heroStatusText)
-                        .font(.system(size: 12.5, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.72))
-                        .lineLimit(2)
-                        .padding(.top, 6)
+                    Spacer(minLength: 24)
 
-                    Spacer(minLength: 12)
+                    HStack(alignment: .bottom, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(Tr("生活圈"))
+                                .font(.system(size: 25, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .shadow(color: .black.opacity(0.25), radius: 7, y: 3)
+
+                            HStack(spacing: 8) {
+                                Avatar(path: latestMomentAvatar,
+                                       size: 26, radius: 13, circle: true)
+                                    .overlay(Circle().stroke(Color.white.opacity(0.72),
+                                                             lineWidth: 1))
+                                Text(latestMomentAuthor)
+                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.84))
+                                    .lineLimit(1)
+                            }
+
+                            Text(latestMomentText)
+                                .font(.system(size: 12.5, weight: .regular))
+                                .foregroundStyle(.white.opacity(0.72))
+                                .lineLimit(2)
+                                .lineSpacing(2)
+                        }
+
+                        Spacer(minLength: 4)
+
+                        if latestMomentMedia.count > 1 {
+                            HStack(spacing: -12) {
+                                ForEach(Array(latestMomentMedia.dropFirst().enumerated()),
+                                        id: \.offset) { index, media in
+                                    RemoteImage(path: media, mode: .fill, maxSide: 260)
+                                        .frame(width: 62, height: 76)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12,
+                                                                    style: .continuous))
+                                        .overlay {
+                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                                .stroke(Color.white.opacity(0.28), lineWidth: 0.8)
+                                        }
+                                        .rotationEffect(.degrees(index == 0 ? -4 : 4))
+                                        .shadow(color: .black.opacity(0.20), radius: 8, y: 4)
+                                }
+                            }
+                            .padding(.trailing, 4)
+                        }
+                    }
 
                     HStack(spacing: 7) {
                         Text(Tr("打开生活圈"))
                             .font(.system(size: 11.5, weight: .semibold))
-                        Image(systemName: "arrow.up.right")
+                        Image(systemName: "arrow.right")
                             .font(.system(size: 10.5, weight: .bold))
                     }
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .frame(height: 31)
-                    .background(Capsule().fill(Color.white.opacity(0.12)))
-                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.7))
+                    .background(OrbitTheme.jade.opacity(0.92), in: Capsule())
+                    .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.7))
+                    .padding(.top, 14)
                 }
                 .padding(18)
-                .frame(maxWidth: 260, maxHeight: .infinity, alignment: .leading)
             }
-            .frame(height: 178)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .frame(height: 232)
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 0.8)
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(Color.white.opacity(0.13), lineWidth: 0.8)
             }
+            .shadow(color: Color(hex: 0x14231D).opacity(0.20), radius: 18, y: 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(MenuPressStyle())

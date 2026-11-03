@@ -67,6 +67,7 @@ fileprivate final class TabIconLoader: ObservableObject {
     private var images: [String: UIImage] = [:]
     private var inFlight: Set<String> = []
     private var failed: Set<String> = []
+    private var retryTasks: [String: Task<Void, Never>] = [:]
     private var preparedVersion = -1
 
     private init() {}
@@ -116,20 +117,35 @@ fileprivate final class TabIconLoader: ObservableObject {
                 let data = try await API.shared.assetData(url)
                 guard !Task.isCancelled, let image = UIImage(data: data) else {
                     self.failed.insert(value)
+                    self.scheduleRetry(value)
                     return
                 }
                 ImageStore.shared.put(value, image)
                 ImageStore.shared.diskWrite(value, data)
                 self.images[value] = image
+                self.failed.remove(value)
+                self.retryTasks.removeValue(forKey: value)?.cancel()
                 self.revision &+= 1
             } catch {
                 self.failed.insert(value)
+                self.scheduleRetry(value)
             }
         }
     }
 
     fileprivate static func isRaster(_ value: String) -> Bool {
-        value.hasPrefix("http") || value.hasPrefix("/uploads") || value.hasPrefix("data:")
+        value.hasPrefix("http") || value.hasPrefix("/") || value.hasPrefix("data:")
+    }
+
+    private func scheduleRetry(_ value: String) {
+        retryTasks[value]?.cancel()
+        retryTasks[value] = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 12_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            self.failed.remove(value)
+            self.retryTasks.removeValue(forKey: value)
+            self.revision &+= 1
+        }
     }
 
     private static func decodeDataURL(_ value: String) -> Data? {
@@ -340,6 +356,12 @@ struct NativeTabBar: UIViewRepresentable {
                     items[index].image = UIImage(systemName: symbols[index])
                     items[index].selectedImage = UIImage(systemName: selectedSymbols[index])
                     appliedIconKeys[index] = iconKey
+                    continue
+                }
+
+                if index == 3, custom == nil, !avatarPath.isEmpty,
+                   loader.image(for: avatarPath) == nil {
+                    // 图片还在缓存/网络加载中时保留上一张头像，避免底栏忽然变成占位图标。
                     continue
                 }
 

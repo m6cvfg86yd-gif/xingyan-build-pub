@@ -26,6 +26,11 @@ struct MainTabView: View {
         unreadTotal == 0 && app.chats.contains { $0.muted == true && ($0.unread ?? 0) > 0 }
     }
 
+    private var tabAvatarPath: String {
+        let current = app.me?.avatarPath ?? ""
+        return current.isEmpty ? app.lastAvatar : current
+    }
+
     var body: some View {
 
         ZStack(alignment: .bottom) {
@@ -92,7 +97,7 @@ struct MainTabView: View {
                              contactsDot: app.showDot("contacts", auto: app.friendRequests > 0),
                              momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
                              meDot: app.showDot("me", auto: false),
-                             avatarPath: app.me?.avatarPath ?? "")
+                             avatarPath: tabAvatarPath)
                     .frame(height: max(49, L.tabH - 6))
 
                     .background {
