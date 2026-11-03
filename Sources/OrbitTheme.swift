@@ -9,9 +9,9 @@ enum OrbitTheme {
     static let secondary = Color.dyn(0x626B66, 0xA8B2AD)
     static let tertiary = Color.dyn(0x929994, 0x727C77)
     static let divider = Color.dyn(0xE2DFD7, 0x232925)
-    static let jade = Color.dyn(0x176A57, 0x63C6A5)
-    static let jadeDeep = Color.dyn(0x0F4F41, 0x3B9C7E)
-    static let jadeSoft = Color.dyn(0xDCEFE8, 0x173A31)
+    static let jade = Color.dyn(0x24C77F, 0x3AD48C)
+    static let jadeDeep = Color.dyn(0x177D55, 0x52E09B)
+    static let jadeSoft = Color.dyn(0xDDF8EB, 0x123A2A)
     static let gold = Color.dyn(0xC18A32, 0xE3B464)
 
     static let card = RoundedRectangle(cornerRadius: 20, style: .continuous)

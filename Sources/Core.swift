@@ -413,7 +413,7 @@ enum C {
     static var hairline    : Color { UIConfig.color("lineColor", 0xE5E5E5, 0x333335) }
     static var navLine     : Color { UIConfig.color("navLineColor", 0xE8E8E8, 0x2C2C2E) }
 
-    static var green       : Color { UIConfig.color("greenColor", 0x07C160, 0x07C160) }
+    static var green       : Color { UIConfig.color("greenColor", 0x24C77F, 0x3AD48C) }
     static var red         : Color { UIConfig.color("redColor", 0xFA5151, 0xFA5151) }
     static var orange      : Color { UIConfig.color("orangeColor", 0xB27C37, 0xE3B464) }
     static var tabInk      : Color { UIConfig.color("tabInkColor", 0x191919, 0xB5B5B5) }
