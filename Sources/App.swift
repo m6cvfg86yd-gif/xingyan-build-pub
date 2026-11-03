@@ -288,8 +288,12 @@ final class AppState: ObservableObject {
 
     private var uiRetryScheduled = false
 
-    private static let uiCacheKey = "chris.uiConfigJSON"
-    private static let uiIconCacheKey = "chris.uiIconsJSON"
+    private var uiCacheKey: String {
+        "chris.uiConfigJSON." + API.shared.cacheNamespace
+    }
+    private var uiIconCacheKey: String {
+        "chris.uiIconsJSON." + API.shared.cacheNamespace
+    }
 
     private func coalesce(_ work: @escaping () async -> Void) {
         refreshTask?.cancel()
@@ -599,24 +603,24 @@ final class AppState: ObservableObject {
     private func cacheUIConfig(_ ui: [String: Any], _ icons: [String: String]) {
         if let d = try? JSONSerialization.data(withJSONObject: ui),
            let s = String(data: d, encoding: .utf8) {
-            UserDefaults.standard.set(s, forKey: Self.uiCacheKey)
+            UserDefaults.standard.set(s, forKey: uiCacheKey)
         }
         if !icons.isEmpty,
            let d = try? JSONSerialization.data(withJSONObject: icons),
            let s = String(data: d, encoding: .utf8) {
-            UserDefaults.standard.set(s, forKey: Self.uiIconCacheKey)
+            UserDefaults.standard.set(s, forKey: uiIconCacheKey)
         }
     }
 
     func applyCachedUIConfig() {
-        if let s = UserDefaults.standard.string(forKey: Self.uiCacheKey),
+        if let s = UserDefaults.standard.string(forKey: uiCacheKey),
            let d = s.data(using: .utf8),
            let obj = try? JSONSerialization.jsonObject(with: d),
            let ui = obj as? [String: Any],
            !ui.isEmpty {
             UIConfig.apply(ui)
         }
-        if let s = UserDefaults.standard.string(forKey: Self.uiIconCacheKey),
+        if let s = UserDefaults.standard.string(forKey: uiIconCacheKey),
            let d = s.data(using: .utf8),
            let obj = try? JSONSerialization.jsonObject(with: d),
            let icons = obj as? [String: String],

@@ -3,13 +3,13 @@
   "files": [
     {
       "path": "Sources/API.swift",
-      "size": 197699,
-      "sha256": "9bcd9b9da85b7a78387ec7886dfbf172c42375ad443989c672036ee3aaa5a8f1"
+      "size": 197903,
+      "sha256": "685c205f0b2208045178fb3337831dda8cc9ca373f995ef1f733f9f43d705572"
     },
     {
       "path": "Sources/App.swift",
-      "size": 145404,
-      "sha256": "a7ed92de2c55ce8fe29ae2f1e1f3d6c7bd18bff442e07d0234fb329ceb0fe308"
+      "size": 145472,
+      "sha256": "8f365b762f5b6735a95752d9b14500025d22bb478ccff80d862add4d469a3fc8"
     },
     {
       "path": "Sources/Realtime.swift",
@@ -58,8 +58,8 @@
     },
     {
       "path": "Sources/LocalStore.swift",
-      "size": 21524,
-      "sha256": "de36470552229e89baa53e62860be3092f81b151a7978f579e6c0f6dd242f599"
+      "size": 21840,
+      "sha256": "96b49f7292e3e7d9e16f532082c25de154d89d002e68f76a35383266edd1e727"
     },
     {
       "path": "Sources/MsgFrameKey.swift",

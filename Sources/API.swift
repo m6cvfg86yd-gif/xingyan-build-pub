@@ -1711,6 +1711,12 @@ final class API {
         server == "43.242.194.89:443" ? "43.242.194.89:8443" : server
     }
 
+    var cacheNamespace: String {
+        let raw = API.normalizeServer(server).lowercased()
+        let safe = raw.map { $0.isLetter || $0.isNumber ? $0 : "_" }
+        return "v2_" + String(safe)
+    }
+
     static func normalizeServer(_ raw: String) -> String {
         var v = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         v = v.replacingOccurrences(of: "https://", with: "")

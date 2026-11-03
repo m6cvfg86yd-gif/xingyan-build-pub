@@ -54,7 +54,10 @@ enum LocalStore {
     }
 
     static func chatFile(_ chatId: String) -> URL {
-        root.appendingPathComponent("Chats").appendingPathComponent(sanitize(chatId) + ".json")
+        let dir = root.appendingPathComponent("Chats")
+            .appendingPathComponent(API.shared.cacheNamespace, isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent(sanitize(chatId) + ".json")
     }
 
     static func saveChat(_ chatId: String, _ messages: [Message]) {
@@ -75,7 +78,9 @@ enum LocalStore {
               let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
             return nil
         }
-        return dir.appendingPathComponent("chat-list-" + sanitize(userId) + ".json")
+        return dir.appendingPathComponent(
+            "chat-list-" + API.shared.cacheNamespace + "-" + sanitize(userId) + ".json"
+        )
     }
 
     static func saveChatList(_ chats: [Chat], userId: String) {
@@ -99,7 +104,9 @@ enum LocalStore {
               let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
             return nil
         }
-        return dir.appendingPathComponent("moments-cache-" + sanitize(userId) + ".json")
+        return dir.appendingPathComponent(
+            "moments-cache-" + API.shared.cacheNamespace + "-" + sanitize(userId) + ".json"
+        )
     }
 
     static func saveMoments(_ list: [Moment], userId: String) {
