@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>星言商城后台</title>
+  <link rel="stylesheet" href="/mall-admin.css">
+</head>
+<body>
+  <section id="login" class="login-shell">
+    <form class="login-card" id="loginForm">
+      <div class="mark">S</div>
+      <p class="eyebrow">STAR MALL CONSOLE</p>
+      <h1>星言商城后台</h1>
+      <p class="muted">商品、库存、订单、履约、售后和营销统一管理</p>
+      <label>后台账号<input id="loginUser" autocomplete="username" placeholder="管理员账号"></label>
+      <label>密码<input id="loginPass" type="password" autocomplete="current-password" placeholder="请输入后台密码"></label>
+      <button class="btn primary block" type="submit">进入商城后台</button>
+      <p class="error" id="loginError"></p>
+      <a class="back-link" href="/manage.html">返回 CHRIS 管理后台</a>
+    </form>
+  </section>
+
+  <div id="shell" class="shell hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">S</span>
+        <div><b>星言商城</b><small>Merchant Console</small></div>
+      </div>
+      <nav id="nav">
+        <button data-view="dashboard" class="active"><i>◈</i><span>经营总览</span></button>
+        <button data-view="products"><i>▦</i><span>商品管理</span><em id="badgeProducts"></em></button>
+        <button data-view="categories"><i>类</i><span>分类管理</span></button>
+        <button data-view="inventory"><i>▤</i><span>库存管理</span><em id="badgeStock"></em></button>
+        <button data-view="orders"><i>▣</i><span>订单中心</span><em id="badgeOrders"></em></button>
+        <button data-view="fulfillment"><i>↗</i><span>履约发货</span></button>
+        <button data-view="aftersales"><i>↺</i><span>售后处理</span><em id="badgeAfter"></em></button>
+        <button data-view="coupons"><i>券</i><span>优惠券</span></button>
+        <button data-view="campaigns"><i>✦</i><span>营销活动</span></button>
+        <button data-view="shops"><i>店</i><span>店铺商家</span></button>
+        <button data-view="finance"><i>¥</i><span>财务结算</span></button>
+        <button data-view="audit"><i>史</i><span>操作审计</span></button>
+        <button data-view="settings"><i>⚙</i><span>商城设置</span></button>
+      </nav>
+      <div class="account">
+        <div class="avatar" id="adminAvatar">C</div>
+        <div><b id="adminName">管理员</b><small id="adminRole"></small></div>
+        <button id="logout" title="退出">退出</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button id="menuToggle" class="menu-toggle" type="button">☰</button>
+        <div><p class="eyebrow" id="crumb">经营总览</p><h2 id="viewTitle">经营总览</h2></div>
+        <div class="spacer"></div>
+        <span class="sync" id="syncState">数据已连接</span>
+        <button class="btn ghost" id="refresh" type="button">刷新</button>
+        <a class="btn ghost" href="/manage.html">主后台</a>
+      </header>
+      <section id="view" class="view"></section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal"><div class="modal-card"><button class="modal-close" id="modalClose">×</button><div id="modalBody"></div></div></div>
+  <div id="toast" class="toast"></div>
+  <script src="/mall-admin.js"></script>
+</body>
+</html>

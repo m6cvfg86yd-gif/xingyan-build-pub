@@ -525,7 +525,10 @@ const MENUS = [
   { key: 'feedback', icon: '📮', name: '用户反馈', perm: 'users', group: '其它' },
   { key: 'biz', icon: '🏪', name: '经营账户查账', perm: 'users', group: '其它' },
   { key: 'payments', icon: '💰', name: '支付风控', perm: 'payments', group: '其它' },
-  { key: 'wallet', icon: '💳', name: '充值提现', perm: 'ops', superOnly: true, group: '其它' }
+  { key: 'wallet', icon: '💳', name: '充值提现', perm: 'ops', superOnly: true, group: '其它' },
+
+  /* ---------------- 商城管理网页 ---------------- */
+  { key: 'malladmin', icon: '🛒', name: '商城后台', perm: 'ops', group: '商城运营' }
 ];
 
 function toast(msg, bad) {
@@ -989,6 +992,14 @@ $('logout').addEventListener('click', async (e) => {
 /* ============================================================ 页面 */
 
 const PAGES = {};
+
+PAGES.malladmin = async () => {
+  $('content').innerHTML =
+    '<div class="panel" style="overflow:hidden;padding:0">'
+    + '<iframe src="/mall-admin.html?embed=1" title="星言商城后台" '
+    + 'style="display:block;width:100%;height:calc(100vh - 122px);min-height:720px;border:0;background:#f3f5f8"></iframe>'
+    + '</div>';
+};
 
 /* ---------------- 仪表盘（含顶部告警栏）---------------- */
 

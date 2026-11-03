@@ -83,6 +83,22 @@ Environment=PORT=5180
 * `/api/ops/*` 是新后台，角色分 super / auditor / support / ops，高危操作要带 `confirmPassword`
 * 管理员密码是 scrypt 哈希（`data/admin.json`），**不可逆**；忘了只能改文件重置
 
+### 商城后台
+
+网页入口：`/mall-admin.html`，主后台左侧「商城运营 → 商城后台」也会嵌入同一页面。
+
+包含经营总览、商品与 SKU、分类、库存、订单、履约发货、物流轨迹、售后、优惠券、
+营销活动、店铺、财务结算、商城设置和操作审计。页面数据来自：
+
+```text
+data/mall.json        商品、轮播、商城名称、广告、配送方式
+data/mall-admin.json  订单、售后、优惠券、活动、店铺、库存流水、商城审计、交易规则
+```
+
+App 仍可继续使用原有 `/api/mall`。新增的 `/api/mall/order`、`/api/mall/orders`、
+`/api/mall/logistics`、`/api/mall/aftersale` 和 `/api/mall/ad` 用于把下单、物流、
+售后及领券状态同步到管理后台。
+
 ## 出包与发布
 
 * iOS 出包：GitHub Actions `build-ios`（`macos-14`）。**公开仓库 macOS 分钟免费；私有仓库会计费，额度/账单有问题时任务会秒失败**（报 `The job was not started because recent account payments have failed...`）。

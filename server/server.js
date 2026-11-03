@@ -11505,7 +11505,13 @@ async function handleApi(req, res, pathname, query) {
       banners: [],
       /* CHRIS_MALL_NAME_V1 商城名/标语：管理页可以改（用户要求「商城名」） */
       name: '星言商城',
-      slogan: '拼着买 才便宜'
+      slogan: '拼着买 才便宜',
+      categories: [],
+      ads: [],
+      delivery: { modes: [], note: '' },
+      splash: { on: false, image: '', secs: 3, action: 'none', link: '' },
+      channels: [],
+      updatedAt: now()
     };
   }
   function readMall() {
@@ -11515,12 +11521,218 @@ async function handleApi(req, res, pathname, query) {
     if (!Array.isArray(m.banners)) m.banners = [];
     if (typeof m.name !== 'string' || !m.name.trim()) m.name = '星言商城';   // CHRIS_MALL_NAME_V1
     if (typeof m.slogan !== 'string') m.slogan = '拼着买 才便宜';
+    if (!Array.isArray(m.categories)) m.categories = [];
+    if (!Array.isArray(m.ads)) m.ads = [];
+    if (!m.delivery || typeof m.delivery !== 'object') m.delivery = { modes: [], note: '' };
+    if (!Array.isArray(m.delivery.modes)) m.delivery.modes = [];
+    if (!m.splash || typeof m.splash !== 'object') m.splash = mallSeed().splash;
+    if (!Array.isArray(m.channels)) m.channels = [];
     return m;
   }
   function saveMall(m) { writeJson(path.join(DATA_DIR, 'mall.json'), m); }
-  if (parts[0] === 'mall' && method === 'GET') { ok(res, readMall()); return; }
+  function mallAdminSeed() {
+    return {
+      schemaVersion: 1,
+      orders: [],
+      afterSales: [],
+      coupons: [],
+      couponClaims: [],
+      campaigns: [],
+      shops: [],
+      inventoryLogs: [],
+      shares: [],
+      invites: [],
+      auditLogs: [],
+      settings: {
+        autoConfirmDays: 7,
+        unpaidTimeoutMinutes: 30,
+        currency: 'CNY',
+        stockPolicy: 'block',
+        servicePhone: '',
+        serviceHours: '09:00-21:00',
+        orderNote: ''
+      },
+      updatedAt: now()
+    };
+  }
+  function readMallAdmin() {
+    const f = path.join(DATA_DIR, 'mall-admin.json');
+    const a = readJson(f, null);
+    if (!a || typeof a !== 'object') {
+      const seed = mallAdminSeed();
+      writeJson(f, seed);
+      return seed;
+    }
+    ['orders', 'afterSales', 'coupons', 'couponClaims', 'campaigns', 'shops',
+      'inventoryLogs', 'shares', 'invites', 'auditLogs'].forEach((k) => {
+      if (!Array.isArray(a[k])) a[k] = [];
+    });
+    if (!a.settings || typeof a.settings !== 'object') a.settings = mallAdminSeed().settings;
+    if (!a.schemaVersion) a.schemaVersion = 1;
+    return a;
+  }
+  function saveMallAdmin(a) {
+    a.updatedAt = now();
+    writeJson(path.join(DATA_DIR, 'mall-admin.json'), a);
+  }
+  function canUseMallAdmin() {
+    return isOpsUser(user) || !!currentOps(req);
+  }
+  function mallAudit(req, a, action, target, detail) {
+    const admin = currentOps(req) || currentUser(req) || {};
+    const row = {
+      id: uid('ma'),
+      by: String(admin.username || admin.name || admin.id || 'system'),
+      role: String(admin.role || 'app-ops'),
+      action: String(action || '').slice(0, 80),
+      target: String(target || '').slice(0, 120),
+      detail: String(detail || '').slice(0, 500),
+      ip: peerIp(req),
+      at: now()
+    };
+    a.auditLogs.unshift(row);
+    a.auditLogs = a.auditLogs.slice(0, 10000);
+    try {
+      audit(req, {
+        username: row.by,
+        name: row.by,
+        role: row.role
+      }, '商城.' + row.action, row.target, row.detail);
+    } catch (e) { }
+    return row;
+  }
+  function mallStatusText(status) {
+    switch (String(status || '')) {
+      case 'paying': return '待付款';
+      case 'grouping': return '拼团中';
+      case 'wait': return '待发货';
+      case 'shipped': return '待收货';
+      case 'done': return '已完成';
+      case 'cancel': return '已取消';
+      case 'refunded': return '已退款';
+      case 'closed': return '已关闭';
+      default: return String(status || '未知');
+    }
+  }
+  function mallLines(raw) {
+    const list = Array.isArray(raw) ? raw : [];
+    return list.slice(0, 50).map((line) => {
+      const x = line && typeof line === 'object' ? line : {};
+      return {
+        pid: String(x.pid || x.productId || '').slice(0, 80),
+        title: String(x.title || x.name || '商品').slice(0, 160),
+        price: Math.max(0, Number(x.price) || 0),
+        count: Math.max(1, Math.floor(Number(x.count) || 1)),
+        img: String(x.img || '').slice(0, 500),
+        spec: String(x.spec || '').slice(0, 80)
+      };
+    });
+  }
+  function mallOrderView(o, adminView) {
+    const lines = mallLines(o.lines || o.items);
+    const out = {
+      id: String(o.id || ''),
+      at: String(o.at || o.createdAt || ''),
+      total: Number(o.total) || 0,
+      status: String(o.status || 'wait'),
+      statusText: mallStatusText(o.status),
+      address: String(o.address || ''),
+      remark: String(o.remark || ''),
+      buyer: String(o.buyer || ''),
+      items: lines.map((x) => x.title + (x.count > 1 ? ' ×' + x.count : '')),
+      lines,
+      express: o.express && (o.express.company || o.express.no)
+        ? { company: String(o.express.company || ''), no: String(o.express.no || ''),
+            code: String(o.express.code || '') }
+        : null,
+      logistics: Array.isArray(o.logistics) ? o.logistics.slice(-50) : [],
+      payWay: String(o.payWay || ''),
+      ref: String(o.ref || ''),
+      paid: !!o.paid,
+      updatedAt: String(o.updatedAt || '')
+    };
+    if (adminView) {
+      out.userId = String(o.userId || '');
+      out.stockApplied = !!o.stockApplied;
+      out.stockReleased = !!o.stockReleased;
+    }
+    return out;
+  }
+  function mallFindOrder(a, id, userId) {
+    return a.orders.find((o) => String(o.id) === String(id || '') &&
+      (!userId || String(o.userId) === String(userId)));
+  }
+  function mallProductStock(p) {
+    if (!p) return 0;
+    if (p.stock !== undefined && p.stock !== null && p.stock !== '') {
+      return Math.max(0, Math.floor(Number(p.stock) || 0));
+    }
+    if (Array.isArray(p.variants)) {
+      return p.variants.reduce((sum, v) => sum + Math.max(0, Math.floor(Number(v.stock) || 0)), 0);
+    }
+    return 0;
+  }
+  function mallFindProduct(m, line) {
+    if (line.pid) {
+      const byId = m.products.find((p) => String(p.id) === String(line.pid));
+      if (byId) return byId;
+    }
+    return m.products.find((p) => String(p.title) === String(line.title));
+  }
+  function mallConsumeStock(p, count) {
+    if (!p) return;
+    let left = Math.max(1, Math.floor(Number(count) || 1));
+    if (Array.isArray(p.variants) && p.variants.length) {
+      p.variants.forEach((v) => {
+        if (left <= 0) return;
+        const stock = Math.max(0, Math.floor(Number(v.stock) || 0));
+        const take = Math.min(stock, left);
+        v.stock = stock - take;
+        left -= take;
+      });
+      p.stock = mallProductStock(p);
+      return;
+    }
+    p.stock = Math.max(0, mallProductStock(p) - left);
+  }
+  function mallRestoreStock(p, count) {
+    if (!p) return;
+    let left = Math.max(1, Math.floor(Number(count) || 1));
+    if (Array.isArray(p.variants) && p.variants.length) {
+      const v = p.variants[0];
+      v.stock = Math.max(0, Math.floor(Number(v.stock) || 0)) + left;
+      p.stock = mallProductStock(p);
+      return;
+    }
+    p.stock = mallProductStock(p) + left;
+  }
+  function mallClaimView(c) {
+    return {
+      id: String(c.id || ''),
+      title: String(c.title || '优惠券'),
+      off: Number(c.off) || 0,
+      min: Number(c.min) || 0,
+      until: String(c.until || ''),
+      kind: String(c.kind || 'cash'),
+      used: !!c.used
+    };
+  }
+  function publicMall(m) {
+    const hidden = ['cost', 'purchasePrice', 'supplier', 'warehouse', 'adminNote'];
+    return Object.assign({}, m, {
+      products: (m.products || []).filter((p) => p.on !== false).map((p) => {
+        const out = Object.assign({}, p);
+        hidden.forEach((k) => delete out[k]);
+        return out;
+      })
+    });
+  }
+  if (parts[0] === 'mall' && method === 'GET' && parts.length === 1) {
+    ok(res, publicMall(readMall()));
+    return;
+  }
   if (parts[0] === 'ops' && parts[1] === 'mall' && method === 'POST') {
-    if (!isOpsUser(user)) return fail(res, 403, '没有权限');
+    if (!canUseMallAdmin()) return fail(res, 403, '没有权限');
     const b = await readBody(req);
     const m = readMall();
     const action = String(b.action || '').trim();
@@ -11541,8 +11753,19 @@ async function handleApi(req, res, pathname, query) {
         tags: Array.isArray(it.tags) ? it.tags.slice(0, 4).map((t) => String(t).slice(0, 12)) : [],
         shop: String(it.shop || '').slice(0, 40),
         cate: String(it.cate || '').slice(0, 20) || '其它',
-        on: it.on === false ? false : true
+        on: it.on === false ? false : true,
+        updatedAt: now(),
+        updatedBy: String(user.username || user.id || '')
       });
+      if (it.stock !== undefined) one.stock = Math.max(0, Math.floor(Number(it.stock) || 0));
+      if (it.cost !== undefined) one.cost = Math.max(0, Number(it.cost) || 0);
+      if (it.weight !== undefined) one.weight = Math.max(0, Number(it.weight) || 0);
+      if (it.limitPerUser !== undefined) one.limitPerUser = Math.max(0, Math.floor(Number(it.limitPerUser) || 0));
+      if (it.sort !== undefined) one.sort = Number(it.sort) || 0;
+      if (it.supplier !== undefined) one.supplier = String(it.supplier || '').slice(0, 80);
+      if (it.warehouse !== undefined) one.warehouse = String(it.warehouse || '').slice(0, 80);
+      if (it.sellerType !== undefined) one.sellerType = String(it.sellerType || '').slice(0, 20);
+      if (it.adminNote !== undefined) one.adminNote = String(it.adminNote || '').slice(0, 1000);
       if (it.subtitle !== undefined) one.subtitle = String(it.subtitle || '').slice(0, 200);
       if (it.brand !== undefined) one.brand = String(it.brand || '').slice(0, 40);
       if (it.rating !== undefined) one.rating = Math.max(0, Math.min(5, Number(it.rating) || 0));
@@ -11560,23 +11783,572 @@ async function handleApi(req, res, pathname, query) {
         stock: Math.max(0, Number(v && v.stock) || 0)
       })).filter((v) => v.name);
       if (i >= 0) m.products[i] = one; else m.products.unshift(one);
+      m.updatedAt = now();
+      const a = readMallAdmin();
+      a.inventoryLogs.unshift({
+        id: uid('inv'),
+        productId: id,
+        title: one.title,
+        before: i >= 0 ? Number(old.stock) : 0,
+        after: one.stock === undefined ? Number(old.stock) || 0 : one.stock,
+        reason: i >= 0 ? '编辑商品' : '新增商品',
+        by: user.username || user.id,
+        at: now()
+      });
+      a.inventoryLogs = a.inventoryLogs.slice(0, 5000);
+      mallAudit(req, a, i >= 0 ? 'product.save' : 'product.create', id, one.title);
+      saveMallAdmin(a);
       saveMall(m); ok(res, m); return;
     }
     if (action === 'remove') {
       const id = String(b.id || '');
       m.products = m.products.filter((x) => x.id !== id);
+      m.updatedAt = now();
+      const a = readMallAdmin();
+      mallAudit(req, a, 'product.remove', id, '');
+      saveMallAdmin(a);
       saveMall(m); ok(res, m); return;
     }
     if (action === 'settings') {                       // CHRIS_MALL_NAME_V1 改商城名/标语
       if (b.name !== undefined) m.name = String(b.name).slice(0, 24).trim() || m.name;
       if (b.slogan !== undefined) m.slogan = String(b.slogan).slice(0, 40).trim();
+      m.updatedAt = now();
+      const a = readMallAdmin();
+      mallAudit(req, a, 'settings.store', 'mall', m.name + ' · ' + m.slogan);
+      saveMallAdmin(a);
       saveMall(m); ok(res, m); return;
     }
     if (action === 'banners') {
       m.banners = Array.isArray(b.banners) ? b.banners.slice(0, 8).map((u) => String(u).slice(0, 400)) : m.banners;
+      m.updatedAt = now();
+      const a = readMallAdmin();
+      mallAudit(req, a, 'settings.banners', 'mall', String(m.banners.length) + ' 张');
+      saveMallAdmin(a);
+      saveMall(m); ok(res, m); return;
+    }
+    if (action === 'categories') {
+      if (Array.isArray(b.categories)) {
+        const seen = new Set();
+        m.categories = b.categories.slice(0, 100).map((x) => String(x && x.name !== undefined ? x.name : x || '').trim().slice(0, 30))
+          .filter((x) => x && !seen.has(x) && seen.add(x));
+      }
+      m.updatedAt = now();
+      const a = readMallAdmin();
+      mallAudit(req, a, 'settings.categories', 'mall', (m.categories || []).join(','));
+      saveMallAdmin(a);
       saveMall(m); ok(res, m); return;
     }
     return fail(res, 400, 'action 不对');
+  }
+
+  /* 商城顾客端：订单镜像、物流、售后、优惠券。
+     客户端付款成功后调用 /api/mall/order 同步；这里按订单 id 幂等写入。 */
+  if (parts[0] === 'mall' && parts[1] === 'order' && method === 'POST') {
+    if (!user) return fail(res, 401, '请先登录');
+    const b = await readBody(req);
+    const id = String(b.id || '').slice(0, 100) || uid('mo');
+    const a = readMallAdmin();
+    const existed = a.orders.find((o) => String(o.id) === id);
+    if (existed && String(existed.userId) !== String(user.id)) {
+      return fail(res, 409, '订单号已被占用');
+    }
+    if (existed) {
+      if (b.paid === true && !existed.paid) {
+        existed.paid = true;
+        existed.status = 'wait';
+        existed.paidAt = now();
+      }
+      existed.updatedAt = now();
+      saveMallAdmin(a);
+      ok(res, { saved: true, order: mallOrderView(existed, false) });
+      return;
+    }
+    const lines = mallLines(b.items);
+    if (!lines.length) return fail(res, 400, '订单没有商品');
+    const m = readMall();
+    const paid = b.paid === true;
+    const order = {
+      id,
+      userId: String(user.id || ''),
+      buyer: String(user.nickname || user.username || user.id || ''),
+      lines,
+      total: Math.max(0, Number(b.total) || 0),
+      payWay: String(b.payWay || '').slice(0, 40),
+      address: String(b.address || '').slice(0, 300),
+      at: String(b.at || now()).slice(0, 60),
+      remark: String(b.remark || '').slice(0, 500),
+      ref: String(b.ref || '').slice(0, 120),
+      paid,
+      status: paid ? 'wait' : 'paying',
+      stockApplied: false,
+      stockReleased: false,
+      express: null,
+      logistics: [{ time: now(), text: paid ? '订单已付款，等待商家发货' : '订单已提交，等待付款', src: 'system' }],
+      createdAt: now(),
+      updatedAt: now()
+    };
+    if (paid) {
+      lines.forEach((line) => {
+        const p = mallFindProduct(m, line);
+        if (!p) return;
+        const before = mallProductStock(p);
+        mallConsumeStock(p, line.count);
+        const after = mallProductStock(p);
+        a.inventoryLogs.unshift({
+          id: uid('inv'), productId: String(p.id || ''), title: String(p.title || ''),
+          before, after, reason: '订单出库', orderId: id,
+          by: 'system', at: now()
+        });
+      });
+      order.stockApplied = true;
+      m.updatedAt = now();
+      saveMall(m);
+    }
+    a.orders.unshift(order);
+    a.orders = a.orders.slice(0, 5000);
+    mallAudit(req, a, 'order.create', id, (paid ? '已付款' : '待付款') + ' ¥' + order.total.toFixed(2));
+    saveMallAdmin(a);
+    ok(res, { saved: true, order: mallOrderView(order, false) });
+    return;
+  }
+  if (parts[0] === 'mall' && parts[1] === 'orders' && method === 'GET') {
+    if (!user) return fail(res, 401, '请先登录');
+    const a = readMallAdmin();
+    const orders = a.orders.filter((o) => String(o.userId) === String(user.id))
+      .slice(0, 200).map((o) => mallOrderView(o, false));
+    ok(res, { orders });
+    return;
+  }
+  if (parts[0] === 'mall' && parts[1] === 'logistics' && method === 'GET') {
+    if (!user) return fail(res, 401, '请先登录');
+    const a = readMallAdmin();
+    const order = mallFindOrder(a, String(query.get('id') || ''), user.id);
+    if (!order) return fail(res, 404, '订单不存在');
+    ok(res, mallOrderView(order, false));
+    return;
+  }
+  if (parts[0] === 'mall' && parts[1] === 'order' &&
+      (parts[2] === 'cancel' || parts[2] === 'confirm') && method === 'POST') {
+    if (!user) return fail(res, 401, '请先登录');
+    const b = await readBody(req);
+    const a = readMallAdmin();
+    const order = mallFindOrder(a, String(b.id || ''), user.id);
+    if (!order) return fail(res, 404, '订单不存在');
+    if (parts[2] === 'cancel') {
+      if (!['paying', 'grouping', 'wait'].includes(order.status)) return fail(res, 409, '当前订单不能取消');
+      if (order.stockApplied && !order.stockReleased) {
+        const m = readMall();
+        (order.lines || []).forEach((line) => mallRestoreStock(mallFindProduct(m, line), line.count));
+        order.stockReleased = true;
+        m.updatedAt = now();
+        saveMall(m);
+      }
+      order.status = 'cancel';
+      order.cancelAt = now();
+    } else {
+      if (order.status !== 'shipped') return fail(res, 409, '当前订单不能确认收货');
+      order.status = 'done';
+      order.doneAt = now();
+    }
+    order.updatedAt = now();
+    order.logistics = Array.isArray(order.logistics) ? order.logistics : [];
+    order.logistics.push({ time: now(), text: parts[2] === 'cancel' ? '买家取消订单' : '买家确认收货', src: 'buyer' });
+    mallAudit(req, a, 'order.buyer.' + parts[2], order.id, order.buyer);
+    saveMallAdmin(a);
+    ok(res, { order: mallOrderView(order, false) });
+    return;
+  }
+  if (parts[0] === 'mall' && parts[1] === 'aftersale' && method === 'POST') {
+    if (!user) return fail(res, 401, '请先登录');
+    const b = await readBody(req);
+    const a = readMallAdmin();
+    const order = mallFindOrder(a, String(b.id || ''), user.id);
+    if (!order) return fail(res, 404, '订单不存在');
+    let row = a.afterSales.find((x) => String(x.orderId) === String(order.id) &&
+      String(x.userId) === String(user.id) && ['pending', 'approved'].includes(x.status));
+    if (row) return fail(res, 409, '这笔订单已经提交过售后');
+    row = {
+      id: uid('as'), orderId: String(order.id), userId: String(user.id),
+      buyer: String(user.nickname || user.username || user.id || ''),
+      total: Number(order.total) || 0,
+      item: (order.lines || []).map((x) => x.title).join('、').slice(0, 200),
+      kind: String(b.kind || 'refund').slice(0, 40),
+      reason: String(b.reason || '').slice(0, 1000),
+      status: 'pending', note: '', askAt: now(), updatedAt: now()
+    };
+    a.afterSales.unshift(row);
+    order.status = 'aftersale';
+    order.updatedAt = now();
+    mallAudit(req, a, 'aftersale.create', row.id, order.id + ' · ' + row.reason);
+    saveMallAdmin(a);
+    ok(res, { afterSale: row });
+    return;
+  }
+  if (parts[0] === 'mall' && parts[1] === 'ad' && method === 'POST') {
+    if (!user) return fail(res, 401, '请先登录');
+    const b = await readBody(req);
+    const a = readMallAdmin();
+    const m = readMall();
+    const mine = a.couponClaims.filter((c) => String(c.userId) === String(user.id));
+    if (b.do === 'mine') {
+      ok(res, {
+        coupons: mine.filter((c) => !c.used).map(mallClaimView),
+        newCount: mine.filter((c) => !c.seen).length,
+        claimable: (m.ads || []).filter((ad) => ad.coupon).map((ad) => String(ad.id)).slice(0, 20),
+        claimableCount: (m.ads || []).filter((ad) => ad.coupon).length
+      });
+      return;
+    }
+    if (b.do === 'seen') {
+      mine.forEach((c) => { c.seen = true; c.seenAt = now(); });
+      saveMallAdmin(a);
+      ok(res, { coupons: mine.map(mallClaimView), newCount: 0 });
+      return;
+    }
+    const adId = String(b.adId || '').slice(0, 100);
+    const ad = (m.ads || []).find((x) => String(x.id) === adId) || {};
+    const reward = ad.coupon && typeof ad.coupon === 'object' ? ad.coupon : {
+      title: ad.title ? (String(ad.title).slice(0, 20) + '专享券') : '商城优惠券',
+      off: 5, min: 20, days: 7, kind: 'cash'
+    };
+    if (b.do === 'claim') {
+      const old = mine.find((c) => String(c.sourceAd || '') === adId);
+      if (old) {
+        ok(res, { already: true, coupon: mallClaimView(old), note: '这张券已经领过' });
+        return;
+      }
+      const days = Math.max(1, Math.min(365, Number(reward.days) || 7));
+      const row = {
+        id: uid('cp'), couponId: String(reward.id || adId || 'mall'),
+        userId: String(user.id), sourceAd: adId,
+        title: String(reward.title || '商城优惠券').slice(0, 40),
+        off: Math.max(0, Number(reward.off) || 0),
+        min: Math.max(0, Number(reward.min) || 0),
+        kind: String(reward.kind || 'cash').slice(0, 20),
+        used: false, seen: false, issuedAt: now(),
+        until: new Date(Date.now() + days * 86400000).toISOString()
+      };
+      a.couponClaims.unshift(row);
+      mallAudit(req, a, 'coupon.claim', row.id, adId + ' · ' + row.title);
+      saveMallAdmin(a);
+      ok(res, { already: false, coupon: mallClaimView(row), note: '领取成功' });
+      return;
+    }
+    if (b.do === 'share') {
+      const code = String(user.username || user.id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(-16);
+      let share = a.shares.find((x) => String(x.userId) === String(user.id) && String(x.adId) === adId);
+      if (!share) {
+        share = { id: uid('sh'), userId: String(user.id), adId, code, invited: 0, createdAt: now() };
+        a.shares.unshift(share);
+        saveMallAdmin(a);
+      }
+      ok(res, { code, text: '邀请好友领商城优惠券', invited: share.invited,
+                need: Math.max(1, Number(reward.inviteNeed) || 2) });
+      return;
+    }
+    if (b.do === 'invite') {
+      const code = String(b.code || '').trim();
+      const share = a.shares.find((x) => x.code === code);
+      if (!share || String(share.userId) === String(user.id)) return fail(res, 400, '邀请码无效');
+      if (a.invites.some((x) => x.inviteeId === user.id && x.shareId === share.id)) {
+        return fail(res, 409, '你已经参加过这个邀请');
+      }
+      const invite = { id: uid('iv'), shareId: share.id, hostId: share.userId,
+        inviteeId: String(user.id), adId, at: now() };
+      a.invites.unshift(invite);
+      share.invited = (Number(share.invited) || 0) + 1;
+      const host = findUser(share.userId);
+      saveMallAdmin(a);
+      ok(res, { invited: share.invited, hostName: host ? (host.nickname || host.username) : '好友',
+                bonus: null, note: '邀请已记录，奖励待后台发放' });
+      return;
+    }
+    return fail(res, 400, '不支持的商城动作');
+  }
+
+  /* 商城后台骨架：一个总览接口 + 一个动作接口，管理页所有模块共用。 */
+  if (parts[0] === 'ops' && parts[1] === 'malladmin' && method === 'GET') {
+    if (!canUseMallAdmin()) return fail(res, 403, '没有权限');
+    const m = readMall();
+    const a = readMallAdmin();
+    const orders = a.orders.slice(0, 1000).map((o) => mallOrderView(o, true));
+    const paidOrders = a.orders.filter((o) => o.paid && o.status !== 'cancel');
+    const dashboard = {
+      gmv: paidOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0),
+      orders: a.orders.length,
+      waitingShip: a.orders.filter((o) => ['wait', 'grouping'].includes(o.status)).length,
+      shipping: a.orders.filter((o) => o.status === 'shipped').length,
+      afterSales: a.afterSales.filter((o) => o.status === 'pending').length,
+      products: m.products.length,
+      activeProducts: m.products.filter((p) => p.on !== false).length,
+      lowStock: m.products.filter((p) => p.on !== false && mallProductStock(p) <= 10).length,
+      coupons: a.couponClaims.filter((c) => !c.used).length
+    };
+    ok(res, {
+      mall: m,
+      admin: Object.assign({}, a, {
+        orders,
+        afterSales: a.afterSales.slice(0, 1000),
+        inventoryLogs: a.inventoryLogs.slice(0, 1000),
+        auditLogs: a.auditLogs.slice(0, 1000)
+      }),
+      dashboard,
+      permissions: { canWrite: true }
+    });
+    return;
+  }
+  if (parts[0] === 'ops' && parts[1] === 'malladmin' && method === 'POST') {
+    if (!canUseMallAdmin()) return fail(res, 403, '没有权限');
+    const b = await readBody(req);
+    const action = String(b.action || '');
+    const a = readMallAdmin();
+    const m = readMall();
+    if (action === 'order.update') {
+      const order = mallFindOrder(a, String(b.id || ''));
+      if (!order) return fail(res, 404, '订单不存在');
+      const next = String(b.status || order.status);
+      if (!['paying', 'grouping', 'wait', 'shipped', 'done', 'cancel', 'refunded', 'closed', 'aftersale'].includes(next)) {
+        return fail(res, 400, '订单状态不对');
+      }
+      order.status = next;
+      if (b.expressCompany !== undefined || b.expressNo !== undefined) {
+        order.express = {
+          company: String(b.expressCompany || (order.express && order.express.company) || '').slice(0, 40),
+          no: String(b.expressNo || (order.express && order.express.no) || '').slice(0, 80),
+          code: String(b.expressCode || (order.express && order.express.code) || '').slice(0, 40)
+        };
+      }
+      if (b.remark !== undefined) order.remark = String(b.remark).slice(0, 500);
+      order.logistics = Array.isArray(order.logistics) ? order.logistics : [];
+      if (b.logisticsText) {
+        order.logistics.push({ time: now(), text: String(b.logisticsText).slice(0, 500), src: 'admin' });
+      }
+      if (next === 'cancel' && order.stockApplied && !order.stockReleased) {
+        (order.lines || []).forEach((line) => mallRestoreStock(mallFindProduct(m, line), line.count));
+        order.stockReleased = true;
+        m.updatedAt = now();
+        saveMall(m);
+      }
+      order.updatedAt = now();
+      mallAudit(req, a, 'order.update', order.id, order.statusText || next);
+      saveMallAdmin(a);
+      ok(res, { order: mallOrderView(order, true) });
+      return;
+    }
+    if (action === 'aftersale.review') {
+      const row = a.afterSales.find((x) => String(x.id) === String(b.id || '') ||
+        String(x.orderId) === String(b.id || ''));
+      if (!row) return fail(res, 404, '售后单不存在');
+      row.status = b.pass === false ? 'rejected' : 'approved';
+      row.note = String(b.note || '').slice(0, 500);
+      row.reviewedAt = now();
+      row.reviewedBy = String(user.username || user.id);
+      const order = mallFindOrder(a, row.orderId);
+      if (order) {
+        order.status = row.status === 'approved' ? 'refunded' : order.status === 'aftersale' ? 'wait' : order.status;
+        order.updatedAt = now();
+      }
+      mallAudit(req, a, 'aftersale.review', row.id, row.status + ' · ' + row.note);
+      saveMallAdmin(a);
+      ok(res, { afterSale: row });
+      return;
+    }
+    if (action === 'coupon.save') {
+      const it = b.item || {};
+      const id = String(it.id || '').slice(0, 80) || uid('cpdef');
+      const idx = a.coupons.findIndex((x) => String(x.id) === id);
+      const row = Object.assign({}, idx >= 0 ? a.coupons[idx] : {}, {
+        id,
+        title: String(it.title || '优惠券').slice(0, 40),
+        off: Math.max(0, Number(it.off) || 0),
+        min: Math.max(0, Number(it.min) || 0),
+        kind: String(it.kind || 'cash').slice(0, 20),
+        total: Math.max(0, Math.floor(Number(it.total) || 0)),
+        perUser: Math.max(1, Math.floor(Number(it.perUser) || 1)),
+        enabled: it.enabled !== false,
+        startAt: String(it.startAt || '').slice(0, 40),
+        endAt: String(it.endAt || '').slice(0, 40),
+        days: Math.max(1, Math.floor(Number(it.days) || 7)),
+        updatedAt: now(), updatedBy: String(user.username || user.id)
+      });
+      if (idx >= 0) a.coupons[idx] = row; else a.coupons.unshift(row);
+      mallAudit(req, a, 'coupon.save', id, row.title);
+      saveMallAdmin(a);
+      ok(res, { coupon: row });
+      return;
+    }
+    if (action === 'coupon.remove') {
+      const id = String(b.id || '');
+      a.coupons = a.coupons.filter((x) => String(x.id) !== id);
+      mallAudit(req, a, 'coupon.remove', id, '');
+      saveMallAdmin(a);
+      ok(res, { removed: true });
+      return;
+    }
+    if (action === 'campaign.save' || action === 'shop.save') {
+      const key = action === 'campaign.save' ? 'campaigns' : 'shops';
+      const it = b.item || {};
+      const id = String(it.id || '').slice(0, 80) || uid(key === 'campaigns' ? 'cam' : 'shop');
+      const idx = a[key].findIndex((x) => String(x.id) === id);
+      const row = Object.assign({}, idx >= 0 ? a[key][idx] : {}, it, {
+        id, name: String(it.name || it.title || '未命名').slice(0, 80),
+        enabled: it.enabled !== false, updatedAt: now(), updatedBy: String(user.username || user.id)
+      });
+      if (idx >= 0) a[key][idx] = row; else a[key].unshift(row);
+      mallAudit(req, a, action, id, row.name);
+      saveMallAdmin(a);
+      ok(res, { item: row });
+      return;
+    }
+    if (action === 'campaign.remove' || action === 'shop.remove') {
+      const key = action === 'campaign.remove' ? 'campaigns' : 'shops';
+      const id = String(b.id || '');
+      a[key] = a[key].filter((x) => String(x.id) !== id);
+      mallAudit(req, a, action, id, '');
+      saveMallAdmin(a);
+      ok(res, { removed: true });
+      return;
+    }
+    if (action === 'inventory.adjust') {
+      const productId = String(b.productId || b.id || '');
+      const p = m.products.find((x) => String(x.id) === productId);
+      if (!p) return fail(res, 404, '商品不存在');
+      const before = mallProductStock(p);
+      const after = b.stock !== undefined
+        ? Math.max(0, Math.floor(Number(b.stock) || 0))
+        : Math.max(0, before + Math.floor(Number(b.delta) || 0));
+      p.stock = after;
+      p.updatedAt = now();
+      m.updatedAt = now();
+      a.inventoryLogs.unshift({
+        id: uid('inv'), productId, title: String(p.title || ''),
+        before, after, reason: String(b.reason || '后台调整').slice(0, 120),
+        by: String(user.username || user.id), at: now()
+      });
+      a.inventoryLogs = a.inventoryLogs.slice(0, 5000);
+      mallAudit(req, a, 'inventory.adjust', productId, before + ' → ' + after);
+      saveMallAdmin(a);
+      saveMall(m);
+      ok(res, { product: p, before, after });
+      return;
+    }
+    if (action === 'settings.save') {
+      const it = b.settings || {};
+      a.settings = Object.assign({}, a.settings, {
+        autoConfirmDays: Math.max(0, Math.min(60, Number(it.autoConfirmDays) || 0)),
+        unpaidTimeoutMinutes: Math.max(5, Math.min(1440, Number(it.unpaidTimeoutMinutes) || 30)),
+        currency: String(it.currency || 'CNY').slice(0, 8),
+        stockPolicy: ['block', 'warn', 'oversell'].includes(it.stockPolicy) ? it.stockPolicy : 'block',
+        servicePhone: String(it.servicePhone || '').slice(0, 40),
+        serviceHours: String(it.serviceHours || '').slice(0, 80),
+        orderNote: String(it.orderNote || '').slice(0, 500)
+      });
+      mallAudit(req, a, 'settings.save', 'mall-admin', JSON.stringify(a.settings).slice(0, 300));
+      saveMallAdmin(a);
+      ok(res, { settings: a.settings });
+      return;
+    }
+    return fail(res, 400, '后台动作不对');
+  }
+  if (parts[0] === 'ops' && parts[1] === 'mallorders' && method === 'GET') {
+    if (!canUseMallAdmin()) return fail(res, 403, '没有权限');
+    const only = String(query.get('only') || '');
+    const a = readMallAdmin();
+    let rows = a.orders;
+    if (only === 'wait') rows = rows.filter((o) => ['wait', 'grouping'].includes(o.status));
+    else if (only === 'shipping') rows = rows.filter((o) => o.status === 'shipped');
+    else if (only === 'done') rows = rows.filter((o) => o.status === 'done');
+    else if (only === 'pending') rows = rows.filter((o) => o.status === 'paying');
+    ok(res, { orders: rows.slice(0, 500).map((o) => mallOrderView(o, true)) });
+    return;
+  }
+  if (parts[0] === 'ops' && parts[1] === 'ship' && method === 'POST') {
+    if (!canUseMallAdmin()) return fail(res, 403, '没有权限');
+    const b = await readBody(req);
+    const a = readMallAdmin();
+    const order = mallFindOrder(a, String(b.id || ''));
+    if (!order) return fail(res, 404, '订单不存在');
+    order.status = 'shipped';
+    order.express = {
+      company: String(b.company || '').slice(0, 40),
+      no: String(b.no || '').slice(0, 80),
+      code: String(b.code || '').slice(0, 40)
+    };
+    order.logistics = Array.isArray(order.logistics) ? order.logistics : [];
+    order.logistics.push({ time: now(), text: '商家已发货：' + order.express.company + ' ' + order.express.no, src: 'admin' });
+    order.updatedAt = now();
+    mallAudit(req, a, 'order.ship', order.id, order.express.company + ' ' + order.express.no);
+    saveMallAdmin(a);
+    ok(res, { order: mallOrderView(order, true) });
+    return;
+  }
+  if (parts[0] === 'ops' && parts[1] === 'logistics' && method === 'POST') {
+    if (!canUseMallAdmin()) return fail(res, 403, '没有权限');
+    const b = await readBody(req);
+    const a = readMallAdmin();
+    const order = mallFindOrder(a, String(b.id || ''));
+    if (!order) return fail(res, 404, '订单不存在');
+    order.logistics = Array.isArray(order.logistics) ? order.logistics : [];
+    order.logistics.push({ time: now(), text: String(b.text || '').slice(0, 500), src: 'admin' });
+    order.updatedAt = now();
+    mallAudit(req, a, 'order.logistics', order.id, String(b.text || '').slice(0, 200));
+    saveMallAdmin(a);
+    ok(res, { order: mallOrderView(order, true) });
+    return;
+  }
+  if (parts[0] === 'ops' && parts[1] === 'aftersales' && method === 'GET') {
+    if (!canUseMallAdmin()) return fail(res, 403, '没有权限');
+    const only = String(query.get('only') || 'pending');
+    const a = readMallAdmin();
+    const rows = a.afterSales.filter((x) => only === 'all' || x.status === only).slice(0, 500);
+    ok(res, { orders: rows });
+    return;
+  }
+  if (parts[0] === 'ops' && parts[1] === 'aftersale' && parts[2] === 'review' && method === 'POST') {
+    if (!canUseMallAdmin()) return fail(res, 403, '没有权限');
+    const b = await readBody(req);
+    const a = readMallAdmin();
+    const row = a.afterSales.find((x) => String(x.id) === String(b.id || '') ||
+      String(x.orderId) === String(b.id || ''));
+    if (!row) return fail(res, 404, '售后单不存在');
+    row.status = b.pass === false ? 'rejected' : 'approved';
+    row.note = String(b.note || '').slice(0, 500);
+    row.reviewedAt = now();
+    row.reviewedBy = String(user.username || user.id);
+    const order = mallFindOrder(a, row.orderId);
+    if (order) {
+      order.status = row.status === 'approved' ? 'refunded' : order.status === 'aftersale' ? 'wait' : order.status;
+      order.updatedAt = now();
+    }
+    mallAudit(req, a, 'aftersale.review', row.id, row.status + ' · ' + row.note);
+    saveMallAdmin(a);
+    ok(res, { afterSale: row });
+    return;
+  }
+  if (parts[0] === 'ops' && parts[1] === 'coupon' && parts[2] === 'send' && method === 'POST') {
+    if (!canUseMallAdmin()) return fail(res, 403, '没有权限');
+    const b = await readBody(req);
+    const target = findUser(String(b.to || ''));
+    if (!target) return fail(res, 404, '用户不存在');
+    const a = readMallAdmin();
+    const count = Math.max(1, Math.min(100, Math.floor(Number(b.count) || 1)));
+    const days = Math.max(1, Math.min(365, Math.floor(Number(b.days) || 7)));
+    for (let i = 0; i < count; i++) {
+      a.couponClaims.unshift({
+        id: uid('cp'), couponId: String(b.couponId || 'manual'),
+        userId: String(target.id), sourceAd: 'admin',
+        title: String(b.title || '优惠券').slice(0, 40),
+        off: Math.max(0, Number(b.off) || 0),
+        min: Math.max(0, Number(b.min) || 0),
+        kind: String(b.kind || 'cash').slice(0, 20),
+        used: false, seen: false, issuedAt: now(),
+        until: new Date(Date.now() + days * 86400000).toISOString()
+      });
+    }
+    mallAudit(req, a, 'coupon.send', target.username || target.id, count + ' 张 · ' + String(b.title || ''));
+    saveMallAdmin(a);
+    ok(res, { sent: count });
+    return;
   }
 
   /* 小店：商品 + 我的订单 */
@@ -19281,7 +20053,8 @@ function adminLanOnlyOn() {
   return ui.adminLanOnly === undefined ? true : !!Number(ui.adminLanOnly);
 }
 function isAdminPath(pathname) {
-  return pathname === '/manage.html' || pathname === '/admin.html' || pathname === '/ai.html' ||
+  return pathname === '/manage.html' || pathname === '/admin.html' ||
+    pathname === '/ai.html' || pathname === '/mall-admin.html' ||
     pathname.indexOf('/api/ops') === 0 || pathname.indexOf('/api/admin') === 0;
 }
 
