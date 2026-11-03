@@ -184,6 +184,13 @@ struct DiscoverView: View {
 
             .background(OrbitTheme.canvas.ignoresSafeArea(edges: .top))
             .toolbar(.hidden, for: .navigationBar)
+            .overlay {
+                if app.offline && path.isEmpty {
+                    worldOfflineView
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: app.offline)
             .navigationDestination(for: String.self) { key in
                 if key == "moments" {
                     MomentsView()
@@ -232,6 +239,9 @@ struct DiscoverView: View {
         .onReceive(NotificationCenter.default.publisher(for: .chrisUIPrefsChanged)) { _ in
             Task { await loadItems() }
         }
+        .onChange(of: app.offline) { off in
+            if !off { Task { await loadItems() } }
+        }
         .task {
             if !loaded { await loadItems() }
             if worldArtwork.isEmpty { await loadWorldArtwork() }
@@ -239,6 +249,41 @@ struct DiscoverView: View {
         .fullScreenCover(isPresented: $showScan) {
             ScannerView { text in handleScanned(text, app: app) }
         }
+    }
+
+    private var worldOfflineView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 34, weight: .light))
+                .foregroundStyle(OrbitTheme.secondary)
+                .frame(width: 72, height: 72)
+                .background(Color.primary.opacity(0.045), in: Circle())
+
+            VStack(spacing: 6) {
+                Text(Tr("世界暂时离线"))
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.ink)
+                Text(Tr("连接恢复后会自动刷新，旧页面不会继续显示。"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(OrbitTheme.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button {
+                Task { await app.checkReachability() }
+            } label: {
+                Text(Tr("重新加载"))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .frame(height: 42)
+                    .background(OrbitTheme.jade, in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 34)
+        .background(OrbitTheme.canvas.ignoresSafeArea())
     }
 
     private var grouped: [[DiscoverItem]] {
