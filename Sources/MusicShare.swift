@@ -1052,6 +1052,7 @@ struct ListenView: View {
             Button {
                 MusicPlayer.shared.setQueue(tracks)
                 MusicPlayer.shared.toggle(lead)
+                MusicSheet.shared.open(lead)
             } label: {
                 ZStack(alignment: .bottomLeading) {
                     RemoteImage(path: lead.cover ?? "", mode: .fill, maxSide: 900)
@@ -1449,6 +1450,7 @@ struct ListenView: View {
         let track = friend.asTrack
         return Button {
             MusicPlayer.shared.toggle(track)
+            MusicSheet.shared.open(track)
         } label: {
             HStack(spacing: 14) {
                 ZStack(alignment: .bottomLeading) {
@@ -1647,6 +1649,7 @@ struct ListenView: View {
         let track = friend.asTrack
         return Button {
             MusicPlayer.shared.toggle(track)
+            MusicSheet.shared.open(track)
         } label: {
             HStack(spacing: 12) {
                 Avatar(path: friend.avatar ?? "", size: 46, radius: 23)
@@ -1687,6 +1690,7 @@ struct ListenView: View {
         } else {
             MusicPlayer.shared.setQueue(tracks)
             MusicPlayer.shared.toggle(track)
+            MusicSheet.shared.open(track)
         }
     }
 
@@ -1942,7 +1946,10 @@ struct ListenView: View {
 
     private func friendRow(_ f: FriendNowPlaying) -> some View {
         let t = f.asTrack
-        return Button { MusicPlayer.shared.toggle(t) } label: {
+        return Button {
+            MusicPlayer.shared.toggle(t)
+            MusicSheet.shared.open(t)
+        } label: {
             HStack(spacing: 12) {
                 Avatar(path: f.avatar ?? "", size: 52, radius: 12)
                 VStack(alignment: .leading, spacing: 4) {
@@ -2032,6 +2039,7 @@ struct ListenView: View {
             } else {
                 MusicPlayer.shared.setQueue(tracks)
                 MusicPlayer.shared.toggle(t)
+                MusicSheet.shared.open(t)
             }
         } label: {
             VStack(alignment: .leading, spacing: 7) {
@@ -2065,6 +2073,7 @@ struct ListenView: View {
 
                 MusicPlayer.shared.setQueue(tracks)
                 MusicPlayer.shared.toggle(t)
+                MusicSheet.shared.open(t)
             }
         } label: {
             HStack(spacing: 12) {
@@ -2482,6 +2491,8 @@ struct MusicPlayingView: View {
                             .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity)
+
+                    coverLyricSwitch
 
                     VStack(spacing: 2) {
                         Slider(value: Binding(

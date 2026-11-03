@@ -190,6 +190,7 @@ struct MusicSongRow: View {
             Button {
                 MusicPlayer.shared.setQueue(queue.isEmpty ? [track] : queue)
                 MusicPlayer.shared.toggle(track)
+                MusicSheet.shared.open(track)
             } label: {
                 HStack(spacing: 12) {
                     MusicCover(path: track.cover ?? "", size: 52, radius: 10)
