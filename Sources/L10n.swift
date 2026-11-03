@@ -469,6 +469,7 @@ enum L10n {
         "暂停": "Pause",
         "查看歌词": "View lyrics",
         "打开完整歌词": "Open full lyrics",
+        "退出横屏": "Exit landscape",
         "分钟": "minutes",
         "关闭定时": "Turn off sleep timer",
         "定时": "Timer",

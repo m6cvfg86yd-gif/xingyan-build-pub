@@ -2139,7 +2139,7 @@ struct ListenView: View {
                 .frame(maxWidth: .infinity).frame(height: 100)
             Spacer(minLength: 0)
         } else if tracks.isEmpty {
-            VStack(spacing: 10) {
+            VStack(spacing: 7) {
                 Image(systemName: "music.note.list")
                     .font(.system(size: 30, weight: .light)).foregroundColor(C.subLabel)
                 Text(Tr("曲库还没有歌（后台「音乐（听一听）」里传一首）"))
@@ -3070,6 +3070,38 @@ struct MusicPlayingView: View {
         .padding(.horizontal, 4)
     }
 
+    private var landscapeHeader: some View {
+        HStack(spacing: 10) {
+            Text(Tr(player.playing ? "正在播放" : "已暂停"))
+                .font(.system(size: 11.5, weight: .semibold))
+                .tracking(0.8)
+                .foregroundStyle(OrbitTheme.jade)
+
+            Spacer(minLength: 8)
+
+            Text(t?.displayCategory ?? "")
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            Button {
+                PushCenter.forceMusicPortrait()
+            } label: {
+                Label(Tr("退出横屏"), systemImage: "rectangle.portrait")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 10)
+                    .frame(height: 29)
+                    .background(.thinMaterial, in: Capsule())
+                    .overlay {
+                        Capsule().stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+                    }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Tr("退出横屏"))
+        }
+        .padding(.leading, 4)
+    }
+
     private var titleBlock: some View {
         VStack(spacing: 5) {
             Text(t?.title ?? "")
@@ -3232,7 +3264,7 @@ struct MusicPlayingView: View {
                 }
 
             VStack(spacing: 10) {
-                nowPlayingHeader
+                landscapeHeader
                 titleBlock
                 rollingLyrics
                 progressBlock(compact: true)
