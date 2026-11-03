@@ -851,7 +851,7 @@ struct ListenView: View {
                 }
 
                 if musicSheet.open {
-                    MusicPlayingView(onExit: leaveListen)
+                    MusicPlayingView(onExit: leaveMineAndListen)
                         .transition(.move(edge: .bottom))
                         .zIndex(60)
                 }
@@ -859,7 +859,7 @@ struct ListenView: View {
             .animation(.easeOut(duration: 0.22), value: musicSheet.open)
         }
         .overlay {
-            if !sendMode && musicSheet.open {
+            if !sendMode && musicSheet.open && mine == nil {
                 MusicPlayingView(onExit: leaveListen)
                     .transition(.move(edge: .bottom))
                     .zIndex(60)
@@ -900,6 +900,14 @@ struct ListenView: View {
     private func leaveListen() {
         MusicSheet.shared.close()
         dismiss()
+    }
+
+    private func leaveMineAndListen() {
+        MusicSheet.shared.close()
+        mine = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+            dismiss()
+        }
     }
 
     private var ambientCover: String {
@@ -3008,7 +3016,14 @@ struct MusicPlayingView: View {
                 queueSheet
             }
             .fullScreenCover(isPresented: $showLyrics) {
-                MusicLyricsView(track: t) { showLyrics = false }
+                MusicLyricsView(track: t) {
+                    showLyrics = false
+                    if onExit != nil {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+                            closeMe()
+                        }
+                    }
+                }
                     .environmentObject(app)
             }
             .onAppear {

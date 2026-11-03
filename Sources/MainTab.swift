@@ -199,7 +199,7 @@ struct MainTabView: View {
         }
 
         .overlay {
-            if musicSheet.open && !musicDock.foregroundActive {
+            if musicSheet.open && !musicDock.active {
                 MusicPlayingView()
                     .transition(.move(edge: .bottom))
                     .zIndex(60)
