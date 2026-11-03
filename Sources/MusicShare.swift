@@ -2575,13 +2575,14 @@ private struct FullPlayerAmbient: View {
                     RemoteImage(path: cover, mode: .fill, maxSide: 1200)
                         .frame(width: max(640, geo.size.width * 1.52),
                                height: max(760, geo.size.height * 1.52))
-                        .scaleEffect((drifting ? 1.24 : 1.12) + player.level * 0.075)
+                        .scaleEffect((drifting ? 1.30 : 1.18) + player.level * 0.08)
                         .offset(x: drifting ? geo.size.width * 0.075 : -geo.size.width * 0.055,
                                 y: drifting ? -geo.size.height * 0.035 : geo.size.height * 0.055)
-                        .blur(radius: 92, opaque: false)
-                        .saturation(scheme == .dark ? 1.34 : 1.14)
-                        .opacity((scheme == .dark ? 0.50 : 0.30)
-                                 + Double(player.level) * 0.10)
+                        .blur(radius: 76, opaque: false)
+                        .saturation(scheme == .dark ? 1.52 : 1.36)
+                        .brightness(scheme == .dark ? 0.015 : 0.055)
+                        .opacity((scheme == .dark ? 0.64 : 0.52)
+                                 + Double(player.level) * 0.08)
                         .id(cover)
                         .transition(.opacity)
 
@@ -2590,10 +2591,10 @@ private struct FullPlayerAmbient: View {
                                height: max(420, geo.size.height * 0.78))
                         .offset(x: geo.size.width * 0.20, y: -geo.size.height * 0.22)
                         .blur(radius: 110, opaque: false)
-                        .saturation(1.28)
+                        .saturation(1.46)
                         .blendMode(scheme == .dark ? .screen : .softLight)
-                        .opacity((scheme == .dark ? 0.18 : 0.12)
-                                 + Double(player.level) * 0.08)
+                        .opacity((scheme == .dark ? 0.24 : 0.18)
+                                 + Double(player.level) * 0.10)
                         .id("detail-\(cover)")
                         .transition(.opacity)
                 }
@@ -2609,14 +2610,23 @@ private struct FullPlayerAmbient: View {
                 )
 
                 LinearGradient(
+                    colors: [
+                        Color.white.opacity(scheme == .dark ? 0.06 : 0.20),
+                        Color.clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                LinearGradient(
                     stops: [
+                        .init(color: Color(uiColor: .systemBackground).opacity(0.01), location: 0),
                         .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.08 : 0.14), location: 0),
+                            .opacity(scheme == .dark ? 0.08 : 0.10), location: 0.42),
                         .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.28 : 0.36), location: 0.38),
+                            .opacity(scheme == .dark ? 0.42 : 0.46), location: 0.78),
                         .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.78 : 0.82), location: 0.76),
-                        .init(color: Color(uiColor: .systemBackground).opacity(0.98), location: 1)
+                            .opacity(scheme == .dark ? 0.76 : 0.78), location: 1)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
