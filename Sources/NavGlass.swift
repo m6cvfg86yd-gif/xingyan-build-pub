@@ -94,6 +94,51 @@ struct NavPlusGlassBackground: View {
     }
 }
 
+struct NativeGlassCircleBackground: View {
+    private let shape = Circle()
+
+    var body: some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            Color.clear
+                .glassEffect(.regular, in: shape)
+                .overlay(shape.stroke(Color.white.opacity(0.20), lineWidth: 0.7))
+                .shadow(color: Color.black.opacity(0.10), radius: 7, y: 3)
+                .allowsHitTesting(false)
+        } else {
+            fallback
+        }
+        #else
+        fallback
+        #endif
+    }
+
+    private var fallback: some View {
+        shape
+            .fill(.ultraThinMaterial)
+            .overlay(shape.stroke(Color.white.opacity(0.32), lineWidth: 0.7))
+            .shadow(color: Color.black.opacity(0.10), radius: 7, y: 3)
+            .allowsHitTesting(false)
+    }
+}
+
+struct NativeGlassPlusButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "plus")
+                .font(.system(size: 16.5, weight: .semibold))
+                .foregroundStyle(OrbitTheme.ink)
+                .frame(width: 38, height: 38)
+                .contentShape(Circle())
+        }
+        .buttonStyle(NavPlusPressStyle())
+        .background { NativeGlassCircleBackground() }
+        .accessibilityLabel(Tr("更多"))
+    }
+}
+
 struct TopScrollProbe: View {
     var space: String
     var body: some View {
