@@ -1602,6 +1602,7 @@ final class API {
         if let saved = UserDefaults.standard.string(forKey: "chris.server"),
            !saved.isEmpty,
            !legacyServers.contains(API.normalizeServer(saved)),
+           !API.retiredEndpoints.contains(API.normalizeServer(saved)),
            API.trustedHost(saved) {
             server = API.normalizeServer(saved)
         } else {
