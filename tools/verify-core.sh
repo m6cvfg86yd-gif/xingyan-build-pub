@@ -71,3 +71,5 @@ if failed:
 
 print("Protected chat verification passed.")
 PY
+
+python3 "$ROOT/tools/verify-l10n.py"

@@ -462,6 +462,8 @@ struct MeView: View {
                     PrivacyView()
                 } else if key == "general" {
                     GeneralView()
+                } else if key == "language" {
+                    LanguageView()
                 } else if key == "storage" {
                     StorageView()
                 } else if key == "feedback" {
@@ -1142,7 +1144,6 @@ struct SettingsView: View {
     @State private var showTeen = false
     @State private var showCare = false
     @State private var showAbout = false
-    @State private var showLang = false
     @State private var showPairApprove = false
     @State private var showSwitchAccount = false
 
@@ -1316,11 +1317,6 @@ struct SettingsView: View {
             DiagView().environmentObject(app)
         }
 
-        .confirmationDialog(Tr("界面语言"), isPresented: $showLang, titleVisibility: .visible) {
-            Button(Tr("简体中文")) { setLang("zh") }
-            Button("English") { setLang("en") }
-            Button(Tr("取消"), role: .cancel) { }
-        }
         .task {
             hasPay = await API.shared.hasPayPassword()
 
@@ -1350,13 +1346,6 @@ struct SettingsView: View {
             }
             Button(Tr("取消"), role: .cancel) { }
         }
-    }
-
-    private func setLang(_ code: String) {
-        Lang.code = code
-        app.show(code == "en" ? "Language switched to English" : "界面语言已切成中文")
-        dismiss()
-
     }
 
     private func changeBg(_ image: UIImage) {
@@ -1431,8 +1420,8 @@ struct SettingsView: View {
                               keywords: "聊天背景 背景 壁纸 图片", key: "chatbg"),
             SettingSearchItem(title: Tr("外观"), sub: "",
                               keywords: "外观 深色 浅色 跟随系统 主题", run: { showTheme = true }),
-            SettingSearchItem(title: Tr("界面语言"), sub: "",
-                              keywords: "界面语言 语言 中文 英文 language", run: { showLang = true }),
+            SettingSearchItem(title: Tr("界面语言"), sub: Lang.name,
+                              keywords: "界面语言 语言 中文 英文 俄语 language", key: "language"),
             SettingSearchItem(title: Tr("帮助与反馈"), sub: "",
                               keywords: "帮助 反馈 意见 客服 投诉", key: "feedback"),
             SettingSearchItem(title: Tr("关于我们 · 版本更新"), sub: AppInfo.displayVersion + " · " + AppInfo.build,

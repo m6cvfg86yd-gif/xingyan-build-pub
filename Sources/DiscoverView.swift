@@ -25,6 +25,9 @@ struct DiscoverView: View {
 
     private var momentCountText: String {
         let count = app.moments.count
+        if Lang.isRussian {
+            return "\(count) новых публикаций"
+        }
         if Lang.isEnglish {
             return "\(count) new \(count == 1 ? "post" : "posts")"
         }
@@ -34,6 +37,9 @@ struct DiscoverView: View {
     private var heroStatusText: String {
         guard !app.moments.isEmpty else {
             return Tr("记录此刻，也看看朋友们的日常")
+        }
+        if Lang.isRussian {
+            return "\(momentCountText) · Сейчас"
         }
         if Lang.isEnglish {
             return "\(momentCountText) · Happening now"

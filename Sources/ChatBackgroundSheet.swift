@@ -9,6 +9,14 @@ func normalizedChatBackground(_ path: String) -> String {
     }
 }
 
+func serverChatBackgroundRef(_ path: String) -> String {
+    switch normalizedChatBackground(path) {
+    case "solid:white": return "/bg/bw1.jpg"
+    case "solid:black": return "/bg/bw2.jpg"
+    default: return path
+    }
+}
+
 func chatBackgroundSolidColor(_ path: String) -> Color? {
     switch normalizedChatBackground(path) {
     case "solid:white": return .white
@@ -77,7 +85,8 @@ struct ChatBackgroundSheet: View {
             let v = synced.isEmpty ? store.get(chatId) : synced
             return v.isEmpty ? "auto" : v
         }
-        return app.me?.chatBackground ?? "auto"
+        let value = app.me?.chatBackground ?? "auto"
+        return value.isEmpty ? "auto" : value
     }
 
     var body: some View {
@@ -237,13 +246,14 @@ struct ChatBackgroundSheet: View {
     private func pick(_ path: String, cacheKey: String = "") {
 
         primeBackgroundCache(path: path, cacheKey: cacheKey)
+        let storedPath = serverChatBackgroundRef(path)
         if inChat {
             let oldUser = app.me
             let oldLocal = ChatBgStore.shared.get(chatId)
-            applyChatBackground(path)
+            applyChatBackground(storedPath)
             Task {
                 busy = true
-                if let saved = await API.shared.changeChatBackground(chatId: chatId, path: path) {
+                if let saved = await API.shared.changeChatBackground(chatId: chatId, path: storedPath) {
                     applySyncedChatBackgrounds(saved)
                     app.show(path == "auto" ? Tr("已改用全局背景") : Tr("这个聊天的背景换好了"))
                 } else {
@@ -257,14 +267,16 @@ struct ChatBackgroundSheet: View {
         }
         let oldUser = app.me
         if var me = app.me {
-            me.chatBackground = path
+            me.chatBackground = storedPath
             app.me = me
         }
         Task {
             busy = true
             if path == "auto" {
                 // 全局背景和所有会话覆盖必须由同一个请求一起清除，避免旧分片回写。
-                if await API.shared.resetChatBackgrounds() {
+                let reset = await API.shared.resetChatBackgrounds()
+                let saved = reset || await API.shared.changeBackground("auto")
+                if saved {
                     store.clearAll()
                     if var me = app.me {
                         me.chatBackground = "auto"
@@ -277,7 +289,7 @@ struct ChatBackgroundSheet: View {
                     app.show(Tr("背景没保存上，检查网络"))
                 }
             } else {
-                if await API.shared.changeBackground(path) {
+                if await API.shared.changeBackground(storedPath) {
                     app.show(Tr("背景换好了"))
                 } else {
                     app.me = oldUser

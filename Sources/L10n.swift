@@ -2,8 +2,18 @@ import SwiftUI
 
 func Tr(_ zh: String) -> String {
     let display = zh.replacingOccurrences(of: "朋友圈", with: "生活圈")
-    guard Lang.isEnglish else { return display }
-    return L10n.dict[zh] ?? L10n.dict[display] ?? display
+    switch Lang.code {
+    case "en":
+        return L10n.dict[zh] ?? L10n.dict[display] ?? display
+    case "ru":
+        return L10nRussian.dict[zh]
+            ?? L10nRussian.dict[display]
+            ?? L10n.dict[zh]
+            ?? L10n.dict[display]
+            ?? display
+    default:
+        return display
+    }
 }
 
 enum L10n {
@@ -1044,6 +1054,15 @@ enum L10n {
         "运动": "Sports",
         "逛街": "Shopping",
         "做饭": "Cooking",
+        "备忘录": "Notes",
+        "新建备忘录": "New note",
+        "编辑备忘录": "Edit note",
+        "小星": "Xiaoxing",
+        "小星 Pro": "Xiaoxing Pro",
+        "小星智能助手": "Xiaoxing Assistant",
+        "小星设置": "Xiaoxing settings",
+        "听音乐": "Listen to Music",
+        "切换后立即生效，已经打开的页面会在返回时刷新。": "Takes effect immediately. Open pages refresh when you return.",
 
     ]
 }

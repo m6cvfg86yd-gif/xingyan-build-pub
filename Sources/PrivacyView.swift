@@ -457,32 +457,58 @@ struct LanguageView: View {
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
 
-    private let opts: [(String, String)] = [("zh", "简体中文"), ("en", "English")]
+    private let options: [(code: String, name: String, detail: String)] = [
+        ("zh", "简体中文", "Chinese"),
+        ("en", "English", "English"),
+        ("ru", "Русский", "Russian")
+    ]
 
     var body: some View {
         List {
             Section {
-                Picker("", selection: Binding(
-                    get: { Lang.code },
-                    set: { code in
-                        Lang.code = code
-                        app.show(code == "en" ? "Language switched to English"
-                                              : "界面语言已切成中文")
-                    }
-                )) {
-                    ForEach(opts, id: \.0) { option in
-                        Text(option.1).tag(option.0)
+                ForEach(options, id: \.code) { option in
+                    Button {
+                        setLanguage(option.code)
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(option.name)
+                                    .foregroundStyle(.primary)
+                                Text(option.detail)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if Lang.code == option.code {
+                                Image(systemName: "checkmark")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(.tint)
+                            }
+                        }
+                        .contentShape(Rectangle())
                     }
                 }
-                .pickerStyle(.inline)
-                .labelsHidden()
             } footer: {
-                Text(Tr("换完语言把 App 从后台划掉重开，全部界面文字才是新语言。"))
+                Text(Tr("切换后立即生效，已经打开的页面会在返回时刷新。"))
             }
         }
         .listStyle(.insetGrouped)
         .navigationTitle(Tr("界面语言"))
+        .navigationBarTitleDisplayMode(.inline)
         .hidesTabBar()
+    }
+
+    private func setLanguage(_ code: String) {
+        guard Lang.code != code else { return }
+        Lang.code = code
+        switch code {
+        case "en":
+            app.show("Language switched to English")
+        case "ru":
+            app.show("Язык интерфейса переключён на русский")
+        default:
+            app.show("界面语言已切换为中文")
+        }
     }
 }
 

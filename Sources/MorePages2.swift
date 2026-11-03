@@ -14,7 +14,13 @@ final class LangStore: ObservableObject {
         } else {
 
             let sys = Locale.preferredLanguages.first?.lowercased() ?? "zh"
-            code = sys.hasPrefix("en") ? "en" : "zh"
+            if sys.hasPrefix("ru") {
+                code = "ru"
+            } else if sys.hasPrefix("en") {
+                code = "en"
+            } else {
+                code = "zh"
+            }
         }
     }
 }
@@ -24,12 +30,14 @@ enum Lang {
         get { LangStore.shared.code }
         set { LangStore.shared.code = newValue }
     }
-    static var isEnglish: Bool { LangStore.shared.code == "en" }
+    static var isEnglish: Bool { LangStore.shared.code != "zh" }
+    static var isRussian: Bool { LangStore.shared.code == "ru" }
     static func t(_ zh: String, _ en: String) -> String { isEnglish ? en : zh }
 
     static var name: String {
         switch code {
         case "en": return "English"
+        case "ru": return "Русский"
         default: return "简体中文"
         }
     }
