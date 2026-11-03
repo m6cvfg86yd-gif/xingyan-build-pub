@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import UniformTypeIdentifiers
+import UIKit
 
 struct MusicTrack: Decodable, Identifiable, Hashable {
     var id: String
@@ -2704,20 +2705,24 @@ struct MusicPlayingView: View {
     }
 
     private func playerAction(icon: String, name: String, count: Int?,
-                              tint: Color, burst: Bool = false,
+                              tint: Color, burst: Bool = false, compact: Bool = false,
                               tap: @escaping () -> Void) -> some View {
         Button { tap() } label: {
-            VStack(spacing: 3) {
+            VStack(spacing: compact ? 1 : 3) {
                 ZStack {
                     if burst { HeartBurst(intensity: 1.35) }
                     Image(systemName: icon)
-                        .font(.system(size: 21, weight: .semibold))
+                        .font(.system(size: compact ? 17.5 : 21, weight: .semibold))
                         .foregroundColor(tint)
                 }
                 if let c = count, c > 0 {
-                    Text("\(c)").font(pf(11.5)).foregroundColor(C.subLabel)
+                    Text("\(c)")
+                        .font(pf(compact ? 10 : 11.5))
+                        .foregroundColor(C.subLabel)
                 }
-                Text(name).font(pf(12)).foregroundColor(C.subLabel)
+                Text(name)
+                    .font(pf(compact ? 10.5 : 12))
+                    .foregroundColor(C.subLabel)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
@@ -2995,7 +3000,7 @@ struct MusicPlayingView: View {
     }
 
     private var portraitArtworkSide: CGFloat {
-        min(330, L.width - 62, L.height * 0.40)
+        min(356, L.width - 50, L.height * 0.43)
     }
 
     private func artworkSize(in size: CGSize) -> CGFloat {
@@ -3105,52 +3110,87 @@ struct MusicPlayingView: View {
         }
     }
 
-    private var nowPlayingHeader: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(Tr(player.playing ? "正在播放" : "已暂停"))
-                .font(.system(size: 11.5, weight: .semibold))
-                .tracking(0.8)
-                .foregroundStyle(OrbitTheme.jade)
-            Spacer(minLength: 8)
-            MusicPulseBars(level: player.level, playing: player.playing)
-            Text(t?.displayCategory ?? "")
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 4)
+    private func chromeCircle<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundStyle(.primary)
+            .frame(width: 38, height: 38)
+            .background(.thinMaterial, in: Circle())
+            .overlay {
+                Circle().stroke(Color.primary.opacity(0.065), lineWidth: 0.5)
+            }
     }
 
-    private var landscapeHeader: some View {
+    private func playerTopBar(landscape: Bool) -> some View {
         HStack(spacing: 10) {
-            Text(Tr(player.playing ? "正在播放" : "已暂停"))
-                .font(.system(size: 11.5, weight: .semibold))
-                .tracking(0.8)
-                .foregroundStyle(OrbitTheme.jade)
+            Button {
+                closeMe()
+            } label: {
+                chromeCircle {
+                    Image(systemName: "chevron.down")
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Tr("关闭"))
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 7) {
+                    Text(Tr(player.playing ? "正在播放" : "已暂停"))
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .tracking(0.8)
+                        .foregroundStyle(OrbitTheme.jade)
+                    MusicPulseBars(level: player.level, playing: player.playing)
+                }
+                if !landscape, !(t?.displayCategory ?? "").isEmpty {
+                    Text(t?.displayCategory ?? "")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             Spacer(minLength: 8)
 
-            MusicPulseBars(level: player.level, playing: player.playing)
-            Text(t?.displayCategory ?? "")
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(.secondary)
+            if landscape {
+                Button {
+                    PushCenter.forceMusicPortrait()
+                } label: {
+                    Label(Tr("退出横屏"), systemImage: "rectangle.portrait")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 9)
+                        .frame(height: 32)
+                        .background(.thinMaterial, in: Capsule())
+                        .overlay {
+                            Capsule().stroke(Color.primary.opacity(0.065), lineWidth: 0.5)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Tr("退出横屏"))
+            }
 
             Button {
-                PushCenter.forceMusicPortrait()
+                showLyrics = true
             } label: {
-                Label(Tr("退出横屏"), systemImage: "rectangle.portrait")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 10)
-                    .frame(height: 29)
-                    .background(.thinMaterial, in: Capsule())
-                    .overlay {
-                        Capsule().stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
-                    }
+                chromeCircle {
+                    Image(systemName: "quote.bubble")
+                }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(Tr("退出横屏"))
+            .accessibilityLabel(Tr("查看歌词"))
+
+            playbackMenu
+                .font(.system(size: 16, weight: .semibold))
+                .frame(width: 38, height: 38)
+                .background(.thinMaterial, in: Circle())
+                .overlay {
+                    Circle().stroke(Color.primary.opacity(0.065), lineWidth: 0.5)
+                }
         }
-        .padding(.leading, 4)
+        .padding(.horizontal, 18)
+        .padding(.top, 6)
+        .padding(.bottom, 6)
     }
 
     private var titleBlock: some View {
@@ -3167,26 +3207,104 @@ struct MusicPlayingView: View {
         .frame(maxWidth: .infinity)
     }
 
+    private var compactTitleBlock: some View {
+        VStack(spacing: 3) {
+            Text(t?.title ?? "")
+                .font(.system(size: 21, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+            Text(t?.artistText ?? "")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private func progressBlock(compact: Bool) -> some View {
-        VStack(spacing: compact ? 0 : 2) {
-            Slider(value: Binding(
-                get: { dragging ? dragValue : player.progress },
-                set: { dragValue = $0 }
-            ), in: 0...1, onEditingChanged: { editing in
-                dragging = editing
-                if !editing { MusicPlayer.shared.seek(dragValue) }
-            })
-            .tint(OrbitTheme.jade)
-            .controlSize(compact ? .regular : .large)
+        VStack(spacing: compact ? 1 : 3) {
+            GeometryReader { geo in
+                let value = min(max(dragging ? dragValue : player.progress, 0), 1)
+                let width = max(geo.size.width, 1)
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.primary.opacity(0.10))
+                        .frame(height: compact ? 3.5 : 4.5)
+
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [OrbitTheme.jade.opacity(0.72), OrbitTheme.jade],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(0, width * value),
+                               height: compact ? 3.5 : 4.5)
+                        .shadow(color: OrbitTheme.jade.opacity(0.30),
+                                radius: dragging ? 7 : 3)
+
+                    Circle()
+                        .fill(Color(uiColor: .systemBackground))
+                        .frame(width: dragging ? 17 : 14,
+                               height: dragging ? 17 : 14)
+                        .overlay {
+                            Circle().stroke(OrbitTheme.jade, lineWidth: 2)
+                        }
+                        .shadow(color: OrbitTheme.jade.opacity(0.32),
+                                radius: dragging ? 9 : 5)
+                        .offset(x: min(max(width * value
+                                           - (dragging ? 8.5 : 7), 0),
+                                      max(0, width - (dragging ? 17 : 14))))
+                }
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            if !dragging {
+                                dragging = true
+                                UISelectionFeedbackGenerator().selectionChanged()
+                            }
+                            dragValue = min(max(gesture.location.x / width, 0), 1)
+                        }
+                        .onEnded { gesture in
+                            dragValue = min(max(gesture.location.x / width, 0), 1)
+                            MusicPlayer.shared.seek(dragValue)
+                            dragging = false
+                        }
+                )
+                .accessibilityElement()
+                .accessibilityLabel(Tr("播放进度"))
+                .accessibilityValue("\(Int(value * 100))%")
+                .accessibilityAdjustableAction { direction in
+                    let step = 0.05
+                    switch direction {
+                    case .increment:
+                        MusicPlayer.shared.seek(min(1, player.progress + step))
+                    case .decrement:
+                        MusicPlayer.shared.seek(max(0, player.progress - step))
+                    @unknown default:
+                        break
+                    }
+                }
+            }
+            .frame(height: compact ? 27 : 32)
 
             HStack {
                 Text(musicTime(dragging ? dragValue * player.total : player.seconds))
+                    .foregroundStyle(.primary.opacity(0.72))
                 Spacer()
                 Text(musicTime(player.total))
+                    .foregroundStyle(.secondary)
             }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
+            .font(.system(size: compact ? 10.5 : 11.5,
+                          weight: .medium,
+                          design: .monospaced))
+            .padding(.horizontal, 3)
         }
+        .animation(.linear(duration: 0.24), value: player.progress)
     }
 
     private func transportControls(playSize: CGFloat,
@@ -3238,14 +3356,15 @@ struct MusicPlayingView: View {
         .buttonStyle(.plain)
     }
 
-    private var playerActions: some View {
+    private func playerActions(compact: Bool) -> some View {
         HStack(spacing: 0) {
             playerAction(
                 icon: liked ? "heart.fill" : "heart",
                 name: Tr("赞"),
                 count: likeCount,
                 tint: liked ? Color(hex: 0xFF4868) : Color.primary,
-                burst: heartBurst
+                burst: heartBurst,
+                compact: compact
             ) {
                 likeIt()
             }
@@ -3253,7 +3372,8 @@ struct MusicPlayingView: View {
                 icon: "arrowshape.turn.up.right",
                 name: Tr("转发"),
                 count: t?.shareCount ?? 0,
-                tint: Color.primary
+                tint: Color.primary,
+                compact: compact
             ) {
                 shareTo = true
             }
@@ -3261,7 +3381,8 @@ struct MusicPlayingView: View {
                 icon: "list.bullet",
                 name: Tr("播放列表"),
                 count: player.queue.count,
-                tint: Color.primary
+                tint: Color.primary,
+                compact: compact
             ) {
                 showQueue = true
             }
@@ -3269,17 +3390,42 @@ struct MusicPlayingView: View {
                 icon: "square.and.arrow.up",
                 name: Tr("分享"),
                 count: nil,
-                tint: Color.primary
+                tint: Color.primary,
+                compact: compact
             ) {
                 shareSystem = true
             }
         }
     }
 
-    private var portraitPlayer: some View {
-        VStack(spacing: 16) {
-            nowPlayingHeader
+    private func controlDock(compact: Bool) -> some View {
+        VStack(spacing: compact ? 8 : 11) {
+            progressBlock(compact: compact)
 
+            transportControls(
+                playSize: compact ? 58 : 72,
+                iconSize: compact ? 23 : 28,
+                spacing: compact ? 34 : 40
+            )
+            .frame(maxWidth: .infinity)
+
+            playerActions(compact: compact)
+        }
+        .padding(.horizontal, compact ? 14 : 16)
+        .padding(.vertical, compact ? 11 : 14)
+        .background(
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: compact ? 23 : 28, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: compact ? 23 : 28, style: .continuous)
+                .stroke(Color.primary.opacity(0.07), lineWidth: 0.6)
+        }
+        .shadow(color: .black.opacity(0.12), radius: 24, y: 12)
+    }
+
+    private var portraitPlayer: some View {
+        VStack(spacing: 14) {
             artworkPanel
                 .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .onTapGesture {
@@ -3292,15 +3438,11 @@ struct MusicPlayingView: View {
 
             rollingLyrics
 
-            progressBlock(compact: false)
-
-            transportControls(playSize: 70, iconSize: 28, spacing: 34)
-
-            playerActions
+            controlDock(compact: false)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 12)
-        .padding(.bottom, max(28, L.safeBottom + 16))
+        .padding(.horizontal, 22)
+        .padding(.top, 4)
+        .padding(.bottom, max(24, L.safeBottom + 12))
     }
 
     private func landscapePlayer(size: CGSize) -> some View {
@@ -3314,67 +3456,42 @@ struct MusicPlayingView: View {
                     }
                 }
 
-            VStack(spacing: 10) {
-                landscapeHeader
-                titleBlock
+            VStack(spacing: 9) {
+                compactTitleBlock
                 rollingLyrics
-                progressBlock(compact: true)
-                transportControls(playSize: 56, iconSize: 23, spacing: 30)
-                playerActions
+                controlDock(compact: true)
             }
             .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, max(24, size.width * 0.045))
-        .padding(.top, 4)
-        .padding(.bottom, max(12, L.safeBottom))
+        .padding(.horizontal, max(20, size.width * 0.04))
+        .padding(.top, 2)
+        .padding(.bottom, max(10, L.safeBottom))
     }
 
     var body: some View {
         NavigationStack {
             GeometryReader { geo in
-                ScrollView(showsIndicators: false) {
-                    Group {
-                        if geo.size.width > geo.size.height {
-                            landscapePlayer(size: geo.size)
-                        } else {
-                            portraitPlayer
-                        }
-                    }
-                }
-                .background {
+                let landscape = geo.size.width > geo.size.height
+                ZStack {
                     FullPlayerAmbient(track: t)
-                }
-            }
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        closeMe()
-                    } label: {
-                        Image(systemName: "chevron.down")
-                    }
-                    .accessibilityLabel(Tr("关闭"))
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button {
-                            showLyrics = true
-                        } label: {
-                            Image(systemName: "quote.bubble")
+
+                    VStack(spacing: 0) {
+                        playerTopBar(landscape: landscape)
+
+                        ScrollView(showsIndicators: false) {
+                            Group {
+                                if landscape {
+                                    landscapePlayer(size: geo.size)
+                                } else {
+                                    portraitPlayer
+                                }
+                            }
                         }
-                        .accessibilityLabel(Tr("查看歌词"))
-                        playbackMenu
                     }
                 }
             }
-            .simultaneousGesture(DragGesture(minimumDistance: 12).onEnded { value in
-                if value.translation.height > 90,
-                   abs(value.translation.height) > abs(value.translation.width) * 1.2 {
-                    closeMe()
-                }
-            })
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $shareTo) {
                 ForwardPickerView(items: [ForwardItem(kind: "music", content: musicCardJSON)]) {
                     if let track = t { Task { await API.shared.musicShareCount(track.id) } }

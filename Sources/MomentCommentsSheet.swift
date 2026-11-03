@@ -514,7 +514,6 @@ struct MomentCommentsSheet: View {
                         Text("\(count)")
                             .font(pf(11.5, .medium))
                             .foregroundColor(liked ? Color(hex: 0xFF4868) : C.subLabel)
-                            .contentTransition(.numericText())
                     }
                 }
                 .frame(height: 28)

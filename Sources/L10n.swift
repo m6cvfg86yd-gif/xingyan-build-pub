@@ -467,6 +467,7 @@ enum L10n {
         "下一首": "Next track",
         "播放": "Play",
         "暂停": "Pause",
+        "播放进度": "Playback position",
         "查看歌词": "View lyrics",
         "打开完整歌词": "Open full lyrics",
         "退出横屏": "Exit landscape",
