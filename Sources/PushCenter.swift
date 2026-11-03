@@ -5,6 +5,8 @@ import UserNotifications
 final class PushCenter: NSObject, ObservableObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     static let shared = PushCenter()
 
+    private static var supportedOrientations: UIInterfaceOrientationMask = .portrait
+
     @Published private(set) var token = ""
 
     @Published private(set) var authorized = false
@@ -18,6 +20,32 @@ final class PushCenter: NSObject, ObservableObject, UIApplicationDelegate, UNUse
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         return true
+    }
+
+    func application(_ application: UIApplication,
+                     supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        Self.supportedOrientations
+    }
+
+    @MainActor
+    static func setMusicLandscape(_ enabled: Bool) {
+        supportedOrientations = enabled
+            ? [.portrait, .landscapeLeft, .landscapeRight]
+            : .portrait
+
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })
+            ?? UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first
+        else { return }
+
+        scene.requestGeometryUpdate(
+            .iOS(interfaceOrientations: enabled
+                 ? [.portrait, .landscapeLeft, .landscapeRight]
+                 : .portrait)
+        )
     }
 
     func application(_ application: UIApplication,

@@ -22,7 +22,11 @@
     <key>UIColorName</key><string>LaunchBg</string>
   </dict>
   <key>UISupportedInterfaceOrientations</key>
-  <array><string>UIInterfaceOrientationPortrait</string></array>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
   <key>UIViewControllerBasedStatusBarAppearance</key><true/>
   <key>NSFaceIDUsageDescription</key><string>CHRIS聊天 需要面容 ID 让你刷脸登录</string>
   <key>NSMicrophoneUsageDescription</key><string>CHRIS聊天 需要使用麦克风进行语音聊天和语音通话</string>
