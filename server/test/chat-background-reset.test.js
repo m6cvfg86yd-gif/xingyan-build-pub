@@ -104,6 +104,24 @@ async function main() {
       : response.headers.get('set-cookie') || '';
     const cookie = rawCookie.split(';')[0];
 
+    /*
+     * 新 App 在本地显示 solid:white/solid:black，但发给旧线上服务时会转成
+     * 这两个旧路径。先锁住旧协议，避免换包后在线上又恢复不了默认壁纸。
+     */
+    for (const legacyPath of ['/bg/bw1.jpg', '/bg/bw2.jpg']) {
+      response = await call(base, 'PATCH', '/api/me',
+        { chatBackground: legacyPath }, cookie);
+      assert.equal(response.status, 200, JSON.stringify(response.data));
+      assert.equal(response.data.user.chatBackground, legacyPath,
+        '旧版默认壁纸路径没有保存成功');
+    }
+
+    response = await call(base, 'PATCH', '/api/me',
+      { chatBackground: 'auto' }, cookie);
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.user.chatBackground, 'auto',
+      '旧接口 auto 回退没有恢复默认背景');
+
     response = await call(base, 'POST', '/api/me/chat-background',
       { resetAll: true }, cookie);
     assert.equal(response.status, 200, JSON.stringify(response.data));
