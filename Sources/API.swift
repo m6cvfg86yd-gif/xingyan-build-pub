@@ -1523,7 +1523,7 @@ final class API {
 
     private(set) var token: String = ""
 
-    private(set) var server: String = "43.242.194.89"
+    private(set) var server: String = "43.242.194.89:8443"
 
     private(set) var backups: [String] = API.builtinBackups
 
@@ -1569,10 +1569,10 @@ final class API {
     }
 
     static let builtinBackups: [String] = [
-        "43.242.194.89:8443",
-        "u.598218.xyz"
+        "43.242.194.89:8443"
     ]
     private static let retiredEndpoints: Set<String> = [
+        "43.242.194.89:443",
         "43.242.194.89:5443"
     ]
 
