@@ -1206,12 +1206,9 @@ struct ListenView: View {
         if cats.count > 1 {
             musicSectionHeader(Tr("分类"))
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 18) {
+                LazyHStack(spacing: 14) {
                     ForEach(cats, id: \.self) { value in
-                        categoryChip(value, selected: cat == value) {
-                            cat = value
-                            tab = 1
-                        }
+                        categoryLargeCard(value)
                     }
                 }
                 .padding(.horizontal, 18)
@@ -1221,18 +1218,15 @@ struct ListenView: View {
 
         musicSectionHeader(Tr("为你推荐"), refresh: true)
 
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 14),
-                GridItem(.flexible(), spacing: 14)
-            ],
-            spacing: 20
-        ) {
-            ForEach(Array(recommend.prefix(8))) { track in
-                discoveryCard(track)
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 14) {
+                ForEach(Array(recommend.prefix(10))) { track in
+                    largeSongCard(track)
+                }
             }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 4)
         }
-        .padding(.horizontal, 18)
         .padding(.bottom, 28)
 
         if !musicLibrary.recents.isEmpty {
@@ -1314,6 +1308,157 @@ struct ListenView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var largeMusicCardSide: CGFloat {
+        min(286, max(226, L.width * 0.68))
+    }
+
+    private func categoryTracks(_ value: String) -> [MusicTrack] {
+        value.isEmpty ? tracks : tracks.filter { musicCategory($0) == value }
+    }
+
+    private func categoryCover(_ value: String) -> String {
+        categoryTracks(value).first(where: {
+            !($0.cover ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        })?.cover ?? ""
+    }
+
+    private func openCategory(_ value: String) {
+        cat = value
+        withAnimation(.easeOut(duration: 0.18)) { tab = 1 }
+        let list = categoryTracks(value)
+        guard !list.isEmpty else { return }
+        var shuffled = list.shuffled()
+        if let first = shuffled.first {
+            MusicPlayer.shared.setQueue(shuffled)
+            MusicPlayer.shared.playMode = 2
+            MusicPlayer.shared.play(first)
+        }
+    }
+
+    private func playCategoryTrack(_ track: MusicTrack) {
+        let list = categoryTracks(cat)
+        var queue = list.shuffled()
+        if let index = queue.firstIndex(where: { $0.id == track.id }) {
+            queue.swapAt(0, index)
+        } else if queue.isEmpty {
+            queue = [track]
+        }
+        MusicPlayer.shared.setQueue(queue)
+        MusicPlayer.shared.playMode = 2
+        MusicPlayer.shared.play(track)
+        MusicSheet.shared.open(track)
+    }
+
+    private func categoryLargeCard(_ value: String) -> some View {
+        let cover = categoryCover(value)
+        let count = categoryTracks(value).count
+        return Button {
+            openCategory(value)
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                if cover.isEmpty {
+                    LinearGradient(
+                        colors: [OrbitTheme.jade.opacity(0.92),
+                                 Color(hex: 0x126B48)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                } else {
+                    RemoteImage(path: cover, mode: .fill, maxSide: 720)
+                }
+
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.68)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(value)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("\(count) " + Tr("首"))
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.72))
+                }
+                .padding(13)
+
+                if let current = player.current, musicCategory(current) == value {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(.black.opacity(0.30), in: Circle())
+                        .padding(10)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity,
+                               alignment: .topTrailing)
+                }
+            }
+            .frame(width: 178, height: 120)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(.white.opacity(0.13), lineWidth: 0.6)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func largeSongCard(_ track: MusicTrack) -> some View {
+        let side = largeMusicCardSide
+        return Button {
+            playCategoryTrack(track)
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                MusicCover(path: track.cover ?? "", size: side, radius: 22)
+
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.10), .black.opacity(0.78)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(track.displayCategory)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.72))
+                        .textCase(.uppercase)
+                    Text(track.title)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                    Text(track.artistText)
+                        .font(.system(size: 13.5, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.72))
+                        .lineLimit(1)
+                }
+                .padding(16)
+
+                ZStack {
+                    Circle().fill(.ultraThinMaterial)
+                    Image(systemName: player.isPlaying(track.id) ? "pause.fill" : "play.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                        .offset(x: player.isPlaying(track.id) ? 0 : 1)
+                }
+                .frame(width: 42, height: 42)
+                .padding(13)
+                .frame(maxWidth: .infinity, maxHeight: .infinity,
+                       alignment: .topTrailing)
+            }
+            .frame(width: side, height: side)
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(.white.opacity(0.15), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.16), radius: 20, y: 10)
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -1737,9 +1882,13 @@ struct ListenView: View {
         if cats.count > 1 {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    categoryChip(Tr("全部"), selected: cat.isEmpty) { cat = "" }
+                    categoryChip(Tr("全部"), selected: cat.isEmpty) {
+                        openCategory("")
+                    }
                     ForEach(cats, id: \.self) { value in
-                        categoryChip(value, selected: cat == value) { cat = value }
+                        categoryChip(value, selected: cat == value) {
+                            openCategory(value)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -1747,9 +1896,43 @@ struct ListenView: View {
             .padding(.bottom, 18)
         }
 
-        musicSectionHeader(Tr("全部歌曲"))
-        ForEach(matched) { track in
-            premiumTrackRow(track)
+        HStack(spacing: 10) {
+            Text(cat.isEmpty ? Tr("全部歌曲") : cat)
+                .font(.system(size: 19, weight: .bold))
+                .foregroundStyle(.primary)
+            Spacer(minLength: 8)
+            Button {
+                openCategory(cat)
+            } label: {
+                Label(Tr("随机播放"), systemImage: "shuffle")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.jade)
+                    .padding(.horizontal, 11)
+                    .frame(height: 31)
+                    .background(OrbitTheme.jade.opacity(0.10), in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 14)
+
+        if matched.isEmpty {
+            Text(Tr("这个分类还没有歌曲"))
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 50)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 14) {
+                    ForEach(Array(matched.prefix(40))) { track in
+                        largeSongCard(track)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 4)
+            }
+            .padding(.bottom, 28)
         }
     }
 
