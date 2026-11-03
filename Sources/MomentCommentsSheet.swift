@@ -14,6 +14,7 @@ struct MomentCommentsSheet: View {
     @State private var replyToId = ""
     @State private var replyToName = ""
     @State private var sending = false
+    @State private var likeBusy = false
     @State private var deleting: MomentComment?
     @State private var previewIndex = 0
     @State private var fullViewerIndex: Int?
@@ -98,6 +99,8 @@ struct MomentCommentsSheet: View {
             }
             .navigationTitle(Tr("全部评论"))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(.regularMaterial, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -326,6 +329,7 @@ struct MomentCommentsSheet: View {
                 .frame(height: 32)
             }
             .buttonStyle(.plain)
+            .disabled(likeBusy)
         }
         .padding(.top, 10)
     }
@@ -355,6 +359,9 @@ struct MomentCommentsSheet: View {
             Text("\(comments.count)")
                 .font(.caption)
                 .foregroundColor(C.subLabel)
+                .padding(.horizontal, 7)
+                .frame(height: 22)
+                .background(.thinMaterial, in: Capsule())
             Spacer(minLength: 0)
             Text(Tr("最新"))
                 .font(.caption)
@@ -568,6 +575,10 @@ struct MomentCommentsSheet: View {
     }
 
     private func toggleLike() {
+        guard !likeBusy else { return }
+        likeBusy = true
+        let previousLikes = live.likes
+        let previousLiked = live.likedByMe
         let liked = live.likedByMe == true
         var nextLikes = likes
         if liked {
@@ -581,9 +592,11 @@ struct MomentCommentsSheet: View {
         live.likedByMe = !liked
         Task {
             if let error = await API.shared.likeMoment(id: live.id) {
+                live.likes = previousLikes
+                live.likedByMe = previousLiked
                 app.show(error)
             }
-            onChanged()
+            likeBusy = false
         }
     }
 
