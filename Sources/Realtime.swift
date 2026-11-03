@@ -158,7 +158,7 @@ final class Realtime: ObservableObject {
         guard !currentToken.isEmpty else { return }
         socketToken = currentToken
 
-        let host = API.shared.server
+        let host = API.shared.realtimeServer
 
         let plainHost = host.replacingOccurrences(of: ":5443", with: ":5180")
         let lanOnly = Self.isLanHost(host)

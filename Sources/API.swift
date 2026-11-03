@@ -1523,7 +1523,7 @@ final class API {
 
     private(set) var token: String = ""
 
-    private(set) var server: String = "43.242.194.89:8443"
+    private(set) var server: String = "43.242.194.89:443"
 
     private(set) var backups: [String] = API.builtinBackups
 
@@ -1572,7 +1572,6 @@ final class API {
         "43.242.194.89:8443"
     ]
     private static let retiredEndpoints: Set<String> = [
-        "43.242.194.89:443",
         "43.242.194.89:5443"
     ]
 
@@ -1705,6 +1704,10 @@ final class API {
     }
 
     var base: String { "https://\(server)" }
+
+    var realtimeServer: String {
+        server == "43.242.194.89:443" ? "43.242.194.89:8443" : server
+    }
 
     static func normalizeServer(_ raw: String) -> String {
         var v = raw.trimmingCharacters(in: .whitespacesAndNewlines)
