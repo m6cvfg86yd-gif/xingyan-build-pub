@@ -2676,6 +2676,7 @@ struct MomentRow: View {
     }
 
     private func burstHeart() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         heartBurst = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { heartBurst = false }
     }
@@ -2684,7 +2685,7 @@ struct MomentRow: View {
         HStack(spacing: 0) {
             Button {
                 withAnimation(.easeOut(duration: 0.12)) { showActions = false }
-                burstHeart()
+                if moment.likedByMe != true { burstHeart() }
                 onLike?()
             } label: {
                 HStack(spacing: 5) {

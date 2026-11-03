@@ -15,6 +15,7 @@ struct MomentCommentsSheet: View {
     @State private var replyToName = ""
     @State private var sending = false
     @State private var likeBusy = false
+    @State private var heartBurst = false
     @State private var deleting: MomentComment?
     @State private var previewIndex = 0
     @State private var fullViewerIndex: Int?
@@ -317,9 +318,12 @@ struct MomentCommentsSheet: View {
             Spacer(minLength: 0)
             Button(action: toggleLike) {
                 HStack(spacing: 4) {
-                    Image(systemName: live.likedByMe == true ? "heart.fill" : "heart")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(live.likedByMe == true ? Color(hex: 0xFA5151) : C.subLabel)
+                    ZStack {
+                        Image(systemName: live.likedByMe == true ? "heart.fill" : "heart")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(live.likedByMe == true ? Color(hex: 0xFA5151) : C.subLabel)
+                        if heartBurst { HeartBurst() }
+                    }
                     if likes.count > 0 {
                         Text("\(likes.count)")
                             .font(pf(11.5))
@@ -580,6 +584,13 @@ struct MomentCommentsSheet: View {
         let previousLikes = live.likes
         let previousLiked = live.likedByMe
         let liked = live.likedByMe == true
+        if !liked {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            heartBurst = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                heartBurst = false
+            }
+        }
         var nextLikes = likes
         if liked {
             nextLikes.removeAll { $0.userId == app.me?.id }

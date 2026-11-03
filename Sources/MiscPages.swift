@@ -1558,23 +1558,30 @@ struct HeartBurst: View {
     var body: some View {
         ZStack {
             Image(systemName: "heart.fill")
-                .font(.system(size: 20))
-                .foregroundColor(Color(hex: 0xFF5A5A))
-                .scaleEffect(1 + t * 1.5)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(Color(hex: 0xFF4F67))
+                .scaleEffect(1 + t * 1.9)
                 .opacity(Double(1 - t))
-            ForEach(0..<8, id: \.self) { i in
-                let a = Double(i) / 8 * 2 * Double.pi
-                Circle()
-                    .fill(Color(hex: 0xFF7A7A))
-                    .frame(width: 4, height: 4)
-                    .offset(x: CGFloat(cos(a)) * (8 + t * 26),
-                            y: CGFloat(sin(a)) * (8 + t * 26))
+
+            ForEach(0..<14, id: \.self) { i in
+                let angle = Double(i) / 14 * 2 * Double.pi
+                let distance = CGFloat(12 + (i % 4) * 3) + t * CGFloat(34 + (i % 3) * 8)
+                Image(systemName: i % 4 == 0 ? "sparkle" : "heart.fill")
+                    .font(.system(size: i % 4 == 0 ? 7.5 : 9.5, weight: .bold))
+                    .foregroundStyle(i % 3 == 0
+                                     ? Color(hex: 0xFFB15C)
+                                     : (i % 2 == 0 ? Color(hex: 0xFF4F67) : Color(hex: 0xFF86A0)))
+                    .rotationEffect(.degrees(Double(t) * Double(35 + i * 17)))
+                    .scaleEffect(1.05 - t * 0.5)
+                    .offset(x: CGFloat(cos(angle)) * distance,
+                            y: CGFloat(sin(angle)) * distance)
                     .opacity(Double(1 - t))
             }
         }
+        .frame(width: 0, height: 0)
         .allowsHitTesting(false)
         .onAppear {
-            withAnimation(.easeOut(duration: 0.45)) { t = 1 }
+            withAnimation(.easeOut(duration: 0.68)) { t = 1 }
         }
     }
 }
