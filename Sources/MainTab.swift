@@ -10,6 +10,7 @@ struct MainTabView: View {
     @ObservedObject private var lang = LangStore.shared
 
     @ObservedObject private var musicSheet = MusicSheet.shared
+    @ObservedObject private var musicDock = MusicDockState.shared
 
     @ObservedObject private var mallSheet = MallSheet.shared
 
@@ -190,7 +191,7 @@ struct MainTabView: View {
         }
 
         .overlay {
-            if musicSheet.open {
+            if musicSheet.open && !musicDock.active {
                 MusicPlayingView()
                     .transition(.move(edge: .bottom))
                     .zIndex(60)
@@ -209,7 +210,7 @@ struct MainTabView: View {
                 .environmentObject(app)
         }
 
-        .overlay(MiniPlayerBall(hidden: app.openChat != nil || musicSheet.open))
+        .overlay(MiniPlayerBall(hidden: app.openChat != nil || musicSheet.open || musicDock.active))
 
         .fullScreenCover(item: $app.openChat) { c in
 

@@ -754,6 +754,8 @@ struct ListenView: View {
     @State private var showFolderPick = false
     @State private var busyText = ""
     @ObservedObject private var player = MusicPlayer.shared
+    @ObservedObject private var musicSheet = MusicSheet.shared
+    @ObservedObject private var musicDock = MusicDockState.shared
 
     private var sendMode: Bool { sendTo != nil }
 
@@ -830,8 +832,10 @@ struct ListenView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar { musicToolbar }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !sendMode, let cur = player.current {
-                miniBar(cur)
+            if !sendMode && player.current != nil {
+                MusicDockedPlayerBar()
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 8)
             }
         }
         .hidesTabBar()
@@ -841,9 +845,39 @@ struct ListenView: View {
         }
 
         .fullScreenCover(item: $mine) { k in
-            NavigationStack {
-                MusicMinePage(kind: k).environmentObject(app)
+            ZStack {
+                NavigationStack {
+                    MusicMinePage(kind: k).environmentObject(app)
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if player.current != nil {
+                        MusicDockedPlayerBar()
+                            .padding(.horizontal, 10)
+                            .padding(.bottom, 8)
+                    }
+                }
+
+                if musicSheet.open {
+                    MusicPlayingView()
+                        .transition(.move(edge: .bottom))
+                        .zIndex(60)
+                }
             }
+            .animation(.easeOut(duration: 0.22), value: musicSheet.open)
+        }
+        .overlay {
+            if !sendMode && musicSheet.open {
+                MusicPlayingView()
+                    .transition(.move(edge: .bottom))
+                    .zIndex(60)
+            }
+        }
+        .animation(.easeOut(duration: 0.22), value: musicSheet.open)
+        .onAppear {
+            if !sendMode { musicDock.attach() }
+        }
+        .onDisappear {
+            if !sendMode { musicDock.detach() }
         }
         .sheet(isPresented: $showIconPick) {
             PhotoPicker { img in
@@ -1561,33 +1595,6 @@ struct ListenView: View {
         .padding(.horizontal, 16).padding(.vertical, 5)
     }
 
-    private func miniBar(_ t: MusicTrack) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                MusicCover(path: t.cover ?? "", size: 38, radius: 6)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(t.title).font(pf(14)).foregroundColor(C.label).lineLimit(1)
-                    Text(t.artistText).font(pf(11.5)).foregroundColor(C.subLabel).lineLimit(1)
-                }
-                Spacer(minLength: 6)
-                Button { MusicPlayer.shared.toggle(t) } label: {
-                    MusicPlayButton(playing: player.isPlaying(t.id), loading: player.loadingId == t.id,
-                                    size: 32, tint: .white, bg: C.green)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 14).padding(.vertical, 8)
-            .background(.ultraThinMaterial)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(Color(uiColor: .separator).opacity(0.35))
-                    .frame(height: 0.5)
-            }
-
-            .contentShape(Rectangle())
-            .onTapGesture { MusicSheet.shared.open(t) }
-        }
-    }
 }
 
 @MainActor

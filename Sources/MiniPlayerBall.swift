@@ -3,6 +3,85 @@ import UIKit
 import MediaPlayer
 import AVFoundation
 
+@MainActor
+final class MusicDockState: ObservableObject {
+    static let shared = MusicDockState()
+
+    @Published private(set) var owners = 0
+    var active: Bool { owners > 0 }
+
+    private init() {}
+
+    func attach() { owners += 1 }
+    func detach() { owners = max(0, owners - 1) }
+}
+
+struct MusicDockedPlayerBar: View {
+    @ObservedObject private var player = MusicPlayer.shared
+
+    var body: some View {
+        HStack(spacing: 12) {
+            MusicCover(path: player.current?.cover ?? "", size: 42, radius: 5)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(player.current?.title ?? "")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                Text(player.current?.artistText ?? "")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Button {
+                if let track = player.current { player.toggle(track) }
+            } label: {
+                if !player.loadingId.isEmpty && player.loadingId == (player.current?.id ?? "") {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: player.playing ? "pause.fill" : "play.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .frame(width: 38, height: 38)
+                }
+            }
+            .buttonStyle(.plain)
+            Button {
+                player.next()
+            } label: {
+                Image(systemName: "forward.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 36, height: 38)
+            }
+            .buttonStyle(.plain)
+            .disabled(player.queue.count < 2)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.regularMaterial)
+        }
+        .overlay(alignment: .bottom) {
+            GeometryReader { geo in
+                Capsule()
+                    .fill(C.green)
+                    .frame(width: max(0, geo.size.width * player.progress), height: 2)
+            }
+            .frame(height: 2)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 0.6)
+        }
+        .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let track = player.current { MusicSheet.shared.open(track) }
+        }
+    }
+}
+
 struct MiniPlayerBall: View {
     @ObservedObject private var player = MusicPlayer.shared
 
@@ -32,63 +111,8 @@ struct MiniPlayerBall: View {
     private var miniBar: some View {
         VStack {
             Spacer(minLength: 0)
-            HStack(spacing: 12) {
-                MusicCover(path: player.current?.cover ?? "", size: 42, radius: 5)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(player.current?.title ?? "")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                    Text(player.current?.artistText ?? "")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 4)
-                Button {
-                    if let t = MusicPlayer.shared.current { MusicPlayer.shared.toggle(t) }
-                } label: {
-                    if !player.loadingId.isEmpty && player.loadingId == (player.current?.id ?? "") {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: player.playing ? "pause.fill" : "play.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                            .frame(width: 38, height: 38)
-                    }
-                }
-                .buttonStyle(.plain)
-                Button {
-                    MusicPlayer.shared.next()
-                } label: {
-                    Image(systemName: "forward.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .frame(width: 36, height: 38)
-                }
-                .buttonStyle(.plain)
-                .disabled(player.queue.count < 2)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.regularMaterial)
-            }
-            .overlay(alignment: .bottom) {
-                GeometryReader { geo in
-                    Capsule()
-                        .fill(C.green)
-                        .frame(width: max(0, geo.size.width * player.progress), height: 2)
-                }
-                .frame(height: 2)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.6)
-            }
-            .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            MusicDockedPlayerBar()
             .contentShape(Rectangle())
-            .onTapGesture { openPlayer() }
             .gesture(DragGesture(minimumDistance: 10).onEnded { v in
 
                 if v.translation.height > 40 { MusicPlayer.shared.stop() }
