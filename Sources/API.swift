@@ -1569,7 +1569,6 @@ final class API {
     }
 
     static let builtinBackups: [String] = [
-        "43.242.194.89:5443",
         "43.242.194.89:8443",
         "u.598218.xyz"
     ]
@@ -1623,16 +1622,6 @@ final class API {
         var list: [String] = [server]
 
         list.append(contentsOf: backups.filter { API.trustedHost($0) })
-        for s in list {
-            let parts = s.split(separator: ":")
-            if parts.count == 2 {
-                let host = String(parts[0])
-                let port = String(parts[1])
-                list.append(host + (port == "5443" ? ":443" : ":5443"))
-            } else if !s.isEmpty {
-                list.append(s + ":5443")
-            }
-        }
         var seen = Set<String>()
         return list.filter { !$0.isEmpty && API.trustedHost($0) && seen.insert($0).inserted }
     }
