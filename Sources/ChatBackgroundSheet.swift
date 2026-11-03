@@ -275,7 +275,10 @@ struct ChatBackgroundSheet: View {
             if path == "auto" {
                 // 全局背景和所有会话覆盖必须由同一个请求一起清除，避免旧分片回写。
                 let reset = await API.shared.resetChatBackgrounds()
-                let saved = reset || await API.shared.changeBackground("auto")
+                var saved = reset
+                if !saved {
+                    saved = await API.shared.changeBackground("auto")
+                }
                 if saved {
                     store.clearAll()
                     if var me = app.me {
