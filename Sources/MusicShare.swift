@@ -1053,12 +1053,6 @@ struct ListenView: View {
         }
     }
 
-    private var ambientCover: String {
-        if let cover = player.current?.cover, !cover.isEmpty { return cover }
-        if let cover = recommend.first?.cover, !cover.isEmpty { return cover }
-        return tracks.first?.cover ?? ""
-    }
-
     @MainActor
     private func refreshTracks(force: Bool = false) async {
         if !force, Date().timeIntervalSince(lastTracksRefresh) < 15 { return }
@@ -1073,42 +1067,29 @@ struct ListenView: View {
     private var topAmbientGlow: some View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
-                if player.playing, !ambientCover.isEmpty {
-                    RemoteImage(path: ambientCover, mode: .fill, maxSide: 520)
-                        .frame(width: geo.size.width * 1.18,
-                               height: 330)
-                        .blur(radius: 72, opaque: false)
-                        .saturation(1.08)
-                        .opacity(scheme == .dark ? 0.34 : 0.28)
-                } else {
-                    RadialGradient(
-                        colors: [OrbitTheme.jade.opacity(0.24), .clear],
-                        center: .top,
-                        startRadius: 8,
-                        endRadius: 240
-                    )
-                }
+                RadialGradient(
+                    colors: [OrbitTheme.jade.opacity(scheme == .dark ? 0.20 : 0.24), .clear],
+                    center: .top,
+                    startRadius: 8,
+                    endRadius: 240
+                )
 
-                if player.playing {
-                    LinearGradient(
-                        stops: [
-                            .init(color: OrbitTheme.jade.opacity(scheme == .dark ? 0.08 : 0.05),
-                                  location: 0),
-                            .init(color: Color.clear, location: 0.46),
-                            .init(color: Color(uiColor: .systemGroupedBackground), location: 1)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                }
+                LinearGradient(
+                    stops: [
+                        .init(color: OrbitTheme.jade.opacity(scheme == .dark ? 0.06 : 0.05),
+                              location: 0),
+                        .init(color: Color.clear, location: 0.46),
+                        .init(color: Color(uiColor: .systemGroupedBackground), location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             }
             .frame(width: geo.size.width, height: 330)
         }
         .frame(height: 330)
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
-        .animation(.easeInOut(duration: 0.35), value: player.playing)
-        .animation(.easeInOut(duration: 0.45), value: ambientCover)
     }
 
     @ViewBuilder
