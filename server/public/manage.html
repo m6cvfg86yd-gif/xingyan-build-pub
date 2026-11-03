@@ -995,10 +995,12 @@ const PAGES = {};
 
 PAGES.malladmin = async () => {
   $('content').innerHTML =
-    '<div class="panel" style="overflow:hidden;padding:0">'
-    + '<iframe src="/mall-admin.html?embed=1" title="星言商城后台" '
-    + 'style="display:block;width:100%;height:calc(100vh - 122px);min-height:720px;border:0;background:#f3f5f8"></iframe>'
-    + '</div>';
+    '<div class="panel"><div class="body" style="padding:28px">'
+    + '<h3 style="margin:0 0 8px">星言商城后台</h3>'
+    + '<p class="sub" style="margin:0 0 20px">商品、库存、订单、履约、售后、优惠券、活动、店铺、财务和审计统一管理。</p>'
+    + '<a class="btn main" href="/mall-admin.html" target="_blank" rel="noopener">打开商城后台</a>'
+    + '<p class="hint" style="margin-top:14px">使用当前后台账号登录；商城后台会单独打开，避免嵌入页面的安全限制。</p>'
+    + '</div></div>';
 };
 
 /* ---------------- 仪表盘（含顶部告警栏）---------------- */
