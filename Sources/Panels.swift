@@ -108,8 +108,12 @@ struct EmojiPanel: View {
     @State private var installed: [PanelPack] = []
 
     @ObservedObject private var catalog = StickerCatalog.shared
+    @State private var expanded = false
 
     private var mineTab: Int { 3 + installed.count }
+    private var expandedH: CGFloat {
+        min(max(panelH * 2.15, 390), L.height * 0.68)
+    }
 
     private let cols = Array(repeating: GridItem(.flexible(), spacing: 0), count: 8)
     private static let recentKey = "emoji.recent"
@@ -384,6 +388,39 @@ struct EmojiPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button {
+                    withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
+                        expanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Capsule()
+                            .fill(C.subLabel.opacity(0.38))
+                            .frame(width: 34, height: 4)
+                        Image(systemName: expanded ? "chevron.down" : "chevron.up")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(C.subLabel)
+                    }
+                    .frame(height: 24)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(expanded ? Tr("收起") : Tr("展开"))
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 12)
+                    .onEnded { value in
+                        guard abs(value.translation.height) > 22 else { return }
+                        withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
+                            expanded = value.translation.height < 0
+                        }
+                    }
+            )
+
             TabView(selection: $tab) {
                 recentPage.tag(0)
                 classicPage.tag(1)
@@ -463,7 +500,8 @@ struct EmojiPanel: View {
             .padding(.horizontal, L.v(12, 3.8, 16))
             .frame(height: L.v(38, 10.4, 46))
         }
-        .frame(height: panelH)
+        .frame(height: expanded ? expandedH : panelH)
+        .animation(.spring(response: 0.30, dampingFraction: 0.86), value: expanded)
     }
 }
 
