@@ -2966,6 +2966,7 @@ struct MusicPlayingView: View {
     @State private var showQueue = false
 
     @State private var loopTick = false
+    @State private var isLandscape = false
 
     private var t: MusicTrack? { player.current ?? sheet.track }
     private var lyricLines: [MusicLyricLine] {
@@ -3463,21 +3464,6 @@ struct MusicPlayingView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("关闭"))
 
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 7) {
-                    Text(Tr(player.playing ? "正在播放" : "已暂停"))
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .tracking(0.8)
-                        .foregroundStyle(.white.opacity(0.88))
-                    MusicPulseBars(level: player.level, playing: player.playing)
-                }
-                if !landscape, !(t?.displayCategory ?? "").isEmpty {
-                    Text(t?.displayCategory ?? "")
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.62))
-                }
-            }
-
             Spacer(minLength: 8)
 
             if landscape {
@@ -3823,6 +3809,8 @@ struct MusicPlayingView: View {
                         .animation(.easeInOut(duration: 0.38), value: landscape)
                     }
                 }
+                .onAppear { isLandscape = landscape }
+                .onChange(of: landscape) { value in isLandscape = value }
             }
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .navigationBar)
@@ -3849,5 +3837,7 @@ struct MusicPlayingView: View {
             .tint(OrbitTheme.jade)
         }
         .swipeBack { closeMe() }
+        .statusBar(hidden: !isLandscape)
+        .persistentSystemOverlays(isLandscape ? .automatic : .hidden)
     }
 }
