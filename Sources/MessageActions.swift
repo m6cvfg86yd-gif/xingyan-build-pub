@@ -90,7 +90,6 @@ struct ForwardItem: Hashable {
 struct ForwardPickerView: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var scheme
 
     let items: [ForwardItem]
     var onSent: () -> Void
@@ -102,87 +101,259 @@ struct ForwardPickerView: View {
 
     private var list: [Chat] {
         let base = app.chats
-        guard !keyword.isEmpty else { return base }
-        return base.filter { ($0.name).lowercased().contains(keyword.lowercased()) }
+        let key = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return base }
+        return base.filter {
+            $0.name.localizedCaseInsensitiveContains(key) ||
+            ($0.lastMessage?.preview ?? "").localizedCaseInsensitiveContains(key)
+        }
+    }
+
+    private var selectedChats: [Chat] {
+        app.chats.filter { picked.contains($0.id) }
+    }
+
+    private var contentSummary: String {
+        guard items.count > 1 else {
+            return items.first.map { kindName($0.kind) } ?? Tr("内容")
+        }
+        return Tr("共") + " \(items.count) " + Tr("条内容")
+    }
+
+    private var recentChats: [Chat] {
+        keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? Array(list.prefix(6))
+            : []
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: Tr("转发给")) {
-                Button { dismiss() } label: {
-                    Text(Tr("取消")).font(pf(16)).foregroundColor(C.label)
-                        .frame(height: L.navH).padding(.trailing, 16)
+            NavBar(title: Tr("转发给朋友"), back: { dismiss() }) {
+                Button {
+                    if !picked.isEmpty {
+                        withAnimation(.easeOut(duration: 0.18)) { picked.removeAll() }
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    Text(picked.isEmpty ? Tr("取消") : Tr("清空"))
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundStyle(picked.isEmpty ? OrbitTheme.secondary : OrbitTheme.jade)
+                        .padding(.horizontal, 12)
+                        .frame(height: 32)
                 }
                 .buttonStyle(.plain)
             }
 
-            SearchBoxCenter(text: $keyword).padding(L.searchPad)
+            ScrollView(showsIndicators: false) {
+                LazyVStack(alignment: .leading, spacing: 14) {
+                    StarForwardHero(
+                        symbol: "paperplane.fill",
+                        kicker: "STAR ROUTE",
+                        title: Tr("把星光送到"),
+                        subtitle: Tr("选择会话即可转发，原内容会完整保留"),
+                        badge: contentSummary
+                    )
 
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(list) { chat in
-                        Button {
+                    StarForwardSearch(placeholder: Tr("搜索会话或消息"), text: $keyword)
 
-                            if picked.contains(chat.id) { picked.remove(chat.id) }
-                            else { picked.insert(chat.id) }
-                        } label: {
-                            HStack(spacing: 12) {
-                                Avatar(path: chat.avatar ?? "", size: 44, radius: 6)
-                                Text(chat.name)
-                                    .font(pf(16))
-                                    .foregroundColor(C.label)
-                                    .lineLimit(1)
-                                Spacer(minLength: 0)
-
-                                Image(systemName: picked.contains(chat.id) ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 19))
-                                    .foregroundColor(picked.contains(chat.id) ? C.green : C.searchIcon)
+                    if !recentChats.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            OrbitSectionLabel(text: Tr("常联系"), count: recentChats.count)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(alignment: .top, spacing: 13) {
+                                    ForEach(recentChats) { chat in
+                                        Button {
+                                            toggle(chat.id)
+                                        } label: {
+                                            StarForwardQuickTarget(
+                                                name: chat.name,
+                                                avatar: chat.avatar ?? "",
+                                                isGroup: chat.type == "group",
+                                                selected: picked.contains(chat.id)
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.horizontal, 1)
+                                .padding(.vertical, 2)
                             }
-                            .padding(.horizontal, 16)
-                            .frame(height: 66)
-                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        .background(C.cardBg)
-                        .overlay(alignment: .bottom) { HairLine(inset: 72) }
+                    }
+
+                    VStack(alignment: .leading, spacing: 9) {
+                        OrbitSectionLabel(
+                            text: keyword.isEmpty ? Tr("全部会话") : Tr("搜索结果"),
+                            count: list.count
+                        )
+
+                        if list.isEmpty {
+                            StarForwardEmpty(text: Tr("没有找到匹配的会话"))
+                        } else {
+                            ForEach(list) { chat in
+                                Button {
+                                    toggle(chat.id)
+                                } label: {
+                                    StarForwardTargetRow(
+                                        name: chat.name,
+                                        subtitle: subtitle(for: chat),
+                                        avatar: chat.avatar ?? "",
+                                        isGroup: chat.type == "group",
+                                        selected: picked.contains(chat.id),
+                                        countBadge: badge(for: chat)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
                 }
+                .padding(.horizontal, 14)
+                .padding(.top, 4)
+                .padding(.bottom, 18)
             }
-            .background(C.pageBg)
+        }
+        .background {
+            StarRouteBackdrop()
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .safeAreaInset(edge: .bottom) {
+            sendDock
+        }
+        .swipeBack { dismiss() }
+    }
+
+    private var sendDock: some View {
+        VStack(spacing: 10) {
+            if !selectedChats.isEmpty {
+                HStack(spacing: 8) {
+                    HStack(spacing: -7) {
+                        ForEach(Array(selectedChats.prefix(4))) { chat in
+                            Avatar(path: chat.avatar ?? "",
+                                   size: 25,
+                                   radius: 8,
+                                   circle: true,
+                                   group: chat.type == "group")
+                                .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.5))
+                        }
+                    }
+                    Text(Tr("已选") + " \(selectedChats.count) " + Tr("个会话"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(OrbitTheme.secondary)
+                    Spacer(minLength: 6)
+                    Button {
+                        withAnimation(.easeOut(duration: 0.18)) { picked.removeAll() }
+                    } label: {
+                        Text(Tr("清空"))
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(OrbitTheme.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
 
             HStack(spacing: 12) {
-                Text(picked.isEmpty
-                     ? Tr("选择要转发到的聊天")
-                     : (Tr("已选") + " " + String(picked.count) + " " + Tr("个聊天")))
-                    .font(pf(14))
-                    .foregroundColor(C.subLabel)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(picked.isEmpty ? Tr("选择一个会话") : Tr("准备发送"))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(OrbitTheme.ink)
+                    Text(contentSummary)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(OrbitTheme.secondary)
+                }
                 Spacer(minLength: 8)
-                Button { sendSelected() } label: {
-                    Text(sending ? Tr("发送中…") : Tr("发送"))
-                        .font(pf(16, .medium))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 22)
-                        .frame(height: 40)
-                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(picked.isEmpty || sending ? C.subLabel : C.green))
+                Button {
+                    sendSelected()
+                } label: {
+                    HStack(spacing: 7) {
+                        if sending {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(0.72)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 12.5, weight: .semibold))
+                        }
+                        Text(sending ? Tr("发送中…") : Tr("发送"))
+                            .font(.system(size: 14.5, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 19)
+                    .frame(height: 42)
+                    .background {
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: picked.isEmpty || sending
+                                        ? [OrbitTheme.tertiary.opacity(0.55), OrbitTheme.tertiary.opacity(0.42)]
+                                        : [OrbitTheme.jade, OrbitTheme.jadeDeep],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+                    .shadow(color: picked.isEmpty ? .clear : OrbitTheme.jade.opacity(0.24),
+                            radius: 9,
+                            y: 4)
                 }
                 .buttonStyle(.plain)
                 .disabled(picked.isEmpty || sending)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, L.safeBottom + 10)
-            .background(C.tabBg)
-            .overlay(alignment: .top) { Rectangle().fill(C.navLine).frame(height: 0.5) }
         }
-        .background(C.pageBg.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
+        .padding(.horizontal, 13)
+        .padding(.top, 10)
+        .padding(.bottom, max(8, L.safeBottom * 0.32))
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(OrbitTheme.divider.opacity(0.7))
+                .frame(height: 0.5)
+        }
+        .animation(.spring(response: 0.28, dampingFraction: 0.86), value: picked.count)
+    }
 
-        .swipeBack { dismiss() }
+    private func toggle(_ id: String) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.84)) {
+            if picked.contains(id) { picked.remove(id) } else { picked.insert(id) }
+        }
+    }
+
+    private func subtitle(for chat: Chat) -> String {
+        let preview = (chat.lastMessage?.preview ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !preview.isEmpty { return preview }
+        return chat.type == "group" ? Tr("群聊会话") : Tr("最近联系")
+    }
+
+    private func badge(for chat: Chat) -> String? {
+        if chat.type == "group", let count = chat.memberCount, count > 0 {
+            return "\(count)" + Tr("人")
+        }
+        if let unread = chat.unread, unread > 0 {
+            return unread > 99 ? "99+" : "\(unread)"
+        }
+        return nil
+    }
+
+    private func kindName(_ kind: String) -> String {
+        switch kind {
+        case "image": return Tr("图片")
+        case "images": return Tr("相册")
+        case "video": return Tr("视频")
+        case "music": return Tr("音乐")
+        case "miniapp": return Tr("小程序")
+        case "file": return Tr("文件")
+        case "mall": return Tr("商城卡片")
+        case "note": return Tr("笔记")
+        default: return Tr("内容")
+        }
     }
 
     private func sendSelected() {
-        let targets = list.filter { picked.contains($0.id) }
+        let targets = selectedChats
         guard !targets.isEmpty else { return }
         sending = true
         Task {

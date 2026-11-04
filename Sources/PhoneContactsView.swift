@@ -18,6 +18,7 @@ private struct QRInvite: Identifiable {
     let name: String
     let phone: String
     let image: UIImage
+    let messageImage: UIImage
 }
 
 private struct PhoneContactMark: View {
@@ -186,8 +187,10 @@ struct PhoneContactsView: View {
         .background(phoneContactsBackdrop)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $qrInvite) { invite in
-            PhoneInviteSheet(name: invite.name, phone: invite.phone,
-                             image: invite.image) {
+            PhoneInviteSheet(name: invite.name,
+                             phone: invite.phone,
+                             image: invite.image,
+                             messageImage: invite.messageImage) {
                 qrInvite = nil
             }
         }
@@ -361,11 +364,15 @@ struct PhoneContactsView: View {
     }
 
     private func prepareInvite(_ contact: LocalPhoneContact) {
-        guard let image = makeInviteQRCard() else {
+        guard let image = makeInviteQRCard(),
+              let messageImage = makeMessageInviteQRCard() else {
             errorText = Tr("二维码生成失败，请稍后再试")
             return
         }
-        qrInvite = QRInvite(name: contact.name, phone: contact.phone, image: image)
+        qrInvite = QRInvite(name: contact.name,
+                            phone: contact.phone,
+                            image: image,
+                            messageImage: messageImage)
     }
 
     private func makeInviteQRCard() -> UIImage? {
@@ -444,12 +451,71 @@ struct PhoneContactsView: View {
                       ])
         }
     }
+
+    /// Messages renders attachments at roughly their real aspect ratio. Keep the
+    /// SMS version compact and square so it does not dominate the composer or
+    /// arrive as a large poster-sized preview.
+    private func makeMessageInviteQRCard() -> UIImage? {
+        guard let qr = qrImage("https://aa.x8iu.com/download.html", size: 420) else {
+            return nil
+        }
+        let size = CGSize(width: 640, height: 640)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: format).image { renderer in
+            let ctx = renderer.cgContext
+            let colors = [
+                UIColor(red: 0.035, green: 0.20, blue: 0.17, alpha: 1).cgColor,
+                UIColor(red: 0.015, green: 0.075, blue: 0.065, alpha: 1).cgColor
+            ] as CFArray
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                         colors: colors, locations: [0, 1]) {
+                ctx.drawLinearGradient(gradient,
+                                       start: CGPoint(x: 0, y: 0),
+                                       end: CGPoint(x: size.width, y: size.height),
+                                       options: [])
+            }
+
+            let card = CGRect(x: 28, y: 28, width: 584, height: 584)
+            let cardPath = UIBezierPath(roundedRect: card, cornerRadius: 38)
+            UIColor.white.setFill()
+            cardPath.fill()
+
+            let center = NSMutableParagraphStyle()
+            center.alignment = .center
+            ("星言 Luchat" as NSString).draw(
+                in: CGRect(x: 64, y: 64, width: 512, height: 44),
+                withAttributes: [
+                    .font: UIFont.systemFont(ofSize: 34, weight: .semibold),
+                    .foregroundColor: UIColor(red: 0.035, green: 0.18, blue: 0.15, alpha: 1),
+                    .paragraphStyle: center
+                ]
+            )
+
+            let qrFrame = CGRect(x: 124, y: 128, width: 392, height: 392)
+            UIColor(white: 0.985, alpha: 1).setFill()
+            UIBezierPath(roundedRect: qrFrame.insetBy(dx: -12, dy: -12),
+                         cornerRadius: 22).fill()
+            qr.draw(in: qrFrame)
+
+            ("扫码下载星言" as NSString).draw(
+                in: CGRect(x: 96, y: 550, width: 448, height: 34),
+                withAttributes: [
+                    .font: UIFont.systemFont(ofSize: 22, weight: .medium),
+                    .foregroundColor: UIColor(red: 0.035, green: 0.18, blue: 0.15, alpha: 1),
+                    .paragraphStyle: center
+                ]
+            )
+        }
+    }
 }
 
 private struct PhoneInviteSheet: View {
     let name: String
     let phone: String
     let image: UIImage
+    let messageImage: UIImage
     let onFinish: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -476,9 +542,10 @@ private struct PhoneInviteSheet: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
+                        .frame(maxWidth: 220, maxHeight: 282)
                         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .shadow(color: Color.black.opacity(0.12), radius: 14, y: 6)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 18)
 
                     VStack(spacing: 10) {
                         Button { showShare = true } label: {
@@ -526,7 +593,7 @@ private struct PhoneInviteSheet: View {
             ShareSheet(items: [image])
         }
         .sheet(isPresented: $showMessages) {
-            SMSInviteComposer(phone: phone, image: image) {
+            SMSInviteComposer(phone: phone, image: messageImage) {
                 showMessages = false
             }
         }

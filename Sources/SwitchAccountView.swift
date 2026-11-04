@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftUI
 import UIKit
 
 struct SwitchAccountView: View {
@@ -15,60 +14,57 @@ struct SwitchAccountView: View {
 
     var body: some View {
         ZStack {
-            C.pageBg.ignoresSafeArea()
-            accountWatermark
+            StarRouteBackdrop()
 
             VStack(spacing: 0) {
-
-                HStack(spacing: 0) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 19, weight: .medium))
-                            .foregroundColor(C.label)
-                            .frame(height: L.navH)
-                            .padding(.horizontal, 16)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    Spacer(minLength: 0)
-                    Text(Tr("切换账号")).font(pf(17, .semibold)).foregroundColor(C.label)
-                    Spacer(minLength: 0)
-                    Color.clear.frame(width: 51, height: L.navH)
+                NavBar(title: Tr("切换账号"), back: { dismiss() }) {
+                    Text("\(app.accounts.count)/\(AccountStore.maxCount)")
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(OrbitTheme.jade)
+                        .padding(.horizontal, 10)
+                        .frame(height: 27)
+                        .background(Capsule().fill(OrbitTheme.jadeSoft))
+                        .overlay(Capsule().stroke(OrbitTheme.jade.opacity(0.22), lineWidth: 0.7))
+                        .padding(.trailing, 2)
                 }
-                .frame(height: L.navH)
-                .background(accountTopMask)
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        accountHero
+                    VStack(alignment: .leading, spacing: 16) {
+                        identityHero
 
-                        VStack(spacing: 10) {
-                            ForEach(app.accounts) { acct in
-                                accountRow(acct)
+                        VStack(alignment: .leading, spacing: 10) {
+                            OrbitSectionLabel(text: Tr("本机账号"), count: app.accounts.count)
+
+                            ForEach(Array(app.accounts.enumerated()), id: \.element.id) { index, account in
+                                accountCard(account, index: index)
                             }
-                            addRow
+
+                            addCard
                         }
 
                         if !note.isEmpty {
-                            Text(note)
-                                .font(pf(13))
-                                .foregroundColor(Color(hexString: "#FA5151"))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 4)
-                                .padding(.top, 2)
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(C.red)
+                                    .padding(.top, 1)
+                                Text(note)
+                                    .font(.system(size: 12.5))
+                                    .foregroundStyle(C.red)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 11)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(C.red.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
 
-                        HStack(spacing: 7) {
-                            Image(systemName: "lock.shield.fill")
-                            Text(Tr("已登录账号只保存在这台设备"))
-                        }
-                        .font(pf(11.5))
-                        .foregroundColor(C.subLabel)
-                        .padding(.top, 2)
-                        .padding(.bottom, max(24, L.safeBottom))
+                        securityNote
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 26)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 4)
+                    .padding(.bottom, max(28, L.safeBottom))
                 }
             }
         }
@@ -79,119 +75,337 @@ struct SwitchAccountView: View {
             HarmonyLoginView()
                 .environmentObject(app)
         }
-    }
-
-    private var accountHero: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(OrbitTheme.jadeSoft)
-                    .frame(width: 78, height: 78)
-                Circle()
-                    .stroke(OrbitTheme.gold.opacity(0.45), lineWidth: 1.1)
-                    .frame(width: 88, height: 88)
-                    .rotationEffect(.degrees(-18))
-                brandLogo(size: 60)
-            }
-
-            VStack(spacing: 5) {
-                Text("星言 Luchat")
-                    .font(pf(22, .semibold))
-                    .foregroundColor(C.label)
-                Text(Tr("轻触头像以切换账号"))
-                    .font(pf(13.5))
-                    .foregroundColor(C.subLabel)
-            }
+        .onChange(of: app.accounts.count) { _ in
+            if !note.isEmpty { note = "" }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 8)
-        .padding(.bottom, 2)
     }
 
-    private var accountWatermark: some View {
-        GeometryReader { geo in
-            ZStack {
-                Circle()
-                    .stroke(OrbitTheme.jade.opacity(0.07), lineWidth: 1)
-                    .frame(width: min(geo.size.width * 0.86, 360))
-                    .offset(x: geo.size.width * 0.30, y: -geo.size.height * 0.23)
-                Circle()
-                    .stroke(OrbitTheme.gold.opacity(0.06), lineWidth: 1)
-                    .frame(width: min(geo.size.width * 0.62, 270))
-                    .offset(x: -geo.size.width * 0.38, y: geo.size.height * 0.32)
-                brandLogo(size: min(geo.size.width * 0.72, 300))
-                    .opacity(0.035)
-                    .rotationEffect(.degrees(-8))
-                    .offset(x: geo.size.width * 0.30, y: -geo.size.height * 0.10)
-                Text("LUCHAT")
-                    .font(.system(size: 42, weight: .black, design: .rounded))
-                    .tracking(8)
-                    .foregroundColor(OrbitTheme.jade.opacity(0.025))
-                    .rotationEffect(.degrees(-8))
-                    .offset(x: -geo.size.width * 0.18, y: geo.size.height * 0.32)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .allowsHitTesting(false)
-    }
-
-    private var accountTopMask: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .bottom) {
-                C.navBg.opacity(0.97)
-
-                LinearGradient(
-                    colors: [
-                        C.red.opacity(0.20),
-                        Color(hex: 0xFF8B78).opacity(0.075),
-                        Color.clear
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+    private var identityHero: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.dyn(0x116C4C, 0x092B20),
+                            Color.dyn(0x2DCB86, 0x155E43)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 )
 
-                Circle()
-                    .stroke(C.red.opacity(0.20), lineWidth: 0.8)
-                    .frame(width: geo.size.height * 1.7,
-                           height: geo.size.height * 1.7)
-                    .offset(x: geo.size.width * 0.31,
-                            y: geo.size.height * 0.58)
+            GeometryReader { geo in
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(0.14),
+                                style: StrokeStyle(lineWidth: 0.8, dash: [2, 7]))
+                        .frame(width: 180, height: 180)
+                        .position(x: geo.size.width - 2, y: 6)
+                    Circle()
+                        .stroke(Color.white.opacity(0.08), lineWidth: 0.9)
+                        .frame(width: 112, height: 112)
+                        .position(x: geo.size.width - 4, y: 14)
+                    Circle()
+                        .fill(Color.white.opacity(0.60))
+                        .frame(width: 4, height: 4)
+                        .position(x: geo.size.width - 64, y: 32)
+                }
+            }
+            .allowsHitTesting(false)
 
-                Circle()
-                    .stroke(C.red.opacity(0.11), lineWidth: 0.7)
-                    .frame(width: geo.size.height * 1.18,
-                           height: geo.size.height * 1.18)
-                    .offset(x: -geo.size.width * 0.34,
-                            y: geo.size.height * 0.70)
+            VStack(alignment: .leading, spacing: 13) {
+                HStack(spacing: 8) {
+                    Image(systemName: "point.3.connected.trianglepath.dotted")
+                        .font(.system(size: 10.5, weight: .semibold))
+                    Text("IDENTITY ORBIT")
+                        .font(.system(size: 9.5, weight: .bold))
+                        .tracking(1.25)
+                    Spacer(minLength: 10)
+                    Text(Tr("安全切换"))
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .padding(.horizontal, 8)
+                        .frame(height: 22)
+                        .background(Capsule().fill(Color.white.opacity(0.12)))
+                }
+                .foregroundStyle(Color.white.opacity(0.74))
 
-                Capsule()
-                    .fill(C.red.opacity(0.10))
-                    .frame(width: geo.size.width * 0.34, height: 1.2)
-                    .rotationEffect(.degrees(-18))
-                    .offset(x: geo.size.width * 0.20,
-                            y: -geo.size.height * 0.17)
-
-                HStack(spacing: 5) {
-                    ForEach(0..<3, id: \.self) { index in
+                HStack(spacing: 13) {
+                    ZStack {
                         Circle()
-                            .fill(C.red.opacity(index == 1 ? 0.24 : 0.12))
-                            .frame(width: index == 1 ? 3 : 2,
-                                   height: index == 1 ? 3 : 2)
+                            .fill(Color.white.opacity(0.13))
+                            .frame(width: 68, height: 68)
+                        brandLogo(size: 54)
+                        Circle()
+                            .trim(from: 0.04, to: 0.78)
+                            .stroke(Color.white.opacity(0.48),
+                                    style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                            .frame(width: 78, height: 78)
+                            .rotationEffect(.degrees(-28))
+                    }
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(Tr("选择你的星言身份"))
+                            .font(.system(size: 21, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text(Tr("切换后，会话和资料会回到对应账号"))
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(Color.white.opacity(0.69))
+                            .lineLimit(2)
                     }
                 }
-                .offset(x: geo.size.width * 0.29,
-                        y: -geo.size.height * 0.26)
 
-                LinearGradient(
-                    colors: [C.red.opacity(0.0), C.red.opacity(0.56)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 1)
+                HStack(spacing: 7) {
+                    ForEach(0..<AccountStore.maxCount, id: \.self) { index in
+                        Capsule()
+                            .fill(index < app.accounts.count
+                                  ? Color.white.opacity(index == 0 ? 0.88 : 0.46)
+                                  : Color.white.opacity(0.13))
+                            .frame(width: index == 0 ? 23 : 9, height: 4)
+                    }
+                    Text(app.accounts.isEmpty ? Tr("还没有保存账号") : Tr("左右滑动也可以切换"))
+                        .font(.system(size: 9.5, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.58))
+                        .padding(.leading, 3)
+                }
+            }
+            .padding(16)
+        }
+        .frame(height: 182)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.white.opacity(0.11), lineWidth: 0.8)
+        }
+        .shadow(color: OrbitTheme.jade.opacity(0.13), radius: 18, y: 8)
+    }
+
+    private func accountCard(_ account: SavedAccount, index: Int) -> some View {
+        let current = account.username == me
+        let loading = busy == account.username
+        let accent = accountAccent(index)
+        let tokenReady = !AccountStore.token(for: account.username).isEmpty
+
+        return Button {
+            guard !current else {
+                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                return
+            }
+            tap(account, current: current)
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                if current {
+                    LinearGradient(
+                        colors: [
+                            OrbitTheme.jade.opacity(0.22),
+                            OrbitTheme.jadeDeep.opacity(0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                } else {
+                    accent.opacity(0.035)
+                }
+
+                if current {
+                    Circle()
+                        .stroke(Color.white.opacity(0.13),
+                                style: StrokeStyle(lineWidth: 0.8, dash: [2, 5]))
+                        .frame(width: 104, height: 104)
+                        .offset(x: 27, y: -45)
+                }
+
+                HStack(spacing: 13) {
+                    Avatar(path: account.avatar,
+                           size: 54,
+                           radius: 17,
+                           level: levelOf(account))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                                .stroke(current ? OrbitTheme.jade.opacity(0.75)
+                                                : OrbitTheme.divider,
+                                        lineWidth: current ? 1.1 : 0.7)
+                        }
+                        .shadow(color: current ? OrbitTheme.jade.opacity(0.20) : .clear,
+                                radius: 8,
+                                y: 3)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 7) {
+                            Text(displayName(account))
+                                .font(.system(size: 16.5, weight: .semibold))
+                                .foregroundStyle(OrbitTheme.ink)
+                                .lineLimit(1)
+                            if current {
+                                Text(Tr("当前使用"))
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(OrbitTheme.jade)
+                                    .padding(.horizontal, 7)
+                                    .frame(height: 18)
+                                    .background(Capsule().fill(OrbitTheme.jadeSoft))
+                                    .overlay(Capsule().stroke(OrbitTheme.jade.opacity(0.24),
+                                                              lineWidth: 0.6))
+                            }
+                        }
+
+                        Text("@" + account.username)
+                            .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                            .foregroundStyle(OrbitTheme.secondary)
+                            .lineLimit(1)
+
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(current ? OrbitTheme.jade
+                                      : (tokenReady ? accent : OrbitTheme.tertiary))
+                                .frame(width: 5, height: 5)
+                            Text(statusText(current: current,
+                                            loading: loading,
+                                            tokenReady: tokenReady))
+                                .font(.system(size: 10.5, weight: .medium))
+                                .foregroundStyle(current ? OrbitTheme.jade
+                                                 : (tokenReady ? OrbitTheme.secondary : C.red.opacity(0.82)))
+                        }
+                    }
+
+                    Spacer(minLength: 8)
+
+                    if loading {
+                        ProgressView()
+                            .tint(OrbitTheme.jade)
+                            .scaleEffect(0.82)
+                            .frame(width: 30, height: 30)
+                    } else {
+                        ZStack {
+                            Circle()
+                                .fill(current ? OrbitTheme.jade : OrbitTheme.field)
+                                .frame(width: 31, height: 31)
+                            Image(systemName: current ? "checkmark" : "arrow.up.right")
+                                .font(.system(size: 10.5, weight: .bold))
+                                .foregroundStyle(current ? .white : OrbitTheme.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .frame(height: 92)
+            }
+            .background(OrbitTheme.raised)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(current ? OrbitTheme.jade.opacity(0.34) : OrbitTheme.divider,
+                            lineWidth: current ? 1 : 0.7)
+            }
+            .shadow(color: Color.black.opacity(0.035), radius: 10, y: 3)
+            .opacity(busy.isEmpty || loading ? 1 : 0.58)
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(StarAccountPressStyle())
+        .disabled(!busy.isEmpty)
+        .contextMenu {
+            if !current {
+                Button(role: .destructive) {
+                    remove(account)
+                } label: {
+                    Label(Tr("从这台设备移除"), systemImage: "trash")
+                }
             }
         }
-        .clipped()
-        .allowsHitTesting(false)
+    }
+
+    private var addCard: some View {
+        Button {
+            adding = true
+        } label: {
+            HStack(spacing: 13) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .fill(OrbitTheme.jadeSoft)
+                        .frame(width: 54, height: 54)
+                    Circle()
+                        .stroke(OrbitTheme.jade.opacity(0.20),
+                                style: StrokeStyle(lineWidth: 0.8, dash: [2, 4]))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "plus")
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundStyle(OrbitTheme.jade)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(Tr("添加一个星言身份"))
+                        .font(.system(size: 15.5, weight: .semibold))
+                        .foregroundStyle(OrbitTheme.ink)
+                    Text(addSubtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(OrbitTheme.secondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(OrbitTheme.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 78)
+            .background(OrbitTheme.raised.opacity(0.72))
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(OrbitTheme.jade.opacity(0.28),
+                            style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(StarAccountPressStyle())
+    }
+
+    private var securityNote: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(OrbitTheme.jade)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(Tr("账号只保存在这台设备"))
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.secondary)
+                Text(Tr("登录凭证放入本机钥匙串，切换时会先结束旧账号通话"))
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(OrbitTheme.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .background(OrbitTheme.field.opacity(0.58))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(OrbitTheme.divider, lineWidth: 0.6)
+        }
+    }
+
+    private var addSubtitle: String {
+        let left = max(0, AccountStore.maxCount - app.accounts.count)
+        if left == 0 { return Tr("已保存满 3 个身份，新增时请先移除旧账号") }
+        return Tr("本机还可保存") + " \(left) " + Tr("个身份")
+    }
+
+    private func accountAccent(_ index: Int) -> Color {
+        switch index % 3 {
+        case 1: return Color.dyn(0x3E7E98, 0x79B8D2)
+        case 2: return OrbitTheme.gold
+        default: return OrbitTheme.jade
+        }
+    }
+
+    private func displayName(_ account: SavedAccount) -> String {
+        let name = account.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? account.username : name
+    }
+
+    private func statusText(current: Bool, loading: Bool, tokenReady: Bool) -> String {
+        if loading { return Tr("正在切换…") }
+        if current { return Tr("消息与资料已同步") }
+        if tokenReady { return Tr("登录状态已保存") }
+        return Tr("需要重新登录")
     }
 
     @ViewBuilder
@@ -207,113 +421,33 @@ struct SwitchAccountView: View {
             RoundedRectangle(cornerRadius: size * 0.23, style: .continuous)
                 .fill(OrbitTheme.jadeDeep)
                 .frame(width: size, height: size)
-                .overlay(
+                .overlay {
                     Text("星")
                         .font(.system(size: size * 0.48, weight: .semibold))
-                        .foregroundColor(.white)
-                )
+                        .foregroundStyle(.white)
+                }
         }
     }
 
-    @ViewBuilder
-    private func accountRow(_ a: SavedAccount) -> some View {
-        let current = (a.username == me)
-        Button {
-            tap(a, current: current)
-        } label: {
-
-            HStack(spacing: 12) {
-                Avatar(path: a.avatar, size: 48, radius: 7, level: levelOf(a))
-                    .frame(width: 48, height: 48)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(a.nickname.isEmpty ? a.username : a.nickname)
-                        .font(pf(17))
-                        .foregroundColor(C.label)
-                        .lineLimit(1)
-                    Text(a.username)
-                        .font(pf(13))
-                        .foregroundColor(C.subLabel)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                if busy == a.username {
-                    ProgressView()
-                } else if current {
-                    Text(Tr("当前使用"))
-                        .font(pf(13.5))
-                        .foregroundColor(C.subLabel)
-                }
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 80)
-            .background(C.cardBg)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(current ? OrbitTheme.jade.opacity(0.42) : C.navLine, lineWidth: 0.7)
-            )
-            .shadow(color: Color.black.opacity(0.035), radius: 8, y: 3)
-            .contentShape(Rectangle())
+    private func levelOf(_ account: SavedAccount) -> Int {
+        if account.username == me { return max(1, growth.shownLevel) }
+        if let level = app.contacts.first(where: { $0.username == account.username })?.qqLevel,
+           level > 0 {
+            return level
         }
-        .buttonStyle(.plain)
-        .contextMenu {
-            if !current {
-                Button(role: .destructive) { remove(a) } label: {
-                    Label(Tr("从这台设备移除"), systemImage: "trash")
-                }
-            }
-        }
-    }
-
-    private var addRow: some View {
-        Button { adding = true } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(Color.dyn(0xEDEDED, 0x2C2C2E))
-                        .frame(width: 48, height: 48)
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .regular))
-                        .foregroundColor(C.subLabel)
-                }
-                Text(Tr("添加账号"))
-                    .font(pf(17))
-                    .foregroundColor(C.label)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 80)
-            .background(C.cardBg.opacity(0.84))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(OrbitTheme.jade.opacity(0.28),
-                            style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func levelOf(_ a: SavedAccount) -> Int {
-        if a.username == me { return max(1, growth.shownLevel) }
-        if let lv = app.contacts.first(where: { $0.username == a.username })?.qqLevel, lv > 0 { return lv }
         return 0
     }
 
-    private func tap(_ a: SavedAccount, current: Bool) {
+    private func tap(_ account: SavedAccount, current: Bool) {
         guard !current, busy.isEmpty else { return }
-        switchTo(a)
+        switchTo(account)
     }
 
-    private func switchTo(_ a: SavedAccount) {
+    private func switchTo(_ account: SavedAccount) {
         note = ""
-        busy = a.username
+        busy = account.username
         Task {
-            let saved = AccountStore.token(for: a.username)
+            let saved = AccountStore.token(for: account.username)
             guard !saved.isEmpty else {
                 busy = ""
                 note = Tr("这个账号的登录状态过期了，重新输一次密码就行")
@@ -321,7 +455,7 @@ struct SwitchAccountView: View {
                 return
             }
             let ok = await app.quickLogin(token: saved,
-                                          username: a.username,
+                                          username: account.username,
                                           switchingAccount: true)
             busy = ""
             if ok {
@@ -333,9 +467,18 @@ struct SwitchAccountView: View {
         }
     }
 
-    private func remove(_ a: SavedAccount) {
-        AccountStore.remove(username: a.username)
+    private func remove(_ account: SavedAccount) {
+        AccountStore.remove(username: account.username)
         app.accounts = AccountStore.load()
-        app.show(Tr("已移除") + "「" + a.nickname + "」")
+        app.show(Tr("已移除") + "「" + displayName(account) + "」")
+    }
+}
+
+private struct StarAccountPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.90 : 1)
+            .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
     }
 }
