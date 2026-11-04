@@ -5522,17 +5522,23 @@ struct ImageBubble: View {
             ? CGSize(width: stickerSide, height: stickerSide)
             : (box ?? CGSize(width: 150, height: 150))
 
-        RemoteImage(path: path, icon: "photo", mode: stickerLook ? .fit : .fill, onLoaded: { img in
-            guard !isSticker else { return }
-            if ImageBubble.looksLikeSticker(img.size) {
-                smallSticker = true
-            } else if box == nil {
-                box = ImageBubble.thumb(img.size)
+        Group {
+            if path.lowercased().hasSuffix(".gif") {
+                StickerThumb(url: path)
+            } else {
+                RemoteImage(path: path, icon: "photo", mode: stickerLook ? .fit : .fill, onLoaded: { img in
+                    guard !isSticker else { return }
+                    if ImageBubble.looksLikeSticker(img.size) {
+                        smallSticker = true
+                    } else if box == nil {
+                        box = ImageBubble.thumb(img.size)
 
-                ImageSizeCache.put(path, box ?? ImageBubble.thumb(img.size))
+                        ImageSizeCache.put(path, box ?? ImageBubble.thumb(img.size))
+                    }
+                    onSized?()
+                })
             }
-            onSized?()
-        })
+        }
         .frame(width: size.width, height: size.height)
         .clipShape(RoundedRectangle(cornerRadius: stickerLook ? 8 : 5, style: .continuous))
 

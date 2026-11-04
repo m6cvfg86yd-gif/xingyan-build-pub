@@ -56,10 +56,59 @@ enum EmojiSet {
 final class StickerImageCache {
     static let shared = StickerImageCache()
     private var store: [String: UIImage] = [:]
+    private var animatedStore: [String: UIImage] = [:]
+
     func get(_ key: String) -> UIImage? { store[key] }
-    func put(_ key: String, _ image: UIImage) {
+
+    func getAnimated(_ key: String) -> UIImage? { animatedStore[key] }
+
+    func put(_ key: String, _ image: UIImage, animated: Bool = false) {
         if store.count > 600 { store.removeAll() }
+        if animatedStore.count > 36 { animatedStore.removeAll() }
         store[key] = image
+        if animated {
+            animatedStore[key] = image
+        }
+    }
+}
+
+struct AnimatedStickerView: UIViewRepresentable {
+    let image: UIImage
+
+    func makeUIView(context: Context) -> UIImageView {
+        let view = UIImageView()
+        view.contentMode = .scaleAspectFit
+        view.clipsToBounds = true
+        view.backgroundColor = .clear
+        apply(image, to: view)
+        return view
+    }
+
+    func updateUIView(_ view: UIImageView, context: Context) {
+        apply(image, to: view)
+    }
+
+    static func dismantleUIView(_ view: UIImageView, coordinator: Void) {
+        view.stopAnimating()
+        view.animationImages = nil
+    }
+
+    private func apply(_ image: UIImage, to view: UIImageView) {
+        guard let frames = image.images, frames.count > 1 else {
+            view.stopAnimating()
+            view.animationImages = nil
+            view.image = image
+            return
+        }
+        if view.animationImages?.first !== frames.first {
+            view.image = nil
+            view.animationImages = frames
+            view.animationDuration = max(0.2, image.duration)
+            view.animationRepeatCount = 0
+        }
+        if !view.isAnimating {
+            view.startAnimating()
+        }
     }
 }
 
@@ -67,19 +116,34 @@ struct StickerThumb: View {
     let url: String
     @State private var image: UIImage?
 
+    private var isAnimated: Bool {
+        url.lowercased().hasSuffix(".gif")
+    }
+
     var body: some View {
         Group {
             if let image = image {
-                Image(uiImage: image).resizable().scaledToFit()
+                if isAnimated {
+                    AnimatedStickerView(image: image)
+                } else {
+                    Image(uiImage: image).resizable().scaledToFit()
+                }
             } else {
                 Color.clear
             }
         }
         .task(id: url) {
-            if let cached = StickerImageCache.shared.get(url) { image = cached; return }
+            if isAnimated, let cached = StickerImageCache.shared.getAnimated(url) {
+                image = cached
+                return
+            }
+            if !isAnimated, let cached = StickerImageCache.shared.get(url) {
+                image = cached
+                return
+            }
             guard let u = API.shared.assetURL(url) else { return }
             if let data = try? await API.shared.assetData(u), let img = UIImage(data: data) {
-                StickerImageCache.shared.put(url, img)
+                StickerImageCache.shared.put(url, img, animated: isAnimated)
                 image = img
             }
         }

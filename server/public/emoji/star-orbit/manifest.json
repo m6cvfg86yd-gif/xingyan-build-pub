@@ -1,0 +1,76 @@
+{
+  "name": "星言日常",
+  "version": 1,
+  "author": "Xingyan / original in-house artwork",
+  "license": "All rights reserved by the Xingyan project. Generated from code in this repository.",
+  "source": "tools/generate_star_emojis.py",
+  "canvas": {
+    "width": 320,
+    "height": 320,
+    "frames": 18,
+    "frame_ms": 80,
+    "loop": true
+  },
+  "items": [
+    {
+      "name": "收到",
+      "file": "shou-dao.gif",
+      "animation": "check"
+    },
+    {
+      "name": "在呢",
+      "file": "zai-ne.gif",
+      "animation": "presence"
+    },
+    {
+      "name": "等等",
+      "file": "deng-deng.gif",
+      "animation": "wait"
+    },
+    {
+      "name": "谢谢",
+      "file": "xie-xie.gif",
+      "animation": "thanks"
+    },
+    {
+      "name": "笑死",
+      "file": "xiao-si.gif",
+      "animation": "laugh"
+    },
+    {
+      "name": "震惊",
+      "file": "zhen-jing.gif",
+      "animation": "shock"
+    },
+    {
+      "name": "无语",
+      "file": "wu-yu.gif",
+      "animation": "speechless"
+    },
+    {
+      "name": "抱抱",
+      "file": "bao-bao.gif",
+      "animation": "hug"
+    },
+    {
+      "name": "晚安",
+      "file": "wan-an.gif",
+      "animation": "night"
+    },
+    {
+      "name": "听歌",
+      "file": "ting-ge.gif",
+      "animation": "music"
+    },
+    {
+      "name": "开车",
+      "file": "kai-che.gif",
+      "animation": "drive"
+    },
+    {
+      "name": "想你",
+      "file": "xiang-ni.gif",
+      "animation": "miss"
+    }
+  ]
+}

@@ -37,12 +37,33 @@ final class StickerCatalog: ObservableObject {
         if loaded || loading { return }
         loading = true
         defer { loading = false }
-        guard let url = API.shared.assetURL("emoji/packs.json"),
-              let data = try? await API.shared.assetData(url),
-              let p = try? JSONDecoder().decode(StickerCatalogPayload.self, from: data) else { return }
-        categories = p.categories ?? []
-        packs = p.packs ?? []
-        loaded = true
+
+        var didLoad = false
+        if let url = API.shared.assetURL("emoji/packs.json"),
+           let data = try? await API.shared.assetData(url),
+           let payload = try? JSONDecoder().decode(StickerCatalogPayload.self, from: data) {
+            merge(payload)
+            didLoad = true
+        }
+
+        // Keep first-party packs in a separate catalog so deploying them can never
+        // overwrite the existing live sticker catalog.
+        if let url = API.shared.assetURL("emoji/star-orbit/pack.json"),
+           let data = try? await API.shared.assetData(url),
+           let payload = try? JSONDecoder().decode(StickerCatalogPayload.self, from: data) {
+            merge(payload)
+            didLoad = true
+        }
+        loaded = didLoad
+    }
+
+    private func merge(_ payload: StickerCatalogPayload) {
+        for category in payload.categories ?? [] where !categories.contains(where: { $0.id == category.id }) {
+            categories.append(category)
+        }
+        for pack in payload.packs ?? [] where !packs.contains(where: { $0.id == pack.id }) {
+            packs.append(pack)
+        }
     }
 
     func packs(in category: String) -> [RemoteStickerPack] {

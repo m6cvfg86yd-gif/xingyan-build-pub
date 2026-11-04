@@ -1,0 +1,31 @@
+{
+  "categories": [
+    {
+      "id": "star",
+      "name": "星言"
+    }
+  ],
+  "packs": [
+    {
+      "id": "star-orbit-daily",
+      "name": "星言日常",
+      "category": "star",
+      "dir": "/emoji/star-orbit",
+      "icon": "/emoji/star-orbit/icon.gif",
+      "files": [
+        "shou-dao.gif",
+        "zai-ne.gif",
+        "deng-deng.gif",
+        "xie-xie.gif",
+        "xiao-si.gif",
+        "zhen-jing.gif",
+        "wu-yu.gif",
+        "bao-bao.gif",
+        "wan-an.gif",
+        "ting-ge.gif",
+        "kai-che.gif",
+        "xiang-ni.gif"
+      ]
+    }
+  ]
+}
