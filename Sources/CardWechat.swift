@@ -43,12 +43,12 @@ struct ContactCardWechat: View {
 
     @State private var copied: String? = nil
 
-    private var green: Color { UIConfig.color("cardWechatGreen", 0x07C160, 0x07C160) }
-    private var pageBg: Color { UIConfig.color("cardWechatBg", 0xEDEDED, 0x111111) }
-    private var cardBg: Color { scheme == .dark ? Color(hex: 0x252525) : Color.white }
-    private var ink: Color { scheme == .dark ? Color(hex: 0xEDEDED) : Color(hex: 0x191919) }
-    private var gray: Color { scheme == .dark ? Color(hex: 0x7F7F7F) : Color(hex: 0x888888) }
-    private var hair: Color { scheme == .dark ? Color(white: 1, opacity: 0.08) : Color(hex: 0xE6E6E6) }
+    private var green: Color { OrbitTheme.jade }
+    private var pageBg: Color { OrbitTheme.canvas }
+    private var cardBg: Color { scheme == .dark ? Color(hex: 0x101713) : Color(hex: 0xF8FBF8) }
+    private var ink: Color { scheme == .dark ? Color(hex: 0xF1F7F3) : Color(hex: 0x15201A) }
+    private var gray: Color { scheme == .dark ? Color(hex: 0x91A197) : Color(hex: 0x68766D) }
+    private var hair: Color { scheme == .dark ? Color(white: 1, opacity: 0.09) : Color.black.opacity(0.075) }
     private var avatarSize: CGFloat { UIConfig.num("cardWechatAvatar", 64) }
     private var nameSize: CGFloat { UIConfig.num("cardWechatNameSize", 20) }
     private var thumbSize: CGFloat { UIConfig.num("cardWechatThumb", 40) }
@@ -62,30 +62,55 @@ struct ContactCardWechat: View {
         VStack(spacing: 0) {
             nav
             ScrollView {
-                VStack(spacing: 0) {
-                    PremiumGlassCard(radius: cardRadius,
-                                     tint: scheme == .dark ? green.opacity(0.045)
-                                                           : Color.white.opacity(0.035)) {
-                        VStack(spacing: 0) {
-                            header
-                            premiumDivider
-                            friendInfoCard
-                            premiumDivider
-                            momentsRow
-                            premiumDivider
-                            buttons
+                VStack(spacing: 14) {
+                    VStack(spacing: 0) {
+                        ZStack(alignment: .topTrailing) {
+                            cardSurface
+                            ContactOrbitMotif(accent: green, ink: gray)
+                                .frame(width: 205, height: 155)
+                                .offset(x: 22, y: -12)
+                                .allowsHitTesting(false)
+                            VStack(spacing: 0) {
+                                header
+                                premiumDivider
+                                friendInfoCard
+                                premiumDivider
+                                momentsRow
+                                premiumDivider
+                                buttons
+                            }
                         }
+
+                        HStack(spacing: 7) {
+                            Image(systemName: "point.3.connected.trianglepath.dotted")
+                            Text("XINGYAN · CONTACT SIGNAL")
+                                .tracking(1.3)
+                            Spacer(minLength: 4)
+                            Text(relationLabel)
+                        }
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundColor(gray)
+                        .padding(.horizontal, 18)
+                        .frame(height: 38)
+                        .background(scheme == .dark ? Color(hex: 0x0B110D) : Color(hex: 0xEDF5EF))
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 10)
+                    .clipShape(RoundedRectangle(cornerRadius: cardRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: cardRadius, style: .continuous)
+                            .stroke(hair, lineWidth: 0.8)
+                    }
+                    .shadow(color: Color.black.opacity(scheme == .dark ? 0.34 : 0.10),
+                            radius: 22, y: 12)
+
                     Spacer(minLength: 28)
                 }
-
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 6)
             }
         }
-        .background(PremiumProfileBackground())
+        .background(contactBackdrop)
         .onAppear { withAnimation(.easeOut(duration: 0.30)) { appeared = true } }
 
         .overlay(alignment: .bottom) {
@@ -112,8 +137,63 @@ struct ContactCardWechat: View {
         }
     }
 
+    private var contactBackdrop: some View {
+        ZStack {
+            OrbitTheme.canvas
+            RadialGradient(colors: [green.opacity(scheme == .dark ? 0.09 : 0.12), .clear],
+                           center: .topTrailing, startRadius: 0, endRadius: 330)
+        }
+        .ignoresSafeArea()
+    }
+
+    private var cardSurface: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: cardRadius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: scheme == .dark
+                            ? [Color(hex: 0x13231A), Color(hex: 0x09100C)]
+                            : [Color(hex: 0xFCFEFC), Color(hex: 0xEFF7F1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            RoundedRectangle(cornerRadius: cardRadius, style: .continuous)
+                .fill(
+                    RadialGradient(colors: [green.opacity(scheme == .dark ? 0.13 : 0.09), .clear],
+                                   center: .topTrailing, startRadius: 0, endRadius: 250)
+                )
+        }
+    }
+
+    private var relationLabel: String {
+        switch relation {
+        case "self": return Tr("我的名片")
+        case "friend": return Tr("星言联系人")
+        case "incoming": return Tr("好友申请")
+        case "requested": return Tr("申请已发送")
+        default: return Tr("待建立联系")
+        }
+    }
+
+    private func identityChip(icon: String, text: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 8.5, weight: .semibold))
+            Text(text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .font(pf(10.5, .medium))
+        .foregroundColor(gray)
+        .padding(.horizontal, 7)
+        .frame(height: 23)
+        .background(Capsule().fill(cardBg.opacity(0.78)))
+        .overlay(Capsule().stroke(hair, lineWidth: 0.6))
+    }
+
     private var nav: some View {
-        NavBar(title: "", back: { onClose() }) {
+        NavBar(title: Tr("星言身份"), back: { onClose() }) {
             Button { onMenu() } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 17))
@@ -130,10 +210,14 @@ struct ContactCardWechat: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 15) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(isBot ? Tr("星言助手") : Tr("星言联系人"))
-                    .font(pf(10.5, .semibold))
-                    .tracking(1.4)
-                    .foregroundColor(green)
+                HStack(spacing: 7) {
+                    ContactIdentityMark(accent: green)
+                        .frame(width: 23, height: 23)
+                    Text(isBot ? Tr("星言助手") : "XINGYAN · ORBIT ID")
+                        .font(pf(10, .semibold))
+                        .tracking(1.3)
+                }
+                .foregroundColor(gray)
                 Text(name)
                     .font(pf(max(22, nameSize + 1), .semibold))
                     .foregroundColor(ink)
@@ -153,25 +237,18 @@ struct ContactCardWechat: View {
                         }
                 }
                 if !region.isEmpty {
-                    Text(Tr("地区") + "  " + region)
-                        .font(pf(11.5))
-                        .foregroundColor(gray)
-                        .lineLimit(1)
+                    identityChip(icon: "location", text: region)
                 }
-                Text(Tr("网络属地") + "  " + networkProvince)
-                    .font(pf(11.5))
-                    .foregroundColor(gray)
-                    .lineLimit(1)
-                Text(Tr("手机型号") + "  " + deviceModel)
-                    .font(pf(11.5))
-                    .foregroundColor(gray)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    identityChip(icon: "network", text: networkProvince)
+                    identityChip(icon: "iphone", text: deviceModel)
+                }
             }
             Spacer(minLength: 0)
             ZStack {
                 RoundedRectangle(cornerRadius: avatarRadius + 6, style: .continuous)
                     .fill(LinearGradient(colors: [green.opacity(scheme == .dark ? 0.15 : 0.18),
-                                                  Color.white.opacity(scheme == .dark ? 0.04 : 0.48)],
+                                                  cardBg],
                                          startPoint: .topLeading,
                                          endPoint: .bottomTrailing))
                 Group {
@@ -186,12 +263,7 @@ struct ContactCardWechat: View {
             }
             .frame(width: avatarSize + 14, height: avatarSize + 14)
             .overlay(RoundedRectangle(cornerRadius: avatarRadius + 6, style: .continuous)
-                .stroke(LinearGradient(colors: [Color.white.opacity(0.85),
-                                                green.opacity(0.20),
-                                                Color.white.opacity(0.18)],
-                                       startPoint: .topLeading,
-                                       endPoint: .bottomTrailing),
-                        lineWidth: 0.8))
+                .stroke(green.opacity(0.30), lineWidth: 0.8))
             .shadow(color: .black.opacity(scheme == .dark ? 0.34 : 0.10), radius: 10, y: 4)
             .contentShape(Rectangle())
             .onTapGesture { onAvatar() }
@@ -394,5 +466,54 @@ struct ContactCardWechat: View {
 
     private var gap: some View {
         Rectangle().fill(pageBg).frame(height: 8)
+    }
+}
+
+private struct ContactIdentityMark: View {
+    let accent: Color
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(accent)
+            HStack(spacing: 4) {
+                Capsule().fill(Color(hex: 0x07351C)).frame(width: 2.6, height: 6.5)
+                Capsule().fill(Color(hex: 0x07351C)).frame(width: 2.6, height: 6.5)
+            }
+            .offset(y: 1)
+        }
+    }
+}
+
+private struct ContactOrbitMotif: View {
+    let accent: Color
+    let ink: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height) * 0.92
+            ZStack {
+                Ellipse()
+                    .trim(from: 0.02, to: 0.78)
+                    .stroke(ink.opacity(0.18),
+                            style: StrokeStyle(lineWidth: 0.8, dash: [3, 6]))
+                    .frame(width: side, height: side * 0.42)
+                    .rotationEffect(.degrees(-18))
+                    .position(x: geo.size.width * 0.68, y: geo.size.height * 0.42)
+                Ellipse()
+                    .trim(from: 0.18, to: 0.92)
+                    .stroke(accent.opacity(0.30),
+                            style: StrokeStyle(lineWidth: 0.8, dash: [1, 5]))
+                    .frame(width: side * 0.70, height: side * 0.28)
+                    .rotationEffect(.degrees(16))
+                    .position(x: geo.size.width * 0.70, y: geo.size.height * 0.45)
+                HStack(spacing: 8) {
+                    Capsule().fill(accent.opacity(0.72)).frame(width: 5, height: 13)
+                    Capsule().fill(accent.opacity(0.72)).frame(width: 5, height: 13)
+                }
+                .rotationEffect(.degrees(-16))
+                .position(x: geo.size.width * 0.83, y: geo.size.height * 0.66)
+            }
+        }
     }
 }

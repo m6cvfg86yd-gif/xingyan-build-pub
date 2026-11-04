@@ -799,30 +799,7 @@ struct ContactCardView: View {
 
     var body: some View {
         ZStack {
-            Group {
-                if UIConfig.text("cardStyle", "old") == "new" {
-                    ContactCardNew(name: displayName,
-                                   idLine: "账号 " + (u.username ?? ""),
-                                   avatarPath: u.avatarPath,
-                                   isEyes: isEyesBot,
-                                   remark: meta?.remark
-                                     ?? (u.remark?.isEmpty == false ? (u.remark ?? "") : ""),
-                                   phone: phone,
-                                   momentCount: thumbs.count,
-                                   momentsRange: u.momentsRange ?? "all",
-                                   networkProvince: networkProvinceText,
-                                   deviceModel: deviceModelText,
-                                   onClose: { dismiss() },
-                                   onMessage: { openChat() },
-                                   onVoice: { startCall(video: false) },
-                                   onVideo: { startCall(video: true) },
-                                   onMoments: hasMoments ? { onOpenMoments(u.id) } : nil)
-                } else if UIConfig.text("cardStyle", "old") == "wechat" {
-                    wechatCard
-                } else {
-                    cardBody
-                }
-            }
+            wechatCard
 
             if showMore { morePanel.transition(.opacity) }
         }
