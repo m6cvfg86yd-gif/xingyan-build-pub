@@ -2950,8 +2950,6 @@ struct MusicPlayingView: View {
     @State private var dragging = false
     @State private var dragValue: Double = 0
 
-    @State private var showLyrics = false
-
     @State private var flipped = false
 
     @State private var aiText = ""
@@ -2976,14 +2974,6 @@ struct MusicPlayingView: View {
     private var lyricIndex: Int {
         let index = MusicLyrics.current(lyricLines, at: player.seconds)
         return index < 0 ? 0 : index
-    }
-    private var currentLyricText: String {
-        guard lyricLines.indices.contains(lyricIndex) else { return "" }
-        return lyricLines[lyricIndex].text
-    }
-    private var nextLyricText: String {
-        guard lyricLines.indices.contains(lyricIndex + 1) else { return "" }
-        return lyricLines[lyricIndex + 1].text
     }
     private var currentLyricProgress: CGFloat {
         guard lyricLines.indices.contains(lyricIndex) else { return 0 }
@@ -3145,14 +3135,6 @@ struct MusicPlayingView: View {
                       systemImage: "timer")
             }
 
-            Divider()
-
-            Button {
-                showLyrics = true
-            } label: {
-                Label(Tr("查看歌词"), systemImage: "quote.bubble")
-            }
-
             Button {
                 showQueue = true
             } label: {
@@ -3176,56 +3158,6 @@ struct MusicPlayingView: View {
         }
         .pickerStyle(.segmented)
         .frame(width: 184)
-    }
-
-    @ViewBuilder
-    private var rollingLyrics: some View {
-        if !lyricLines.isEmpty {
-            Button {
-                showLyrics = true
-            } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    ZStack(alignment: .leading) {
-                        KaraokeLyricText(
-                            text: currentLyricText,
-                            progress: currentLyricProgress,
-                            font: .system(size: 20, weight: .semibold),
-                            baseColor: Color.primary.opacity(0.30),
-                            activeColor: OrbitTheme.jade
-                        )
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.86)
-                            .id("lyric-current-\(lyricIndex)")
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .bottom).combined(with: .opacity),
-                                removal: .move(edge: .top).combined(with: .opacity)
-                            ))
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-                    .clipped()
-
-                    ZStack(alignment: .leading) {
-                        Text(nextLyricText)
-                            .font(.system(size: 16.5, weight: .regular))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.88)
-                            .id("lyric-next-\(lyricIndex)")
-                            .transition(.opacity)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 23, alignment: .leading)
-                    .clipped()
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: 66, alignment: .leading)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .animation(.easeInOut(duration: 0.34), value: lyricIndex)
-            .accessibilityLabel(Tr("打开完整歌词"))
-        }
     }
 
     private var lyricsViewport: some View {
@@ -3563,16 +3495,6 @@ struct MusicPlayingView: View {
                 .accessibilityLabel(Tr("退出横屏"))
             }
 
-            Button {
-                showLyrics = true
-            } label: {
-                chromeCircle {
-                    Image(systemName: "quote.bubble")
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Tr("查看歌词"))
-
             playbackMenu
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(.white)
@@ -3814,9 +3736,12 @@ struct MusicPlayingView: View {
         .padding(.vertical, compact ? 11 : 14)
     }
 
-    private var portraitPlayer: some View {
-        VStack(spacing: 14) {
-            artworkPanel
+    private func portraitPlayer(size: CGSize) -> some View {
+        let lyricHeight = min(168, max(104, size.height * 0.25))
+        let coverSide = max(160, min(size.width - 40,
+                                     size.height - lyricHeight - 98))
+        return VStack(spacing: 12) {
+            artworkPanel(side: coverSide)
                 .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .onTapGesture {
                     withAnimation(.easeInOut(duration: 0.22)) {
@@ -3827,11 +3752,12 @@ struct MusicPlayingView: View {
             titleBlock
 
             lyricsViewport
-                .frame(height: min(220, max(150, L.height * 0.25)))
+                .frame(height: lyricHeight)
         }
         .padding(.horizontal, 22)
         .padding(.top, 4)
-        .padding(.bottom, 10)
+        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private func landscapePlayer(size: CGSize) -> some View {
@@ -3867,6 +3793,10 @@ struct MusicPlayingView: View {
                     width: geo.size.width,
                     height: max(1, geo.size.height - 52)
                 )
+                let portraitStageHeight = max(
+                    300,
+                    contentSize.height - max(226, L.safeBottom + 198)
+                )
                 ZStack {
                     FullPlayerAmbient(track: t)
 
@@ -3879,9 +3809,10 @@ struct MusicPlayingView: View {
                                     .transition(.opacity)
                             } else {
                                 VStack(spacing: 0) {
-                                    ScrollView(showsIndicators: false) {
-                                        portraitPlayer
-                                    }
+                                    portraitPlayer(size: CGSize(
+                                        width: contentSize.width,
+                                        height: portraitStageHeight
+                                    ))
                                     controlDock(compact: false)
                                         .padding(.horizontal, 22)
                                         .padding(.bottom, max(8, L.safeBottom))
@@ -3906,17 +3837,6 @@ struct MusicPlayingView: View {
             }
             .sheet(isPresented: $showQueue) {
                 queueSheet
-            }
-            .fullScreenCover(isPresented: $showLyrics) {
-                MusicLyricsView(track: t) {
-                    showLyrics = false
-                    if onExit != nil {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
-                            closeMe()
-                        }
-                    }
-                }
-                    .environmentObject(app)
             }
             .onAppear {
                 PushCenter.setMusicLandscape(true)
