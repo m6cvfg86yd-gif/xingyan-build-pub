@@ -216,7 +216,9 @@ struct DiscoverView: View {
                     NewsView()
                 } else if key == "music" {
 
-                    ListenView()
+                    ListenView(onLeave: {
+                        path = NavigationPath()
+                    })
                 } else if key == "miniapps" {
 
                     MiniAppsView()
@@ -706,6 +708,9 @@ struct DiscoverView: View {
     }
 
     private func open(_ item: DiscoverItem) {
+        let now = Date()
+        guard now.timeIntervalSince(lastRouteOpenAt) > 0.45 else { return }
+        lastRouteOpenAt = now
         switch item.action ?? "soon" {
         case "moments": path.append("moments")
         case "news": path.append("news")
@@ -918,6 +923,7 @@ struct MomentsView: View {
     @State private var dragIndex: Int?
 
     @State private var tapLockUntil = Date(timeIntervalSince1970: 0)
+    @State private var lastRouteOpenAt = Date.distantPast
     @State private var loadingMore = false
     @State private var momentTotal = 0
 

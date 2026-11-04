@@ -858,6 +858,7 @@ struct ListenView: View {
 
     var sendTo: Chat? = nil
     var onSend: ((MusicTrack) -> Void)? = nil
+    var onLeave: (() -> Void)? = nil
 
     @State private var tracks: [MusicTrack] = []
     @State private var loading = true
@@ -1042,14 +1043,18 @@ struct ListenView: View {
 
     private func leaveListen() {
         MusicSheet.shared.close()
-        dismiss()
+        if let onLeave {
+            onLeave()
+        } else {
+            dismiss()
+        }
     }
 
     private func leaveMineAndListen() {
         MusicSheet.shared.close()
         mine = nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
-            dismiss()
+            leaveListen()
         }
     }
 
