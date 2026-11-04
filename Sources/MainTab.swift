@@ -107,10 +107,8 @@ struct MainTabView: View {
                     .frame(height: max(49, L.tabH - 6))
 
                     .background {
-                        if scheme != .dark && UIConfig.num("tabBarOpaqueBg", 0) > 0 {
-                            Color.dyn(0xFFFFFF, 0x0B1813)
-                                .ignoresSafeArea(edges: .bottom)
-                        }
+                        TabBarBottomMask()
+                            .ignoresSafeArea(edges: .bottom)
                     }
 
                     .offset(y: UIConfig.num("tabBarDrop", 0) + (L.compactPhone ? 2 : 8))
@@ -289,6 +287,41 @@ struct MainTabView: View {
         }
 
         .onAppear { CrashCatcher.note("启动", "7 主界面出现") }
+    }
+}
+
+private struct TabBarBottomMask: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let native = UIConfig.num("tabUseNativeMaterial", 1) > 0
+        let alpha = min(1, max(0.55, UIConfig.num("tabMaskOpacity", 0.94)))
+
+        ZStack {
+            if native {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .opacity(alpha)
+                    .overlay {
+                        LinearGradient(
+                            colors: [
+                                OrbitTheme.jade.opacity(scheme == .dark ? 0.08 : 0.055),
+                                Color.clear
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+            } else {
+                C.tabBg.opacity(alpha)
+            }
+        }
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(C.navLine.opacity(0.72))
+                .frame(height: 0.5)
+        }
+        .allowsHitTesting(false)
     }
 }
 

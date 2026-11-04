@@ -235,25 +235,13 @@ struct NativeTabBar: UIViewRepresentable {
 
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
-        appearance.backgroundEffect = UIBlurEffect(
-            style: scheme == .dark ? .systemUltraThinMaterialDark : .systemThinMaterialLight
-        )
-        if scheme == .dark {
-            appearance.backgroundEffect = nil
-            appearance.backgroundColor = .clear
-            appearance.backgroundImage = UIImage()
-            bar.backgroundImage = UIImage()
-            bar.shadowImage = UIImage()
-            bar.backgroundColor = .clear
-            bar.isOpaque = false
-        } else {
-            appearance.backgroundColor = UIColor(red: 0.955, green: 0.982,
-                                                 blue: 0.970, alpha: 0.68)
-            appearance.backgroundImage = nil
-            bar.backgroundImage = nil
-            bar.shadowImage = nil
-            bar.isOpaque = false
-        }
+        appearance.backgroundEffect = nil
+        appearance.backgroundColor = .clear
+        appearance.backgroundImage = UIImage()
+        bar.backgroundImage = UIImage()
+        bar.shadowImage = UIImage()
+        bar.backgroundColor = .clear
+        bar.isOpaque = false
         appearance.shadowColor = UIColor.clear
         let normalTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.secondary),
