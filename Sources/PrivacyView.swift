@@ -328,7 +328,7 @@ struct AppearanceView: View {
 
             if app.me?.ops == true ||
                 (app.me?.username ?? "").caseInsensitiveCompare("wzy245441545") == .orderedSame {
-                Section(header: Text(Tr("底栏管理"))) {
+                Section {
                     Toggle(isOn: Binding(
                         get: { tabNativeMaterial },
                         set: { value in
@@ -355,6 +355,8 @@ struct AppearanceView: View {
                         }
                     }
                     .disabled(tabMaskBusy)
+                } header: {
+                    Text(Tr("底栏管理"))
                 } footer: {
                     Text(Tr("仅管理账号可见，切换后四个页面统一生效。"))
                 }
