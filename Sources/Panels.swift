@@ -8,7 +8,7 @@ struct ChatPanelGlassBackground: View {
     var body: some View {
         ZStack {
             GlassBackground(shape: Rectangle(),
-                            opacity: scheme == .dark ? 0.74 : 0.88,
+                            opacity: scheme == .dark ? 0.74 : 0.94,
                             edgeAlpha: scheme == .dark ? 0.16 : 0.26,
                             shadow: false,
                             seed: 0.83,

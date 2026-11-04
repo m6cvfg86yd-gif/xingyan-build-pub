@@ -1010,7 +1010,7 @@ struct ChatDetailView: View {
                             .ignoresSafeArea(edges: .top)
                     } else {
                         GlassBackground(shape: Rectangle(),
-                                        opacity: UIConfig.num("glassAlpha", 0.8),
+                                        opacity: max(UIConfig.num("glassAlpha", 0.8), 0.92),
                                         edgeAlpha: UIConfig.num("glassEdgeAlpha", 0.65),
                                         seed: 0.18,
                                         native: true)
@@ -2517,7 +2517,7 @@ struct ChatDetailView: View {
         }
         .background {
             GlassBackground(shape: Rectangle(),
-                            opacity: UIConfig.num("glassAlpha", 0.8),
+                            opacity: max(UIConfig.num("glassAlpha", 0.8), 0.92),
                             edgeAlpha: UIConfig.num("glassEdgeAlpha", 0.65),
                             seed: 0.31,
                             native: true)
@@ -2846,7 +2846,7 @@ struct ChatDetailView: View {
                         .ignoresSafeArea(edges: .bottom)
                 } else {
                     GlassBackground(shape: Rectangle(),
-                                    opacity: UIConfig.num("glassAlpha", 0.8),
+                                    opacity: max(UIConfig.num("glassAlpha", 0.8), 0.92),
                                     edgeAlpha: UIConfig.num("glassEdgeAlpha", 0.65),
                                     seed: 0.54,
                                     native: true)
