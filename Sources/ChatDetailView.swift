@@ -1011,11 +1011,7 @@ struct ChatDetailView: View {
                         HarmonyDarkMask(strength: 1)
                             .ignoresSafeArea(edges: .top)
                     } else {
-                        GlassBackground(shape: Rectangle(),
-                                        opacity: max(UIConfig.num("glassAlpha", 0.8), 0.92),
-                                        edgeAlpha: UIConfig.num("glassEdgeAlpha", 0.65),
-                                        seed: 0.18,
-                                        native: true)
+                        C.navBg
                         .ignoresSafeArea(edges: .top)
                     }
                 }
