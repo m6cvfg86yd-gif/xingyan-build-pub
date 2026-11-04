@@ -1115,11 +1115,13 @@ struct MomentsView: View {
                                     set: { if !$0 { momentVideo = nil } })) {
             if let u = momentVideo { VideoPlayerSheet(url: u) }
         }
-        .fullScreenCover(item: $commentsSheet) { moment in
+        .sheet(item: $commentsSheet) { moment in
             MomentCommentsSheet(moment: moment) {
                 Task { await reload() }
             }
             .environmentObject(app)
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
         .onAppear {
             scrollMetrics.baseTop = nil
