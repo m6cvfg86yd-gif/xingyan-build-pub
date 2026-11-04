@@ -74,43 +74,6 @@ struct MusicDockedPlayerBar: View {
     }
 }
 
-struct GlobalMusicAmbient: View {
-    @ObservedObject private var player = MusicPlayer.shared
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        GeometryReader { geo in
-            if player.playing, let cover = player.current?.cover, !cover.isEmpty {
-                RemoteImage(path: cover, mode: .fill, maxSide: 720)
-                    .frame(width: geo.size.width * 1.16,
-                           height: geo.size.height * 1.04)
-                    .blur(radius: 82, opaque: false)
-                    .saturation(scheme == .dark ? 1.24 : 1.10)
-                    .opacity(scheme == .dark ? 0.25 : 0.15)
-                    .blendMode(scheme == .dark ? .screen : .softLight)
-                    .mask {
-                        LinearGradient(
-                            stops: [
-                                .init(color: .black, location: 0),
-                                .init(color: .black.opacity(0.72), location: 0.30),
-                                .init(color: .black.opacity(0.24), location: 0.66),
-                                .init(color: .clear, location: 1)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    }
-                    .id(cover)
-                    .transition(.opacity)
-            }
-        }
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
-        .animation(.easeInOut(duration: 0.45), value: player.playing)
-        .animation(.easeInOut(duration: 0.55), value: player.current?.cover)
-    }
-}
-
 struct MiniPlayerBall: View {
     @ObservedObject private var player = MusicPlayer.shared
 

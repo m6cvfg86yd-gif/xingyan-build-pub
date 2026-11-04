@@ -11,12 +11,10 @@ struct MainTabView: View {
 
     @ObservedObject private var musicSheet = MusicSheet.shared
     @ObservedObject private var musicDock = MusicDockState.shared
-    @ObservedObject private var musicPlayer = MusicPlayer.shared
 
     @ObservedObject private var mallSheet = MallSheet.shared
 
     @ObservedObject private var realNameGate = RealNameGate.shared
-    @Environment(\.colorScheme) private var scheme
 
     private var unreadTotal: Int {
 
@@ -89,11 +87,6 @@ struct MainTabView: View {
                     .transition(.opacity)
                     .allowsHitTesting(false)
                 }
-            }
-
-            if musicPlayer.playing && app.openMiniApp == nil {
-                GlobalMusicAmbient()
-                    .transition(.opacity)
             }
 
             if !app.tabBarHidden {
@@ -226,11 +219,6 @@ struct MainTabView: View {
                 ChatDetailView(chat: c).environmentObject(app)
             }
 
-            .overlay {
-                if musicPlayer.playing {
-                    GlobalMusicAmbient()
-                }
-            }
             .overlay(MiniPlayerBall())
 
             .overlay {
