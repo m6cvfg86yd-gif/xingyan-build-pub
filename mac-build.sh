@@ -108,7 +108,7 @@ xcrun --sdk iphoneos swiftc \
   -framework WebRTC \
   -framework TXLiteAVSDK_TRTC \
   -framework AudioToolbox -framework CoreTelephony -framework CoreMedia \
-  -framework MediaPlayer -framework MessageUI \
+  -framework MediaPlayer -framework MessageUI -framework CarPlay \
   -framework CoreVideo -framework VideoToolbox -framework MetalKit -framework Metal \
   -framework Accelerate -framework SystemConfiguration -framework ReplayKit \
   -framework CoreGraphics -framework QuartzCore -framework OpenGLES \
