@@ -14,6 +14,7 @@ struct DiscoverView: View {
     @State private var items: [DiscoverItem] = []
     @State private var loaded = false
     @State private var worldArtwork: [String: String] = [:]
+    @State private var lastRouteOpenAt = Date.distantPast
 
     @State private var showScan = false
     @ObservedObject private var realtime = Realtime.shared
