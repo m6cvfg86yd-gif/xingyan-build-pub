@@ -20,10 +20,54 @@ private struct QRInvite: Identifiable {
     let image: UIImage
 }
 
+private struct PhoneContactMark: View {
+    let accent: Color
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(accent)
+            HStack(spacing: 4) {
+                Capsule().fill(Color(hex: 0x07351C)).frame(width: 2.8, height: 7)
+                Capsule().fill(Color(hex: 0x07351C)).frame(width: 2.8, height: 7)
+            }
+            .offset(y: 1)
+        }
+    }
+}
+
+private struct PhoneOrbitMotif: View {
+    let accent: Color
+    let ink: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height) * 0.95
+            ZStack {
+                Ellipse()
+                    .trim(from: 0.04, to: 0.80)
+                    .stroke(ink.opacity(0.16),
+                            style: StrokeStyle(lineWidth: 0.8, dash: [3, 6]))
+                    .frame(width: side, height: side * 0.40)
+                    .rotationEffect(.degrees(-17))
+                    .position(x: geo.size.width * 0.68, y: geo.size.height * 0.42)
+                Ellipse()
+                    .trim(from: 0.20, to: 0.92)
+                    .stroke(accent.opacity(0.28),
+                            style: StrokeStyle(lineWidth: 0.8, dash: [1, 5]))
+                    .frame(width: side * 0.68, height: side * 0.26)
+                    .rotationEffect(.degrees(15))
+                    .position(x: geo.size.width * 0.70, y: geo.size.height * 0.44)
+            }
+        }
+    }
+}
+
 struct PhoneContactsView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var scheme
 
     var onOpenUser: (User) -> Void
 
@@ -49,24 +93,8 @@ struct PhoneContactsView: View {
             NavBar(title: Tr("手机联系人"), back: { dismiss() })
 
             ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 14) {
-                    VStack(spacing: 10) {
-                        Image(systemName: "person.text.rectangle")
-                            .font(.system(size: 34, weight: .light))
-                            .foregroundColor(C.green)
-                        Text(Tr("从手机通讯录添加朋友"))
-                            .font(pf(17, .semibold))
-                            .foregroundColor(C.label)
-                        Text(Tr("星言只在你选择一个联系人后，用这个号码查询对应账号；不会批量上传其他联系人。"))
-                            .font(pf(12.5))
-                            .foregroundColor(C.subLabel)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(18)
-                    .frame(maxWidth: .infinity)
-                    .background(C.cardBg)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                LazyVStack(spacing: 12) {
+                    contactsHero
 
                     switch state {
                     case .idle, .denied:
@@ -78,7 +106,13 @@ struct PhoneContactsView: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 48)
-                                .background(Capsule().fill(C.green))
+                                .background(
+                                    Capsule().fill(
+                                        LinearGradient(colors: [OrbitTheme.jadeDeep, OrbitTheme.jade],
+                                                       startPoint: .leading, endPoint: .trailing)
+                                    )
+                                )
+                                .shadow(color: OrbitTheme.jade.opacity(0.18), radius: 10, y: 5)
                         }
                         .buttonStyle(.plain)
 
@@ -89,7 +123,7 @@ struct PhoneContactsView: View {
                     case .ready:
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
-                                .foregroundColor(C.subLabel)
+                                .foregroundColor(OrbitTheme.tertiary)
                             TextField(Tr("搜索姓名或号码"), text: $keyword)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
@@ -104,9 +138,13 @@ struct PhoneContactsView: View {
                             }
                         }
                         .padding(.horizontal, 12)
-                        .frame(height: 42)
-                        .background(C.cardBg)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .frame(height: 44)
+                        .background(OrbitTheme.field)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(OrbitTheme.divider, lineWidth: 0.7)
+                        }
 
                         if contacts.isEmpty {
                             Text(Tr("手机通讯录里没有可查询的号码"))
@@ -119,52 +157,15 @@ struct PhoneContactsView: View {
                                 .foregroundColor(C.subLabel)
                                 .padding(.vertical, 30)
                         } else {
-                            VStack(spacing: 0) {
-                                ForEach(filteredContacts) { contact in
-                                    Button {
-                                        Task { await lookUp(contact) }
-                                    } label: {
-                                        HStack(spacing: 12) {
-                                            ZStack {
-                                                Circle().fill(C.green.opacity(0.12))
-                                                Text(String(contact.name.prefix(1)))
-                                                    .font(pf(17, .semibold))
-                                                    .foregroundColor(C.green)
-                                            }
-                                            .frame(width: 44, height: 44)
-
-                                            VStack(alignment: .leading, spacing: 3) {
-                                                Text(contact.name)
-                                                    .font(pf(16, .medium))
-                                                    .foregroundColor(C.label)
-                                                Text(contact.phone)
-                                                    .font(pf(12))
-                                                    .foregroundColor(C.subLabel)
-                                            }
-
-                                            Spacer()
-
-                                            if searchingPhone == contact.phone {
-                                                ProgressView()
-                                            } else {
-                                                Text(Tr("查找"))
-                                                    .font(pf(12.5, .medium))
-                                                    .foregroundColor(C.green)
-                                            }
-                                        }
-                                        .padding(.horizontal, 14)
-                                        .frame(height: 64)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .disabled(!searchingPhone.isEmpty)
-                                    if contact.id != filteredContacts.last?.id {
-                                        HairLine(inset: 70)
-                                    }
+                            ForEach(filteredContacts) { contact in
+                                Button {
+                                    Task { await lookUp(contact) }
+                                } label: {
+                                    phoneContactRow(contact)
                                 }
+                                .buttonStyle(MenuPressStyle())
+                                .disabled(!searchingPhone.isEmpty)
                             }
-                            .background(C.cardBg)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
                     }
 
@@ -177,11 +178,12 @@ struct PhoneContactsView: View {
                     }
 
                 }
-                .padding(14)
+                .padding(.horizontal, 14)
+                .padding(.top, 8)
                 .padding(.bottom, max(20, L.safeBottom))
             }
         }
-        .background(C.pageBg.ignoresSafeArea())
+        .background(phoneContactsBackdrop)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $qrInvite) { invite in
             PhoneInviteSheet(name: invite.name, phone: invite.phone,
@@ -189,6 +191,126 @@ struct PhoneContactsView: View {
                 qrInvite = nil
             }
         }
+    }
+
+    private var phoneContactsBackdrop: some View {
+        ZStack {
+            OrbitTheme.canvas
+            RadialGradient(colors: [OrbitTheme.jade.opacity(scheme == .dark ? 0.09 : 0.12), .clear],
+                           center: .topTrailing, startRadius: 0, endRadius: 300)
+        }
+        .ignoresSafeArea()
+    }
+
+    private var contactsHero: some View {
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(colors: scheme == .dark
+                                   ? [Color(hex: 0x14231A), Color(hex: 0x09100C)]
+                                   : [Color(hex: 0xFCFEFC), Color(hex: 0xEAF5EE)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+
+            PhoneOrbitMotif(accent: OrbitTheme.jade, ink: OrbitTheme.secondary)
+                .frame(width: 170, height: 125)
+                .offset(x: 24, y: -10)
+                .allowsHitTesting(false)
+
+            VStack(alignment: .leading, spacing: 11) {
+                HStack(spacing: 9) {
+                    PhoneContactMark(accent: OrbitTheme.jade)
+                        .frame(width: 28, height: 28)
+                    Text("XINGYAN · CONTACT ORBIT")
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .tracking(1.3)
+                        .foregroundStyle(OrbitTheme.secondary)
+                }
+                Text(Tr("从手机通讯录添加朋友"))
+                    .font(pf(21, .semibold))
+                    .foregroundStyle(OrbitTheme.ink)
+                Text(Tr("星言只在你选择一个联系人后，用这个号码查询对应账号；不会批量上传其他联系人。"))
+                    .font(pf(12))
+                    .foregroundStyle(OrbitTheme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if state == .ready {
+                    HStack(spacing: 7) {
+                        Text("\(contacts.count)")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                        Text(Tr("个本地联系人"))
+                            .font(pf(10.5, .medium))
+                    }
+                    .foregroundStyle(OrbitTheme.jadeDeep)
+                    .padding(.horizontal, 10)
+                    .frame(height: 26)
+                    .background(Capsule().fill(OrbitTheme.jadeSoft))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(18)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(OrbitTheme.divider, lineWidth: 0.7)
+        }
+        .shadow(color: Color.black.opacity(scheme == .dark ? 0.30 : 0.07), radius: 16, y: 8)
+    }
+
+    private func phoneContactRow(_ contact: LocalPhoneContact) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(LinearGradient(colors: [OrbitTheme.jade.opacity(0.20),
+                                                  OrbitTheme.jade.opacity(0.07)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                Text(String(contact.name.prefix(1)))
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundStyle(OrbitTheme.jadeDeep)
+            }
+            .frame(width: 46, height: 46)
+            .overlay {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .stroke(OrbitTheme.jade.opacity(0.16), lineWidth: 0.7)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(contact.name)
+                    .font(pf(15.5, .medium))
+                    .foregroundStyle(OrbitTheme.ink)
+                    .lineLimit(1)
+                Text(contact.phone)
+                    .font(.system(size: 11.5, weight: .regular, design: .monospaced))
+                    .foregroundStyle(OrbitTheme.tertiary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 6)
+            if searchingPhone == contact.phone {
+                ProgressView().tint(OrbitTheme.jade)
+            } else {
+                HStack(spacing: 5) {
+                    Text(Tr("查找"))
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .font(pf(11.5, .semibold))
+                .foregroundStyle(OrbitTheme.jadeDeep)
+                .padding(.horizontal, 10)
+                .frame(height: 29)
+                .background(Capsule().fill(OrbitTheme.jadeSoft))
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 68)
+        .background(OrbitTheme.raised)
+        .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .stroke(OrbitTheme.divider, lineWidth: 0.7)
+        }
+        .contentShape(Rectangle())
     }
 
     private func loadContacts() async {
@@ -231,10 +353,8 @@ struct PhoneContactsView: View {
                 prepareInvite(contact)
                 return
             }
+            onOpenUser(user)
             dismiss()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                onOpenUser(user)
-            }
         } catch {
             errorText = (error as? LocalizedError)?.errorDescription ?? Tr("查找失败，请稍后再试")
         }

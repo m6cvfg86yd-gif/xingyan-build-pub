@@ -17372,16 +17372,28 @@ async function handleApi(req, res, pathname, query) {
     const meta = metaOf(user.id, u.id);
     const addedAt = f ? (f.respondedAt || f.createdAt || '') : '';
     const deviceRows = Array.isArray(u.devices) ? u.devices : [];
-    const latestDevice = deviceRows.find((d) => d && (d.model || d.deviceMachine))
-      || deviceRows.find((d) => d && d.province)
+    const modelDevice = deviceRows.find((d) => d && (d.model || d.deviceMachine || d.device))
       || deviceRows[0]
       || {};
-    const ipProvince = latestDevice.province
-      || (latestDevice.ip ? await provinceForIp(latestDevice.ip) : '');
-    const deviceModel = friendlyModelName(latestDevice.model)
-      || friendlyModelName(latestDevice.deviceMachine)
-      || friendlyModelName(latestDevice.device)
+    const provinceDevice = deviceRows.find((d) => d && d.province)
+      || deviceRows.find((d) => d && d.ip)
+      || modelDevice;
+    let ipProvince = provinceDevice.province
+      || (provinceDevice.ip ? await provinceForIp(provinceDevice.ip) : '');
+    let deviceModel = friendlyModelName(modelDevice.model)
+      || friendlyModelName(modelDevice.deviceMachine)
+      || friendlyModelName(modelDevice.device)
       || '';
+    /* 本人名片优先补当前请求设备，避免恢复会话后设备表里还没有本机记录。 */
+    if (u.id === user.id) {
+      const current = clientInfo(req);
+      if (!deviceModel) {
+        deviceModel = friendlyModelName(current.model)
+          || friendlyModelName(current.device)
+          || '';
+      }
+      if (!ipProvince && current.ip) ipProvince = await provinceForIp(current.ip);
+    }
     ok(res, {
       user: Object.assign(memberProfile(u, user.id), {
         relation: !f ? (u.id === user.id ? 'self' : 'none') : (f.status === 'accepted' ? 'friend' : (f.fromId === user.id ? 'requested' : 'incoming')),

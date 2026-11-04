@@ -69,6 +69,7 @@ struct ContactsView: View {
     @State private var plusMenu = false
     @State private var showScan = false
     @State private var showPhoneContacts = false
+    @State private var phoneSelectedUser: User?
 
     @State private var showSearch = false
     @ObservedObject private var realtime = Realtime.shared
@@ -329,9 +330,13 @@ private var funcs: [(String, String, Color, String)] {
         .fullScreenCover(isPresented: $showScan) {
             ScannerView { text in handleScanned(text, app: app) }
         }
-        .sheet(isPresented: $showPhoneContacts) {
+        .sheet(isPresented: $showPhoneContacts, onDismiss: {
+            guard let user = phoneSelectedUser else { return }
+            phoneSelectedUser = nil
+            path.append(user)
+        }) {
             PhoneContactsView { user in
-                path.append(user)
+                phoneSelectedUser = user
             }
             .environmentObject(app)
         }
