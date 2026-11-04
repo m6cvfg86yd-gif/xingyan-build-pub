@@ -952,6 +952,7 @@ struct ListenView: View {
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(Tr(sendMode ? "选择音乐" : "听一听"))
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .searchable(
             text: $query,
             placement: .navigationBarDrawer(displayMode: .automatic),
@@ -2430,6 +2431,19 @@ struct ListenView: View {
 
     @ToolbarContentBuilder
     private var musicToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button {
+                leaveListen()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 38, height: 38)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Tr("返回"))
+        }
+
         ToolbarItem(placement: .navigationBarTrailing) {
             HStack(spacing: 10) {
                 if !sendMode && tab == 1 && cats.count > 1 {

@@ -218,7 +218,9 @@ struct DiscoverView: View {
                 } else if key == "music" {
 
                     ListenView(onLeave: {
-                        path = NavigationPath()
+                        DispatchQueue.main.async {
+                            path = NavigationPath()
+                        }
                     })
                 } else if key == "miniapps" {
 
