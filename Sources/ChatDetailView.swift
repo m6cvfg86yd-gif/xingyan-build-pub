@@ -148,6 +148,8 @@ struct BubbleFill: View {
     var pill: Bool = false
 
     var seed: Double = 0
+
+    var glass: Bool = true
     @Environment(\.colorScheme) private var scheme
 
     private var tint: Color {
@@ -175,7 +177,7 @@ struct BubbleFill: View {
     var body: some View {
         #if compiler(>=6.2)
 
-        if #available(iOS 26.0, *), UIConfig.num("bubbleNativeGlass", 0) > 0 {
+        if #available(iOS 26.0, *), glass, UIConfig.num("bubbleNativeGlass", 0) > 0 {
             Color.clear
                 .glassEffect(.regular.tint(mine ? C.green.opacity(UIConfig.num("bubbleNativeTint", 0.30)) : nil),
                              in: BubbleShape(mine: mine, tail: tail, pill: pill))
@@ -192,7 +194,7 @@ struct BubbleFill: View {
     private var legacyBubble: some View {
         ZStack {
 
-            if UIConfig.num("bubbleGlass", 0) > 0 {
+            if glass, UIConfig.num("bubbleGlass", 0) > 0 {
 
                 let layers = max(1, min(3, Int(UIConfig.num("glassLayers", 2))))
                 ZStack {
@@ -4712,7 +4714,7 @@ struct MessageRow: View {
                 .padding(.horizontal, L.bubblePadHPill)
                 .padding(.vertical, L.bubblePadV)
                 .background(
-                    BubbleFill(mine: mine, tail: showTail)
+                    BubbleFill(mine: mine, tail: showTail, glass: false)
                 )
                 }
         }
@@ -4728,7 +4730,7 @@ struct MessageRow: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, L.bubblePadHPill)
                 .padding(.vertical, L.bubblePadV)
-                .background(BubbleFill(mine: mine, tail: showTail))
+                .background(BubbleFill(mine: mine, tail: showTail, glass: false))
 
             HStack(alignment: .top, spacing: 8) {
                 Button {
