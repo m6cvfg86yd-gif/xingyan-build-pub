@@ -2945,6 +2945,7 @@ struct MusicPlayingView: View {
     @ObservedObject private var player = MusicPlayer.shared
     @ObservedObject private var sheet = MusicSheet.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
     var onExit: (() -> Void)? = nil
     @State private var dragging = false
     @State private var dragValue: Double = 0
@@ -3512,12 +3513,10 @@ struct MusicPlayingView: View {
     ) -> some View {
         content()
             .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(.primary)
-            .frame(width: 38, height: 38)
-            .background(.thinMaterial, in: Circle())
-            .overlay {
-                Circle().stroke(Color.primary.opacity(0.065), lineWidth: 0.5)
-            }
+            .foregroundStyle(.white)
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+            .shadow(color: .black.opacity(0.24), radius: 5, y: 2)
     }
 
     private func playerTopBar(landscape: Bool) -> some View {
@@ -3537,13 +3536,13 @@ struct MusicPlayingView: View {
                     Text(Tr(player.playing ? "正在播放" : "已暂停"))
                         .font(.system(size: 11.5, weight: .semibold))
                         .tracking(0.8)
-                        .foregroundStyle(OrbitTheme.jade)
+                        .foregroundStyle(.white.opacity(0.88))
                     MusicPulseBars(level: player.level, playing: player.playing)
                 }
                 if !landscape, !(t?.displayCategory ?? "").isEmpty {
                     Text(t?.displayCategory ?? "")
                         .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.62))
                 }
             }
 
@@ -3555,13 +3554,10 @@ struct MusicPlayingView: View {
                 } label: {
                     Label(Tr("退出横屏"), systemImage: "rectangle.portrait")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 9)
                         .frame(height: 32)
-                        .background(.thinMaterial, in: Capsule())
-                        .overlay {
-                            Capsule().stroke(Color.primary.opacity(0.065), lineWidth: 0.5)
-                        }
+                        .background(.black.opacity(0.20), in: Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Tr("退出横屏"))
@@ -3579,15 +3575,25 @@ struct MusicPlayingView: View {
 
             playbackMenu
                 .font(.system(size: 16, weight: .semibold))
-                .frame(width: 38, height: 38)
-                .background(.thinMaterial, in: Circle())
-                .overlay {
-                    Circle().stroke(Color.primary.opacity(0.065), lineWidth: 0.5)
-                }
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .shadow(color: .black.opacity(0.24), radius: 5, y: 2)
         }
         .padding(.horizontal, 18)
         .padding(.top, 6)
         .padding(.bottom, 6)
+        .background {
+            LinearGradient(
+                colors: [
+                    .black.opacity(scheme == .dark ? 0.12 : 0.19),
+                    .clear
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea(edges: .top)
+        }
     }
 
     private var titleBlock: some View {
@@ -3822,12 +3828,10 @@ struct MusicPlayingView: View {
 
             lyricsViewport
                 .frame(height: min(220, max(150, L.height * 0.25)))
-
-            controlDock(compact: false)
         }
         .padding(.horizontal, 22)
         .padding(.top, 4)
-        .padding(.bottom, max(24, L.safeBottom + 12))
+        .padding(.bottom, 10)
     }
 
     private func landscapePlayer(size: CGSize) -> some View {
@@ -3874,10 +3878,13 @@ struct MusicPlayingView: View {
                                 landscapePlayer(size: contentSize)
                                     .transition(.opacity)
                             } else {
-                                ScrollView(showsIndicators: false) {
-                                    Group {
+                                VStack(spacing: 0) {
+                                    ScrollView(showsIndicators: false) {
                                         portraitPlayer
                                     }
+                                    controlDock(compact: false)
+                                        .padding(.horizontal, 22)
+                                        .padding(.bottom, max(8, L.safeBottom))
                                 }
                                 .transition(.opacity)
                             }
