@@ -13,6 +13,9 @@ html { scroll-behavior: smooth; overflow-x: hidden; }
 body {
   margin: 0;
   overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background:
     radial-gradient(ellipse at 83% 8%, rgba(7,157,93,.085), transparent 31%),
     radial-gradient(ellipse at 8% 35%, rgba(7,157,93,.035), transparent 26%),
@@ -65,15 +68,16 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: roun
 
 .hero {
   position: relative;
-  min-height: 760px;
+  min-height: calc(100vh - 178px);
   width: min(1320px, calc(100% - 80px));
   margin: 0 auto;
   display: grid;
   grid-template-columns: 36% 64%;
   align-items: center;
   gap: 46px;
-  padding: 58px 0 82px;
+  padding: 34px 0 46px;
 }
+main { flex: 1; }
 .hero::before {
   content: "";
   position: absolute;
@@ -517,7 +521,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: roun
 .help-section > a { flex:0 0 auto; padding:12px 17px; border:1px solid rgba(255,255,255,.27); border-radius:7px; font-size:12px; }
 footer {
   width:min(1320px,calc(100% - 80px));
-  min-height:120px;
+  min-height:96px;
   margin:0 auto;
   border-top:1px solid var(--line);
   display:flex;
