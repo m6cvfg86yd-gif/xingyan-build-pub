@@ -245,11 +245,11 @@ struct NativeTabBar: UIViewRepresentable {
         appearance.shadowColor = UIColor.clear
         let normalTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.secondary),
-            .font: UIFont.systemFont(ofSize: 10.5, weight: .medium)
+            .font: pfUIFont(10.5, .medium)
         ]
         let selectedTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.jade),
-            .font: UIFont.systemFont(ofSize: 10.5, weight: .semibold)
+            .font: pfUIFont(10.5, .semibold)
         ]
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(OrbitTheme.secondary)
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = normalTitle

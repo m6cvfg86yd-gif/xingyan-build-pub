@@ -594,6 +594,26 @@ func pfStyled(size: CGFloat,
     pfStyled(size, weight, design: design)
 }
 
+func pfUIFont(_ size: CGFloat, _ weight: Font.Weight = .regular) -> UIFont {
+    let scaled = max(9, (size * fontScale * CareMode.scale).rounded())
+    if let name = pfName(weight), let font = UIFont(name: name, size: scaled) {
+        return font
+    }
+    let uiWeight: UIFont.Weight
+    if weight == .medium {
+        uiWeight = .medium
+    } else if weight == .semibold {
+        uiWeight = .semibold
+    } else if weight == .bold || weight == .heavy || weight == .black {
+        uiWeight = .bold
+    } else if weight == .light || weight == .thin || weight == .ultraLight {
+        uiWeight = .light
+    } else {
+        uiWeight = .regular
+    }
+    return .systemFont(ofSize: scaled, weight: uiWeight)
+}
+
 func systemTextFont(_ size: CGFloat,
                     _ weight: Font.Weight = .regular,
                     relativeTo style: UIFont.TextStyle = .body) -> Font {
