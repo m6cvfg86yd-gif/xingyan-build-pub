@@ -15,6 +15,8 @@ private enum ChatTheme {
     static let mineInk = Color.dyn(0xFFFFFF, 0xE9EBF0)
     static let secondary = Color.dyn(0x999999, 0x7D8188)
     static let groupSenderName = Color.dyn(0x5F6C66, 0xAAB8B2)
+    static let groupSenderNameBackdrop = Color.dyn(0xF8F9F6, 0x18201C).opacity(0.88)
+    static let groupSenderNameEdge = Color.dyn(0xD4DCD5, 0x3A4941).opacity(0.72)
     static let secondaryOnMine = Color.dyn(0x999999, 0xB7D7CF)
     static let timeInk = Color.dyn(0x8A8A8E, 0x8A8D94)
     static let timeBg = Color.dyn(0xE5E5E5, 0x22252A)
@@ -1982,6 +1984,7 @@ struct ChatDetailView: View {
                    mine: mineFor(message),
                    myId: myId,
                    senderName: senderNameFor(message),
+                   senderNameBackdrop: !backgroundPath.isEmpty,
                    senderAvatarPath: senderAvatarFor(message),
                    senderQQLevel: app.contact(for: message.senderId ?? "")?.qqLevel ?? 0,
                    currentNickname: app.me?.nickname ?? "",
@@ -4334,6 +4337,7 @@ struct MessageRow: View {
 
     var myId: String = ""
     var senderName: String = ""
+    var senderNameBackdrop: Bool = false
 
     var senderAvatarPath: String = ""
     var senderQQLevel: Int = 0
@@ -4433,6 +4437,19 @@ struct MessageRow: View {
                         .font(pf(12))
                         .foregroundColor(ChatTheme.groupSenderName)
                         .lineLimit(1)
+                        .padding(.horizontal, senderNameBackdrop ? 5 : 0)
+                        .padding(.vertical, senderNameBackdrop ? 2 : 0)
+                        .background {
+                            if senderNameBackdrop {
+                                Capsule()
+                                    .fill(ChatTheme.groupSenderNameBackdrop)
+                                    .overlay {
+                                        Capsule()
+                                            .stroke(ChatTheme.groupSenderNameEdge,
+                                                    lineWidth: 0.5)
+                                    }
+                            }
+                        }
                     if senderQQLevel > 0,
                        GrowthFlags.showInChats == true {
                         QQLevelBadge(level: senderQQLevel, size: 11, maxIcons: 2).fixedSize()
@@ -5629,6 +5646,7 @@ extension MessageRow: Equatable {
             && lhs.mine == rhs.mine
             && lhs.myId == rhs.myId
             && lhs.senderName == rhs.senderName
+            && lhs.senderNameBackdrop == rhs.senderNameBackdrop
             && lhs.senderAvatarPath == rhs.senderAvatarPath
             && lhs.senderQQLevel == rhs.senderQQLevel
             && lhs.currentNickname == rhs.currentNickname
