@@ -24,8 +24,10 @@ private enum ChatTheme {
     static let quoteInk = Color.dyn(0x4F555C, 0xD3D7DE)
     static let composerBg = Color.dyn(0xFFFFFF, 0x23262C)
     static let separator = Color.dyn(0xE5E5E5, 0x2F3238)
-    static var link: Color { UIConfig.color("linkColor", 0x576B95, 0xA3D0FF) }
-    static let mentionMe = Color.dyn(0xFA5151, 0xFFB3A7)
+    static let link = Color.dyn(0x0067DC, 0x7CCBFF)
+    static let linkOnMine = Color.dyn(0x003C9E, 0xBFE8FF)
+    static let mentionMe = Color.dyn(0xE53935, 0xFF9E91)
+    static let mentionMeOnMine = Color.dyn(0x7A1717, 0xFFD2CA)
 }
 
 enum AlbumFold {
@@ -4956,7 +4958,8 @@ struct MessageRow: View {
         var linked = RichText.linkified(s)
         let linkRanges = linked.runs.compactMap { $0.link == nil ? nil : $0.range }
         for range in linkRanges {
-            linked[range].foregroundColor = ChatTheme.link
+            linked[range].foregroundColor = mine ? ChatTheme.linkOnMine : ChatTheme.link
+            linked[range].underlineStyle = .single
         }
         return linked
     }
@@ -5040,7 +5043,11 @@ struct MessageRow: View {
                 let token = String(s[i..<j])
                 var seg = AttributedString(token)
                 let name = String(token.dropFirst())
-                seg.foregroundColor = (atMe && mineNames.contains(name)) ? ChatTheme.mentionMe : ChatTheme.link
+                if atMe && mineNames.contains(name) {
+                    seg.foregroundColor = mine ? ChatTheme.mentionMeOnMine : ChatTheme.mentionMe
+                } else {
+                    seg.foregroundColor = mine ? ChatTheme.linkOnMine : ChatTheme.link
+                }
                 out += seg
                 i = j
                 continue
