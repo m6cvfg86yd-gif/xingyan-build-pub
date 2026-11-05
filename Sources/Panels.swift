@@ -58,6 +58,35 @@ final class StickerImageCache {
     private var store: [String: UIImage] = [:]
     private var animatedStore: [String: UIImage] = [:]
 
+    static func decode(_ data: Data, animated: Bool) -> UIImage? {
+        guard animated,
+              let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+            return UIImage(data: data)
+        }
+
+        let count = CGImageSourceGetCount(source)
+        guard count > 1 else { return UIImage(data: data) }
+
+        var frames: [UIImage] = []
+        frames.reserveCapacity(count)
+        var duration = 0.0
+
+        for index in 0..<count {
+            guard let cg = CGImageSourceCreateImageAtIndex(source, index, nil) else { continue }
+            frames.append(UIImage(cgImage: cg))
+
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+            let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
+            let delay = (gif?[kCGImagePropertyGIFUnclampedDelayTime] as? NSNumber)?.doubleValue
+                ?? (gif?[kCGImagePropertyGIFDelayTime] as? NSNumber)?.doubleValue
+                ?? 0.08
+            duration += max(0.02, delay)
+        }
+
+        guard !frames.isEmpty else { return UIImage(data: data) }
+        return UIImage.animatedImage(with: frames, duration: max(0.2, duration)) ?? frames[0]
+    }
+
     func get(_ key: String) -> UIImage? { store[key] }
 
     func getAnimated(_ key: String) -> UIImage? { animatedStore[key] }
@@ -100,8 +129,8 @@ struct AnimatedStickerView: UIViewRepresentable {
             view.image = image
             return
         }
+        view.image = frames[0]
         if view.animationImages?.first !== frames.first {
-            view.image = nil
             view.animationImages = frames
             view.animationDuration = max(0.2, image.duration)
             view.animationRepeatCount = 0
@@ -142,7 +171,8 @@ struct StickerThumb: View {
                 return
             }
             guard let u = API.shared.assetURL(url) else { return }
-            if let data = try? await API.shared.assetData(u), let img = UIImage(data: data) {
+            if let data = try? await API.shared.assetData(u),
+               let img = StickerImageCache.decode(data, animated: isAnimated) {
                 StickerImageCache.shared.put(url, img, animated: isAnimated)
                 image = img
             }
@@ -497,6 +527,14 @@ struct EmojiPanel: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onAppear {
+                installed = buildInstalled()
+                if tab > mineTab { tab = 1 }
+            }
+            .task {
+                await StickerCatalog.shared.loadIfNeeded()
+                installed = buildInstalled()
+            }
+            .onChange(of: catalog.packs) { _ in
                 installed = buildInstalled()
                 if tab > mineTab { tab = 1 }
             }

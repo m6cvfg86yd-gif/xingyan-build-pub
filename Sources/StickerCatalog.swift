@@ -39,6 +39,20 @@ final class StickerCatalog: ObservableObject {
         defer { loading = false }
 
         var didLoad = false
+
+        // The first-party pack ships inside the app. Load it before any network
+        // request so opening the emoji panel never waits for or depends on the
+        // production server.
+        if let url = Bundle.main.url(forResource: "pack",
+                                     withExtension: "json",
+                                     subdirectory: "emoji/star-orbit"),
+           let data = try? Data(contentsOf: url),
+           let payload = try? JSONDecoder().decode(StickerCatalogPayload.self, from: data) {
+            merge(payload)
+            StickerLib.installBundledStarPackIfNeeded()
+            didLoad = true
+        }
+
         if let url = API.shared.assetURL("emoji/packs.json"),
            let data = try? await API.shared.assetData(url),
            let payload = try? JSONDecoder().decode(StickerCatalogPayload.self, from: data) {
@@ -55,15 +69,6 @@ final class StickerCatalog: ObservableObject {
             didLoad = true
         }
 
-        if let url = Bundle.main.url(forResource: "pack",
-                                     withExtension: "json",
-                                     subdirectory: "emoji/star-orbit"),
-           let data = try? Data(contentsOf: url),
-           let payload = try? JSONDecoder().decode(StickerCatalogPayload.self, from: data) {
-            merge(payload)
-            StickerLib.installBundledStarPackIfNeeded()
-            didLoad = true
-        }
         loaded = didLoad
     }
 
