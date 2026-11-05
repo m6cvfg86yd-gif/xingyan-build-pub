@@ -127,6 +127,7 @@ struct ExternalFileSendView: View {
     @State private var progress = ""
     @State private var transferFraction: Double = 0
     @State private var alert = ""
+    @State private var forwardScrollTick = 0
     @State private var filePreview: FilePreviewData?
     @State private var showShare = false
     @State private var showDrop = false
@@ -171,19 +172,27 @@ struct ExternalFileSendView: View {
                         .disabled(sending || favoriteBusy)
                     }
 
-                    ScrollView(showsIndicators: false) {
-                        LazyVStack(alignment: .leading, spacing: 14) {
-                            fileHero
-                            fileStrip
-                            actionRail
+                    ScrollViewReader { proxy in
+                        ScrollView(showsIndicators: false) {
+                            LazyVStack(alignment: .leading, spacing: 14) {
+                                fileHero
+                                fileStrip
+                                actionRail
 
-                            if forwardExpanded {
-                                recipientSection
+                                if forwardExpanded {
+                                    recipientSection
+                                        .id("forward-targets")
+                                }
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.top, 4)
+                            .padding(.bottom, 18)
+                        }
+                        .onChange(of: forwardScrollTick) { _ in
+                            withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+                                proxy.scrollTo("forward-targets", anchor: .top)
                             }
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.top, 4)
-                        .padding(.bottom, 18)
                     }
                 }
             }
@@ -295,6 +304,7 @@ struct ExternalFileSendView: View {
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
                     forwardExpanded = true
                 }
+                forwardScrollTick += 1
             }
             fileAction(Tr("收藏"), "star.fill", OrbitTheme.gold) {
                 favorite()
