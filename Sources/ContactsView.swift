@@ -596,7 +596,9 @@ private var funcs: [(String, String, Color, String)] {
 
     @ViewBuilder
     private func funcIcon(_ item: (String, String, Color, String), size: CGFloat) -> some View {
-        if let custom = IconOverrides.custom("quick." + item.3) {
+        if ["newFriends", "groups", "tags", "officialAccounts"].contains(item.3) {
+            nativeQuickIcon(item, size: size)
+        } else if let custom = IconOverrides.custom("quick." + item.3) {
             FlexIcon(custom: custom, size: size, color: .white,
                      symbol: RowIcon.sf(action: item.3, label: item.0))
         } else if let kind = StarOrbitContactKind(rawValue: item.3) {
@@ -605,6 +607,31 @@ private var funcs: [(String, String, Color, String)] {
             FuncIcon(markup: item.1, bg: item.2, size: size,
                      iconSize: size * 0.44)
         }
+    }
+
+    private func nativeQuickIcon(_ item: (String, String, Color, String),
+                                 size: CGFloat) -> some View {
+        let symbol: String
+        switch item.3 {
+        case "newFriends": symbol = "person.badge.plus"
+        case "groups": symbol = "person.3.fill"
+        case "tags": symbol = "tag.fill"
+        default: symbol = "megaphone.fill"
+        }
+        return ZStack {
+            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                .fill(item.2.opacity(0.14))
+            Image(systemName: symbol)
+                .font(.system(size: size * 0.43, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(item.2)
+        }
+        .frame(width: size, height: size)
+        .overlay {
+            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                .stroke(item.2.opacity(0.24), lineWidth: 0.7)
+        }
+        .accessibilityHidden(true)
     }
 
     private func contactRow(_ user: User) -> some View {
