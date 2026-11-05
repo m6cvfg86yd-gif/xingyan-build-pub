@@ -245,7 +245,7 @@ enum L {
     static var ctPadL: CGFloat { o("ctPadL", 16) }
     static var ctGap: CGFloat { o("ctGap", 12) }
     static var ctIcon: CGFloat { o("ctIcon", 40) }
-    static var ctNameSize: CGFloat { o("ctNameSize", 16) }
+    static var ctNameSize: CGFloat { o("ctNameSize", 17) }
     static var ctHeadH: CGFloat { o("ctHeadH", 28) }
     static var ctHeadSize: CGFloat { o("ctHeadSize", 15) }
     static var ctIdxSize: CGFloat { o("ctIdxSize", 12.5) }

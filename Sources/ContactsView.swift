@@ -209,7 +209,7 @@ private var funcs: [(String, String, Color, String)] {
 
                                         HStack(spacing: 6) {
                                             Text(section.letter)
-                                                .font(pfStyled(size: 10.5, weight: .bold))
+                                                .font(pfStyled(size: 12, weight: .semibold))
                                                 .foregroundStyle(OrbitTheme.secondary)
                                                 .padding(.horizontal, 8)
                                                 .frame(height: 20)
@@ -384,7 +384,7 @@ private var funcs: [(String, String, Color, String)] {
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(OrbitTheme.tertiary)
                 Text(Tr("搜索"))
-                    .font(pfStyled(size: 14))
+                    .font(pfStyled(size: 15))
                     .foregroundColor(OrbitTheme.secondary)
                 Spacer(minLength: 0)
             }
@@ -531,7 +531,7 @@ private var funcs: [(String, String, Color, String)] {
                     }
                 }
                 Text(item.0)
-                    .font(pfStyled(size: 11, weight: .medium))
+                    .font(pfStyled(size: 12, weight: .medium))
                     .foregroundColor(OrbitTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -642,7 +642,7 @@ private var funcs: [(String, String, Color, String)] {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 5) {
                     Text(user.name)
-                        .font(pfStyled(size: 15.5, weight: .semibold))
+                        .font(pfStyled(size: 17, weight: .medium))
                         .foregroundColor(OrbitTheme.ink)
                         .lineLimit(1)
 
@@ -661,7 +661,7 @@ private var funcs: [(String, String, Color, String)] {
 
                 if let subtitle = contactSubtitle(user) {
                     Text(subtitle)
-                        .font(pfStyled(size: 11, weight: .regular))
+                        .font(pfStyled(size: 13, weight: .regular))
                         .foregroundColor(OrbitTheme.tertiary)
                         .lineLimit(1)
                 }
