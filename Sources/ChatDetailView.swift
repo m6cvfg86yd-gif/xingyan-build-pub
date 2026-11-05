@@ -864,7 +864,7 @@ struct ChatDetailView: View {
             guard let image = RemoteImage.downsampled(data, maxSide: 64)?.cgImage else {
                 return nil
             }
-            return averageImageLuminance(image)
+            return Self.averageImageLuminance(image)
         }.value
         guard !Task.isCancelled,
               path == normalizedChatBackground(backgroundPath),
