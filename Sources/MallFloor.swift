@@ -21,6 +21,8 @@ final class MallWeather: ObservableObject {
     @Published private(set) var condition: String = "partly"
     @Published private(set) var isDay: Bool = true
     @Published private(set) var temp: Double = 0
+    @Published private(set) var cloud: Int = 0
+    @Published private(set) var wind: Double = 0
     @Published private(set) var updatedAt: Date? = nil
 
     @Published private(set) var failed = false
@@ -51,6 +53,8 @@ final class MallWeather: ObservableObject {
                     self.condition = (w.condition ?? "partly")
                     self.isDay = (w.isDay ?? true)
                     self.temp = (w.temp ?? 0)
+                    self.cloud = max(0, min(100, w.cloud ?? 0))
+                    self.wind = max(0, w.wind ?? 0)
                     self.updatedAt = Date()
                     self.failed = false
 
@@ -180,6 +184,27 @@ struct MallWeatherLook {
         if isOvercast || isCloudy { return "cloud.fill" }
         if isPartly { return phase.isNight ? "cloud.moon.fill" : "cloud.sun.fill" }
         return phase.isNight ? "moon.stars.fill" : "sun.max.fill"
+    }
+
+    var conditionName: String {
+        if isThunder { return Tr("雷阵雨") }
+        if isRain { return Tr("雨") }
+        if isDrizzle { return Tr("毛毛雨") }
+        if isSnow { return Tr("雪") }
+        if isFog { return Tr("雾") }
+        if isOvercast { return Tr("阴") }
+        if isCloudy { return Tr("多云") }
+        if isPartly { return Tr("局部多云") }
+        return Tr("晴")
+    }
+
+    var dayPartName: String {
+        switch phase {
+        case .dawn: return Tr("清晨")
+        case .day: return Tr("白天")
+        case .dusk: return Tr("傍晚")
+        case .night: return Tr("夜间")
+        }
     }
 }
 
@@ -488,13 +513,7 @@ struct DDMallFloor: View {
 
                 Color.clear.frame(height: 22)
 
-                HStack(spacing: 6) {
-                    Image(systemName: L2.icon).font(.system(size: 13, weight: .semibold))
-                    Text(weatherTitle(L2)).font(pf(12.5))
-                    Spacer(minLength: 0)
-                }
-                .foregroundColor(L2.inkSoft)
-                .padding(.horizontal, 22)
+                nativeWeatherCard(L2)
                 .offset(y: (1 - rise) * 18).opacity(Double(rise))
 
                 Color.clear.frame(height: 12)
@@ -619,25 +638,53 @@ struct DDMallFloor: View {
         }
     }
 
-    private func weatherTitle(_ l: MallWeatherLook) -> String {
-        if weather.failed { return Tr("天气暂时拿不到") }
-        var name = "多云"
-        switch l.cond {
-        case "clear": name = "晴"
-        case "partly": name = "少云"
-        case "cloudy": name = "多云"
-        case "overcast": name = "阴"
-        case "fog": name = "雾"
-        case "drizzle": name = "小雨"
-        case "rain": name = "雨"
-        case "snow": name = "雪"
-        case "thunder": name = "雷雨"
-        default: name = "多云"
+    private func nativeWeatherCard(_ l: MallWeatherLook) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(weather.failed ? "—" : "\(Int(weather.temp.rounded()))°")
+                    .font(.system(size: 42, weight: .thin, design: .rounded))
+                    .foregroundStyle(l.ink)
+                    .monospacedDigit()
+                Text(weather.failed ? Tr("天气暂时拿不到") : l.conditionName)
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundStyle(l.ink.opacity(0.82))
+            }
+
+            Spacer(minLength: 8)
+
+            Image(systemName: l.icon)
+                .font(.system(size: 34, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(l.ink.opacity(0.92))
+
+            if !weather.failed {
+                VStack(alignment: .trailing, spacing: 7) {
+                    Text(l.dayPartName)
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(l.ink.opacity(0.72))
+                    Label("\(weather.cloud)%", systemImage: "cloud.fill")
+                    Label(String(format: "%.1f km/h", weather.wind), systemImage: "wind")
+                }
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(l.inkSoft)
+            }
         }
-        let t = Int(round(weather.temp))
-        let dayPart = l.phase.isNight ? "夜里" : (l.phase == .dawn ? "清晨"
-                        : (l.phase == .dusk ? "傍晚" : "白天"))
-        return "\(name) \(t)° · \(dayPart)"
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(.regularMaterial)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(l.cardFill.opacity(0.20))
+            }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(l.cardStroke.opacity(0.82), lineWidth: 0.6)
+        }
+        .shadow(color: Color.black.opacity(0.06), radius: 12, y: 4)
+        .padding(.horizontal, 33)
     }
 
     @ViewBuilder private func floorCard<V: View>(_ l: MallWeatherLook,
