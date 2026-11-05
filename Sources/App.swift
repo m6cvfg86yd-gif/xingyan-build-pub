@@ -1822,8 +1822,8 @@ struct RootView: View {
         .onAppear {
 
             guard !app.splashDone else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                withAnimation(.easeOut(duration: 0.22)) { app.splashDone = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.78) {
+                withAnimation(.easeOut(duration: 0.28)) { app.splashDone = true }
             }
         }
         .onChange(of: scenePhase) { phase in
@@ -1871,15 +1871,12 @@ struct RootView: View {
 struct LaunchView: View {
     var body: some View {
         ZStack {
-            Color(.systemBackground).ignoresSafeArea()
+            StarLaunchBackdrop()
             VStack(spacing: 14) {
-                if let img = AppIconImage.image {
-                    Image(uiImage: img)
-                        .resizable()
-                        .frame(width: 66, height: 66)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                }
-                Text(Tr("正在连接…")).font(pf(13)).foregroundColor(C.loginGray)
+                StarLaunchMark(size: 74, orbiting: false, breathing: false)
+                Text(Tr("正在连接…"))
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.66))
             }
         }
     }
