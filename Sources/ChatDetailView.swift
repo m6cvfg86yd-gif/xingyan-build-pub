@@ -403,11 +403,15 @@ struct ChatDetailView: View {
     private func openActions(_ m: Message) {
         if selectMode { toggleSelect(m); return }
         let contentRect = frameBox.frames[m.id] ?? .zero
-        menuRect = ChatScrollHandle.shared.windowRectFromViewport(contentRect)
+        menuRect = contentRect
         actionMessage = m
-        DispatchQueue.main.async {
-            let latest = frameBox.frames[m.id] ?? contentRect
-            menuRect = ChatScrollHandle.shared.windowRectFromViewport(latest)
+        for delay in [0.0, 0.12, 0.30] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard actionMessage?.id == m.id else { return }
+                if let latest = frameBox.frames[m.id] {
+                    menuRect = latest
+                }
+            }
         }
     }
 
@@ -2143,7 +2147,7 @@ struct ChatDetailView: View {
             )
             .background(GeometryReader { g in
 
-                let contentFrame = g.frame(in: .named("chatScroll"))
+                let contentFrame = g.frame(in: .global)
                 Color.clear
                     .onAppear { frameBox.frames[message.id] = contentFrame }
                     .onChange(of: contentFrame) { f in frameBox.frames[message.id] = f }
@@ -2181,7 +2185,7 @@ struct ChatDetailView: View {
 
         .onLongPressGesture { openActions(message) }
         .background(GeometryReader { g in
-            let contentFrame = g.frame(in: .named("chatScroll"))
+            let contentFrame = g.frame(in: .global)
             Color.clear
                 .onAppear { frameBox.frames[message.id] = contentFrame }
                 .onChange(of: contentFrame) { f in frameBox.frames[message.id] = f }
