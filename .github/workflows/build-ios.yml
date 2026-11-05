@@ -105,6 +105,9 @@ jobs:
           cp moments-cover.jpg "$APP/"
           cp PrivacyInfo.xcprivacy "$APP/PrivacyInfo.xcprivacy"
           cp levelicons/*.png "$APP/"
+          mkdir -p "$APP/emoji/star-orbit"
+          cp server/public/emoji/star-orbit/*.gif "$APP/emoji/star-orbit/"
+          cp server/public/emoji/star-orbit/pack.json "$APP/emoji/star-orbit/"
           mkdir -p Assets.xcassets/LaunchBg.colorset
           cat > Assets.xcassets/Contents.json <<'JSON'
           { "info": { "version": 1, "author": "xcode" } }

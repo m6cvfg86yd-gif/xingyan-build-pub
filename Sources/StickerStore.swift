@@ -549,6 +549,8 @@ struct StickerStore: View {
             mineServer = r.mine
         }
         await StickerCatalog.shared.loadIfNeeded()
+        builtinIds = StickerLib.ids
+        remoteIds = StickerLib.remoteIds
         loading = false
     }
 

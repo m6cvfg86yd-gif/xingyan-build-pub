@@ -54,6 +54,16 @@ final class StickerCatalog: ObservableObject {
             merge(payload)
             didLoad = true
         }
+
+        if let url = Bundle.main.url(forResource: "pack",
+                                     withExtension: "json",
+                                     subdirectory: "emoji/star-orbit"),
+           let data = try? Data(contentsOf: url),
+           let payload = try? JSONDecoder().decode(StickerCatalogPayload.self, from: data) {
+            merge(payload)
+            StickerLib.installBundledStarPackIfNeeded()
+            didLoad = true
+        }
         loaded = didLoad
     }
 

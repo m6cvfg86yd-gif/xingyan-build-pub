@@ -1757,6 +1757,17 @@ final class API {
         if path.hasPrefix("http://") || path.hasPrefix("https://") { return URL(string: path) }
         if path.hasPrefix("data:") { return nil }
         let p = path.hasPrefix("/") ? path : "/" + path
+        if p.hasPrefix("/emoji/") {
+            let relative = String(p.dropFirst())
+            let ns = relative as NSString
+            if let local = Bundle.main.url(
+                forResource: ns.deletingPathExtension,
+                withExtension: ns.pathExtension.isEmpty ? nil : ns.pathExtension,
+                subdirectory: ns.deletingLastPathComponent
+            ) {
+                return local
+            }
+        }
         return URL(string: base + p)
     }
 
@@ -1765,6 +1776,9 @@ final class API {
     }
 
     func assetData(_ url: URL) async throws -> Data {
+        if url.isFileURL {
+            return try Data(contentsOf: url)
+        }
         var req = URLRequest(url: url)
         req.timeoutInterval = 15
 
