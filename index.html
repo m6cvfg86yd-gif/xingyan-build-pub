@@ -49,6 +49,11 @@
           <span>最新版本：1.0.0</span>
         </div>
         <p class="help-line">遇到无法启动或崩溃问题，请先查看 <a href="#help">使用指南</a>，再重新安装最新版本。</p>
+        <div class="trust-row">
+          <span><i></i> 真实账号登录</span>
+          <span><i></i> 消息实时同步</span>
+          <span><i></i> 本机会话保存</span>
+        </div>
       </div>
 
       <div class="hero-product" aria-label="星言桌面客户端预览">
@@ -150,7 +155,7 @@
       </div>
     </section>
 
-    <section class="feature-section" id="features">
+    <section class="feature-section reveal" id="features">
       <div class="section-heading">
         <span>为桌面而生</span>
         <h2>熟悉的聊天，更舒服的电脑体验</h2>
@@ -187,7 +192,7 @@
       </div>
     </section>
 
-    <section class="download-section" id="download">
+    <section class="download-section reveal" id="download">
       <div class="download-copy">
         <span>OFFICIAL DOWNLOAD</span>
         <h2>下载星言 Windows 版</h2>
@@ -215,7 +220,7 @@
       </div>
     </section>
 
-    <section class="notes-section" id="notes">
+    <section class="notes-section reveal" id="notes">
       <div class="section-heading">
         <span>更新内容</span>
         <h2>星言 Windows 1.0.0</h2>
@@ -227,7 +232,7 @@
       </div>
     </section>
 
-    <section class="help-section" id="help">
+    <section class="help-section reveal" id="help">
       <div>
         <span>需要帮助？</span>
         <h2>安装、登录和使用指南</h2>
@@ -250,5 +255,13 @@
     </div>
     <p>© 2026 星言 · 官方网站</p>
   </footer>
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add("is-visible");
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".reveal").forEach((node) => observer.observe(node));
+  </script>
 </body>
 </html>
