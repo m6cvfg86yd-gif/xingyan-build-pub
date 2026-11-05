@@ -116,7 +116,7 @@ struct ChatRow: View {
             avatarBlock
             textColumn
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .frame(height: L.rowH)
         .contentShape(Rectangle())
         .task { await loadPeerIfNeeded() }
@@ -172,7 +172,7 @@ struct ChatRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .center, spacing: 5) {
                 Text(displayTitle)
-                    .font(pfStyled(size: 16.5, weight: .medium))
+                    .font(pfStyled(size: 17, weight: .medium))
                     .foregroundStyle(OrbitTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.9)
@@ -198,13 +198,13 @@ struct ChatRow: View {
                 Spacer(minLength: 6)
 
                 Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
-                    .font(pfStyled(size: 11.5, weight: .medium))
+                    .font(pfStyled(size: 12, weight: .medium))
                     .foregroundStyle(OrbitTheme.tertiary)
                     .monospacedDigit()
                     .fixedSize()
             }
             mentionPreview
-                .font(pfStyled(size: 13.5))
+                .font(pfStyled(size: 14))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
