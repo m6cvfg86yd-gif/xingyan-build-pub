@@ -15,7 +15,7 @@ private enum ChatTheme {
     static let mineInk = Color.dyn(0xFFFFFF, 0xE9EBF0)
     static let secondary = Color.dyn(0x999999, 0x7D8188)
     static let groupSenderName = Color.dyn(0x5F6C66, 0xAAB8B2)
-    static let groupSenderNameBackdrop = Color.dyn(0xF8F9F6, 0x18201C).opacity(0.88)
+    static let groupSenderNameBackdrop = Color.dyn(0xF8F9F6, 0x18201C).opacity(0.96)
     static let groupSenderNameEdge = Color.dyn(0xD4DCD5, 0x3A4941).opacity(0.72)
     static let secondaryOnMine = Color.dyn(0x999999, 0xB7D7CF)
     static let timeInk = Color.dyn(0x8A8A8E, 0x8A8D94)
@@ -4434,7 +4434,7 @@ struct MessageRow: View {
 
                 HStack(spacing: 4) {
                     Text(senderName)
-                        .font(pf(12))
+                        .font(pf(12, .medium))
                         .foregroundColor(ChatTheme.groupSenderName)
                         .lineLimit(1)
                         .padding(.horizontal, senderNameBackdrop ? 5 : 0)
