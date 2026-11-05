@@ -129,7 +129,7 @@ struct SearchPage: View {
     }
 
     private func userMatches(_ user: User, needle: String) -> Bool {
-        let fields = [
+        var fields: [String] = [
             user.name,
             user.realName ?? "",
             user.nickname ?? "",
@@ -141,8 +141,12 @@ struct SearchPage: View {
             user.moodText ?? "",
             user.phone ?? "",
             user.source ?? ""
-        ] + (user.tags ?? [])
-        return fields.contains { $0.lowercased().contains(needle) }
+        ]
+        fields.append(contentsOf: user.tags ?? [])
+        for field in fields where field.lowercased().contains(needle) {
+            return true
+        }
+        return false
     }
 
     private func chatSearchScore(_ chat: Chat, needle: String) -> Int {
