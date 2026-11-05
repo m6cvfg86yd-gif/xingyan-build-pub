@@ -169,10 +169,10 @@ struct ChatRow: View {
     }
 
     private var textColumn: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .center, spacing: 5) {
                 Text(displayTitle)
-                    .font(pfStyled(size: 15.5, weight: .semibold))
+                    .font(pfStyled(size: 16.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.9)
@@ -198,13 +198,13 @@ struct ChatRow: View {
                 Spacer(minLength: 6)
 
                 Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
-                    .font(pfStyled(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 11.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.tertiary)
                     .monospacedDigit()
                     .fixedSize()
             }
             mentionPreview
-                .font(pfStyled(size: 12.5))
+                .font(pfStyled(size: 13.5))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
