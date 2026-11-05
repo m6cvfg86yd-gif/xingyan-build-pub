@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 import Combine
 import UIKit
 import QuickLook
+import CoreImage
 
 private enum ChatTheme {
     static let page = Color.dyn(0xEDEDED, 0x0E1014)
@@ -14,9 +15,8 @@ private enum ChatTheme {
     static let ink = Color.dyn(0x191919, 0xE9EBF0)
     static let mineInk = Color.dyn(0xFFFFFF, 0xE9EBF0)
     static let secondary = Color.dyn(0x999999, 0x7D8188)
-    static let groupSenderName = Color.dyn(0x5F6C66, 0xAAB8B2)
-    static let groupSenderNameBackdrop = Color.dyn(0xF8F9F6, 0x18201C).opacity(0.96)
-    static let groupSenderNameEdge = Color.dyn(0xD4DCD5, 0x3A4941).opacity(0.72)
+    static let groupSenderNameOnLight = Color.dyn(0x07110C, 0x07110C)
+    static let groupSenderNameOnDark = Color.dyn(0xFFFFFF, 0xFFFFFF)
     static let secondaryOnMine = Color.dyn(0x999999, 0xB7D7CF)
     static let timeInk = Color.dyn(0x8A8A8E, 0x8A8D94)
     static let timeBg = Color.dyn(0xE5E5E5, 0x22252A)
@@ -278,6 +278,7 @@ struct ChatDetailView: View {
     @State private var messages: [Message] = []
     @State private var senderAvatarCache: [String: String] = [:]
     @State private var groupSenderProfilesLoaded = false
+    @State private var backgroundLuminance: Double? = nil
     @State private var historySyncTask: Task<Void, Never>?
 
     @State private var hiddenMessageIds: Set<String> = []
@@ -676,6 +677,9 @@ struct ChatDetailView: View {
 
     @State private var sendingPreview: UIImage?
     @State private var sendProgress: Double = 0
+    @State private var sendingFileName = ""
+    @State private var sendingFileBytes = 0
+    @State private var sendingFileProgress: Double? = nil
     @State private var voiceMode = false
 
     @State private var mentionMembers: [User] = []
@@ -812,6 +816,84 @@ struct ChatDetailView: View {
             return (def == "auto") ? "" : normalizedChatBackground(def)
         }
         return normalizedChatBackground(v)
+    }
+
+    private var senderNameUsesLightInk: Bool {
+        let path = normalizedChatBackground(backgroundPath)
+        switch path {
+        case "solid:white":
+            return false
+        case "solid:black":
+            return true
+        default:
+            break
+        }
+        if !path.isEmpty, scheme == .dark { return true }
+        if let backgroundLuminance { return backgroundLuminance <= 0.18 }
+        return scheme == .dark
+    }
+
+    private func refreshBackgroundLuminance() async {
+        let path = normalizedChatBackground(backgroundPath)
+        guard !path.isEmpty else {
+            backgroundLuminance = nil
+            return
+        }
+        switch path {
+        case "solid:white":
+            backgroundLuminance = 1
+            return
+        case "solid:black":
+            backgroundLuminance = 0
+            return
+        default:
+            break
+        }
+        backgroundLuminance = nil
+
+        var data = await Task.detached(priority: .utility) {
+            ImageStore.shared.diskRead(path)
+        }.value
+        if data == nil, let url = API.shared.assetURL(path) {
+            data = try? await API.shared.assetData(url)
+        }
+        guard !Task.isCancelled, let data else { return }
+
+        let luminance = await Task.detached(priority: .utility) { () -> Double? in
+            guard let image = RemoteImage.downsampled(data, maxSide: 64)?.cgImage else {
+                return nil
+            }
+            return averageImageLuminance(image)
+        }.value
+        guard !Task.isCancelled,
+              path == normalizedChatBackground(backgroundPath),
+              let luminance else { return }
+        backgroundLuminance = luminance
+    }
+
+    private static func averageImageLuminance(_ image: CGImage) -> Double {
+        let source = CIImage(cgImage: image)
+        let output = source.applyingFilter("CIAreaAverage", parameters: [
+            kCIInputExtentKey: CIVector(cgRect: source.extent)
+        ])
+        var pixel = [UInt8](repeating: 0, count: 4)
+        let context = CIContext(options: [.workingColorSpace: NSNull()])
+        pixel.withUnsafeMutableBytes { raw in
+            guard let base = raw.baseAddress else { return }
+            context.render(output,
+                           toBitmap: base,
+                           rowBytes: 4,
+                           bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+                           format: .RGBA8,
+                           colorSpace: CGColorSpaceCreateDeviceRGB())
+        }
+        func linear(_ value: UInt8) -> Double {
+            let c = Double(value) / 255
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(pixel[0])
+            + 0.7152 * linear(pixel[1])
+            + 0.0722 * linear(pixel[2])
     }
 
     private var groupAnnouncement: String {
@@ -1482,6 +1564,10 @@ struct ChatDetailView: View {
             }
         }
 
+        .task(id: backgroundPath) {
+            await refreshBackgroundLuminance()
+        }
+
         .task(id: chat.id) {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
@@ -1600,6 +1686,17 @@ struct ChatDetailView: View {
                                                progress: sendProgress)
                         }
                         .id("__sending")
+                        .padding(.bottom, 12)
+                        .padding(.trailing, 6)
+                    }
+                    if let progress = sendingFileProgress, !sendingFileName.isEmpty {
+                        HStack(spacing: 8) {
+                            Spacer(minLength: 0)
+                            SendingFileBubble(name: sendingFileName,
+                                              bytes: sendingFileBytes,
+                                              progress: progress)
+                        }
+                        .id("__sending-file")
                         .padding(.bottom, 12)
                         .padding(.trailing, 6)
                     }
@@ -1984,7 +2081,7 @@ struct ChatDetailView: View {
                    mine: mineFor(message),
                    myId: myId,
                    senderName: senderNameFor(message),
-                   senderNameBackdrop: !backgroundPath.isEmpty,
+                   senderNameUsesLightInk: senderNameUsesLightInk,
                    senderAvatarPath: senderAvatarFor(message),
                    senderQQLevel: app.contact(for: message.senderId ?? "")?.qqLevel ?? 0,
                    currentNickname: app.me?.nickname ?? "",
@@ -3681,8 +3778,6 @@ struct ChatDetailView: View {
     }
 
     private func uploadAndSendFile(_ url: URL) async {
-        uploading = true
-        defer { uploading = false }
         let ok = url.startAccessingSecurityScopedResource()
         defer { if ok { url.stopAccessingSecurityScopedResource() } }
 
@@ -3699,11 +3794,29 @@ struct ChatDetailView: View {
             app.show(Tr("读不到这个文件"))
             return
         }
+        uploading = true
+        sendingFileName = name
+        sendingFileBytes = sizeBytes
+        sendingFileProgress = 0.01
+        scrollTick += 1
+        defer {
+            uploading = false
+            sendingFileName = ""
+            sendingFileBytes = 0
+            sendingFileProgress = nil
+        }
+
         let sourceMime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
             ?? "application/octet-stream"
         do {
             let uploadedURL = try await API.shared.uploadBinaryFile(
-                url, mime: "application/octet-stream", skipTranscode: true, onProgress: { _ in })
+                url, mime: "application/octet-stream", skipTranscode: true, onProgress: { p in
+                    let value = min(1, max(0.01, p))
+                    DispatchQueue.main.async {
+                        guard sendingFileName == name else { return }
+                        sendingFileProgress = value
+                    }
+                })
             let body: [String: Any] = [
                 "url": uploadedURL,
                 "name": name,
@@ -3717,6 +3830,9 @@ struct ChatDetailView: View {
             if let message = try await API.shared.send(chatId: chat.id, kind: "file", content: content) {
                 appendVisibleMessage(message)
             }
+            sendingFileProgress = nil
+            sendingFileName = ""
+            sendingFileBytes = 0
         } catch {
             app.show((error as? APIError)?.errorDescription ?? "文件发送失败")
         }
@@ -4337,7 +4453,7 @@ struct MessageRow: View {
 
     var myId: String = ""
     var senderName: String = ""
-    var senderNameBackdrop: Bool = false
+    var senderNameUsesLightInk: Bool = false
 
     var senderAvatarPath: String = ""
     var senderQQLevel: Int = 0
@@ -4428,6 +4544,12 @@ struct MessageRow: View {
             .onTapGesture { onOpenAvatar?(message.senderId ?? "") }
     }
 
+    private var senderNameOutline: Color {
+        senderNameUsesLightInk
+            ? Color.black.opacity(0.72)
+            : Color.white.opacity(0.88)
+    }
+
     private var bubbleColumn: some View {
         VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
             if !senderName.isEmpty {
@@ -4435,21 +4557,14 @@ struct MessageRow: View {
                 HStack(spacing: 4) {
                     Text(senderName)
                         .font(pf(12, .medium))
-                        .foregroundColor(ChatTheme.groupSenderName)
+                        .foregroundColor(senderNameUsesLightInk
+                                         ? ChatTheme.groupSenderNameOnDark
+                                         : ChatTheme.groupSenderNameOnLight)
+                        .shadow(color: senderNameOutline, radius: 0.2, x: 0.8, y: 0)
+                        .shadow(color: senderNameOutline, radius: 0.2, x: -0.8, y: 0)
+                        .shadow(color: senderNameOutline, radius: 0.2, x: 0, y: 0.8)
+                        .shadow(color: senderNameOutline, radius: 0.2, x: 0, y: -0.8)
                         .lineLimit(1)
-                        .padding(.horizontal, senderNameBackdrop ? 5 : 0)
-                        .padding(.vertical, senderNameBackdrop ? 2 : 0)
-                        .background {
-                            if senderNameBackdrop {
-                                Capsule()
-                                    .fill(ChatTheme.groupSenderNameBackdrop)
-                                    .overlay {
-                                        Capsule()
-                                            .stroke(ChatTheme.groupSenderNameEdge,
-                                                    lineWidth: 0.5)
-                                    }
-                            }
-                        }
                     if senderQQLevel > 0,
                        GrowthFlags.showInChats == true {
                         QQLevelBadge(level: senderQQLevel, size: 11, maxIcons: 2).fixedSize()
@@ -5646,7 +5761,7 @@ extension MessageRow: Equatable {
             && lhs.mine == rhs.mine
             && lhs.myId == rhs.myId
             && lhs.senderName == rhs.senderName
-            && lhs.senderNameBackdrop == rhs.senderNameBackdrop
+            && lhs.senderNameUsesLightInk == rhs.senderNameUsesLightInk
             && lhs.senderAvatarPath == rhs.senderAvatarPath
             && lhs.senderQQLevel == rhs.senderQQLevel
             && lhs.currentNickname == rhs.currentNickname

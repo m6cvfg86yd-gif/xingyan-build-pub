@@ -630,3 +630,90 @@ struct SendingVideoBubble: View {
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }
+
+struct SendingFileBubble: View {
+    let name: String
+    let bytes: Int
+    let progress: Double
+
+    private var value: Double { min(1, max(0, progress)) }
+    private var look: (symbol: String, color: Color, badge: String) {
+        FileKind.look(name)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                VStack(spacing: 1) {
+                    Image(systemName: look.symbol)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(look.color)
+                    Text(look.badge)
+                        .font(pfExact(7.5, .bold))
+                        .foregroundColor(look.color)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                }
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(look.color.opacity(0.13)))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(look.color.opacity(0.18), lineWidth: 0.6))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(name)
+                        .font(pf(14))
+                        .foregroundColor(C.label)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    HStack(spacing: 6) {
+                        Text(byteText(bytes))
+                            .font(pf(11))
+                            .foregroundColor(C.subLabel)
+                        Spacer(minLength: 4)
+                        Text(value >= 0.995
+                             ? Tr("服务器处理中…")
+                             : Tr("上传中") + " \(Int(value * 100))%")
+                            .font(pf(10.5, .medium))
+                            .foregroundColor(look.color)
+                    }
+                }
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(C.fieldBg)
+                    Capsule()
+                        .fill(look.color)
+                        .frame(width: max(CGFloat(value > 0 ? 4 : 0),
+                                          geo.size.width * CGFloat(value)))
+                }
+            }
+            .frame(height: 3)
+            .animation(.linear(duration: 0.16), value: value)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .frame(width: 218)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(C.cardBg)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(C.hairline.opacity(0.78), lineWidth: 0.6)
+                }
+                .shadow(color: Color.black.opacity(0.10),
+                        radius: 6, x: 0, y: 3)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(Tr("上传中") + " " + name))
+        .accessibilityValue(Text("\(Int(value * 100))%"))
+    }
+
+    private func byteText(_ n: Int) -> String {
+        if n > 1024 * 1024 { return String(format: "%.1f MB", Double(n) / 1024 / 1024) }
+        if n > 1024 { return "\(n / 1024) KB" }
+        return "\(n) B"
+    }
+}

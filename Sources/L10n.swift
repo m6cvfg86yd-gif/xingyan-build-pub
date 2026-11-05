@@ -827,6 +827,8 @@ enum L10n {
         "验证消息": "Verification message",
         "发送添加朋友申请": "Send friend request",
         "发送中…": "Sending…",
+        "上传中": "Uploading",
+        "服务器处理中…": "Processing on server…",
         "发送失败": "Could not send",
         "搜索中…": "Searching…",
         "搜索结果": "Result",
