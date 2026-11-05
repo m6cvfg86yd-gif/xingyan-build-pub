@@ -991,8 +991,8 @@ struct ChatDetailView: View {
                                     }
                                     .padding(.horizontal, unreadHere > 0 ? 11 : 0)
                                     .frame(minWidth: 34, minHeight: 34)
-                                    .background(Capsule().fill(C.cardBg.opacity(0.96)))
-                                    .overlay(Capsule().stroke(ChatTheme.separator, lineWidth: 0.5))
+                                    .background(Capsule().fill(.regularMaterial))
+                                    .overlay(Capsule().stroke(Color.white.opacity(0.16), lineWidth: 0.5))
                                     .shadow(color: Color.black.opacity(0.18), radius: 8, y: 3)
                                 }
                                 .buttonStyle(.plain)
@@ -1119,7 +1119,12 @@ struct ChatDetailView: View {
                 }
                 .padding(.horizontal, 14)
                 .frame(height: 38)
-                .background(Color.red.opacity(0.07))
+                .background {
+                    ZStack {
+                        Rectangle().fill(.regularMaterial)
+                        Color.red.opacity(0.07)
+                    }
+                }
                 .overlay(alignment: .bottom) {
                     Rectangle().fill(C.red.opacity(0.16)).frame(height: 0.5)
                 }
@@ -1146,7 +1151,7 @@ struct ChatDetailView: View {
                     .foregroundColor(C.green)
                     .padding(.horizontal, 12)
                     .frame(height: 36)
-                    .background(ChatTheme.panel)
+                    .background(.regularMaterial)
                     .overlay(alignment: .bottom) {
                         Rectangle().fill(ChatTheme.separator).frame(height: 0.5)
                     }
@@ -1160,18 +1165,21 @@ struct ChatDetailView: View {
                     CallCenter.shared.restore()
                 } label: {
                     HStack(spacing: 8) {
-                        Circle().fill(Color.white.opacity(0.92)).frame(width: 7, height: 7)
+                        Circle().fill(C.green).frame(width: 7, height: 7)
                         Text(callBarText)
                             .font(pf(13.5))
-                            .foregroundColor(.white)
+                            .foregroundColor(C.green)
                         Spacer(minLength: 0)
                         Text(Tr("回到通话 ›"))
                             .font(pf(13.5))
-                            .foregroundColor(.white.opacity(0.9))
+                            .foregroundColor(C.green.opacity(0.9))
                     }
                     .padding(.horizontal, 14)
                     .frame(height: 34)
-                    .background(C.green)
+                    .background(.regularMaterial)
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(C.green.opacity(0.18)).frame(height: 0.5)
+                    }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -2014,7 +2022,9 @@ struct ChatDetailView: View {
                                 .foregroundColor(Color(hex: 0xFF9A2E))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(Color(hex: 0xFF9A2E).opacity(0.14)))
+                                .background(Capsule().fill(.thinMaterial))
+                                .overlay(Capsule().stroke(Color(hex: 0xFF9A2E).opacity(0.28),
+                                                          lineWidth: 0.6))
                                 .offset(x: (message.senderId == myId) ? -26 : 26)
                             }
                         }
@@ -2924,10 +2934,11 @@ struct ChatDetailView: View {
             if dictation.listening {
                 Text("正在听你说，说完自己上屏…")
                     .font(pf(12))
-                    .foregroundColor(.white)
+                    .foregroundColor(C.green)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(Capsule().fill(C.green))
+                    .background(Capsule().fill(.thinMaterial))
+                    .overlay(Capsule().stroke(C.green.opacity(0.32), lineWidth: 0.7))
                     .offset(y: -22)
             }
         }
@@ -4619,7 +4630,7 @@ struct MessageRow: View {
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(C.cardBg)
+                    .fill(.thinMaterial)
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
                     .fill(
                         LinearGradient(colors: [C.green.opacity(0.16), C.green.opacity(0.04)],
@@ -4652,7 +4663,7 @@ struct MessageRow: View {
                 .foregroundColor(ChatTheme.secondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(RoundedRectangle(cornerRadius: 5).fill(ChatTheme.bubbleOther))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.thinMaterial))
         } else {
             bubble
         }
