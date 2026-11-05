@@ -14,6 +14,7 @@ private enum ChatTheme {
     static let ink = Color.dyn(0x191919, 0xE9EBF0)
     static let mineInk = Color.dyn(0xFFFFFF, 0xE9EBF0)
     static let secondary = Color.dyn(0x999999, 0x7D8188)
+    static let groupSenderName = Color.dyn(0x5F6C66, 0xAAB8B2)
     static let secondaryOnMine = Color.dyn(0x999999, 0xB7D7CF)
     static let timeInk = Color.dyn(0x8A8A8E, 0x8A8D94)
     static let timeBg = Color.dyn(0xE5E5E5, 0x22252A)
@@ -4430,7 +4431,7 @@ struct MessageRow: View {
                 HStack(spacing: 4) {
                     Text(senderName)
                         .font(pf(12))
-                        .foregroundColor(C.subLabel)
+                        .foregroundColor(ChatTheme.groupSenderName)
                         .lineLimit(1)
                     if senderQQLevel > 0,
                        GrowthFlags.showInChats == true {
