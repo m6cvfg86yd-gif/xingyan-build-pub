@@ -125,6 +125,7 @@ struct ExternalFileSendView: View {
     @State private var favoriteBusy = false
     @State private var sending = false
     @State private var progress = ""
+    @State private var transferFraction: Double = 0
     @State private var alert = ""
     @State private var filePreview: FilePreviewData?
     @State private var showShare = false
@@ -150,122 +151,45 @@ struct ExternalFileSendView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                fileCard
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
+            ZStack {
+                StarRouteBackdrop()
 
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                          spacing: 10) {
-                    actionTile(title: Tr("打开文件"), icon: "doc.text.magnifyingglass",
-                               tint: Color(hex: 0x2F73C9)) {
-                        previewFirstFile()
-                    }
-                    actionTile(title: Tr("转发给朋友"), icon: "paperplane.fill",
-                               tint: Color(hex: 0x1AAD6A)) {
-                        withAnimation(.easeOut(duration: 0.18)) { forwardExpanded = true }
-                    }
-                    actionTile(title: Tr("收藏"), icon: "star.fill",
-                               tint: Color(hex: 0xE3A126)) {
-                        favorite()
-                    }
-                    actionTile(title: Tr("分享"), icon: "square.and.arrow.up",
-                               tint: Color(hex: 0x5B6B7C)) {
-                        showShare = true
-                    }
-                    actionTile(title: Tr("快传"), icon: "dot.radiowaves.left.and.right",
-                               tint: Color(hex: 0x7B61D1)) {
-                        showDrop = true
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-
-                HStack(spacing: 7) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(C.subLabel)
-                    TextField(Tr("搜索联系人"), text: $query)
-                        .font(.system(size: 14))
-                    if !query.isEmpty {
-                        Button { query = "" } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundColor(C.subLabel)
+                VStack(spacing: 0) {
+                    NavBar(title: Tr("外部文件")) {
+                        Button {
+                            if !sending && !favoriteBusy { inbox.finish() }
+                        } label: {
+                            Text(Tr("取消"))
+                                .font(.system(size: 13.5, weight: .semibold))
+                                .foregroundStyle(sending || favoriteBusy
+                                                 ? OrbitTheme.tertiary
+                                                 : OrbitTheme.secondary)
+                                .padding(.horizontal, 12)
+                                .frame(height: 32)
                         }
                         .buttonStyle(.plain)
+                        .disabled(sending || favoriteBusy)
                     }
-                }
-                .padding(.horizontal, 12)
-                .frame(height: 38)
-                .background(C.fieldBg)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-
-                if forwardExpanded {
-                    HStack {
-                        Text(Tr("转发给朋友"))
-                            .font(pf(15, .semibold))
-                            .foregroundColor(C.label)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 6)
 
                     ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 0) {
-                            ForEach(chats) { chat in
-                                chatRow(chat)
-                                if chat.id != chats.last?.id { HairLine(inset: 64) }
-                            }
-                            if chats.isEmpty {
-                                HStack {
-                                    Text(Tr("没有最近会话，可从通讯录选择"))
-                                        .font(.system(size: 12))
-                                        .foregroundColor(C.subLabel)
-                                    Spacer(minLength: 0)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                ForEach(contacts.prefix(80)) { user in
-                                    contactRow(user)
-                                    if user.id != contacts.prefix(80).last?.id { HairLine(inset: 64) }
-                                }
+                        LazyVStack(alignment: .leading, spacing: 14) {
+                            fileHero
+                            fileStrip
+                            actionRail
+
+                            if forwardExpanded {
+                                recipientSection
                             }
                         }
+                        .padding(.horizontal, 14)
+                        .padding(.top, 4)
+                        .padding(.bottom, 18)
                     }
-
-                    if favoriteBusy || sending {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text(progress).font(.system(size: 12.5)).foregroundColor(C.subLabel)
-                        }
-                        .padding(.vertical, 10)
-                    }
-
-                    Button { send() } label: {
-                        Text(sending ? Tr("发送中…") : (selectedId.isEmpty ? Tr("选择一个朋友") : Tr("发送")))
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(selectedId.isEmpty ? C.subLabel : C.green))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(selectedId.isEmpty || sending)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
                 }
             }
-            .background(C.pageBg.ignoresSafeArea())
-            .navigationTitle(Tr("文件"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(Tr("取消")) {
-                        if !sending && !favoriteBusy { inbox.finish() }
-                    }
-                }
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .bottom) {
+                sendDock
             }
             .task { if app.chats.isEmpty { await app.loadChats() } }
             .alert(alert, isPresented: Binding(get: { !alert.isEmpty },
@@ -287,33 +211,302 @@ struct ExternalFileSendView: View {
         }
     }
 
-    private var fileCard: some View {
-        HStack(spacing: 11) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(C.green.opacity(0.12))
-                    .frame(width: 42, height: 42)
-                Image(systemName: "doc.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(C.green)
+    private var fileHero: some View {
+        StarForwardHero(
+            symbol: "tray.and.arrow.down.fill",
+            kicker: "STAR INBOX",
+            title: Tr("文件已经到达"),
+            subtitle: Tr("先检查内容，再沿星轨发给朋友"),
+            badge: "\(inbox.files.count) " + Tr("个文件") + " · " + fileBytes
+        )
+    }
+
+    private var fileStrip: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            OrbitSectionLabel(text: Tr("传入文件"), count: inbox.files.count)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(inbox.files) { item in
+                        Button {
+                            filePreview = FilePreviewData(name: item.name, local: item.local)
+                        } label: {
+                            fileTile(item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 1)
+                .padding(.vertical, 2)
             }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(inbox.files.count == 1 ? inbox.files[0].name
-                     : Tr("\(inbox.files.count) 个文件"))
-                    .font(.system(size: 14.5, weight: .medium))
-                    .foregroundColor(C.label)
+        }
+    }
+
+    private func fileTile(_ item: ExternalFileItem) -> some View {
+        let look = FileKind.look(item.name)
+        return HStack(spacing: 10) {
+            VStack(spacing: 1) {
+                Image(systemName: look.symbol)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(look.color)
+                Text(look.badge)
+                    .font(pfExact(7.5, .bold))
+                    .foregroundStyle(look.color)
                     .lineLimit(1)
-                Text(fileBytes)
-                    .font(.system(size: 11))
-                    .foregroundColor(C.subLabel)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(width: 44, height: 44)
+            .background(RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(look.color.opacity(0.13)))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .stroke(look.color.opacity(0.20), lineWidth: 0.7))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.name)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.ink)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(fileSize(item.bytes))
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(OrbitTheme.secondary)
             }
             Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(OrbitTheme.tertiary)
         }
-        .padding(12)
-        .background(C.cardBg)
-        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-        .contentShape(Rectangle())
-        .onTapGesture { previewFirstFile() }
+        .padding(.horizontal, 11)
+        .frame(width: 218, height: 66)
+        .background(OrbitTheme.raised)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(OrbitTheme.divider, lineWidth: 0.7)
+        }
+        .shadow(color: Color.black.opacity(0.035), radius: 8, y: 3)
+    }
+
+    private var actionRail: some View {
+        HStack(spacing: 8) {
+            fileAction(Tr("打开"), "doc.text.magnifyingglass", OrbitTheme.jade) {
+                previewFirstFile()
+            }
+            fileAction(Tr("转发"), "paperplane.fill", Color.dyn(0x315E78, 0x78AFC8)) {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    forwardExpanded = true
+                }
+            }
+            fileAction(Tr("收藏"), "star.fill", OrbitTheme.gold) {
+                favorite()
+            }
+            fileAction(Tr("分享"), "square.and.arrow.up", Color.dyn(0x5E6579, 0xAAB4D0)) {
+                showShare = true
+            }
+            fileAction(Tr("快传"), "dot.radiowaves.left.and.right", Color.dyn(0x477C68, 0x77C8A8)) {
+                showDrop = true
+            }
+        }
+        .disabled(favoriteBusy || sending)
+    }
+
+    private func fileAction(_ title: String, _ symbol: String, _ tint: Color,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 38, height: 38)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(tint.opacity(0.13)))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(tint.opacity(0.18), lineWidth: 0.7))
+                Text(title)
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(OrbitTheme.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 65)
+            .background(OrbitTheme.raised)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(OrbitTheme.divider, lineWidth: 0.7)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var recipientSection: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            OrbitSectionLabel(text: Tr("转发给朋友"))
+            StarForwardSearch(placeholder: Tr("搜索会话或联系人"), text: $query)
+
+            if !chats.isEmpty {
+                OrbitSectionLabel(text: Tr("最近会话"), count: chats.count)
+                ForEach(Array(chats.prefix(30))) { chat in
+                    Button {
+                        select("c:" + chat.id)
+                    } label: {
+                        StarForwardTargetRow(
+                            name: chat.name,
+                            subtitle: chatSubtitle(chat),
+                            avatar: chat.avatar ?? "",
+                            isGroup: chat.type == "group",
+                            selected: isSelected(chat.id),
+                            countBadge: chatBadge(chat)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if !contacts.isEmpty {
+                OrbitSectionLabel(text: Tr("联系人"), count: contacts.count)
+                    .padding(.top, chats.isEmpty ? 0 : 4)
+                ForEach(Array(contacts.prefix(80))) { user in
+                    Button {
+                        select("u:" + user.id)
+                    } label: {
+                        StarForwardTargetRow(
+                            name: user.name,
+                            subtitle: contactSubtitle(user),
+                            avatar: user.avatarPath,
+                            isGroup: false,
+                            selected: isSelected(user.id),
+                            countBadge: user.online == true ? Tr("在线") : nil
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if chats.isEmpty && contacts.isEmpty {
+                StarForwardEmpty(text: Tr("没有匹配的会话或联系人"))
+            }
+        }
+    }
+
+    private var sendDock: some View {
+        VStack(spacing: 9) {
+            if sending || favoriteBusy {
+                VStack(spacing: 5) {
+                    HStack(spacing: 7) {
+                        ProgressView()
+                            .tint(OrbitTheme.jade)
+                            .scaleEffect(0.72)
+                        Text(progress)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(OrbitTheme.secondary)
+                        Spacer(minLength: 0)
+                        Text("\(Int(min(1, max(0, transferFraction)) * 100))%")
+                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(OrbitTheme.jade)
+                    }
+                    ProgressView(value: min(1, max(0, transferFraction)))
+                        .tint(OrbitTheme.jade)
+                }
+            }
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(selectedId.isEmpty ? Tr("选择接收人") : selectedName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(OrbitTheme.ink)
+                        .lineLimit(1)
+                    Text(selectedId.isEmpty ? Tr("文件会保留原格式发送") : fileBytes)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(OrbitTheme.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Button {
+                    send()
+                } label: {
+                    HStack(spacing: 7) {
+                        if sending {
+                            ProgressView().tint(.white).scaleEffect(0.72)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 12.5, weight: .semibold))
+                        }
+                        Text(sending ? Tr("发送中…") : Tr("发送"))
+                            .font(.system(size: 14.5, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 19)
+                    .frame(height: 42)
+                    .background(Capsule().fill(
+                        LinearGradient(
+                            colors: selectedId.isEmpty || sending || favoriteBusy
+                                ? [OrbitTheme.tertiary.opacity(0.56), OrbitTheme.tertiary.opacity(0.40)]
+                                : [OrbitTheme.jade, OrbitTheme.jadeDeep],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    ))
+                }
+                .buttonStyle(.plain)
+                .disabled(selectedId.isEmpty || sending || favoriteBusy)
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.top, 9)
+        .padding(.bottom, max(8, L.safeBottom * 0.32))
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(OrbitTheme.divider.opacity(0.72))
+                .frame(height: 0.5)
+        }
+        .animation(.easeOut(duration: 0.18), value: sending)
+        .animation(.linear(duration: 0.16), value: transferFraction)
+    }
+
+    private var selectedName: String {
+        if selectedId.hasPrefix("c:"),
+           let chat = app.chats.first(where: { $0.id == String(selectedId.dropFirst(2)) }) {
+            return chat.name
+        }
+        if selectedId.hasPrefix("u:"),
+           let user = app.contacts.first(where: { $0.id == String(selectedId.dropFirst(2)) }) {
+            return user.name
+        }
+        return Tr("选择一个朋友")
+    }
+
+    private func select(_ value: String) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.spring(response: 0.24, dampingFraction: 0.84)) {
+            selectedId = value
+        }
+    }
+
+    private func chatSubtitle(_ chat: Chat) -> String {
+        let preview = (chat.lastMessage?.preview ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !preview.isEmpty { return preview }
+        return chat.type == "group" ? Tr("群聊会话") : Tr("最近联系")
+    }
+
+    private func chatBadge(_ chat: Chat) -> String? {
+        if chat.type == "group", let count = chat.memberCount, count > 0 {
+            return "\(count)" + Tr("人")
+        }
+        return nil
+    }
+
+    private func contactSubtitle(_ user: User) -> String {
+        let username = (user.username ?? "").trimmingCharacters(in: .whitespaces)
+        if !username.isEmpty { return "@" + username }
+        let mood = (user.moodText ?? "").trimmingCharacters(in: .whitespaces)
+        return mood.isEmpty ? Tr("星言好友") : mood
+    }
+
+    private func fileSize(_ bytes: Int) -> String {
+        if bytes < 1024 * 1024 { return String(format: "%.1f KB", Double(bytes) / 1024.0) }
+        return String(format: "%.1f MB", Double(bytes) / 1024.0 / 1024.0)
     }
 
     private var fileBytes: String {
@@ -323,101 +516,9 @@ struct ExternalFileSendView: View {
         return String(format: "%.1f MB", Double(total) / 1024.0 / 1024.0)
     }
 
-    private func actionTile(title: String, icon: String, tint: Color,
-                            action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 7) {
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(tint)
-                    .frame(width: 40, height: 40)
-                    .background(tint.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-                Text(title)
-                    .font(.system(size: 12.5, weight: .medium))
-                    .foregroundColor(C.label)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 78)
-            .background(C.cardBg)
-            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(favoriteBusy)
-    }
-
     private func previewFirstFile() {
         guard let first = inbox.files.first else { return }
         filePreview = FilePreviewData(name: first.name, local: first.local)
-    }
-
-    private func chatRow(_ chat: Chat) -> some View {
-        Button {
-            selectedId = "c:" + chat.id
-        } label: {
-            HStack(spacing: 11) {
-                Group {
-                    if let path = chat.avatar, !path.isEmpty {
-                        RemoteImage(path: path, icon: "person.fill", mode: .fill)
-                    } else {
-                        Image(systemName: chat.type == "group" ? "person.3.fill" : "person.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(C.subLabel)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(C.fieldBg)
-                    }
-                }
-                .frame(width: 42, height: 42)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                Text(chat.name)
-                    .font(.system(size: 15))
-                    .foregroundColor(C.label)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: isSelected(chat.id) ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 19))
-                    .foregroundColor(isSelected(chat.id) ? C.green : C.subLabel.opacity(0.45))
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 60)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func contactRow(_ user: User) -> some View {
-        Button {
-            selectedId = "u:" + user.id
-        } label: {
-            HStack(spacing: 11) {
-                if !user.avatarPath.isEmpty {
-                    RemoteImage(path: user.avatarPath, icon: "person.fill", mode: .fill)
-                        .frame(width: 42, height: 42)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                } else {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(C.subLabel)
-                        .frame(width: 42, height: 42)
-                        .background(C.fieldBg)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
-                Text(user.name)
-                    .font(.system(size: 15))
-                    .foregroundColor(C.label)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: isSelected(user.id) ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 19))
-                    .foregroundColor(isSelected(user.id) ? C.green : C.subLabel.opacity(0.45))
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 60)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     private func isSelected(_ id: String) -> Bool {
@@ -427,6 +528,7 @@ struct ExternalFileSendView: View {
     private func send() {
         guard !selectedId.isEmpty, !inbox.files.isEmpty else { return }
         sending = true
+        transferFraction = 0.01
         Task {
             let chat: Chat?
             if selectedId.hasPrefix("u:") {
@@ -441,7 +543,8 @@ struct ExternalFileSendView: View {
                 return
             }
             var done = 0
-            for item in inbox.files {
+            let count = max(1, inbox.files.count)
+            for (index, item) in inbox.files.enumerated() {
                 progress = Tr("正在上传") + " \(done + 1)/\(inbox.files.count)"
                 let bytes = (try? item.local.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
                 if bytes > 100 * 1024 * 1024 {
@@ -450,7 +553,12 @@ struct ExternalFileSendView: View {
                 }
                 guard bytes > 0 else { continue }
                 do {
-                    let uploadedURL = try await uploadItem(item)
+                    let uploadedURL = try await uploadItem(item) { fraction in
+                        DispatchQueue.main.async {
+                            transferFraction = min(1, (Double(index) + fraction) / Double(count))
+                        }
+                    }
+                    transferFraction = min(1, Double(index + 1) / Double(count))
                     let contentObject: [String: Any] = [
                         "url": uploadedURL,
                         "name": item.name,
@@ -468,6 +576,7 @@ struct ExternalFileSendView: View {
                 }
             }
             sending = false
+            transferFraction = 0
             if alert.isEmpty && done > 0 {
                 await app.loadChats()
                 inbox.finish()
@@ -479,10 +588,12 @@ struct ExternalFileSendView: View {
     private func favorite() {
         guard !inbox.files.isEmpty else { return }
         favoriteBusy = true
+        transferFraction = 0.01
         Task {
             var saved: [(name: String, content: String)] = []
             var done = 0
-            for item in inbox.files {
+            let count = max(1, inbox.files.count)
+            for (index, item) in inbox.files.enumerated() {
                 progress = Tr("正在收藏") + " \(done + 1)/\(inbox.files.count)"
                 let bytes = (try? item.local.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
                 if bytes > 100 * 1024 * 1024 {
@@ -491,7 +602,12 @@ struct ExternalFileSendView: View {
                 }
                 guard bytes > 0 else { continue }
                 do {
-                    let uploadedURL = try await uploadItem(item)
+                    let uploadedURL = try await uploadItem(item) { fraction in
+                        DispatchQueue.main.async {
+                            transferFraction = min(1, (Double(index) + fraction) / Double(count))
+                        }
+                    }
+                    transferFraction = min(1, Double(index + 1) / Double(count))
                     let body = try JSONSerialization.data(withJSONObject: [
                         "url": uploadedURL,
                         "name": item.name,
@@ -525,12 +641,14 @@ struct ExternalFileSendView: View {
                 }
             }
             favoriteBusy = false
+            transferFraction = 0
         }
     }
 
-    private func uploadItem(_ item: ExternalFileItem) async throws -> String {
+    private func uploadItem(_ item: ExternalFileItem,
+                            onProgress: @escaping (Double) -> Void) async throws -> String {
         try await API.shared.uploadBinaryFile(
             item.local, mime: "application/octet-stream",
-            skipTranscode: true, onProgress: { _ in })
+            skipTranscode: true, onProgress: onProgress)
     }
 }
