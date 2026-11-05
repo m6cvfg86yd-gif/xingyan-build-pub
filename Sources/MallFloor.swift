@@ -471,7 +471,14 @@ struct DDMallFloor: View {
                 .foregroundColor(L2.inkSoft)
                 .padding(.horizontal, 10)
                 .frame(height: 36)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(L2.cardFill))
+                .background {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(.thinMaterial)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(L2.cardFill.opacity(0.24))
+                    }
+                }
                 .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .stroke(L2.cardStroke, lineWidth: 0.6))
                 .padding(.horizontal, 33)
@@ -555,9 +562,16 @@ struct DDMallFloor: View {
                     }
                 }
                 .padding(.vertical, 12)
-                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(L2.cardFill))
+                .background {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(.regularMaterial)
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(L2.cardFill.opacity(0.22))
+                    }
+                }
                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(L2.cardStroke, lineWidth: 0.6))
+                    .stroke(L2.cardStroke.opacity(0.82), lineWidth: 0.6))
                 .padding(.horizontal, 14)
                 .offset(y: (1 - rise) * 34).opacity(Double(rise))
 
@@ -629,10 +643,18 @@ struct DDMallFloor: View {
     @ViewBuilder private func floorCard<V: View>(_ l: MallWeatherLook,
                                                  @ViewBuilder _ content: () -> V) -> some View {
         VStack(spacing: 0) { content() }
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(l.cardFill))
+            .background {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.regularMaterial)
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(l.cardFill.opacity(0.22))
+                }
+            }
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(l.cardStroke, lineWidth: 0.6))
+                .stroke(l.cardStroke.opacity(0.82), lineWidth: 0.6))
             .padding(.horizontal, 14)
+            .shadow(color: Color.black.opacity(0.06), radius: 12, y: 4)
     }
 
     private func orderCell(_ l: MallWeatherLook, _ title: String, _ n: Int, _ icon: String,
