@@ -223,7 +223,7 @@ enum L {
     static var tabIconBox: CGFloat { o("tabIconBox", compactPhone ? 22 : 24) }
     static var tabLabel: CGFloat { o("tabLabel", compactPhone ? 10 : 11) }
 
-    static var rowH: CGFloat { o("chatRowH", 74) }
+    static var rowH: CGFloat { o("chatRowH", 72) }
     static var avatar: CGFloat { o("chatAvatar", v(44, 12.3, 48)) }
     static var rowPadL: CGFloat { o("chatPadL", 16) }
     static var rowPadR: CGFloat { o("chatPadR", 16) }
