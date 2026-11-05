@@ -79,6 +79,19 @@
     <string>alipays</string>
     <string>alipay</string>
   </array>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>CFBundleURLName</key>
+      <string>com.chris.chatnative.pair</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>xingyan</string>
+      </array>
+    </dict>
+  </array>
   <key>CFBundleIcons</key>
   <dict>
     <key>CFBundlePrimaryIcon</key>

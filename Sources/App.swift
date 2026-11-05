@@ -1600,7 +1600,21 @@ struct CHRISApp: App {
                     .environmentObject(externalFiles)
                     .preferredColorScheme(app.preferredScheme)
                     .onOpenURL { url in
-                        if url.isFileURL { ExternalFileInbox.shared.accept([url]) }
+                        if url.isFileURL {
+                            ExternalFileInbox.shared.accept([url])
+                            return
+                        }
+                        if url.scheme?.lowercased() == "xingyan",
+                           url.host?.lowercased() == "pair",
+                           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                           let code = components.queryItems?
+                            .first(where: { $0.name == "code" })?
+                            .value?
+                            .filter({ $0.isNumber })
+                            .prefix(6),
+                           code.count == 6 {
+                            app.pairApproveCode = String(code)
+                        }
                     }
                     .sheet(isPresented: $externalFiles.present) {
                         ExternalFileSendView()
