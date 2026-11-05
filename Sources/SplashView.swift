@@ -13,66 +13,99 @@ struct SplashView: View {
             ZStack {
                 StarLaunchBackdrop(remote: remote)
 
-                VStack(spacing: 0) {
-                    Spacer(minLength: max(72, geo.size.height * 0.15))
+                Text("星")
+                    .font(.system(size: min(270, geo.size.width * 0.72),
+                                  weight: .black, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.018))
+                    .rotationEffect(.degrees(-8))
+                    .offset(x: geo.size.width * 0.34, y: -geo.size.height * 0.05)
+                    .allowsHitTesting(false)
 
-                    StarLaunchMark(
-                        size: min(132, max(104, geo.size.width * 0.30)),
-                        orbiting: orbiting,
-                        breathing: breathing
-                    )
-                    .scaleEffect(reveal ? 1 : 0.84)
-                    .opacity(reveal ? 1 : 0)
-
-                    VStack(spacing: 7) {
-                        Text("星言")
-                            .font(pfStyled(size: 36, weight: .bold, design: .rounded))
-                            .tracking(2)
-                            .foregroundStyle(.white)
-
-                        Text("XINGYAN")
-                            .font(pfStyled(size: 10.5, weight: .semibold, design: .rounded))
-                            .tracking(5.2)
-                            .foregroundStyle(Color.white.opacity(0.48))
-
-                        HStack(spacing: 8) {
-                            Capsule()
-                                .fill(Color.white.opacity(0.22))
-                                .frame(width: 24, height: 0.7)
-                            Text("让连接有自己的轨道")
-                                .font(pfStyled(size: 12, weight: .medium))
-                                .tracking(0.8)
-                                .foregroundStyle(Color.white.opacity(0.72))
-                            Capsule()
-                                .fill(Color.white.opacity(0.22))
-                                .frame(width: 24, height: 0.7)
-                        }
-                        .padding(.top, 9)
-                    }
-                    .padding(.top, 21)
-                    .offset(y: reveal ? 0 : 10)
-                    .opacity(reveal ? 1 : 0)
-
-                    Spacer(minLength: 36)
-
-                    HStack(spacing: 7) {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 8) {
                         Circle()
                             .fill(Color(hex: 0x6CE65A))
                             .frame(width: 5, height: 5)
-                            .shadow(color: Color(hex: 0x6CE65A).opacity(0.65), radius: 4)
-                        Text("正在连接星轨")
-                            .font(pfStyled(size: 10.5, weight: .medium))
-                            .tracking(0.45)
-                            .foregroundStyle(Color.white.opacity(0.66))
+                            .shadow(color: Color(hex: 0x6CE65A).opacity(0.7), radius: 4)
+                        Text("XINGYAN  /  ORBIT SYSTEM")
+                            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                            .tracking(1.7)
+                            .foregroundStyle(Color.white.opacity(0.48))
+                        Spacer(minLength: 0)
+                        Text("01")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.24))
                     }
-                    .padding(.horizontal, 13)
-                    .frame(height: 32)
-                    .background(Capsule().fill(.ultraThinMaterial))
-                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
-                    .padding(.bottom, max(26, L.safeBottom + 18))
+                    .opacity(reveal ? 1 : 0)
+                    .offset(y: reveal ? 0 : -8)
+
+                    Spacer(minLength: 0)
+
+                    HStack(alignment: .center, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("星言")
+                                .font(.system(size: 48, weight: .bold, design: .rounded))
+                                .tracking(1.5)
+                                .foregroundStyle(.white)
+
+                            HStack(spacing: 9) {
+                                Capsule()
+                                    .fill(Color(hex: 0x6CE65A).opacity(0.72))
+                                    .frame(width: 28, height: 1.2)
+                                Text("XINGYAN")
+                                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                                    .tracking(4.6)
+                                    .foregroundStyle(Color.white.opacity(0.55))
+                            }
+
+                            Text("让连接有自己的轨道")
+                                .font(.system(size: 13, weight: .medium))
+                                .tracking(0.7)
+                                .foregroundStyle(Color.white.opacity(0.70))
+                        }
+                        .offset(x: reveal ? 0 : -18)
+                        .opacity(reveal ? 1 : 0)
+
+                        Spacer(minLength: 0)
+
+                        StarLaunchMark(
+                            size: min(112, max(90, geo.size.width * 0.26)),
+                            orbiting: orbiting,
+                            breathing: breathing
+                        )
+                        .scaleEffect(reveal ? 1 : 0.88)
+                        .opacity(reveal ? 1 : 0)
+                    }
+
+                    Spacer(minLength: 46)
+
+                    HStack(spacing: 8) {
+                        HStack(spacing: 7) {
+                            Circle()
+                                .fill(Color(hex: 0x6CE65A))
+                                .frame(width: 5, height: 5)
+                                .shadow(color: Color(hex: 0x6CE65A).opacity(0.65), radius: 4)
+                            Text("正在连接星轨")
+                                .font(.system(size: 10.5, weight: .medium))
+                                .tracking(0.45)
+                                .foregroundStyle(Color.white.opacity(0.66))
+                        }
+                        .padding(.horizontal, 13)
+                        .frame(height: 32)
+                        .background(Capsule().fill(.ultraThinMaterial))
+                        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.6))
+
+                        Spacer(minLength: 0)
+                        Text("PRIVATE · SECURE · PRESENT")
+                            .font(.system(size: 8, weight: .semibold, design: .rounded))
+                            .tracking(1.15)
+                            .foregroundStyle(Color.white.opacity(0.26))
+                    }
                     .opacity(reveal ? 1 : 0)
                 }
                 .padding(.horizontal, 28)
+                .padding(.top, max(22, L.safeTop + 10))
+                .padding(.bottom, max(26, L.safeBottom + 18))
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
