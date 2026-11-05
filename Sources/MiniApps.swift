@@ -127,36 +127,44 @@ struct MiniAppCardBubble: View {
     var onOpen: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                Text(info.icon?.isEmpty == false ? info.icon! : (info.isGame ? "🕹️" : "🧩"))
-                    .font(pfStyled(size: 26))
-                if let cv = info.cover, !cv.isEmpty {
-                    RemoteImage(path: cv).frame(width: 52, height: 52)
-                        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        WeChatMessageCard {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(C.fieldBg)
+                    Text(info.icon?.isEmpty == false ? info.icon! : (info.isGame ? "🕹️" : "🧩"))
+                        .font(pfStyled(size: 25))
+                    if let cv = info.cover, !cv.isEmpty {
+                        RemoteImage(path: cv)
+                            .frame(width: 50, height: 50)
+                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    }
                 }
-            }
-            .frame(width: 52, height: 52)
+                .frame(width: 50, height: 50)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(info.name).font(pf(15)).foregroundColor(C.label).lineLimit(1)
-                Text(info.desc?.isEmpty == false ? info.desc! : Tr("点开就能玩"))
-                    .font(pf(12)).foregroundColor(C.subLabel).lineLimit(2)
-                Text(Tr("小游戏"))
-                    .font(pf(10.5)).foregroundColor(C.subLabel)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(info.name)
+                        .font(pfStyled(size: 15.5, weight: .medium))
+                        .foregroundColor(C.label)
+                        .lineLimit(2)
+                    Text(info.desc?.isEmpty == false ? info.desc! : Tr("点开就能玩"))
+                        .font(pfStyled(size: 12.5))
+                        .foregroundColor(C.subLabel)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+
+            Divider()
+                .overlay(C.hairline)
+                .padding(.vertical, 9)
+
+            WeChatMessageCardFooter(
+                symbol: "square.grid.2x2.fill",
+                title: Tr("小程序"),
+                trailing: info.isGame ? Tr("小游戏") : Tr("打开")
+            )
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .frame(width: 232, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(C.cardBg))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .stroke(C.hairline, lineWidth: 0.5))
-        .contentShape(Rectangle())
         .onTapGesture { onOpen() }
     }
 }

@@ -575,17 +575,18 @@ struct OAArticleCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 0) {
+            WeChatMessageCard(width: 250, padding: 11) {
+                VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 10) {
                     let cover = (o["cover"] as? String) ?? ""
                     if !cover.isEmpty {
                         RemoteImage(path: cover, maxSide: 700)
-                            .frame(width: 84, height: 62)
-                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                            .frame(width: 76, height: 60)
+                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                     }
                     VStack(alignment: .leading, spacing: 6) {
                         Text((o["title"] as? String) ?? "")
-                            .font(pf(15.5, .medium))
+                            .font(pfStyled(size: 15.5, weight: .medium))
                             .foregroundColor(C.label)
                             .lineLimit(3)
                             .multilineTextAlignment(.leading)
@@ -594,21 +595,24 @@ struct OAArticleCard: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                HStack(spacing: 6) {
-                    Avatar(path: (o["accountAvatar"] as? String) ?? "", size: 16, radius: 4, circle: false)
-                    Text((o["accountName"] as? String) ?? Tr("公众号"))
-                        .font(pf(11.5)).foregroundColor(C.time).lineLimit(1)
-                    Spacer(minLength: 0)
-                    Text(Tr("文章")).font(pf(11)).foregroundColor(C.time)
+
+                    Rectangle()
+                        .fill(C.hairline)
+                        .frame(height: 0.5)
+                        .padding(.vertical, 9)
+
+                    HStack(spacing: 6) {
+                        Avatar(path: (o["accountAvatar"] as? String) ?? "",
+                               size: 15, radius: 4, circle: false)
+                        Text((o["accountName"] as? String) ?? Tr("公众号"))
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                        Text(Tr("文章"))
+                    }
+                    .font(pfStyled(size: 10.5, weight: .medium))
+                    .foregroundStyle(C.subLabel)
                 }
-                .padding(.top, 10)
             }
-            .padding(11)
-            .frame(width: 246, alignment: .leading)
-            .background { CardGlassBox(radius: 7) }
-            .overlay(
-                RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(C.hairline, lineWidth: 0.5)
-            )
         }
         .buttonStyle(.plain)
     }

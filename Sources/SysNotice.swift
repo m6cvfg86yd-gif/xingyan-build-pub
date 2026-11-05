@@ -27,6 +27,7 @@ struct SysNoticeBubble: View {
     @State private var expanded = false
 
     var body: some View {
+        WeChatMessageCard(width: 252, padding: 0) {
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 withAnimation(.easeOut(duration: 0.18)) {
@@ -86,9 +87,7 @@ struct SysNoticeBubble: View {
                 .buttonStyle(.plain)
             }
         }
-        .frame(width: 252, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(C.cardBg))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .stroke(C.hairline, lineWidth: 0.5))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }

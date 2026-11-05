@@ -108,100 +108,98 @@ struct ShopLinkCard: View {
     }
 
     private var richBody: some View {
-        HStack(alignment: .top, spacing: 10) {
-            RemoteImage(path: link.image, mode: .fill, maxSide: 360)
-                .frame(width: 104, height: 104)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        WeChatMessageCard {
+            HStack(alignment: .top, spacing: 10) {
+                RemoteImage(path: link.image, mode: .fill, maxSide: 360)
+                    .frame(width: 84, height: 84)
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(link.title)
-                    .font(pf(15.5, .semibold))
-                    .foregroundColor(C.bubbleText)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                if !link.meta.isEmpty {
-                    Text(link.meta)
-                        .font(pf(11.5))
-                        .foregroundColor(C.subLabel)
-                        .lineLimit(1)
-                }
-                if !link.reviews.isEmpty {
-                    Text(link.reviews)
-                        .font(pf(11.5))
-                        .foregroundColor(C.subLabel)
-                        .lineLimit(1)
-                }
-                ForEach(link.prices.indices, id: \.self) { i in
-                    let p = link.prices[i]
-                    HStack(spacing: 4) {
-                        Text("团")
-                            .font(pf(10, .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 3)
-                            .padding(.vertical, 1)
-                            .background(RoundedRectangle(cornerRadius: 3, style: .continuous).fill(C.red))
-                        Text("¥" + p.price)
-                            .font(pf(15, .semibold))
-                            .foregroundColor(C.red)
-                        if !p.off.isEmpty {
-                            Text(p.off).font(pf(11.5)).foregroundColor(C.subLabel)
-                        }
-                        if !p.tag.isEmpty {
-                            Text(p.tag).font(pf(11.5)).foregroundColor(C.subLabel).lineLimit(1)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(link.title)
+                        .font(pfStyled(size: 15.5, weight: .medium))
+                        .foregroundColor(C.bubbleText)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    if !link.meta.isEmpty {
+                        Text(link.meta)
+                            .font(pfStyled(size: 12.5))
+                            .foregroundColor(C.subLabel)
+                            .lineLimit(1)
+                    }
+                    if !link.reviews.isEmpty {
+                        Text(link.reviews)
+                            .font(pfStyled(size: 12.5))
+                            .foregroundColor(C.subLabel)
+                            .lineLimit(1)
+                    }
+                    ForEach(link.prices.indices, id: \.self) { i in
+                        let p = link.prices[i]
+                        HStack(spacing: 4) {
+                            Text("团")
+                                .font(pf(10, .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 3)
+                                .padding(.vertical, 1)
+                                .background(RoundedRectangle(cornerRadius: 3, style: .continuous).fill(C.red))
+                            Text("¥" + p.price)
+                                .font(pf(15, .semibold))
+                                .foregroundColor(C.red)
+                            if !p.off.isEmpty {
+                                Text(p.off).font(pf(11.5)).foregroundColor(C.subLabel)
+                            }
                         }
                     }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+
+            Rectangle()
+                .fill(C.hairline)
+                .frame(height: 0.5)
+                .padding(.vertical, 9)
+
+            WeChatMessageCardFooter(symbol: "link", title: Tr("网页链接"), trailing: Tr("打开"))
         }
-        .padding(10)
-        .frame(width: 268, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.dyn(0xFFFFFF, 0x2C2C2E)))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .stroke(Color.dyn(0xE8E8E8, 0x3A3A3C), lineWidth: 0.5))
     }
 
     private var simpleBody: some View {
+        WeChatMessageCard {
             HStack(spacing: 10) {
 
                 if !link.image.isEmpty {
                     RemoteImage(path: link.image, mode: .fill, maxSide: 240)
-                        .frame(width: 48, height: 48)
-                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .frame(width: 50, height: 50)
+                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 } else {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
                             .fill(Color(hexString: "#FF5000"))
                         Text("淘")
                             .font(pf(16, .semibold))
                             .foregroundColor(.white)
                     }
-                    .frame(width: 34, height: 34)
+                    .frame(width: 50, height: 50)
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(link.title)
-                        .font(pf(15, .medium))
+                        .font(pfStyled(size: 15.5, weight: .medium))
                         .foregroundColor(C.bubbleText)
-                        .lineLimit(1)
+                        .lineLimit(2)
                     Text(link.sub)
-                        .font(pf(12))
+                        .font(pfStyled(size: 12.5))
                         .foregroundColor(C.subLabel)
                         .lineLimit(2)
                 }
                 Spacer(minLength: 6)
-                Text(Tr("打开"))
-                    .font(pf(12, .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Color(hexString: "#FF5000")))
             }
-            .padding(10)
-            .frame(width: 232, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.dyn(0xFFFFFF, 0x2C2C2E)))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.dyn(0xE8E8E8, 0x3A3A3C), lineWidth: 0.5))
+
+            Rectangle()
+                .fill(C.hairline)
+                .frame(height: 0.5)
+                .padding(.vertical, 9)
+
+            WeChatMessageCardFooter(symbol: "link", title: Tr("网页链接"), trailing: Tr("打开"))
+        }
     }
 }

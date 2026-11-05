@@ -45,35 +45,43 @@ struct MallCardBubble: View {
 
     var body: some View {
         Button { onOpen() } label: {
-            HStack(spacing: 10) {
-                DDThumb(em: info.em, size: 64, radius: 6, img: info.img.isEmpty ? nil : info.img)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(info.title).font(pf(14.5)).foregroundColor(C.label)
-                        .lineLimit(2).multilineTextAlignment(.leading)
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("¥" + moneyFmt(info.price))
-                            .font(pf(16, .semibold)).foregroundColor(DDColor.red)
-                        if info.orig > info.price {
-                            Text("¥" + moneyFmt(info.orig))
-                                .font(pf(11.5)).foregroundColor(C.subLabel).strikethrough()
+            WeChatMessageCard {
+                HStack(spacing: 10) {
+                    DDThumb(em: info.em, size: 62, radius: 5,
+                            img: info.img.isEmpty ? nil : info.img)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(info.title)
+                            .font(pfStyled(size: 15.5, weight: .medium))
+                            .foregroundColor(C.label)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text("¥" + moneyFmt(info.price))
+                                .font(pf(16, .semibold))
+                                .foregroundColor(DDColor.red)
+                            if info.orig > info.price {
+                                Text("¥" + moneyFmt(info.orig))
+                                    .font(pf(11.5))
+                                    .foregroundColor(C.subLabel)
+                                    .strikethrough()
+                            }
                         }
+                        Spacer(minLength: 0)
                     }
-                    HStack(spacing: 4) {
-                        Image(systemName: "bag.fill").font(.system(size: 9))
-                        Text(DDStore.shared.mallName).font(pf(10.5))
-                        if !info.shop.isEmpty {
-                            Text("· " + info.shop).font(pf(10.5)).lineLimit(1)
-                        }
-                    }
-                    .foregroundColor(C.subLabel)
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+
+                Rectangle()
+                    .fill(C.hairline)
+                    .frame(height: 0.5)
+                    .padding(.vertical, 9)
+
+                WeChatMessageCardFooter(
+                    symbol: "bag.fill",
+                    title: DDStore.shared.mallName,
+                    trailing: info.shop.isEmpty ? Tr("商品") : info.shop
+                )
             }
-            .padding(10)
-            .frame(width: 260, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(C.cardBg))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(C.hairline, lineWidth: 0.5))
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

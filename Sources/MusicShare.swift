@@ -820,32 +820,35 @@ struct MusicBubble: View {
     @ObservedObject private var player = MusicPlayer.shared
 
     var body: some View {
-        HStack(spacing: 10) {
-            ZStack(alignment: .bottomTrailing) {
-                MusicCover(path: info.cover, size: 52, radius: 8)
-                MusicPlayButton(playing: player.isPlaying(info.id),
-                                loading: player.loadingId == info.id, size: 22)
-                    .offset(x: 3, y: 3)
+        WeChatMessageCard {
+            HStack(spacing: 10) {
+                ZStack(alignment: .bottomTrailing) {
+                    MusicCover(path: info.cover, size: 52, radius: 5)
+                    MusicPlayButton(playing: player.isPlaying(info.id),
+                                    loading: player.loadingId == info.id, size: 21)
+                        .offset(x: 3, y: 3)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(info.title)
+                        .font(pfStyled(size: 15.5, weight: .medium))
+                        .foregroundColor(C.label)
+                        .lineLimit(2)
+                    Text(info.artist.isEmpty ? Tr("未知歌手") : info.artist)
+                        .font(pfStyled(size: 12.5))
+                        .foregroundColor(C.subLabel)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
             }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(info.title)
-                    .font(pf(15))
-                    .foregroundColor(C.label)
-                    .lineLimit(1)
-                Text(info.artist.isEmpty ? "未知歌手" : info.artist)
-                    .font(pf(12))
-                    .foregroundColor(C.subLabel)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
+
+            Rectangle()
+                .fill(C.hairline)
+                .frame(height: 0.5)
+                .padding(.vertical, 9)
+
+            WeChatMessageCardFooter(symbol: "music.note", title: Tr("星言听一听"),
+                                    trailing: Tr("音乐"))
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
-        .frame(width: 232, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(C.cardBg))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .stroke(C.hairline, lineWidth: 0.5))
-        .contentShape(Rectangle())
         .onTapGesture { onOpen() }
     }
 }

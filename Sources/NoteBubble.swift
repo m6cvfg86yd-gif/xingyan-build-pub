@@ -26,34 +26,36 @@ struct NoteCardBubble: View {
 
     var body: some View {
         Button { open = true } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
+            WeChatMessageCard(width: 250) {
+                HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "doc.text.fill")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 24, weight: .medium))
                         .foregroundColor(C.green)
-                    Text(Tr("笔记"))
-                        .font(pf(12.5, .medium))
-                        .foregroundColor(C.green)
+                        .frame(width: 44, height: 44)
+                        .background(C.green.opacity(0.10))
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(title.isEmpty ? Tr("笔记") : title)
+                            .font(pfStyled(size: 15.5, weight: .medium))
+                            .foregroundColor(C.label)
+                            .lineLimit(2)
+                        Text(preview)
+                            .font(pfStyled(size: 12.5))
+                            .foregroundColor(C.subLabel)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.leading)
+                    }
                     Spacer(minLength: 0)
                 }
-                Text(title.isEmpty ? Tr("笔记") : title)
-                    .font(pf(15, .medium))
-                    .foregroundColor(C.label)
-                    .lineLimit(1)
-                Text(preview)
-                    .font(pf(13))
-                    .foregroundColor(C.subLabel)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
+
+                Rectangle()
+                    .fill(C.hairline)
+                    .frame(height: 0.5)
+                    .padding(.vertical, 9)
+
+                WeChatMessageCardFooter(symbol: "note.text", title: Tr("星言笔记"),
+                                        trailing: Tr("打开"))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(width: 232, alignment: .leading)
-            .background(Color.dyn(0xFFFFFF, 0x1F1F22))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(C.hairline, lineWidth: 0.6))
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $open) {

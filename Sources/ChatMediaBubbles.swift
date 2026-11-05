@@ -104,6 +104,7 @@ struct AnnounceBubble: View {
     var onOpen: (() -> Void)? = nil
 
     var body: some View {
+        WeChatMessageCard(width: 250, padding: 0) {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 5) {
                 Image(systemName: "megaphone.fill")
@@ -138,10 +139,8 @@ struct AnnounceBubble: View {
             .padding(.horizontal, 12)
             .frame(height: 32)
         }
-        .frame(width: 244, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(C.cardBg))
-        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
-            .stroke(C.hairline, lineWidth: 0.5))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        }
         .contentShape(Rectangle())
         .onTapGesture { onOpen?() }
     }
