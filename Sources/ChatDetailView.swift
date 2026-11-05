@@ -307,6 +307,7 @@ struct ChatDetailView: View {
     @State private var selected: Set<String> = []
     @State private var showMultiDeleteConfirm = false
     @State private var quote: Message?
+    @State private var quoteInspect: QuoteInspectItem?
 
     @State private var reEditDraft: String?
 
@@ -1259,6 +1260,16 @@ struct ChatDetailView: View {
             ForwardPickerView(items: forwardItems) { }
                 .environmentObject(app)
         }
+        .sheet(item: $quoteInspect) { item in
+            QuoteInspectSheet(quote: item.quote) { id in
+                quoteInspect = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    jumpToMessage(id)
+                }
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
 
         .confirmationDialog(Tr("音视频通话"), isPresented: $showCallChoice, titleVisibility: .hidden) {
             Button(Tr("语音通话")) { startRealCall(video: false) }
@@ -2115,7 +2126,7 @@ struct ChatDetailView: View {
                    onOpenArticle: { id in oaArticleId = id; showOaArticle = true },
                    onLayoutChanged: { scheduleSettledBottom() },
 
-                   onOpenQuote: { id in jumpToMessage(id) },
+                   onOpenQuote: { ref in quoteInspect = QuoteInspectItem(quote: ref) },
                    onShowToast: { text in app.show(text) }))
             .padding(.bottom, gapAfter(message))
 
@@ -4458,6 +4469,105 @@ struct CallRecordBubble: View {
     }
 }
 
+private struct QuoteInspectItem: Identifiable {
+    let id = UUID()
+    let quote: QuoteRef
+}
+
+struct QuoteInspectSheet: View {
+    let quote: QuoteRef
+    let onJump: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(.regularMaterial)
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 10) {
+                    Image(systemName: "text.quote")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(OrbitTheme.jade)
+                        .frame(width: 32, height: 32)
+                        .background(OrbitTheme.jadeSoft)
+                        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(Tr("引用内容"))
+                            .font(pfStyled(size: 17, weight: .semibold))
+                            .foregroundStyle(C.label)
+                        if !quote.sender.isEmpty {
+                            Text(quote.sender)
+                                .font(pfStyled(size: 12))
+                                .foregroundStyle(C.subLabel)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(C.subLabel)
+                            .frame(width: 30, height: 30)
+                            .background(Circle().fill(OrbitTheme.field))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        if !quote.thumbPath.isEmpty {
+                            RemoteImage(path: quote.thumbPath, mode: .fit, maxSide: 900)
+                                .frame(maxWidth: .infinity)
+                                .frame(maxHeight: 190)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(C.hairline, lineWidth: 0.7)
+                                }
+                        }
+
+                        Text(quote.summary.isEmpty ? Tr("[引用]") : quote.summary)
+                            .font(pfStyled(size: 16))
+                            .foregroundStyle(C.label)
+                            .lineSpacing(4)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.bottom, 8)
+                }
+
+                if !quote.refId.isEmpty {
+                    Button {
+                        onJump(quote.refId)
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "arrow.down.message.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(Tr("定位到原消息"))
+                                .font(pfStyled(size: 14, weight: .semibold))
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundStyle(OrbitTheme.jade)
+                        .padding(.horizontal, 14)
+                        .frame(height: 46)
+                        .background(Capsule().fill(OrbitTheme.jadeSoft))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 8)
+            .padding(.bottom, max(18, L.safeBottom))
+        }
+    }
+}
+
 struct MessageRow: View {
     let message: Message
     let mine: Bool
@@ -4505,7 +4615,7 @@ struct MessageRow: View {
 
     var onLayoutChanged: (() -> Void)? = nil
 
-    var onOpenQuote: ((String) -> Void)? = nil
+    var onOpenQuote: ((QuoteRef) -> Void)? = nil
     var onShowToast: ((String) -> Void)? = nil
 
     @ObservedObject private var voicePlayer = VoicePlayer.shared
@@ -4872,10 +4982,10 @@ struct MessageRow: View {
                 .padding(.vertical, L.bubblePadV)
                 .background(BubbleFill(mine: mine, tail: showTail, glass: false))
 
-            HStack(alignment: .top, spacing: 8) {
-                Button {
-                    if !q.refId.isEmpty { onOpenQuote?(q.refId) }
-                } label: {
+            Button {
+                onOpenQuote?(q)
+            } label: {
+                HStack(alignment: .top, spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         if !q.sender.isEmpty {
                             Text(q.sender)
@@ -4891,13 +5001,14 @@ struct MessageRow: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
 
-                if !q.thumbPath.isEmpty {
-                    quoteThumbnail(q)
+                    if !q.thumbPath.isEmpty {
+                        quoteThumbnail(q)
+                    }
                 }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .padding(.horizontal, 7)
             .padding(.vertical, 6)
             .background {
@@ -4918,33 +5029,23 @@ struct MessageRow: View {
     }
 
     private func quoteThumbnail(_ q: QuoteRef) -> some View {
-        Button {
-            switch q.kind ?? "" {
-            case "image", "images":
-                onOpenImage?(q.thumbPath)
-            default:
-                if !q.refId.isEmpty { onOpenQuote?(q.refId) }
+        ZStack {
+            RemoteImage(path: q.thumbPath, mode: .fill, maxSide: 420)
+            if q.kind == "video" || q.kind == "livephoto" {
+                Circle()
+                    .fill(Color.black.opacity(0.46))
+                    .frame(width: 25, height: 25)
+                Image(systemName: "play.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.white)
+                    .offset(x: 1)
             }
-        } label: {
-            ZStack {
-                RemoteImage(path: q.thumbPath, mode: .fill, maxSide: 420)
-                if q.kind == "video" || q.kind == "livephoto" {
-                    Circle()
-                        .fill(Color.black.opacity(0.46))
-                        .frame(width: 25, height: 25)
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                        .offset(x: 1)
-                }
-            }
-            .frame(width: 58, height: 58)
-            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .stroke(Color.black.opacity(0.10), lineWidth: 0.5))
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Tr("查看引用的图片"))
+        .frame(width: 58, height: 58)
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .stroke(Color.black.opacity(0.10), lineWidth: 0.5))
+        .accessibilityHidden(true)
     }
 
     private func dict(_ json: String) -> [String: Any] {
