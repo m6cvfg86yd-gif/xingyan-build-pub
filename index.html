@@ -3,125 +3,178 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#07130d">
-  <title>星言 · 官网下载</title>
-  <meta name="description" content="星言，一款为桌面重新设计的即时通讯软件。Windows 官方安装包下载。">
+  <meta name="theme-color" content="#ffffff">
+  <title>星言桌面版，和朋友随时保持联系 | 官方网站</title>
+  <meta name="description" content="星言桌面版官方网站。下载 Windows 客户端，体验实时聊天、图片文件发送和更自然的桌面沟通。">
   <link rel="icon" href="assets/xingyan.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="ambient" aria-hidden="true"></div>
   <header class="site-header">
-    <a class="brand" href="./" aria-label="星言首页">
+    <a class="brand" href="./" aria-label="星言官网">
       <img src="assets/xingyan.png" alt="">
       <span>星言</span>
+      <b>桌面版</b>
     </a>
-    <nav>
-      <a href="#features">功能</a>
+    <nav aria-label="主导航">
       <a href="#download">下载</a>
-      <a href="#security">安全</a>
+      <a href="#features">功能介绍</a>
+      <a href="#notes">更新内容</a>
+      <a href="#help">帮助</a>
     </nav>
-    <a class="nav-download" href="#download">立即下载</a>
+    <a class="nav-button" href="#download">下载 Windows 版</a>
   </header>
 
   <main>
     <section class="hero">
       <div class="hero-copy">
-        <span class="eyebrow"><i></i> XINGYAN DESKTOP</span>
-        <h1>把聊天<br><em>放回桌面。</em></h1>
-        <p>星言 Windows 客户端。真实账号、实时消息、图片与文件发送，为电脑重新安排每一次交流。</p>
-        <div class="hero-actions">
-          <a class="primary-button" href="https://github.com/m6cvfg86yd-gif/xingyan-build-pub/releases/download/windows-20261105-1256/Xingyan-Windows-Setup-20261105.exe">
-            <span class="windows-mark"><i></i><i></i><i></i><i></i></span>
-            下载 Windows 版
+        <div class="product-line">
+          <img src="assets/xingyan.png" alt="">
+          <span>星言 Windows</span>
+        </div>
+        <h1>和朋友，<br>随时保持联系</h1>
+        <p class="hero-lead">为电脑重新设计的星言。<br>消息、图片、文件和每一次交流，都更自然。</p>
+        <div class="download-buttons">
+          <a class="primary-download" href="https://github.com/m6cvfg86yd-gif/xingyan-build-pub/releases/download/windows-20261105-1256/Xingyan-Windows-Setup-20261105.exe">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5.7 10.8 4v7.2H4V5.7Zm7.8-1.9L20 2.5v8.7h-8.2V3.8ZM4 12.2h6.8v7.2L4 18V12.2Zm7.8 0H20v8.7l-8.2-1.2v-7.5Z"/>
+            </svg>
+            下载 Windows 版本
           </a>
-          <a class="secondary-button" href="#features">了解功能</a>
+          <a class="small-download" href="https://github.com/m6cvfg86yd-gif/xingyan-build-pub/releases/download/windows-20261105-1256/Xingyan-Windows-Setup-20261105.exe">Windows 10 / 11 · x64</a>
         </div>
-        <div class="meta-line">
-          <span>Windows 10 / 11 · x64</span>
-          <span>版本 1.0.0</span>
-          <span>约 12 MB</span>
+        <div class="version-line">
+          <span>更新时间：2026-11-05</span>
+          <i></i>
+          <span>最新版本：1.0.0</span>
         </div>
+        <p class="help-line">遇到无法启动或崩溃问题，请先查看 <a href="#help">使用指南</a>，再重新安装最新版本。</p>
       </div>
-      <div class="hero-visual">
-        <div class="glow"></div>
-        <div class="window">
-          <div class="window-top">
-            <span></span><span></span><span></span>
-            <b>星言</b>
+
+      <div class="hero-product" aria-label="星言桌面客户端预览">
+        <div class="product-orbit orbit-one"></div>
+        <div class="product-orbit orbit-two"></div>
+        <div class="product-glow"></div>
+        <div class="product-frame">
+          <div class="frame-bar">
+            <div class="frame-brand">
+              <img src="assets/xingyan.png" alt="">
+              <span>星言</span>
+            </div>
+            <div class="frame-actions"><i></i><i></i><i></i></div>
           </div>
-          <img src="assets/desktop-preview.png" alt="星言 Windows 客户端界面">
+          <img src="assets/xingyan-desktop.png" alt="星言 Windows 聊天界面">
         </div>
-        <div class="orbit orbit-a"></div>
-        <div class="orbit orbit-b"></div>
+        <div class="floating-note note-one">
+          <img src="assets/xingyan.png" alt="">
+          <div><strong>消息实时同步</strong><span>电脑和手机保持连接</span></div>
+        </div>
+        <div class="floating-note note-two">
+          <span class="online"></span>
+          <div><strong>Chris wu</strong><span>正在使用星言桌面版</span></div>
+        </div>
       </div>
     </section>
 
-    <section class="feature-strip" id="features">
-      <article>
-        <span>01</span>
-        <h2>消息实时同步</h2>
-        <p>窗口关闭后重新打开，会话与消息状态自动恢复。</p>
-      </article>
-      <article>
-        <span>02</span>
-        <h2>图片和文件</h2>
-        <p>拖到桌面上的内容，也能安全发到聊天里。</p>
-      </article>
-      <article>
-        <span>03</span>
-        <h2>扫码或手机号</h2>
-        <p>手机扫码确认，或者用手机号验证码登录。</p>
-      </article>
-      <article>
-        <span>04</span>
-        <h2>原生桌面逻辑</h2>
-        <p>右键菜单、搜索、置顶、免打扰和快捷操作俱全。</p>
-      </article>
+    <section class="feature-section" id="features">
+      <div class="section-heading">
+        <span>为桌面而生</span>
+        <h2>熟悉的聊天，更舒服的电脑体验</h2>
+      </div>
+      <div class="feature-grid">
+        <article>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M5 4.5h14a2 2 0 0 1 2 2v8.8a2 2 0 0 1-2 2H9.5L5 21v-3.7H5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Z"/></svg>
+          </div>
+          <h3>实时消息</h3>
+          <p>长连接自动重连，电脑和手机同步收到新消息。</p>
+        </article>
+        <article>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4zM8 9h8M8 12h5"/></svg>
+          </div>
+          <h3>图片与文件</h3>
+          <p>在桌面直接选择图片和文件，发送到当前聊天。</p>
+        </article>
+        <article>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 3.5 14.6 9l6 .9-4.3 4.2 1 6-5.3-2.9-5.3 2.9 1-6L3.4 9.9l6-.9z"/></svg>
+          </div>
+          <h3>完整聊天操作</h3>
+          <p>搜索、引用、复制、收藏、置顶和免打扰都在随手的位置。</p>
+        </article>
+        <article>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M5 11V8a7 7 0 0 1 14 0v3M4 11h4v7H4zM16 11h4v7h-4zM8 20h8"/></svg>
+          </div>
+          <h3>安全登录</h3>
+          <p>手机扫码确认或手机号验证码登录，登录态保存在本机。</p>
+        </article>
+      </div>
     </section>
 
     <section class="download-section" id="download">
-      <div>
-        <span class="eyebrow"><i></i> OFFICIAL DOWNLOAD</span>
-        <h2>下载星言桌面版</h2>
-        <p>运行安装程序后，会创建桌面快捷方式、开始菜单入口和卸载项。</p>
-      </div>
-      <div class="download-card">
-        <div class="download-version">
-          <img src="assets/xingyan.png" alt="">
-          <div>
-            <strong>星言 Windows</strong>
-            <span>1.0.0 · Build 20261105</span>
-          </div>
+      <div class="download-copy">
+        <span>OFFICIAL DOWNLOAD</span>
+        <h2>下载星言 Windows 版</h2>
+        <p>安装程序会创建桌面快捷方式、开始菜单入口和卸载项。</p>
+        <div class="specs">
+          <span>Windows 10 / 11</span>
+          <span>64 位处理器</span>
+          <span>约 12 MB</span>
         </div>
-        <a class="primary-button wide" href="https://github.com/m6cvfg86yd-gif/xingyan-build-pub/releases/download/windows-20261105-1256/Xingyan-Windows-Setup-20261105.exe">
+      </div>
+      <div class="download-panel">
+        <div class="download-panel-title">
+          <img src="assets/xingyan.png" alt="">
+          <div><strong>星言</strong><span>Windows Desktop · 1.0.0</span></div>
+        </div>
+        <a class="primary-download wide" href="https://github.com/m6cvfg86yd-gif/xingyan-build-pub/releases/download/windows-20261105-1256/Xingyan-Windows-Setup-20261105.exe">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.7 10.8 4v7.2H4V5.7Zm7.8-1.9L20 2.5v8.7h-8.2V3.8ZM4 12.2h6.8v7.2L4 18V12.2Zm7.8 0H20v8.7l-8.2-1.2v-7.5Z"/></svg>
           下载安装程序
         </a>
-        <div class="hash-row">
+        <div class="hash">
           <span>SHA-256</span>
           <code>ADA91385DE0753DC88569F03E4C8A369627FBCC6494DAD71A961E6331EAFCAA9</code>
         </div>
-        <small>当前安装包未使用商业代码签名证书，Windows 首次安装可能显示安全提示。</small>
+        <small>当前安装包尚未使用商业代码签名证书，首次安装可能出现 Windows 安全提示。</small>
       </div>
     </section>
 
-    <section class="security-section" id="security">
-      <div class="security-mark">
-        <span></span>
-        <img src="assets/xingyan.png" alt="">
+    <section class="notes-section" id="notes">
+      <div class="section-heading">
+        <span>更新内容</span>
+        <h2>星言 Windows 1.0.0</h2>
       </div>
+      <div class="notes-list">
+        <div><time>2026-11-05</time><p>Windows 桌面客户端正式版发布，接入真实账号、聊天数据和实时消息。</p></div>
+        <div><time>2026-11-05</time><p>支持图片与文件发送、聊天搜索、引用、收藏、置顶和免打扰。</p></div>
+        <div><time>2026-11-05</time><p>优化扫码登录协议、深色模式和联系人头像加载。</p></div>
+      </div>
+    </section>
+
+    <section class="help-section" id="help">
       <div>
-        <span class="eyebrow"><i></i> PRIVATE BY DESIGN</span>
-        <h2>你的消息，只属于你的账号。</h2>
-        <p>星言客户端直接连接星言自己的服务，不经过第三方聊天云。登录态保存在本机，退出后立即清除。</p>
+        <span>需要帮助？</span>
+        <h2>安装、登录和使用指南</h2>
+        <p>下载安装包后运行，使用手机扫码或手机号验证码登录。登录后桌面快捷方式可以直接进入。</p>
       </div>
+      <a href="https://github.com/m6cvfg86yd-gif/xingyan-build-pub/releases">查看版本记录</a>
     </section>
   </main>
 
   <footer>
-    <div class="brand"><img src="assets/xingyan.png" alt=""><span>星言</span></div>
-    <p>© 2026 星言 · Windows Desktop</p>
-    <a href="https://github.com/m6cvfg86yd-gif/xingyan-build-pub/releases">版本记录</a>
+    <div class="footer-brand">
+      <img src="assets/xingyan.png" alt="">
+      <div><strong>星言</strong><span>让距离更短一点</span></div>
+    </div>
+    <div class="footer-links">
+      <a href="#download">下载</a>
+      <a href="#features">功能介绍</a>
+      <a href="#notes">更新内容</a>
+      <a href="#help">帮助</a>
+    </div>
+    <p>© 2026 星言 · 官方网站</p>
   </footer>
 </body>
 </html>
