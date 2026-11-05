@@ -63,11 +63,11 @@ struct SearchPage: View {
     private var key: String { q.trimmingCharacters(in: .whitespaces) }
 
     private var chats: [Chat] {
-        let base = app.chats.filter { $0.botRank != 0 }
         if key.isEmpty { return [] }
-        return base.filter { c in
-            chatTitle(c).localizedCaseInsensitiveContains(key)
-        }
+        let needle = key.lowercased()
+        return app.chats
+            .filter { chatMatches($0, needle: needle) }
+            .sorted { chatSearchScore($0, needle: needle) > chatSearchScore($1, needle: needle) }
     }
 
     private func chatTitle(_ c: Chat) -> String {
@@ -100,8 +100,62 @@ struct SearchPage: View {
     }
     private var contacts: [User] {
         if key.isEmpty || scope == "chat" || scope == "group" { return [] }
-        return app.contacts.filter { ($0.nickname ?? "").localizedCaseInsensitiveContains(key)
-            || ($0.username ?? "").localizedCaseInsensitiveContains(key) }
+        let needle = key.lowercased()
+        return app.contacts.filter { userMatches($0, needle: needle) }
+    }
+
+    private func chatMatches(_ chat: Chat, needle: String) -> Bool {
+        let directFields = [
+            chat.title ?? "",
+            chat.name,
+            chat.avatar ?? "",
+            chat.bot ?? "",
+            chat.oaId ?? "",
+            chat.lastMessage?.senderName ?? "",
+            chat.lastMessage?.preview ?? ""
+        ]
+        if directFields.contains(where: { $0.lowercased().contains(needle) }) {
+            return true
+        }
+        if let peerId = (chat.memberIds ?? []).first(where: { $0 != (app.me?.id ?? "") }),
+           let user = app.contact(for: peerId),
+           userMatches(user, needle: needle) {
+            return true
+        }
+        return (chat.memberIds ?? []).contains { id in
+            guard let user = app.contact(for: id) else { return false }
+            return userMatches(user, needle: needle)
+        }
+    }
+
+    private func userMatches(_ user: User, needle: String) -> Bool {
+        let fields = [
+            user.name,
+            user.realName ?? "",
+            user.nickname ?? "",
+            user.username ?? "",
+            user.remark ?? "",
+            user.alias ?? "",
+            user.bio ?? "",
+            user.region ?? "",
+            user.moodText ?? "",
+            user.phone ?? "",
+            user.source ?? ""
+        ] + (user.tags ?? [])
+        return fields.contains { $0.lowercased().contains(needle) }
+    }
+
+    private func chatSearchScore(_ chat: Chat, needle: String) -> Int {
+        let title = chatTitle(chat).lowercased()
+        if title == needle { return 100 }
+        if title.hasPrefix(needle) { return 80 }
+        if title.contains(needle) { return 60 }
+        if let preview = chat.lastMessage?.preview?.lowercased(), preview.contains(needle) { return 40 }
+        return 20
+    }
+
+    private func isAssistantChat(_ chat: Chat) -> Bool {
+        chat.bot != nil || chat.botRank != nil || !(chat.oaId ?? "").isEmpty || chat.oaDigest == true
     }
 
     var body: some View {
@@ -529,9 +583,20 @@ struct SearchPage: View {
                             HStack(spacing: 12) {
                                 Avatar(path: chatAvatar(c), size: 42, radius: isGroup ? 12 : 11)
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(chatTitle(c))
-                                        .font(pfStyled(size: 15.5, weight: .semibold))
-                                        .foregroundStyle(OrbitTheme.ink)
+                                    HStack(spacing: 6) {
+                                        Text(chatTitle(c))
+                                            .font(pfStyled(size: 15.5, weight: .semibold))
+                                            .foregroundStyle(OrbitTheme.ink)
+                                            .lineLimit(1)
+                                        if isAssistantChat(c) {
+                                            Text(Tr("助手"))
+                                                .font(pfStyled(size: 9.5, weight: .semibold))
+                                                .foregroundStyle(OrbitTheme.jade)
+                                                .padding(.horizontal, 6)
+                                                .frame(height: 17)
+                                                .background(Capsule().fill(OrbitTheme.jadeSoft))
+                                        }
+                                    }
                                     if let p = c.lastMessage?.preview, !p.isEmpty {
                                         Text(p)
                                             .font(pfStyled(size: 12.5))

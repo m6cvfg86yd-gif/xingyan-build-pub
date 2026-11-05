@@ -165,6 +165,7 @@ enum L10n {
         "搜索字体": "Search fonts",
         "仅管理员可用": "Administrators only",
         "字体选择只对管理员开放。": "Font selection is available only to administrators.",
+        "助手": "Assistant",
         "转发给": "Forward to",
         "已转发给": "Forwarded to ",
         "已转发": "Forwarded ",
