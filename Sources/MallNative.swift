@@ -1315,7 +1315,7 @@ struct DDThumb: View {
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             } else {
-                Text(em).font(.system(size: size * 0.46))
+                Text(em).font(pfStyled(size: size * 0.46))
             }
         }
         .frame(width: size, height: size)
@@ -1791,7 +1791,7 @@ struct MallNativeView: View {
                 .frame(width: 150, height: 150)
                 .offset(x: -250, y: 60)
             Text("星言商城")
-                .font(.system(size: 40, weight: .black, design: .rounded))
+                .font(pfStyled(size: 40, weight: .black, design: .rounded))
                 .foregroundColor(Color.white.opacity(0.07))
                 .rotationEffect(.degrees(-8))
                 .offset(x: -26, y: 34)
@@ -2484,7 +2484,7 @@ struct DDHomeTab: View {
                     .padding(.trailing, 8)
             } else {
                 Text(p.em)
-                    .font(.system(size: 38))
+                    .font(pfStyled(size: 38))
                     .frame(width: 56, height: 56)
                     .padding(.trailing, 8)
             }
@@ -2553,7 +2553,7 @@ struct DDHomeTab: View {
                         .frame(height: 102)
                         .clipped()
                 } else {
-                    Text(p.em).font(.system(size: 46))
+                    Text(p.em).font(pfStyled(size: 46))
                         .frame(maxWidth: .infinity)
                         .frame(height: 102)
                         .background(Color(hex: 0xEEF2F7))
@@ -2600,7 +2600,7 @@ struct DDHomeTab: View {
                     .frame(width: 62, height: 62)
                     .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             } else {
-                Text(p.em).font(.system(size: 30))
+                Text(p.em).font(pfStyled(size: 30))
                     .frame(width: 62, height: 62)
                     .background(Color(hex: 0xF1F4F8))
                     .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
@@ -2734,19 +2734,19 @@ struct DDHomeTab: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text(Tr("星言甄选"))
-                        .font(.system(size: 10.5, weight: .semibold))
+                        .font(pfStyled(size: 10.5, weight: .semibold))
                         .foregroundStyle(Color(hex: 0xD8B778))
                         .tracking(1.4)
 
                     Text(product.title)
-                        .font(.system(size: 23, weight: .semibold))
+                        .font(pfStyled(size: 23, weight: .semibold))
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .lineSpacing(3)
                         .padding(.top, 8)
 
                     Text(Tr("品牌正品 · 平台甄选 · 安心履约"))
-                        .font(.system(size: 11.5))
+                        .font(pfStyled(size: 11.5))
                         .foregroundStyle(.white.opacity(0.63))
                         .padding(.top, 7)
 
@@ -2754,10 +2754,10 @@ struct DDHomeTab: View {
 
                     HStack(spacing: 7) {
                         Text("¥" + moneyFmt(product.price))
-                            .font(.system(size: 18, weight: .bold))
+                            .font(pfStyled(size: 18, weight: .bold))
                             .foregroundStyle(.white)
                         Text(Tr("去看看"))
-                            .font(.system(size: 11.5, weight: .semibold))
+                            .font(pfStyled(size: 11.5, weight: .semibold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 12)
                             .frame(height: 30)
@@ -3217,7 +3217,7 @@ struct DDProductCard: View {
                             colors: [Color(hex: 0xF8F8F8), Color(hex: 0xEFEFEF)],
                             startPoint: .topLeading, endPoint: .bottomTrailing)
                         Text(product.em)
-                            .font(.system(size: 72))
+                            .font(pfStyled(size: 72))
                     }
                     .frame(maxWidth: .infinity)
                     .frame(maxHeight: .infinity)
@@ -3225,7 +3225,7 @@ struct DDProductCard: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(Tr(product.isSelfOperated ? "自营" : "第三方"))
-                        .font(.system(size: 9.5, weight: .semibold))
+                        .font(pfStyled(size: 9.5, weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .frame(height: 22)
@@ -3234,7 +3234,7 @@ struct DDProductCard: View {
                         ))
                     if let tag = product.tags.first {
                         Text(Tr(tag))
-                            .font(.system(size: 9.5, weight: .semibold))
+                            .font(pfStyled(size: 9.5, weight: .semibold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 8)
                             .frame(height: 22)
@@ -3260,7 +3260,7 @@ struct DDProductCard: View {
             .overlay(alignment: .bottomLeading) {
                 if product.orig > product.price {
                     Text("\(max(1, Int(((1 - product.price / max(0.01, product.orig)) * 100).rounded())))% OFF")
-                        .font(.system(size: 9.5, weight: .bold))
+                        .font(pfStyled(size: 9.5, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .frame(height: 22)
@@ -3270,7 +3270,7 @@ struct DDProductCard: View {
             }
 
             Text(product.title)
-                .font(.system(size: UIConfig.num("mallCardTitle", 14), weight: .medium))
+                .font(pfStyled(size: UIConfig.num("mallCardTitle", 14), weight: .medium))
                 .foregroundColor(DDColor.ink)
                 .lineSpacing(3)
                 .lineLimit(2)
@@ -3282,13 +3282,13 @@ struct DDProductCard: View {
 
             HStack(spacing: 4) {
                 Text(product.tags.count > 1 ? Tr(product.tags[1]) : Tr("包邮"))
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 10.5, weight: .medium))
                     .foregroundColor(DDColor.red)
                 Text("·")
-                    .font(.system(size: 10.5))
+                    .font(pfStyled(size: 10.5))
                     .foregroundColor(DDColor.weak)
                 Text(Tr(product.sellerBadge))
-                    .font(.system(size: 10.5))
+                    .font(pfStyled(size: 10.5))
                     .foregroundColor(DDColor.sub)
                     .lineLimit(1)
             }
@@ -3298,14 +3298,14 @@ struct DDProductCard: View {
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text("¥")
-                    .font(.system(size: 11.5, weight: .bold))
+                    .font(pfStyled(size: 11.5, weight: .bold))
                     .foregroundColor(DDColor.redDeep)
                 Text(moneyFmt(product.price))
-                    .font(.system(size: UIConfig.num("mallCardPrice", 21), weight: .bold))
+                    .font(pfStyled(size: UIConfig.num("mallCardPrice", 21), weight: .bold))
                     .foregroundColor(DDColor.redDeep)
                     .layoutPriority(2)
                 Text("¥" + moneyFmt(product.orig))
-                    .font(.system(size: 10.5))
+                    .font(pfStyled(size: 10.5))
                     .foregroundColor(DDColor.sub)
                     .strikethrough()
                     .lineLimit(1)
@@ -3329,13 +3329,13 @@ struct DDProductCard: View {
 
             HStack(spacing: 4) {
                 Text(product.shop.isEmpty ? Tr("星言官方旗舰店") : product.shop)
-                    .font(.system(size: 10))
+                    .font(pfStyled(size: 10))
                     .foregroundColor(DDColor.sub)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: 2)
                 Text(Tr("已售") + (product.sold.isEmpty ? "1000+" : product.sold))
-                    .font(.system(size: 10))
+                    .font(pfStyled(size: 10))
                     .foregroundColor(DDColor.weak)
                     .lineLimit(1)
             }
@@ -3606,7 +3606,7 @@ struct DDCartTab: View {
         VStack(spacing: 0) {
             if lines.isEmpty {
                 VStack(spacing: 10) {
-                    Text("🛒").font(.system(size: 42))
+                    Text("🛒").font(pfStyled(size: 42))
                     Text(Tr("购物车还是空的")).font(pf(15)).foregroundColor(DDColor.sub)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -3635,7 +3635,7 @@ struct DDCartTab: View {
                                 .padding(.horizontal, 12).frame(height: 40)
                                 ForEach(store.invalidCart) { l in
                                     HStack(spacing: 10) {
-                                        Text("📦").font(.system(size: 20))
+                                        Text("📦").font(pfStyled(size: 20))
                                             .frame(width: 46, height: 46)
                                             .background(DDColor.page)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -4564,7 +4564,7 @@ struct DDDetailView: View {
                 }
                 if videos.isEmpty && images.isEmpty {
                     Text(product.em)
-                        .font(.system(size: 150))
+                        .font(pfStyled(size: 150))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Color(hex: 0xF2F5F8))
                         .tag(0)
@@ -4622,11 +4622,11 @@ struct DDDetailView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(spacing: 6) {
                         Text(Tr("到手价"))
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(pfStyled(size: 11, weight: .semibold))
                             .foregroundColor(DDColor.redDeep)
                         if saved > 0 {
                             Text(Tr("已省 ¥") + moneyFmt(saved))
-                                .font(.system(size: 11, weight: .medium))
+                                .font(pfStyled(size: 11, weight: .medium))
                                 .foregroundColor(DDColor.sub)
                         }
                     }
@@ -4634,7 +4634,7 @@ struct DDDetailView: View {
                         DDPrice(value: displayPrice, size: 36, color: DDColor.redDeep)
                         if product.orig > displayPrice {
                             Text("¥" + moneyFmt(product.orig))
-                                .font(.system(size: 12.5))
+                                .font(pfStyled(size: 12.5))
                                 .foregroundColor(DDColor.weak)
                                 .strikethrough()
                         }
@@ -4646,12 +4646,12 @@ struct DDDetailView: View {
                         HStack(spacing: 3) {
                             Image(systemName: "star.fill").font(.system(size: 10))
                             Text(String(format: "%.1f", rating))
-                                .font(.system(size: 12.5, weight: .semibold))
+                                .font(pfStyled(size: 12.5, weight: .semibold))
                         }
                         .foregroundColor(Color(hex: 0xB78932))
                     }
                     Text(product.sold.isEmpty ? Tr("新品上架") : Tr("已售 ") + product.sold)
-                        .font(.system(size: 10.5))
+                        .font(pfStyled(size: 10.5))
                         .foregroundColor(DDColor.sub)
                 }
             }
@@ -4661,13 +4661,13 @@ struct DDDetailView: View {
 
             VStack(alignment: .leading, spacing: 9) {
                 Text(product.title)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(pfStyled(size: 22, weight: .semibold))
                     .foregroundColor(DDColor.ink)
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
                 if let subtitle = product.subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.system(size: 13.5))
+                        .font(pfStyled(size: 13.5))
                         .foregroundColor(DDColor.sub)
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -4696,24 +4696,24 @@ struct DDDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 5) {
                             Text(product.shop.isEmpty ? Tr("星言官方旗舰店") : product.shop)
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(pfStyled(size: 14, weight: .semibold))
                                 .foregroundColor(DDColor.ink)
                                 .lineLimit(1)
                             Text(Tr(product.isSelfOperated ? "自营" : "第三方"))
-                                .font(.system(size: 9, weight: .semibold))
+                                .font(pfStyled(size: 9, weight: .semibold))
                                 .foregroundColor(sellerTint)
                                 .padding(.horizontal, 5)
                                 .frame(height: 17)
                                 .background(Capsule().fill(sellerTint.opacity(0.09)))
                         }
                         Text(Tr(product.sellerFulfillment))
-                            .font(.system(size: 11.5))
+                            .font(pfStyled(size: 11.5))
                             .foregroundColor(DDColor.sub)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 4)
                     Text(Tr("进店"))
-                        .font(.system(size: 11.5, weight: .medium))
+                        .font(pfStyled(size: 11.5, weight: .medium))
                         .foregroundColor(DDColor.sub)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9, weight: .semibold))
@@ -5183,7 +5183,7 @@ struct DDProductMediaViewer: View {
                 }
                 if videos.isEmpty && images.isEmpty {
                     Text(product.em)
-                        .font(.system(size: 160))
+                        .font(pfStyled(size: 160))
                         .tag(0)
                 }
             }
@@ -5618,7 +5618,7 @@ struct DDOrdersView: View {
 
             if list.isEmpty {
                 VStack(spacing: 8) {
-                    Text("📦").font(.system(size: 38))
+                    Text("📦").font(pfStyled(size: 38))
                     Text(Tr("这里还没有订单")).font(pf(14.5)).foregroundColor(DDColor.sub)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

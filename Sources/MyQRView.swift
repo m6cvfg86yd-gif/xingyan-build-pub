@@ -118,9 +118,9 @@ struct MyQRViewOld: View {
                     .background(RoundedRectangle(cornerRadius: 24).fill(Color.white))
             }
             .frame(width: 520, height: 520)
-            Text(name).font(.system(size: 26, weight: .semibold))
-            Text(Tr("星言号：") + username).font(.system(size: 20)).foregroundColor(.gray)
-            Text(Tr("扫一扫，加我好友")).font(.system(size: 20)).foregroundColor(.gray)
+            Text(name).font(pfStyled(size: 26, weight: .semibold))
+            Text(Tr("星言号：") + username).font(pfStyled(size: 20)).foregroundColor(.gray)
+            Text(Tr("扫一扫，加我好友")).font(pfStyled(size: 20)).foregroundColor(.gray)
         }
         .padding(40)
         .background(Color.white)

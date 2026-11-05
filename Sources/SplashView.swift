@@ -26,12 +26,12 @@ struct SplashView: View {
 
                     VStack(spacing: 7) {
                         Text("星言")
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .font(pfStyled(size: 36, weight: .bold, design: .rounded))
                             .tracking(2)
                             .foregroundStyle(.white)
 
                         Text("XINGYAN")
-                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                            .font(pfStyled(size: 10.5, weight: .semibold, design: .rounded))
                             .tracking(5.2)
                             .foregroundStyle(Color.white.opacity(0.48))
 
@@ -40,7 +40,7 @@ struct SplashView: View {
                                 .fill(Color.white.opacity(0.22))
                                 .frame(width: 24, height: 0.7)
                             Text("让连接有自己的轨道")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(pfStyled(size: 12, weight: .medium))
                                 .tracking(0.8)
                                 .foregroundStyle(Color.white.opacity(0.72))
                             Capsule()
@@ -61,7 +61,7 @@ struct SplashView: View {
                             .frame(width: 5, height: 5)
                             .shadow(color: Color(hex: 0x6CE65A).opacity(0.65), radius: 4)
                         Text("正在连接星轨")
-                            .font(.system(size: 10.5, weight: .medium))
+                            .font(pfStyled(size: 10.5, weight: .medium))
                             .tracking(0.45)
                             .foregroundStyle(Color.white.opacity(0.66))
                     }

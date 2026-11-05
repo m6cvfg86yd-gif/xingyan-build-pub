@@ -225,7 +225,7 @@ struct PhoneContactsView: View {
                     PhoneContactMark(accent: OrbitTheme.jade)
                         .frame(width: 28, height: 28)
                     Text("XINGYAN · CONTACT ORBIT")
-                        .font(.system(size: 9.5, weight: .semibold))
+                        .font(pfStyled(size: 9.5, weight: .semibold))
                         .tracking(1.3)
                         .foregroundStyle(OrbitTheme.secondary)
                 }
@@ -240,7 +240,7 @@ struct PhoneContactsView: View {
                 if state == .ready {
                     HStack(spacing: 7) {
                         Text("\(contacts.count)")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .font(pfStyled(size: 12, weight: .bold, design: .rounded))
                         Text(Tr("个本地联系人"))
                             .font(pf(10.5, .medium))
                     }
@@ -269,7 +269,7 @@ struct PhoneContactsView: View {
                                                   OrbitTheme.jade.opacity(0.07)],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
                 Text(String(contact.name.prefix(1)))
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .font(pfStyled(size: 17, weight: .semibold, design: .rounded))
                     .foregroundStyle(OrbitTheme.jadeDeep)
             }
             .frame(width: 46, height: 46)
@@ -284,7 +284,7 @@ struct PhoneContactsView: View {
                     .foregroundStyle(OrbitTheme.ink)
                     .lineLimit(1)
                 Text(contact.phone)
-                    .font(.system(size: 11.5, weight: .regular, design: .monospaced))
+                    .font(pfStyled(size: 11.5, weight: .regular, design: .monospaced))
                     .foregroundStyle(OrbitTheme.tertiary)
                     .lineLimit(1)
             }

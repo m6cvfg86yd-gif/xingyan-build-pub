@@ -323,7 +323,7 @@ struct FaceToFaceFileSheet: View {
         HStack(alignment: .top, spacing: 10) {
             ZStack {
                 Circle().fill(C.green.opacity(0.16)).frame(width: 20, height: 20)
-                Text(n).font(.system(size: 11, weight: .semibold)).foregroundColor(C.green)
+                Text(n).font(pfStyled(size: 11, weight: .semibold)).foregroundColor(C.green)
             }
             Text(text).font(pf(13.5)).foregroundColor(C.label)
                 .fixedSize(horizontal: false, vertical: true)

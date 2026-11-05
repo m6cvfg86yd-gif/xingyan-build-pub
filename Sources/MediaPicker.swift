@@ -497,7 +497,7 @@ struct MediaSendSheet: View {
                 HStack(spacing: 12) {
                     Button { dismiss() } label: {
                         Text(Tr("取消"))
-                            .font(.system(size: 16))
+                            .font(pfStyled(size: 16))
                             .foregroundColor(C.label)
                             .frame(maxWidth: .infinity).frame(height: 46)
                             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.dyn(0xEFEFF1, 0x2C2C2E)))
@@ -509,7 +509,7 @@ struct MediaSendSheet: View {
                         dismiss()
                     } label: {
                         Text(Tr("发送"))
-                            .font(.system(size: 16, weight: .medium))
+                            .font(pfStyled(size: 16, weight: .medium))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity).frame(height: 46)
                             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(C.green))
@@ -553,7 +553,7 @@ struct MediaSendSheet: View {
         case .live(let img, _):
             Image(uiImage: img).resizable().scaledToFit()
                 .overlay(alignment: .topLeading) {
-                    Text(Tr("实况")).font(.system(size: 12, weight: .semibold))
+                    Text(Tr("实况")).font(pfStyled(size: 12, weight: .semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 7).padding(.vertical, 3)
                         .background(Capsule().fill(Color.black.opacity(0.45)))
@@ -565,8 +565,8 @@ struct MediaSendSheet: View {
     private func toggleRow(_ title: String, sub: String, on: Binding<Bool>) -> some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15)).foregroundColor(C.label)
-                Text(sub).font(.system(size: 12)).foregroundColor(C.subLabel)
+                Text(title).font(pfStyled(size: 15)).foregroundColor(C.label)
+                Text(sub).font(pfStyled(size: 12)).foregroundColor(C.subLabel)
             }
             Spacer(minLength: 8)
             Toggle("", isOn: on).labelsHidden()

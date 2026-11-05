@@ -35,13 +35,13 @@ struct TransferHomeView: View {
 
                 VStack(spacing: 12) {
                     TextField("收款人姓名", text: $receiverName)
-                        .font(.system(size: 16))
+                        .font(pfStyled(16))
                         .padding(16)
                         .background(Color(.systemGray6))
                         .cornerRadius(12)
 
                     TextField("收款账号/手机号", text: $receiverAccount)
-                        .font(.system(size: 16))
+                        .font(pfStyled(16))
                         .padding(16)
                         .background(Color(.systemGray6))
                         .cornerRadius(12)
@@ -51,14 +51,14 @@ struct TransferHomeView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text(Tr("转账金额"))
-                        .font(.system(size: 14))
+                        .font(pfStyled(size: 14))
                         .foregroundColor(.secondary)
 
                     HStack {
                         Text("¥")
                             .font(pfMoney(24))
                         TextField("0.00", text: $amount)
-                            .font(.system(size: 24, weight: .semibold))
+                            .font(pfStyled(size: 24, weight: .semibold))
                             .keyboardType(.decimalPad)
                     }
                     .padding(16)
@@ -67,13 +67,13 @@ struct TransferHomeView: View {
                 }
 
                 TextField("备注（选填）", text: $remark)
-                    .font(.system(size: 16))
+                    .font(pfStyled(16))
                     .padding(16)
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
 
                 if let e = resolveError {
-                    Text(e).font(.system(size: 13)).foregroundColor(C.red)
+                    Text(e).font(pfStyled(size: 13)).foregroundColor(C.red)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
@@ -90,7 +90,7 @@ struct TransferHomeView: View {
                     )
                 } label: {
                     Text(Tr("下一步"))
-                        .font(.system(size: 16, weight: .medium))
+                        .font(pfStyled(size: 16, weight: .medium))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
                         .background(canNext ? TransferTheme.accent : Color(.systemGray3))
@@ -158,7 +158,7 @@ struct TransferConfirmView: View {
 
                 VStack(spacing: 16) {
                     Text(Tr("确认转账信息"))
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(pfStyled(size: 18, weight: .semibold))
 
                     HStack {
                         Text(Tr("收款人")).foregroundColor(.secondary)
@@ -191,7 +191,7 @@ struct TransferConfirmView: View {
                     Divider()
 
                     HStack {
-                        Text(Tr("合计")).font(.system(size: 16, weight: .semibold))
+                        Text(Tr("合计")).font(pfStyled(size: 16, weight: .semibold))
                         Spacer()
                         Text("¥\(amount)")
                             .font(pfMoney(18))
@@ -208,7 +208,7 @@ struct TransferConfirmView: View {
                     TransferPasswordView(chatId: chatId, amount: amount, remark: remark, onClose: onClose)
                 } label: {
                     Text(Tr("确认转账"))
-                        .font(.system(size: 16, weight: .medium))
+                        .font(pfStyled(size: 16, weight: .medium))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
                         .background(TransferTheme.accent)
@@ -248,7 +248,7 @@ struct TransferPasswordView: View {
         VStack(spacing: 30) {
             Spacer(minLength: 30)
             Text(Tr("请输入支付密码"))
-                .font(.system(size: 18, weight: .semibold))
+                .font(pfStyled(size: 18, weight: .semibold))
             Text(Lang.isEnglish ? "Amount ¥\(amount)" : "转账金额 ¥\(amount)")
                 .font(pfMoney(14))
                 .foregroundColor(.secondary)
@@ -280,7 +280,7 @@ struct TransferPasswordView: View {
 
             if busy { ProgressView().padding(.top, 4) }
             if let e = error {
-                Text(e).font(.system(size: 13)).foregroundColor(C.red)
+                Text(e).font(pfStyled(size: 13)).foregroundColor(C.red)
             }
 
             Spacer()
@@ -289,7 +289,7 @@ struct TransferPasswordView: View {
                 showForgot = true
             } label: {
                 Text(Tr("忘记密码？"))
-                    .font(.system(size: 14))
+                    .font(pfStyled(size: 14))
                     .foregroundColor(TransferTheme.accent)
             }
         }
@@ -350,11 +350,11 @@ struct TransferSuccessView: View {
                 .foregroundColor(Color(hexString: "#34C759"))
 
             Text(Tr("转账成功"))
-                .font(.system(size: 22, weight: .semibold))
+                .font(pfStyled(size: 22, weight: .semibold))
             Text("¥\(amount)")
                 .font(pfMoney(28))
             Text(Tr("预计实时到账"))
-                .font(.system(size: 14))
+                .font(pfStyled(size: 14))
                 .foregroundColor(.secondary)
 
             Spacer()
@@ -364,7 +364,7 @@ struct TransferSuccessView: View {
                     onClose()
                 } label: {
                     Text(Tr("查看账单"))
-                        .font(.system(size: 16, weight: .medium))
+                        .font(pfStyled(size: 16, weight: .medium))
                         .foregroundColor(TransferTheme.accent)
                         .frame(maxWidth: .infinity, minHeight: 52)
                         .background(Color(.systemGray6))
@@ -375,7 +375,7 @@ struct TransferSuccessView: View {
                     onClose()
                 } label: {
                     Text(Tr("返回首页"))
-                        .font(.system(size: 16, weight: .medium))
+                        .font(pfStyled(size: 16, weight: .medium))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
                         .background(TransferTheme.accent)

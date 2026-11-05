@@ -76,11 +76,11 @@ struct GroupListView: View {
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(chat.name)
-                        .font(.system(size: 16.5, weight: .medium))
+                        .font(pfStyled(size: 16.5, weight: .medium))
                         .foregroundStyle(OrbitTheme.ink)
                         .lineLimit(1)
                     Text("\(chat.memberCount ?? 0) " + Tr("位成员"))
-                        .font(.system(size: 12.5))
+                        .font(pfStyled(size: 12.5))
                         .foregroundStyle(OrbitTheme.secondary)
                 }
                 Spacer(minLength: 8)
@@ -99,10 +99,10 @@ struct GroupListView: View {
         VStack(spacing: 12) {
             StarOrbitIconBadge(symbol: "person.3.fill", accent: OrbitTheme.jade, size: 54)
             Text(Tr("还没有群聊"))
-                .font(.system(size: 17, weight: .semibold))
+                .font(pfStyled(size: 17, weight: .semibold))
                 .foregroundStyle(OrbitTheme.ink)
             Text(Tr("在「＋ → 发起群聊」里建立第一条群轨道"))
-                .font(.system(size: 13))
+                .font(pfStyled(size: 13))
                 .foregroundStyle(OrbitTheme.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -1410,7 +1410,7 @@ struct ResetPasswordSheet: View {
                     field {
                         TextField("验证码", text: $code).keyboardType(.numberPad)
                         Button(Tr("获取验证码")) { sendCode() }
-                            .font(.system(size: 14))
+                            .font(pfStyled(14))
                             .foregroundColor(C.loginGreen)
                     }
                     HairLine(color: C.navLine)
@@ -1419,14 +1419,14 @@ struct ResetPasswordSheet: View {
                     }
 
                     if let e = error {
-                        Text(e).font(.system(size: 13)).foregroundColor(C.red)
+                        Text(e).font(pfStyled(size: 13)).foregroundColor(C.red)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 12)
                     }
 
                     Button { submit() } label: {
                         Text(busy ? "请稍候…" : "重置密码并登录")
-                            .font(.system(size: 16, weight: .medium))
+                            .font(pfStyled(size: 16, weight: .medium))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity, minHeight: 52)
                             .background(LoginTheme.accent)
@@ -1436,7 +1436,7 @@ struct ResetPasswordSheet: View {
                     .padding(.top, 20)
 
                     Text(Tr("验证码和「手机号登录」共用，5 分钟内有效。重置后其他设备会自动退出登录。"))
-                        .font(.system(size: 12.5))
+                        .font(pfStyled(size: 12.5))
                         .foregroundColor(C.subLabel)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 14)
@@ -1453,7 +1453,7 @@ struct ResetPasswordSheet: View {
 
     private func field<Content: View>(@ViewBuilder _ c: () -> Content) -> some View {
         HStack(spacing: 8) { c() }
-            .font(.system(size: 15))
+            .font(pfStyled(15))
             .frame(height: 54)
             .padding(.horizontal, 14)
             .background(Color.dyn(0xFFFFFF, 0x1C1C1E))

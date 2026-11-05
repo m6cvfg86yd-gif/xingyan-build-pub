@@ -96,7 +96,7 @@ struct BotChatView: View {
         HStack(alignment: .top, spacing: 10) {
             JarvisEyesAvatar(size: eyesSize(26), tint: eyesTintOrClear, staticOnly: eyesStill).padding(.top, 2)
             Text(Tr("正在输入…"))
-                .font(.system(size: 15))
+                .font(pfStyled(size: 15))
                 .foregroundColor(C.subLabel)
             Spacer(minLength: 16)
         }
@@ -121,7 +121,7 @@ struct BotChatView: View {
             }
             HStack(spacing: 8) {
                 JarvisEyesAvatar(size: eyesSize(22), tint: eyesTintOrClear, staticOnly: eyesStill)
-                Text(name).font(.system(size: 17, weight: .semibold)).foregroundColor(C.label)
+                Text(name).font(pfStyled(size: 17, weight: .semibold)).foregroundColor(C.label)
             }
         }
         .padding(.horizontal, 4)
@@ -171,7 +171,7 @@ struct BotChatView: View {
                 TextField("发消息给" + name + "…", text: $input, axis: .vertical)
                     .lineLimit(1...4)
                     .focused($focused)
-                    .font(.system(size: 15.5))
+                    .font(pfStyled(15.5))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 9)
                     .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -203,7 +203,7 @@ struct BotChatView: View {
     private func quickChip(_ t: String, _ run: @escaping () -> Void) -> some View {
         Button(action: run) {
             Text(t)
-                .font(.system(size: 12.5))
+                .font(pfStyled(size: 12.5))
                 .foregroundColor(C.subLabel)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 5)

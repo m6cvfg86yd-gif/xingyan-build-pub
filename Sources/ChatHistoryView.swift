@@ -45,11 +45,11 @@ struct ChatHistoryView: View {
                 VStack(alignment: .leading, spacing: 9) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(loading ? "…" : mb(info?.total ?? 0))
-                            .font(.system(size: 34, weight: .semibold, design: .rounded))
+                            .font(pfStyled(size: 34, weight: .semibold, design: .rounded))
                             .foregroundStyle(.primary)
                         Spacer()
                         Text(Tr("聊天记录"))
-                            .font(.caption.weight(.semibold))
+                            .font(pfStyled(size: 12, weight: .semibold))
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 9)
                             .frame(height: 24)
@@ -58,7 +58,7 @@ struct ChatHistoryView: View {
                             )
                     }
                     Text(Tr("你这边的聊天记录总共占用"))
-                        .font(.subheadline)
+                        .font(pfStyled(size: 15))
                         .foregroundStyle(.secondary)
                     HStack(spacing: 14) {
                         Label("\(info?.chats.count ?? 0) " + Tr("个会话"),
@@ -66,11 +66,11 @@ struct ChatHistoryView: View {
                         Label("\(totalMessages) " + Tr("条消息"),
                               systemImage: "text.bubble")
                     }
-                    .font(.caption)
+                    .font(pfStyled(size: 12))
                     .foregroundStyle(.secondary)
                     if !doneTip.isEmpty {
                         Label(doneTip, systemImage: "checkmark.circle.fill")
-                            .font(.caption)
+                            .font(pfStyled(size: 12))
                             .foregroundStyle(.green)
                     }
                 }
@@ -209,12 +209,12 @@ struct ChatHistoryView: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text("\(chat.messages) " + Tr("条消息"))
-                    .font(.caption)
+                    .font(pfStyled(size: 12))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
             Text(mb(chat.bytes))
-                .font(.subheadline)
+                .font(pfStyled(size: 15))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
@@ -241,7 +241,7 @@ struct ChatHistoryView: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(detail)
-                        .font(.caption)
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }

@@ -13,7 +13,7 @@ struct CrashLogView: View {
                     Text(UserDefaults.standard.string(forKey: "chris.lastCrashAt") ?? "")
                         .font(pf(12)).foregroundColor(C.subLabel)
                     Text(UserDefaults.standard.string(forKey: "chris.lastCrash") ?? "（没有记录）")
-                        .font(.system(size: 11.5, design: .monospaced))
+                        .font(pfStyled(size: 11.5, design: .monospaced))
                         .foregroundColor(C.label)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)

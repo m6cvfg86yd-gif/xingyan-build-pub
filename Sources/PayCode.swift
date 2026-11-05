@@ -108,7 +108,7 @@ struct PayCodePage: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 20)
                 Text(info.grouped ?? "")
-                    .font(.system(size: 17, weight: .medium, design: .monospaced))
+                    .font(pfStyled(size: 17, weight: .medium, design: .monospaced))
                     .foregroundColor(C.label)
                     .padding(.top, 8)
                 if !(info.rows ?? []).isEmpty {

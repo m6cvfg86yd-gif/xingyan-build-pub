@@ -234,7 +234,7 @@ struct ChannelsView: View {
                                 .rotationEffect(.degrees(-90))
                                 .frame(width: 54, height: 54)
                             Text(uploadProgress > 0.01 ? "\(Int(min(1, uploadProgress) * 100))%" : "…")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(pfStyled(size: 13, weight: .semibold))
                                 .foregroundColor(.white)
                         }
                         Text(uploadStage.isEmpty ? Tr("正在处理视频…") : uploadStage)
@@ -589,7 +589,7 @@ struct ChannelsView: View {
                                 HStack { Spacer()
                                     if uploadMB > 0 {
                                         Text(String(format: "%.1f MB", uploadMB))
-                                            .font(.system(size: 10.5, weight: .medium))
+                                            .font(pfStyled(size: 10.5, weight: .medium))
                                             .foregroundColor(.white)
                                             .padding(.horizontal, 6).padding(.vertical, 2)
                                             .background(Capsule().fill(Color.black.opacity(0.5)))

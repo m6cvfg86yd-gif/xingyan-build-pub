@@ -92,11 +92,11 @@ struct DiscoverView: View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(Tr("世界"))
-                    .font(.system(size: 24, weight: .bold))
+                    .font(pfStyled(size: 24, weight: .bold))
                     .foregroundStyle(OrbitTheme.ink)
                 Text(app.moments.isEmpty ? Tr("去发现、聊天、生活")
                                          : momentCountText)
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 10.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.secondary)
                     .lineLimit(1)
             }
@@ -266,10 +266,10 @@ struct DiscoverView: View {
 
             VStack(spacing: 6) {
                 Text(Tr("世界暂时离线"))
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(pfStyled(size: 20, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
                 Text(Tr("连接恢复后会自动刷新，旧页面不会继续显示。"))
-                    .font(.system(size: 13))
+                    .font(pfStyled(size: 13))
                     .foregroundStyle(OrbitTheme.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -278,7 +278,7 @@ struct DiscoverView: View {
                 Task { await app.checkReachability() }
             } label: {
                 Text(Tr("重新加载"))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(pfStyled(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 22)
                     .frame(height: 42)
@@ -445,7 +445,7 @@ struct DiscoverView: View {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 12, weight: .semibold))
                             Text(Tr(item.label))
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(pfStyled(size: 13, weight: .semibold))
                         }
                         .foregroundStyle(.white.opacity(0.94))
                         .padding(.horizontal, 11)
@@ -461,7 +461,7 @@ struct DiscoverView: View {
                         Spacer(minLength: 6)
 
                         Text(momentCountText)
-                            .font(.system(size: 10.5, weight: .semibold))
+                            .font(pfStyled(size: 10.5, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.86))
                             .padding(.horizontal, 10)
                             .frame(height: 27)
@@ -473,7 +473,7 @@ struct DiscoverView: View {
                     HStack(alignment: .bottom, spacing: 14) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(Tr("生活圈"))
-                                .font(.system(size: 25, weight: .bold, design: .rounded))
+                                .font(pfStyled(size: 25, weight: .bold, design: .rounded))
                                 .foregroundStyle(.white)
                                 .shadow(color: .black.opacity(0.25), radius: 7, y: 3)
 
@@ -483,13 +483,13 @@ struct DiscoverView: View {
                                     .overlay(Circle().stroke(Color.white.opacity(0.72),
                                                              lineWidth: 1))
                                 Text(latestMomentAuthor)
-                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .font(pfStyled(size: 11.5, weight: .semibold))
                                     .foregroundStyle(.white.opacity(0.84))
                                     .lineLimit(1)
                             }
 
                             Text(latestMomentText)
-                                .font(.system(size: 12.5, weight: .regular))
+                                .font(pfStyled(size: 12.5, weight: .regular))
                                 .foregroundStyle(.white.opacity(0.72))
                                 .lineLimit(2)
                                 .lineSpacing(2)
@@ -519,7 +519,7 @@ struct DiscoverView: View {
 
                     HStack(spacing: 7) {
                         Text(Tr("打开生活圈"))
-                            .font(.system(size: 11.5, weight: .semibold))
+                            .font(pfStyled(size: 11.5, weight: .semibold))
                         Image(systemName: "arrow.right")
                             .font(.system(size: 10.5, weight: .bold))
                     }
@@ -605,11 +605,11 @@ struct DiscoverView: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(Tr(item.label))
-                            .font(.system(size: 16.5, weight: .semibold))
+                            .font(pfStyled(size: 16.5, weight: .semibold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
                         Text(worldSubtitle(item))
-                            .font(.system(size: 11.5, weight: .regular))
+                            .font(pfStyled(size: 11.5, weight: .regular))
                             .foregroundStyle(.white.opacity(0.74))
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
@@ -665,17 +665,17 @@ struct DiscoverView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 7) {
                             Text(Tr("星选商城"))
-                                .font(.system(size: 18, weight: .semibold))
+                                .font(pfStyled(size: 18, weight: .semibold))
                                 .foregroundStyle(.white)
                             Text(Tr("今日精选"))
-                                .font(.system(size: 9.5, weight: .semibold))
+                                .font(pfStyled(size: 9.5, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.88))
                                 .padding(.horizontal, 7)
                                 .frame(height: 20)
                                 .background(Capsule().fill(Color.white.opacity(0.13)))
                         }
                         Text(Tr("自营与第三方好物 · 每日上新"))
-                            .font(.system(size: 11.5))
+                            .font(pfStyled(size: 11.5))
                             .foregroundStyle(.white.opacity(0.72))
                             .lineLimit(1)
                     }
@@ -1884,7 +1884,7 @@ struct MomentsView: View {
                                         .rotationEffect(.degrees(-90))
                                         .frame(width: 50, height: 50)
                                     Text("\(Int(min(1, videoProgress) * 100))%")
-                                        .font(.system(size: 12.5, weight: .semibold))
+                                        .font(pfStyled(size: 12.5, weight: .semibold))
                                         .foregroundColor(.white)
                                 }
                             } else {
@@ -1894,7 +1894,7 @@ struct MomentsView: View {
                             }
                             if videoSeconds > 0, videoProgress <= 0.01 {
                                 Text(String(format: "%02d:%02d", videoSeconds / 60, videoSeconds % 60))
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(pfStyled(size: 11, weight: .medium))
                                     .foregroundColor(.white)
                             }
                         }
@@ -2671,7 +2671,7 @@ struct MomentRow: View {
                         HStack {
                             Spacer()
                             Text(String(format: "%02d:%02d", secs / 60, secs % 60))
-                                .font(.system(size: 11.5, weight: .medium))
+                                .font(pfStyled(size: 11.5, weight: .medium))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(Capsule().fill(Color.black.opacity(0.45)))

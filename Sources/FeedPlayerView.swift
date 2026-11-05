@@ -496,21 +496,21 @@ private struct PlayerPage: View {
                     VStack(alignment: .leading, spacing: 7) {
                         Button { onAvatar() } label: {
                             Text("@" + (ui.authorName.isEmpty ? Tr("视频号") : ui.authorName))
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(pfStyled(size: 16, weight: .semibold))
                                 .foregroundColor(.white)
                         }
                         .buttonStyle(.plain)
 
                         if !ui.desc.isEmpty {
                             Text(ui.desc)
-                                .font(.system(size: 14))
+                                .font(pfStyled(size: 14))
                                 .foregroundColor(.white.opacity(0.94))
                                 .lineLimit(3)
                                 .multilineTextAlignment(.leading)
                         }
                         if !ui.ep.isEmpty || !ui.seriesName.isEmpty {
                             Text((ui.seriesName.isEmpty ? "" : ui.seriesName) + (ui.ep.isEmpty ? "" : " · " + ui.ep))
-                                .font(.system(size: 12.5))
+                                .font(pfStyled(size: 12.5))
                                 .foregroundColor(.white.opacity(0.9))
                         }
                         if !ui.music.isEmpty {
@@ -518,7 +518,7 @@ private struct PlayerPage: View {
                                 Image(systemName: "music.note")
                                     .font(.system(size: 12))
                                 Text(ui.music)
-                                    .font(.system(size: 12.5))
+                                    .font(pfStyled(size: 12.5))
                                     .lineLimit(1)
                             }
                             .foregroundColor(.white.opacity(0.92))
@@ -607,13 +607,13 @@ private struct PlayerPage: View {
                 .font(.system(size: 26, weight: .medium))
                 .foregroundColor(.white.opacity(0.9))
             Text(Tr("内容暂时不可用"))
-                .font(.system(size: 14.5))
+                .font(pfStyled(size: 14.5))
                 .foregroundColor(.white.opacity(0.92))
             Button {
                 PlayerPool.shared.retry(item)
             } label: {
                 Text(Tr("重新加载"))
-                    .font(.system(size: 14.5, weight: .semibold))
+                    .font(pfStyled(size: 14.5, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 20)
                     .frame(height: 34)
@@ -722,7 +722,7 @@ private struct FeedRailButton: View {
                     .shadow(color: .black.opacity(0.35), radius: 4)
                 if count > 0 {
                     Text(FeedCount.text(count))
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(pfStyled(size: 12, weight: .semibold))
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.35), radius: 3)
                 }

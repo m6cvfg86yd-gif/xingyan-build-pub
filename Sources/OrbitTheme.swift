@@ -31,12 +31,12 @@ struct OrbitSectionLabel: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(text)
-                .font(.system(size: 12, weight: .semibold))
+                .font(pfStyled(size: 12, weight: .semibold))
                 .foregroundStyle(OrbitTheme.secondary)
                 .tracking(0.6)
             if let count {
                 Text("\(count)")
-                    .font(.system(size: 9.5, weight: .bold))
+                    .font(pfStyled(size: 9.5, weight: .bold))
                     .foregroundStyle(OrbitTheme.jade)
                     .padding(.horizontal, 6)
                     .frame(height: 18)
@@ -53,7 +53,7 @@ struct OrbitUnreadBadge: View {
 
     var body: some View {
         Text(count > 99 ? "99+" : "\(count)")
-            .font(.system(size: 9.5, weight: .bold))
+            .font(pfStyled(size: 9.5, weight: .bold))
             .foregroundStyle(muted ? OrbitTheme.tertiary : .white)
             .lineLimit(1)
             .minimumScaleFactor(0.7)

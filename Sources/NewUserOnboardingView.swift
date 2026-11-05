@@ -102,7 +102,7 @@ struct NewUserOnboardingView: View {
                 }
                 .frame(width: 28, height: 28)
                 Text(Tr("星言"))
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(pfStyled(size: 16, weight: .semibold))
                     .foregroundColor(C.label)
             }
             Spacer()
@@ -127,12 +127,12 @@ struct NewUserOnboardingView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
                 Text(Tr("完善个人资料"))
-                    .font(.system(size: 30, weight: .bold))
+                    .font(pfStyled(size: 30, weight: .bold))
                     .foregroundColor(C.label)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 44)
                 Text(Tr("设置一张清晰头像，方便联系人和群成员识别你。"))
-                    .font(.system(size: 14.5))
+                    .font(pfStyled(size: 14.5))
                     .foregroundColor(C.subLabel)
                     .lineSpacing(5)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -165,7 +165,7 @@ struct NewUserOnboardingView: View {
                                     ProgressView().tint(Color(hex: 0x07C160))
                                 } else {
                                     Label(Tr("选择头像"), systemImage: "camera.fill")
-                                        .font(.system(size: 13, weight: .medium))
+                                        .font(pfStyled(size: 13, weight: .medium))
                                         .foregroundColor(Color(hex: 0x07C160))
                                 }
                             }
@@ -194,20 +194,20 @@ struct NewUserOnboardingView: View {
                 .disabled(uploading)
 
                 Text(avatar == nil ? Tr("点击上传你的专属头像") : Tr("头像已就绪，可以继续了"))
-                    .font(.system(size: 13.5, weight: .medium))
+                    .font(pfStyled(size: 13.5, weight: .medium))
                     .foregroundColor(avatar == nil ? C.subLabel : Color(hex: 0x18A66A))
                     .padding(.top, 22)
 
                 if !error.isEmpty {
                     Text(error)
-                        .font(.system(size: 13))
+                        .font(pfStyled(size: 13))
                         .foregroundColor(C.red)
                         .multilineTextAlignment(.center)
                         .padding(.top, 12)
                 }
 
                 Text(Tr("建议使用本人照片或能代表你的头像\n之后可以在「我 → 个人资料」里更换"))
-                    .font(.system(size: 12.5))
+                    .font(pfStyled(size: 12.5))
                     .foregroundColor(C.subLabel.opacity(0.82))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
@@ -220,11 +220,11 @@ struct NewUserOnboardingView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 Text(Tr("欢迎开始使用"))
-                    .font(.system(size: 30, weight: .bold))
+                    .font(pfStyled(size: 30, weight: .bold))
                     .foregroundColor(C.label)
                     .padding(.top, 36)
                 Text(Tr("账号已经创建。下面是星言的主要功能，进入后可随时在「发现」和「我」中找到。"))
-                    .font(.system(size: 14.5))
+                    .font(pfStyled(size: 14.5))
                     .foregroundColor(C.subLabel)
                     .lineSpacing(5)
                     .fixedSize(horizontal: false, vertical: true)
@@ -243,7 +243,7 @@ struct NewUserOnboardingView: View {
                         .foregroundColor(Color(hex: 0x07C160))
                         .padding(.top, 1)
                     Text(Tr("头像和资料之后可在「我 → 个人信息」中修改；登录设备与隐私权限在「我 → 设置」中管理。"))
-                        .font(.system(size: 12.5))
+                        .font(pfStyled(size: 12.5))
                         .foregroundColor(C.subLabel)
                         .lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
@@ -275,10 +275,10 @@ struct NewUserOnboardingView: View {
                 )
             VStack(alignment: .leading, spacing: 3) {
                 Text(Tr(feature.title))
-                    .font(.system(size: 15.5, weight: .semibold))
+                    .font(pfStyled(size: 15.5, weight: .semibold))
                     .foregroundColor(C.label)
                 Text(Tr(feature.detail))
-                    .font(.system(size: 12.5))
+                    .font(pfStyled(size: 12.5))
                     .foregroundColor(C.subLabel)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -300,7 +300,7 @@ struct NewUserOnboardingView: View {
         VStack(spacing: 13) {
             if !error.isEmpty && step == 1 {
                 Text(error)
-                    .font(.system(size: 13))
+                    .font(pfStyled(size: 13))
                     .foregroundColor(C.red)
             }
 
@@ -321,7 +321,7 @@ struct NewUserOnboardingView: View {
                         ProgressView().tint(.white)
                     }
                     Text(step == 0 ? Tr("继续") : saving ? Tr("正在完成设置…") : Tr("完成，进入星言"))
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(pfStyled(size: 16, weight: .semibold))
                     if step == 0 && !saving {
                         Image(systemName: "arrow.right")
                             .font(.system(size: 13, weight: .bold))
@@ -349,7 +349,7 @@ struct NewUserOnboardingView: View {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.86)) { step = 0 }
                 } label: {
                     Text(Tr("返回上一步"))
-                        .font(.system(size: 13))
+                        .font(pfStyled(size: 13))
                         .foregroundColor(C.subLabel)
                 }
                 .buttonStyle(.plain)

@@ -8,8 +8,8 @@
     },
     {
       "path": "Sources/App.swift",
-      "size": 145322,
-      "sha256": "30bbf581606af654b2c334aabdbb524e7f97578150a27eddbe9cc58ef34f2f3c"
+      "size": 145411,
+      "sha256": "9ef42cbaaf6e4ac81d9ace2f6c914f3553b9599f719f64a4a399faccccff7fc8"
     },
     {
       "path": "Sources/Realtime.swift",
@@ -33,8 +33,8 @@
     },
     {
       "path": "Sources/CallView.swift",
-      "size": 45665,
-      "sha256": "c3012305b19f8ad3d25c80d61f01c41ef94462d80aaac2336baa1e14ff441cc9"
+      "size": 45666,
+      "sha256": "aa932addd8369eaac821b123cc5e0d987127c3aa2db39c0d633120d717f91d96"
     },
     {
       "path": "Sources/AICall.swift",
@@ -73,8 +73,8 @@
     },
     {
       "path": "Sources/ChatDetailView.swift",
-      "size": 236338,
-      "sha256": "2971a1fc3c61a697f33412ef55d50ec69c544f529eb9c756f49723b32664b82f"
+      "size": 236296,
+      "sha256": "f871c9d0437a4625ddcb6506dd2e2df81df2ed7d785a41ac2ddafe6926506953"
     },
     {
       "path": "Sources/GroupInfoView.swift",

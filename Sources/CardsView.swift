@@ -189,7 +189,7 @@ struct CardsView: View {
                         VStack(spacing: 8) {
                             Text(Tr("核销码")).font(pf(13)).foregroundColor(C.subLabel)
                             Text(c.code ?? "-")
-                                .font(.system(size: 22, weight: .semibold, design: .monospaced))
+                                .font(pfStyled(size: 22, weight: .semibold, design: .monospaced))
                                 .foregroundColor(c.used == true ? C.subLabel : C.label)
                             Text(Tr("到店出示这一串给商家核销"))
                                 .font(pf(12)).foregroundColor(C.subLabel)

@@ -63,9 +63,9 @@ struct MomentCommentsSheet: View {
                                             .font(.title2)
                                             .foregroundStyle(.secondary)
                                         Text(Tr("还没有评论"))
-                                            .font(.headline)
+                                            .font(pfStyled(size: 17, weight: .semibold))
                                         Text(Tr("说点什么，成为第一个评论的人"))
-                                            .font(.footnote)
+                                            .font(pfStyled(size: 13))
                                             .foregroundStyle(.secondary)
                                     }
                                     .frame(maxWidth: .infinity)
@@ -358,17 +358,17 @@ struct MomentCommentsSheet: View {
     private var commentsHeader: some View {
         HStack(spacing: 5) {
             Text(Tr("评论"))
-                .font(.headline)
+                .font(pfStyled(size: 17, weight: .semibold))
                 .foregroundColor(C.label)
             Text("\(comments.count)")
-                .font(.caption)
+                .font(pfStyled(size: 12))
                 .foregroundColor(C.subLabel)
                 .padding(.horizontal, 7)
                 .frame(height: 22)
                 .background(.thinMaterial, in: Capsule())
             Spacer(minLength: 0)
             Text(Tr("最新"))
-                .font(.caption)
+                .font(pfStyled(size: 12))
                 .foregroundColor(C.subLabel)
         }
         .padding(.top, 11)

@@ -151,7 +151,7 @@ struct DiagView: View {
 
     private func box(_ t: String) -> some View {
         Text(t)
-            .font(.system(size: 11.5, design: .monospaced))
+            .font(pfStyled(size: 11.5, design: .monospaced))
             .foregroundColor(C.label.opacity(0.9))
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled)

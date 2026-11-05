@@ -1091,7 +1091,7 @@ struct CallIcon: View {
                 RemoteImage(path: v).frame(width: size, height: size)
             } else {
                 Text(v)
-                    .font(.system(size: size * 0.9))
+                    .font(pfStyled(size: size * 0.9))
                     .foregroundColor(color)
                     .frame(width: size, height: size)
             }

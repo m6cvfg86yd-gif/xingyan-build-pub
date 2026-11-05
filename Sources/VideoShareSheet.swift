@@ -191,7 +191,7 @@ struct VideoForwardPicker: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(OrbitTheme.jade)
                 Text(sending.isEmpty ? Tr("轻触好友，立即发送") : Tr("正在沿星轨发送…"))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(pfStyled(size: 12, weight: .medium))
                     .foregroundStyle(OrbitTheme.secondary)
                 Spacer(minLength: 0)
                 if !sending.isEmpty {

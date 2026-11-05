@@ -161,7 +161,7 @@ struct ExternalFileSendView: View {
                             if !sending && !favoriteBusy { inbox.finish() }
                         } label: {
                             Text(Tr("取消"))
-                                .font(.system(size: 13.5, weight: .semibold))
+                                .font(pfStyled(size: 13.5, weight: .semibold))
                                 .foregroundStyle(sending || favoriteBusy
                                                  ? OrbitTheme.tertiary
                                                  : OrbitTheme.secondary)
@@ -271,12 +271,12 @@ struct ExternalFileSendView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.name)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(pfStyled(size: 12.5, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(fileSize(item.bytes))
-                    .font(.system(size: 10.5))
+                    .font(pfStyled(size: 10.5))
                     .foregroundStyle(OrbitTheme.secondary)
             }
             Spacer(minLength: 0)
@@ -332,7 +332,7 @@ struct ExternalFileSendView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(tint.opacity(0.18), lineWidth: 0.7))
                 Text(title)
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 10.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.secondary)
                     .lineLimit(1)
             }
@@ -407,11 +407,11 @@ struct ExternalFileSendView: View {
                             .tint(OrbitTheme.jade)
                             .scaleEffect(0.72)
                         Text(progress)
-                            .font(.system(size: 11.5, weight: .medium))
+                            .font(pfStyled(size: 11.5, weight: .medium))
                             .foregroundStyle(OrbitTheme.secondary)
                         Spacer(minLength: 0)
                         Text("\(Int(min(1, max(0, transferFraction)) * 100))%")
-                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                            .font(pfStyled(size: 10.5, weight: .semibold, design: .rounded))
                             .foregroundStyle(OrbitTheme.jade)
                     }
                     ProgressView(value: min(1, max(0, transferFraction)))
@@ -422,11 +422,11 @@ struct ExternalFileSendView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(selectedId.isEmpty ? Tr("选择接收人") : selectedName)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(pfStyled(size: 14, weight: .semibold))
                         .foregroundStyle(OrbitTheme.ink)
                         .lineLimit(1)
                     Text(selectedId.isEmpty ? Tr("文件会保留原格式发送") : fileBytes)
-                        .font(.system(size: 10.5))
+                        .font(pfStyled(size: 10.5))
                         .foregroundStyle(OrbitTheme.secondary)
                         .lineLimit(1)
                 }
@@ -442,7 +442,7 @@ struct ExternalFileSendView: View {
                                 .font(.system(size: 12.5, weight: .semibold))
                         }
                         Text(sending ? Tr("发送中…") : Tr("发送"))
-                            .font(.system(size: 14.5, weight: .semibold))
+                            .font(pfStyled(size: 14.5, weight: .semibold))
                     }
                     .foregroundStyle(.white)
                     .padding(.horizontal, 19)

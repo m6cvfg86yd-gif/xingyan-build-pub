@@ -38,10 +38,10 @@ struct MeView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(Tr("我的"))
-                        .font(.system(size: 22, weight: .bold))
+                        .font(pfStyled(size: 22, weight: .bold))
                         .foregroundStyle(OrbitTheme.ink)
                     Text(Tr("把生活留在这里"))
-                        .font(.system(size: 10.5, weight: .medium))
+                        .font(pfStyled(size: 10.5, weight: .medium))
                         .foregroundStyle(OrbitTheme.secondary)
                 }
 
@@ -83,7 +83,7 @@ struct MeView: View {
                                     UmbrellaIcon(color: Color(hex: 0x3E9BF0), size: 15)
                                 }
                                 Text(app.me?.name ?? Tr("星言用户"))
-                                    .font(.system(size: 21, weight: .bold))
+                                    .font(pfStyled(size: 21, weight: .bold))
                                     .foregroundStyle(OrbitTheme.ink)
                                     .lineLimit(1)
                                 if growthShow {
@@ -99,14 +99,14 @@ struct MeView: View {
                             }
 
                             Text(Tr("星言号") + "：" + (app.me?.username ?? "-"))
-                                .font(.system(size: 11.5, weight: .medium))
+                                .font(pfStyled(size: 11.5, weight: .medium))
                                 .foregroundStyle(OrbitTheme.secondary)
                                 .lineLimit(1)
                                 .copyOnLongPress(app.me?.username ?? "") { app.show($0) }
 
                             let note = ((app.me?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
                             Text(note.isEmpty ? Tr("点击编辑个人资料") : note)
-                                .font(.system(size: 12))
+                                .font(pfStyled(size: 12))
                                 .foregroundStyle(OrbitTheme.tertiary)
                                 .lineLimit(1)
                         }
@@ -164,12 +164,12 @@ struct MeView: View {
         Button(action: action) {
             VStack(spacing: 3) {
                 Text(value)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(pfStyled(size: 16, weight: .bold))
                     .foregroundStyle(OrbitTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                 Text(title)
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 10.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.tertiary)
             }
             .frame(maxWidth: .infinity)
@@ -195,7 +195,7 @@ struct MeView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
                                     Text(app.me?.name ?? Tr("星言用户"))
-                                        .font(.headline)
+                                        .font(pfStyled(size: 17, weight: .semibold))
                                         .foregroundStyle(.primary)
                                         .lineLimit(1)
                                     if growthShow {
@@ -204,12 +204,12 @@ struct MeView: View {
                                     }
                                 }
                                 Text(Tr("星言号") + "：" + (app.me?.username ?? "-"))
-                                    .font(.caption)
+                                    .font(pfStyled(size: 12))
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                                 let bio = (app.me?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                                 Text(bio.isEmpty ? Tr("点击编辑个人资料") : bio)
-                                    .font(.caption)
+                                    .font(pfStyled(size: 12))
                                     .foregroundStyle(.tertiary)
                                     .lineLimit(1)
                             }
@@ -277,10 +277,10 @@ struct MeView: View {
         Button(action: action) {
             VStack(spacing: 3) {
                 Text(value)
-                    .font(.headline)
+                    .font(pfStyled(size: 17, weight: .semibold))
                     .foregroundStyle(.primary)
                 Text(title)
-                    .font(.caption)
+                    .font(pfStyled(size: 12))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
@@ -503,6 +503,8 @@ struct MeView: View {
                     ChangePasswordSheet()
                 } else if key == "g.theme" {
                     AppearanceView()
+                } else if key == "g.font" {
+                    FontSettingsView()
                 } else if key == "g.lang" {
                     LanguageView()
                 } else if key == "g.chatbg" {
@@ -1420,6 +1422,8 @@ struct SettingsView: View {
                               keywords: "聊天背景 背景 壁纸 图片", key: "chatbg"),
             SettingSearchItem(title: Tr("外观"), sub: "",
                               keywords: "外观 深色 浅色 跟随系统 主题", run: { showTheme = true }),
+            SettingSearchItem(title: Tr("字体与字号"), sub: "",
+                              keywords: "字体 字号 字型 大小 字体样式 font size", key: "g.font"),
             SettingSearchItem(title: Tr("界面语言"), sub: Lang.name,
                               keywords: "界面语言 语言 中文 英文 俄语 language", key: "language"),
             SettingSearchItem(title: Tr("帮助与反馈"), sub: "",

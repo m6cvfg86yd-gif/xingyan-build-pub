@@ -111,9 +111,9 @@ struct TeenModeView: View {
             VStack(spacing: 12) {
                 UmbrellaIcon(color: Color(hex: 0x3E9BF0), size: 58)
                 Text(Tr("未成年人模式"))
-                    .font(.title3.weight(.semibold))
+                    .font(pfStyled(size: 20, weight: .semibold))
                 Text(Tr("开启后，视频号、直播、游戏、附近的人、摇一摇、搜一搜将不可访问；\n微信支付、公众号、小程序可以按需要调整。"))
-                    .font(.subheadline)
+                    .font(pfStyled(size: 15))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
@@ -135,7 +135,7 @@ struct TeenModeView: View {
                 showSetup = true
             } label: {
                 Text(Tr("开启未成年人模式"))
-                    .font(.body.weight(.semibold))
+                    .font(pfStyled(size: 17, weight: .semibold))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -151,9 +151,9 @@ struct TeenModeView: View {
             VStack(spacing: 10) {
                 UmbrellaIcon(color: Color(hex: 0x3E9BF0), size: 44)
                 Text(Tr("未成年人模式已开启"))
-                    .font(.headline)
+                    .font(pfStyled(size: 17, weight: .semibold))
                 Text(Tr("「我」页会显示一把小雨伞"))
-                    .font(.footnote)
+                    .font(pfStyled(size: 13))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
@@ -364,13 +364,13 @@ struct TeenSetupWizard: View {
             VStack(spacing: 10) {
                 UmbrellaIcon(color: Color(hex: 0x3E9BF0), size: 48)
                 Text(Tr("请先阅读并同意使用条款"))
-                    .font(.headline)
+                    .font(pfStyled(size: 17, weight: .semibold))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
 
             Text(terms)
-                .font(.footnote)
+                .font(pfStyled(size: 13))
                 .lineSpacing(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -409,7 +409,7 @@ struct TeenSetupWizard: View {
         if !error.isEmpty {
             Section {
                 Text(error)
-                    .font(.footnote)
+                    .font(pfStyled(size: 13))
                     .foregroundStyle(.red)
             }
         }
@@ -444,7 +444,7 @@ struct TeenSetupWizard: View {
         if !error.isEmpty {
             Section {
                 Text(error)
-                    .font(.footnote)
+                    .font(pfStyled(size: 13))
                     .foregroundStyle(.red)
             }
         }
@@ -522,7 +522,7 @@ struct CareModeView: View {
                         .font(.system(size: 44))
                         .foregroundStyle(C.green)
                     Text(Tr("关怀模式"))
-                        .font(.title3.weight(.semibold))
+                        .font(pfStyled(size: 20, weight: .semibold))
                     HStack(spacing: 18) {
                         perk("textformat.size", Tr("文字更大"))
                         perk("paintpalette.fill", Tr("色彩更强"))
@@ -582,7 +582,7 @@ struct CareModeView: View {
 
             Section {
                 Text(Tr("关怀模式由微信首创的适老化设计：文字更大、色彩更强、按钮更大。"))
-                    .font(.footnote)
+                    .font(pfStyled(size: 13))
                     .foregroundStyle(.secondary)
             }
         }
@@ -614,7 +614,7 @@ struct CareModeView: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(C.green)
             Text(title)
-                .font(.caption)
+                .font(pfStyled(size: 12))
                 .foregroundStyle(.secondary)
         }
     }

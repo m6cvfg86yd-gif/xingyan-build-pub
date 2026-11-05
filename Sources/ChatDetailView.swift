@@ -2017,7 +2017,7 @@ struct ChatDetailView: View {
                                         .font(.system(size: 11))
                                     if let d = TimeFmt.date(message.burnAt) {
                                         Text(burnCountText(d, now: ctx.date))
-                                            .font(.system(size: 10, weight: .medium))
+                                            .font(pfStyled(size: 10, weight: .medium))
                                             .monospacedDigit()
                                     }
                                 }
@@ -2297,7 +2297,7 @@ struct ChatDetailView: View {
                 scrollTick += 1
             } label: {
                 Text(unreadHere > 99 ? "99+" : "\(unreadHere)")
-                    .font(.system(size: 11.5, weight: .semibold))
+                    .font(pfStyled(size: 11.5, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 6)
                     .frame(minWidth: 20, minHeight: 18)
@@ -5009,7 +5009,7 @@ struct MessageRow: View {
             .scaledValue(for: preferredSize)
             .rounded())
         let mono = Font.system(size: baseSize, weight: .regular, design: .monospaced)
-        let base = Font.system(size: baseSize, weight: .regular, design: .default)
+        let base = pfStyled(baseSize)
         var out = AttributedString()
         let lines = s.split(separator: "\n", omittingEmptySubsequences: false)
         for (idx, sub) in lines.enumerated() {
@@ -5235,7 +5235,7 @@ struct MessageRow: View {
                                 : ChatTheme.secondary)
                         Spacer(minLength: 0)
                     }
-                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .font(pfStyled(size: 10.5, weight: .medium, design: .monospaced))
                 }
                 .frame(maxWidth: .infinity)
             }

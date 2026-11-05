@@ -64,7 +64,7 @@ struct UserCardBubble: View {
                                 .font(pf(10.5))
                                 .foregroundColor(C.subLabel)
                             Text(info.username.isEmpty ? "—" : info.username)
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .font(pfStyled(size: 11, weight: .medium, design: .monospaced))
                                 .foregroundColor(C.label.opacity(0.76))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
@@ -221,7 +221,7 @@ struct VideoBubble: View {
             HStack {
                 Spacer(minLength: 0)
                 Text(String(format: "%02d:%02d", info.seconds / 60, info.seconds % 60))
-                    .font(.system(size: 11.5, weight: .medium))
+                    .font(pfStyled(size: 11.5, weight: .medium))
                     .foregroundColor(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -248,7 +248,7 @@ struct LivePhotoBubble: View {
         ZStack(alignment: .topLeading) {
             RemoteImage(path: info.image, mode: .fill, maxSide: 1600)
             Text(Tr("实况"))
-                .font(.system(size: 11.5, weight: .semibold))
+                .font(pfStyled(size: 11.5, weight: .semibold))
                 .foregroundColor(.white)
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(Capsule().fill(Color.black.opacity(0.42)))
@@ -328,21 +328,21 @@ struct VideoPlayerSheet: View {
                 if controls {
                     HStack(spacing: 10) {
                         Text(Self.fmt(now))
-                            .font(.system(size: 12, weight: .medium))
+                            .font(pfStyled(size: 12, weight: .medium))
                             .foregroundColor(.white.opacity(0.88))
                             .frame(width: 40, alignment: .leading)
                         scrubBar
 
                         Button { toggleSpeed() } label: {
                             Text(speed > 1.5 ? "2x" : "1x")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(pfStyled(size: 12, weight: .semibold))
                                 .foregroundColor(speed > 1.5 ? Color.black : .white)
                                 .frame(width: 36, height: 22)
                                 .background(Capsule().fill(speed > 1.5 ? Color.white : Color.white.opacity(0.18)))
                         }
                         .buttonStyle(.plain)
                         Text(Self.fmt(total))
-                            .font(.system(size: 12, weight: .medium))
+                            .font(pfStyled(size: 12, weight: .medium))
                             .foregroundColor(.white.opacity(0.88))
                             .frame(width: 40, alignment: .trailing)
                     }
@@ -617,7 +617,7 @@ struct SendingVideoBubble: View {
                     .frame(width: 54, height: 54)
                 if progress > 0.01 {
                     Text("\(Int(min(1, progress) * 100))%")
-                        .font(.system(size: 13.5, weight: .semibold))
+                        .font(pfStyled(size: 13.5, weight: .semibold))
                         .foregroundColor(.white)
                 } else {
                     Image(systemName: "play.fill")

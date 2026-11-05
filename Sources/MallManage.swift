@@ -324,7 +324,7 @@ struct MallAdminSection: View {
                                 Image(systemName: channelDraft[i].symbol)
                                     .font(.system(size: 15)).foregroundColor(channelDraft[i].tintColor)
                             } else {
-                                Text(channelDraft[i].emoji ?? "").font(.system(size: 17))
+                                Text(channelDraft[i].emoji ?? "").font(pfStyled(size: 17))
                             }
                         }
                         TextField(Tr("文字"), text: Binding(get: { channelDraft[i].title },
@@ -463,7 +463,7 @@ struct MallAdminSection: View {
                     HairLine(inset: 16)
                     HStack(spacing: 12) {
                         Text(a.emoji ?? "🛍")
-                            .font(.system(size: 22))
+                            .font(pfStyled(size: 22))
                             .frame(width: 44, height: 44)
                             .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
                                 .fill(Color(hex: a.topColor).opacity(0.85)))
@@ -902,7 +902,7 @@ struct MallAdSheet: View {
                 VStack(spacing: 10) {
 
                     HStack(spacing: 12) {
-                        Text(emoji).font(.system(size: 26))
+                        Text(emoji).font(pfStyled(size: 26))
                             .frame(width: 52, height: 52)
                             .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
                                 .fill(adTopColor))

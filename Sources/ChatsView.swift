@@ -172,7 +172,7 @@ struct ChatRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 5) {
                 Text(displayTitle)
-                    .font(.system(size: 15.5, weight: .semibold))
+                    .font(pfStyled(size: 15.5, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.9)
@@ -198,13 +198,13 @@ struct ChatRow: View {
                 Spacer(minLength: 6)
 
                 Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 10.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.tertiary)
                     .monospacedDigit()
                     .fixedSize()
             }
             mentionPreview
-                .font(.system(size: 12.5))
+                .font(pfStyled(size: 12.5))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
@@ -286,7 +286,7 @@ struct ChatRow: View {
             .overlay(alignment: .bottomTrailing) {
                 if let icon = chat.moodIcon, !icon.isEmpty {
                     Text(icon)
-                        .font(.system(size: 9))
+                        .font(pfStyled(size: 9))
                         .frame(width: 17, height: 17)
                         .background(Circle().fill(C.cardBg))
                         .overlay(Circle().stroke(C.hairline, lineWidth: 0.5))
@@ -757,13 +757,13 @@ struct ChatsView: View {
                             Image(systemName: item.symbol)
                                 .font(.system(size: 10.5, weight: .semibold))
                             Text(Tr(item.rawValue))
-                                .font(.system(size: 12,
+                                .font(pfStyled(size: 12,
                                               weight: chatFilter == item ? .semibold : .medium))
                                 .lineLimit(1)
                             let count = unreadCounts[item, default: 0]
                             if count > 0 {
                                 Text(count > 99 ? "99+" : "\(count)")
-                                    .font(.system(size: 8.5, weight: .bold))
+                                    .font(pfStyled(size: 8.5, weight: .bold))
                                     .padding(.horizontal, count > 9 ? 4 : 3)
                                     .frame(height: 15)
                                     .background(Capsule().fill(C.red))
@@ -850,12 +850,12 @@ struct ChatsView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(app.me?.name ?? "星言")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(pfStyled(size: 20, weight: .bold))
                     .foregroundStyle(OrbitTheme.ink)
                     .lineLimit(1)
                 Text(app.offline ? Tr("离线")
                      : (unreadTotal > 0 ? "\(unreadTotal) 条未读消息" : Tr("消息已读完")))
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 10.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.secondary)
                     .lineLimit(1)
             }
@@ -1195,7 +1195,7 @@ struct ChatsView: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                              startPoint: .topLeading, endPoint: .bottomTrailing))
-                    Text(mini.iconText).font(.system(size: 24))
+                    Text(mini.iconText).font(pfStyled(size: 24))
                     if let cv = mini.cover, !cv.isEmpty {
                         RemoteImage(path: cv)
                             .frame(width: 48, height: 48)
@@ -1866,7 +1866,7 @@ struct MiniAppSearchView: View {
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                                         .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                                              startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    Text(m.iconText).font(.system(size: 18))
+                                    Text(m.iconText).font(pfStyled(size: 18))
                                     if let cv = m.cover, !cv.isEmpty {
                                         RemoteImage(path: cv)
                                             .frame(width: 36, height: 36)

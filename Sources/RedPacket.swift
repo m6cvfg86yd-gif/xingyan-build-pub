@@ -1168,7 +1168,7 @@ struct RedPacketDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Tr("我抢到的")).font(pf(12.5)).foregroundColor(C.subLabel)
                 Text("¥" + moneyFmt(mine.amount))
-                    .font(.system(size: 25, weight: .heavy, design: .rounded))
+                    .font(pfStyled(size: 25, weight: .heavy, design: .rounded))
                     .foregroundStyle(LinearGradient(colors: [gold, goldDeep],
                                                     startPoint: .top, endPoint: .bottom))
             }

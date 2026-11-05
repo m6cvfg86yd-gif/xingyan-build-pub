@@ -90,19 +90,19 @@ struct FavoritesView: View {
                             .foregroundStyle(.secondary)
                     }
                     Text(heading)
-                        .font(.headline)
+                        .font(pfStyled(size: 17, weight: .semibold))
                         .lineLimit(1)
                     Spacer(minLength: 0)
                 }
                 if !preview.isEmpty {
                     Text(preview)
-                        .font(.subheadline)
+                        .font(pfStyled(size: 15))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
                 if let from = item["fromName"] as? String, !from.isEmpty {
                     Text(from)
-                        .font(.caption)
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
@@ -126,9 +126,9 @@ struct FavoritesView: View {
                     .font(.system(size: 30))
                     .foregroundStyle(.secondary)
                 Text(Tr("暂无收藏"))
-                    .font(.headline)
+                    .font(pfStyled(size: 17, weight: .semibold))
                 Text(Tr("聊天中的收藏和你写的笔记会出现在这里"))
-                    .font(.subheadline)
+                    .font(pfStyled(size: 15))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)

@@ -137,7 +137,7 @@ struct ForwardPickerView: View {
                     }
                 } label: {
                     Text(picked.isEmpty ? Tr("取消") : Tr("清空"))
-                        .font(.system(size: 13.5, weight: .semibold))
+                        .font(pfStyled(size: 13.5, weight: .semibold))
                         .foregroundStyle(picked.isEmpty ? OrbitTheme.secondary : OrbitTheme.jade)
                         .padding(.horizontal, 12)
                         .frame(height: 32)
@@ -239,14 +239,14 @@ struct ForwardPickerView: View {
                         }
                     }
                     Text(Tr("已选") + " \(selectedChats.count) " + Tr("个会话"))
-                        .font(.system(size: 12, weight: .medium))
+                        .font(pfStyled(size: 12, weight: .medium))
                         .foregroundStyle(OrbitTheme.secondary)
                     Spacer(minLength: 6)
                     Button {
                         withAnimation(.easeOut(duration: 0.18)) { picked.removeAll() }
                     } label: {
                         Text(Tr("清空"))
-                            .font(.system(size: 11.5, weight: .medium))
+                            .font(pfStyled(size: 11.5, weight: .medium))
                             .foregroundStyle(OrbitTheme.tertiary)
                     }
                     .buttonStyle(.plain)
@@ -257,10 +257,10 @@ struct ForwardPickerView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(picked.isEmpty ? Tr("选择一个会话") : Tr("准备发送"))
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(pfStyled(size: 14, weight: .semibold))
                         .foregroundStyle(OrbitTheme.ink)
                     Text(contentSummary)
-                        .font(.system(size: 10.5))
+                        .font(pfStyled(size: 10.5))
                         .foregroundStyle(OrbitTheme.secondary)
                 }
                 Spacer(minLength: 8)
@@ -277,7 +277,7 @@ struct ForwardPickerView: View {
                                 .font(.system(size: 12.5, weight: .semibold))
                         }
                         Text(sending ? Tr("发送中…") : Tr("发送"))
-                            .font(.system(size: 14.5, weight: .semibold))
+                            .font(pfStyled(size: 14.5, weight: .semibold))
                     }
                     .foregroundStyle(.white)
                     .padding(.horizontal, 19)

@@ -967,7 +967,7 @@ struct UserManageView: View {
                         HStack(spacing: 12) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 10, style: .continuous).fill(C.pageBg)
-                                Text(a.iconText).font(.system(size: 22))
+                                Text(a.iconText).font(pfStyled(size: 22))
                                 if let cv = a.cover, !cv.isEmpty {
                                     RemoteImage(path: cv).frame(width: 46, height: 46)
                                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -1296,7 +1296,7 @@ struct MiniAppEditSheet: View {
                         HStack(spacing: 12) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous).fill(C.pageBg)
-                                Text(icon.isEmpty ? "🧩" : icon).font(.system(size: 26))
+                                Text(icon.isEmpty ? "🧩" : icon).font(pfStyled(size: 26))
                                 if !cover.isEmpty {
                                     RemoteImage(path: cover).frame(width: 56, height: 56)
                                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -1988,7 +1988,7 @@ struct AppLogDetailSheet: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(pf(13)).foregroundColor(C.subLabel)
             Text(body)
-                .font(.system(size: 11.5, design: .monospaced))
+                .font(pfStyled(size: 11.5, design: .monospaced))
                 .foregroundColor(C.label.opacity(0.9))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)

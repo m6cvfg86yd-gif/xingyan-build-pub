@@ -318,7 +318,7 @@ struct QQLevelBadge: View {
             }
             if more > 0 {
                 Text("+" + String(more))
-                    .font(.system(size: size * 0.62, weight: .semibold))
+                    .font(pfStyled(size: size * 0.62, weight: .semibold))
                     .foregroundColor(C.subLabel)
             }
         }
@@ -376,7 +376,7 @@ struct MyLevelView: View {
                 Spacer(minLength: 0)
                 VStack(alignment: .trailing, spacing: 3) {
                     Text("Lv." + String(level))
-                        .font(.system(size: 30, weight: .heavy, design: .rounded))
+                        .font(pfStyled(size: 30, weight: .heavy, design: .rounded))
                         .foregroundStyle(LinearGradient(colors: [Color(hex: 0xFFF6D2), Color(hex: 0xF0C24B)],
                                                         startPoint: .top, endPoint: .bottom))
                     Text(Tr("活跃天") + " " + num(total))
@@ -434,7 +434,7 @@ struct MyLevelView: View {
         return VStack(alignment: .leading, spacing: 10) {
             Text(Tr("今日活跃")).font(pf(15, .medium)).foregroundColor(C.label)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(String(mins)).font(.system(size: 26, weight: .semibold, design: .rounded))
+                Text(String(mins)).font(pfStyled(size: 26, weight: .semibold, design: .rounded))
                     .foregroundColor(C.label)
                 Text(Tr("分钟")).font(pf(13)).foregroundColor(C.subLabel)
                 Spacer(minLength: 0)

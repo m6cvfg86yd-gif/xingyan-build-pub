@@ -88,7 +88,7 @@ struct ContactCardWechat: View {
                             Spacer(minLength: 4)
                             Text(relationLabel)
                         }
-                        .font(.system(size: 9.5, weight: .semibold))
+                        .font(pfStyled(size: 9.5, weight: .semibold))
                         .foregroundColor(gray)
                         .padding(.horizontal, 18)
                         .frame(height: 38)
@@ -228,7 +228,7 @@ struct ContactCardWechat: View {
                         .font(pf(11.5, .medium))
                         .foregroundColor(gray)
                     Text(wxId)
-                        .font(.system(size: 12.5, weight: .medium, design: .monospaced))
+                        .font(pfStyled(size: 12.5, weight: .medium, design: .monospaced))
                         .foregroundColor(ink.opacity(0.78))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)

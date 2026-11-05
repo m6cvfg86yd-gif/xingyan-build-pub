@@ -371,7 +371,7 @@ struct VoiceDigitsRow: View {
         HStack(spacing: 6) {
             ForEach(chars.indices, id: \.self) { i in
                 Text(chars[i])
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .font(pfStyled(size: 28, weight: .semibold, design: .rounded))
                     .foregroundColor(C.label)
                     .frame(width: 26)
             }

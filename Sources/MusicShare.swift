@@ -1105,7 +1105,7 @@ struct ListenView: View {
                 VStack(spacing: 12) {
                     ProgressView()
                     Text(Tr("正在加载…"))
-                        .font(.subheadline)
+                        .font(pfStyled(size: 15))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1115,7 +1115,7 @@ struct ListenView: View {
                         .font(.system(size: 40, weight: .light))
                         .foregroundStyle(OrbitTheme.jade)
                     Text(Tr("曲库还没有歌（后台「音乐（听一听）」里传一首）"))
-                        .font(.body)
+                        .font(pfStyled(size: 17))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 34)
@@ -1175,7 +1175,7 @@ struct ListenView: View {
                 } label: {
                     VStack(spacing: 5) {
                         Text(title)
-                            .font(.system(size: 17, weight: tab == index ? .semibold : .regular))
+                            .font(pfStyled(size: 17, weight: tab == index ? .semibold : .regular))
                             .foregroundStyle(tab == index ? Color.primary : Color.secondary)
                         Capsule()
                             .fill(tab == index ? OrbitTheme.jade : Color.clear)
@@ -1251,10 +1251,10 @@ struct ListenView: View {
                     .background(OrbitTheme.jade.opacity(0.10), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(Tr("全部歌曲"))
-                        .font(.system(size: 15.5, weight: .semibold))
+                        .font(pfStyled(size: 15.5, weight: .semibold))
                         .foregroundStyle(.primary)
                     Text("\(tracks.count) " + Tr("首"))
-                        .font(.system(size: 12))
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
@@ -1296,15 +1296,15 @@ struct ListenView: View {
                 }
 
                 Text(track.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(pfStyled(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(track.artistText)
-                    .font(.system(size: 12.5))
+                    .font(pfStyled(size: 12.5))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Text(track.displayCategory)
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 10.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.jade.opacity(0.9))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1358,16 +1358,16 @@ struct ListenView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(track.displayCategory)
-                        .font(.system(size: 10.5, weight: .semibold))
+                        .font(pfStyled(size: 10.5, weight: .semibold))
                         .tracking(0.5)
                         .foregroundStyle(.white.opacity(0.68))
                         .textCase(.uppercase)
                     Text(track.title)
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
+                        .font(pfStyled(size: 22, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
                         .lineLimit(2)
                     Text(track.artistText)
-                        .font(.system(size: 14, weight: .regular))
+                        .font(pfStyled(size: 14, weight: .regular))
                         .foregroundStyle(.white.opacity(0.70))
                         .lineLimit(1)
                 }
@@ -1405,11 +1405,11 @@ struct ListenView: View {
                 MusicCover(path: track.cover ?? "", size: 48, radius: 8)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(track.title)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(pfStyled(size: 16, weight: .medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(track.artistText)
-                        .font(.system(size: 13))
+                        .font(pfStyled(size: 13))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -1495,10 +1495,10 @@ struct ListenView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(value)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(pfStyled(size: 18, weight: .bold))
                         .foregroundStyle(.white)
                     Text("\(count) " + Tr("首"))
-                        .font(.system(size: 11.5, weight: .medium))
+                        .font(pfStyled(size: 11.5, weight: .medium))
                         .foregroundStyle(.white.opacity(0.72))
                 }
                 .padding(13)
@@ -1541,15 +1541,15 @@ struct ListenView: View {
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(track.displayCategory)
-                        .font(.system(size: 10.5, weight: .semibold))
+                        .font(pfStyled(size: 10.5, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.72))
                         .textCase(.uppercase)
                     Text(track.title)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(pfStyled(size: 22, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .lineLimit(2)
                     Text(track.artistText)
-                        .font(.system(size: 13.5, weight: .medium))
+                        .font(pfStyled(size: 13.5, weight: .medium))
                         .foregroundStyle(.white.opacity(0.72))
                         .lineLimit(1)
                 }
@@ -1617,7 +1617,7 @@ struct ListenView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack {
                             Text(Tr(isCurrent ? "正在播放" : "为你推荐"))
-                                .font(.system(size: 11.5, weight: .semibold))
+                                .font(pfStyled(size: 11.5, weight: .semibold))
                                 .tracking(0.8)
                                 .foregroundStyle(.white.opacity(0.86))
                                 .textCase(.uppercase)
@@ -1634,11 +1634,11 @@ struct ListenView: View {
                         if !currentLyric.isEmpty {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(currentLyric)
-                                    .font(.system(size: 16.5, weight: .semibold))
+                                    .font(pfStyled(size: 16.5, weight: .semibold))
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
                                 Text(nextLyric.isEmpty ? " " : nextLyric)
-                                    .font(.system(size: 13.5, weight: .regular))
+                                    .font(pfStyled(size: 13.5, weight: .regular))
                                     .foregroundStyle(.white.opacity(0.62))
                                     .lineLimit(1)
                             }
@@ -1649,12 +1649,12 @@ struct ListenView: View {
                         HStack(alignment: .bottom, spacing: 18) {
                             VStack(alignment: .leading, spacing: 7) {
                                 Text(lead.title)
-                                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                                    .font(pfStyled(size: 34, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
                                     .lineLimit(2)
                                     .minimumScaleFactor(0.76)
                                 Text(lead.artistText)
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(pfStyled(size: 15, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.72))
                                     .lineLimit(1)
                             }
@@ -1709,10 +1709,10 @@ struct ListenView: View {
                     .background(OrbitTheme.jade.opacity(0.10), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(Tr("全部歌曲"))
-                        .font(.system(size: 15.5, weight: .semibold))
+                        .font(pfStyled(size: 15.5, weight: .semibold))
                         .foregroundStyle(.primary)
                     Text("\(tracks.count) " + Tr("首"))
-                        .font(.system(size: 12))
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
@@ -1769,7 +1769,7 @@ struct ListenView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 8) {
                             Text(Tr(player.current == nil ? "今日精选" : "正在播放"))
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(pfStyled(size: 12, weight: .semibold))
                                 .tracking(0.8)
                                 .foregroundStyle(.white.opacity(0.94))
                                 .padding(.horizontal, 12)
@@ -1779,7 +1779,7 @@ struct ListenView: View {
 
                             if !lead.displayCategory.isEmpty {
                                 Text(lead.displayCategory)
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(pfStyled(size: 12, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.76))
                             }
                         }
@@ -1790,13 +1790,13 @@ struct ListenView: View {
                             VStack(alignment: .leading, spacing: 7) {
                                 Spacer(minLength: 0)
                                 Text(lead.title)
-                                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                                    .font(pfStyled(size: 32, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
                                     .lineLimit(2)
                                     .minimumScaleFactor(0.78)
                                     .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
                                 Text(lead.artistText)
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(pfStyled(size: 15, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.76))
                                     .lineLimit(1)
                             }
@@ -1851,10 +1851,10 @@ struct ListenView: View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(Tr("全部歌曲"))
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(pfStyled(size: 17, weight: .semibold))
                         .foregroundStyle(.primary)
                     Text("\(tracks.count) " + Tr("首") + " · " + Tr("查看完整曲库"))
-                        .font(.system(size: 12.5))
+                        .font(pfStyled(size: 12.5))
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
@@ -1887,12 +1887,12 @@ struct ListenView: View {
                             .background(OrbitTheme.jade.opacity(0.10), in: Circle())
 
                         Text(Tr(kind.title))
-                            .font(.system(size: 12.5, weight: .semibold))
+                            .font(pfStyled(size: 12.5, weight: .semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                         Text(libraryCount(kind))
-                            .font(.system(size: 10.5))
+                            .font(pfStyled(size: 10.5))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -1940,7 +1940,7 @@ struct ListenView: View {
     private func musicSectionHeader(_ title: String, refresh: Bool = false) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
-                .font(.title3.weight(.bold))
+                .font(pfStyled(size: 20, weight: .bold))
                 .foregroundStyle(.primary)
             Spacer(minLength: 8)
             if refresh {
@@ -1951,7 +1951,7 @@ struct ListenView: View {
                         Image(systemName: "arrow.triangle.2.circlepath")
                         Text(Tr("换一批"))
                     }
-                    .font(.caption.weight(.medium))
+                    .font(pfStyled(size: 12, weight: .medium))
                     .foregroundStyle(OrbitTheme.jade)
                 }
                 .buttonStyle(.plain)
@@ -1979,11 +1979,11 @@ struct ListenView: View {
                 }
 
                 Text(track.title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(pfStyled(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(track.artistText)
-                    .font(.caption)
+                    .font(pfStyled(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -2014,14 +2014,14 @@ struct ListenView: View {
 
         HStack(spacing: 10) {
             Text(cat.isEmpty ? Tr("全部歌曲") : cat)
-                .font(.system(size: 19, weight: .bold))
+                .font(pfStyled(size: 19, weight: .bold))
                 .foregroundStyle(.primary)
             Spacer(minLength: 8)
             Button {
                 openCategory(cat)
             } label: {
                 Label(Tr("随机播放"), systemImage: "shuffle")
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(pfStyled(size: 12.5, weight: .semibold))
                     .foregroundStyle(OrbitTheme.jade)
                     .padding(.horizontal, 11)
                     .frame(height: 31)
@@ -2034,7 +2034,7 @@ struct ListenView: View {
 
         if matched.isEmpty {
             Text(Tr("这个分类还没有歌曲"))
-                .font(.system(size: 14))
+                .font(pfStyled(size: 14))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 50)
@@ -2058,7 +2058,7 @@ struct ListenView: View {
         } label: {
             VStack(spacing: 5) {
                 Text(title)
-                    .font(.system(size: 14.5, weight: selected ? .semibold : .regular))
+                    .font(pfStyled(size: 14.5, weight: selected ? .semibold : .regular))
                     .foregroundStyle(selected ? Color.primary : Color.secondary)
                 Capsule()
                     .fill(selected ? OrbitTheme.jade : Color.clear)
@@ -2079,7 +2079,7 @@ struct ListenView: View {
                         .frame(width: 24)
                 } else if let rank {
                     Text(String(format: "%02d", rank))
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(pfStyled(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(rank <= 3 ? OrbitTheme.jade : Color.secondary)
                         .frame(width: 26, alignment: .leading)
                 }
@@ -2101,15 +2101,15 @@ struct ListenView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(track.title)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(pfStyled(size: 16, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(track.artistText)
-                        .font(.system(size: 13))
+                        .font(pfStyled(size: 13))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                     Text(track.displayCategory)
-                        .font(.system(size: 10.5, weight: .medium))
+                        .font(pfStyled(size: 10.5, weight: .medium))
                         .foregroundStyle(OrbitTheme.jade.opacity(0.86))
                 }
 
@@ -2156,9 +2156,9 @@ struct ListenView: View {
                         .foregroundStyle(OrbitTheme.jade)
                 }
                 Text(Tr("朋友推荐还没有内容"))
-                    .font(.headline)
+                    .font(pfStyled(size: 17, weight: .semibold))
                 Text(Tr("你在这一页放一首歌，好友的「朋友推荐」里就会看到你在听什么；\n反过来，好友在听的时候这里也会出现。"))
-                    .font(.footnote)
+                    .font(pfStyled(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
@@ -2175,7 +2175,7 @@ struct ListenView: View {
             }
             .padding(.horizontal, 16)
             Text(Tr("好友最近 2 小时在听的歌"))
-                .font(.caption)
+                .font(pfStyled(size: 12))
                 .foregroundStyle(.tertiary)
                 .padding(.top, 14)
         }
@@ -2198,15 +2198,15 @@ struct ListenView: View {
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(friend.name)
-                        .font(.subheadline.weight(.semibold))
+                        .font(pfStyled(size: 15, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(track.title)
-                        .font(.body.weight(.medium))
+                        .font(pfStyled(size: 17, weight: .medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(track.artistText)
-                        .font(.caption)
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -2252,7 +2252,7 @@ struct ListenView: View {
                     Text(Tr("删除选中") + " (\(pickedTracks.count))")
                     Spacer()
                 }
-                .font(.subheadline.weight(.medium))
+                .font(pfStyled(size: 15, weight: .medium))
                 .foregroundStyle(.red)
                 .padding(.horizontal, 14)
                 .frame(height: 44)
@@ -2264,7 +2264,7 @@ struct ListenView: View {
 
             if !busyText.isEmpty {
                 Text(busyText)
-                    .font(.footnote)
+                    .font(pfStyled(size: 13))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -2286,7 +2286,7 @@ struct ListenView: View {
                     .font(.system(size: 21, weight: .semibold))
                     .foregroundStyle(OrbitTheme.jade)
                 Text(title)
-                    .font(.caption.weight(.medium))
+                    .font(pfStyled(size: 12, weight: .medium))
                     .foregroundStyle(.primary)
             }
             .frame(maxWidth: .infinity)
@@ -2308,7 +2308,7 @@ struct ListenView: View {
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(OrbitTheme.jade)
                         Text(Tr(kind.title))
-                            .font(.caption)
+                            .font(pfStyled(size: 12))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                     }
@@ -2342,11 +2342,11 @@ struct ListenView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(track.title)
-                        .font(.body)
+                        .font(pfStyled(size: 17))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(track.artistText)
-                        .font(.caption)
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -2390,9 +2390,9 @@ struct ListenView: View {
                 Avatar(path: friend.avatar ?? "", size: 46, radius: 23)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(friend.name)
-                        .font(.body)
+                        .font(pfStyled(size: 17))
                     Text(friend.line)
-                        .font(.caption)
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -3187,7 +3187,7 @@ struct MusicPlayingView: View {
                     Image(systemName: "text.alignleft")
                         .font(.system(size: 24, weight: .light))
                     Text(Tr("这首歌还没有歌词"))
-                        .font(.system(size: 14, weight: .medium))
+                        .font(pfStyled(size: 14, weight: .medium))
                 }
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -3288,9 +3288,9 @@ struct MusicPlayingView: View {
                                 .font(.title2)
                                 .foregroundStyle(.secondary)
                             Text(Tr("还没有播放列表"))
-                                .font(.body)
+                                .font(pfStyled(size: 17))
                             Text(Tr("去「听一听」里点一首歌，就能在这里切上一首/下一首"))
-                                .font(.footnote)
+                                .font(pfStyled(size: 13))
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                         }
@@ -3306,10 +3306,10 @@ struct MusicPlayingView: View {
                                     MusicCover(path: track.cover ?? "", size: 44, radius: 7)
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(track.title)
-                                            .font(.body)
+                                            .font(pfStyled(size: 17))
                                             .lineLimit(1)
                                         Text(track.artistText)
-                                            .font(.caption)
+                                            .font(pfStyled(size: 12))
                                             .foregroundStyle(.secondary)
                                             .lineLimit(1)
                                     }
@@ -3490,7 +3490,7 @@ struct MusicPlayingView: View {
                     PushCenter.forceMusicPortrait()
                 } label: {
                     Label(Tr("退出横屏"), systemImage: "rectangle.portrait")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(pfStyled(size: 11, weight: .semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 9)
                         .frame(height: 32)
@@ -3501,7 +3501,7 @@ struct MusicPlayingView: View {
             }
 
             playbackMenu
-                .font(.system(size: 16, weight: .semibold))
+                .font(pfStyled(size: 16, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
@@ -3526,11 +3526,11 @@ struct MusicPlayingView: View {
     private var titleBlock: some View {
         VStack(spacing: 5) {
             Text(t?.title ?? "")
-                .font(.system(size: 26, weight: .semibold, design: .rounded))
+                .font(pfStyled(size: 26, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
             Text(t?.artistText ?? "")
-                .font(.system(size: 17, weight: .regular))
+                .font(pfStyled(size: 17, weight: .regular))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -3540,12 +3540,12 @@ struct MusicPlayingView: View {
     private var compactTitleBlock: some View {
         VStack(spacing: 3) {
             Text(t?.title ?? "")
-                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .font(pfStyled(size: 20, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
             Text(t?.artistText ?? "")
-                .font(.system(size: 15, weight: .regular))
+                .font(pfStyled(size: 15, weight: .regular))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -3625,7 +3625,7 @@ struct MusicPlayingView: View {
                 Text(musicTime(player.total))
                     .foregroundStyle(.secondary)
             }
-            .font(.system(size: compact ? 13 : 14,
+            .font(pfStyled(size: compact ? 13 : 14,
                           weight: .medium,
                           design: .monospaced))
             .padding(.horizontal, 3)

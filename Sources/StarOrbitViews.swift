@@ -34,7 +34,7 @@ struct StarOrbitHero: View {
                         Image(systemName: "point.3.connected.trianglepath.dotted")
                             .font(.system(size: 11, weight: .semibold))
                         Text(kicker)
-                            .font(.system(size: 9, weight: .bold))
+                            .font(pfStyled(size: 9, weight: .bold))
                             .tracking(1.25)
                     }
                     .foregroundStyle(Color.white.opacity(0.76))
@@ -51,10 +51,10 @@ struct StarOrbitHero: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(pfStyled(size: 22, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     Text(subtitle)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(pfStyled(size: 12, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.74))
                         .lineLimit(2)
                 }
@@ -64,10 +64,10 @@ struct StarOrbitHero: View {
                         ForEach(metrics) { metric in
                             HStack(spacing: 5) {
                                 Text(metric.value)
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .font(pfStyled(size: 12, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
                                 Text(metric.label)
-                                    .font(.system(size: 10.5, weight: .medium))
+                                    .font(pfStyled(size: 10.5, weight: .medium))
                                     .foregroundStyle(Color.white.opacity(0.64))
                             }
                             .padding(.horizontal, 10)
@@ -131,7 +131,7 @@ struct StarOrbitTrailingPill: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 10.5, weight: .semibold))
+            .font(pfStyled(size: 10.5, weight: .semibold))
             .foregroundStyle(accent)
             .padding(.horizontal, 9)
             .frame(height: 24)
@@ -546,11 +546,11 @@ struct StarOrbitTagsView: View {
                 StarOrbitIconBadge(symbol: "tag.fill", accent: OrbitTheme.jade)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(group.name)
-                        .font(.system(size: 16.5, weight: .semibold))
+                        .font(pfStyled(size: 16.5, weight: .semibold))
                         .foregroundStyle(OrbitTheme.ink)
                         .lineLimit(1)
                     Text(group.users.prefix(3).map(\.name).joined(separator: " · "))
-                        .font(.system(size: 12.5))
+                        .font(pfStyled(size: 12.5))
                         .foregroundStyle(OrbitTheme.secondary)
                         .lineLimit(1)
                 }
@@ -570,10 +570,10 @@ struct StarOrbitTagsView: View {
         VStack(spacing: 12) {
             StarOrbitIconBadge(symbol: "sparkles", accent: OrbitTheme.jade, size: 54)
             Text(Tr("还没有标签"))
-                .font(.system(size: 17, weight: .semibold))
+                .font(pfStyled(size: 17, weight: .semibold))
                 .foregroundStyle(OrbitTheme.ink)
             Text(Tr("在联系人资料里设置标签，这里会自动形成你的关系星图"))
-                .font(.system(size: 13))
+                .font(pfStyled(size: 13))
                 .foregroundStyle(OrbitTheme.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -621,10 +621,10 @@ struct StarOrbitTagDetailView: View {
                                     Avatar(path: user.avatarPath, size: 44, radius: 12)
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(user.name)
-                                            .font(.system(size: 16, weight: .medium))
+                                            .font(pfStyled(size: 16, weight: .medium))
                                             .foregroundStyle(OrbitTheme.ink)
                                         Text("@" + (user.username ?? ""))
-                                            .font(.system(size: 12))
+                                            .font(pfStyled(size: 12))
                                             .foregroundStyle(OrbitTheme.secondary)
                                     }
                                     Spacer(minLength: 8)

@@ -201,7 +201,7 @@ struct CardShareView: View {
                                 .font(pf(10.5))
                                 .foregroundColor(C.subLabel)
                             Text(decode(user.username ?? "—"))
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .font(pfStyled(size: 11, weight: .medium, design: .monospaced))
                                 .foregroundColor(C.label.opacity(0.76))
                                 .lineLimit(1)
                         }

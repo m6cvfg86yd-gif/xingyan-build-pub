@@ -118,7 +118,7 @@ struct NewsFeedView: View {
                 Spacer(minLength: 0)
                 Text(Tr("下拉刷新"))
             }
-            .font(.caption2)
+            .font(pfStyled(size: 11))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 18)
         }
@@ -132,7 +132,7 @@ struct NewsFeedView: View {
             ProgressView()
                 .tint(accent)
             Text(Tr("正在整理最新内容…"))
-                .font(.footnote)
+                .font(pfStyled(size: 13))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -145,9 +145,9 @@ struct NewsFeedView: View {
                 .font(.system(size: 32, weight: .light))
                 .foregroundStyle(.secondary)
             Text(failed ? Tr("暂时没有取到内容") : Tr("这里还没有新闻"))
-                .font(.headline)
+                .font(pfStyled(size: 17, weight: .semibold))
             Text(failed ? Tr("检查网络后再试一次") : Tr("稍后下拉刷新"))
-                .font(.footnote)
+                .font(pfStyled(size: 13))
                 .foregroundStyle(.secondary)
             Button(Tr("重新加载")) { Task { await load(tab) } }
                 .buttonStyle(.bordered)
@@ -191,11 +191,11 @@ struct NewsFeedView: View {
     private func premiumSectionTitle(_ title: String, trailing: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
-                .font(.title3.weight(.semibold))
+                .font(pfStyled(size: 20, weight: .semibold))
                 .foregroundStyle(.primary)
             Spacer(minLength: 8)
             Text(trailing)
-                .font(.caption)
+                .font(pfStyled(size: 12))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -209,13 +209,13 @@ struct NewsFeedView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         premiumTag(item)
                         Text(item.title)
-                            .font(.system(size: 22, weight: .semibold))
+                            .font(pfStyled(size: 22, weight: .semibold))
                             .foregroundStyle(.primary)
                             .multilineTextAlignment(.leading)
                             .lineLimit(3)
                         if let summary = item.summary, !summary.isEmpty {
                             Text(summary)
-                                .font(.subheadline)
+                                .font(pfStyled(size: 15))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
                         }
@@ -236,7 +236,7 @@ struct NewsFeedView: View {
                         VStack(alignment: .leading, spacing: 9) {
                             premiumTag(item, dark: true)
                             Text(item.title)
-                                .font(.system(size: 22, weight: .semibold))
+                                .font(pfStyled(size: 22, weight: .semibold))
                                 .foregroundStyle(.white)
                                 .multilineTextAlignment(.leading)
                                 .lineLimit(3)
@@ -262,7 +262,7 @@ struct NewsFeedView: View {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(item.title)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(pfStyled(size: 16, weight: .semibold))
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
@@ -270,7 +270,7 @@ struct NewsFeedView: View {
                 }
                 if let summary = item.summary, !summary.isEmpty {
                     Text(summary)
-                        .font(.system(size: 13.5))
+                        .font(pfStyled(size: 13.5))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
@@ -292,7 +292,7 @@ struct NewsFeedView: View {
     private func premiumTag(_ item: NewsItem, dark: Bool = false) -> some View {
         if !item.tagText.isEmpty {
             Text(item.tagText)
-                .font(.caption2.weight(.semibold))
+                .font(pfStyled(size: 11, weight: .semibold))
                 .foregroundStyle(dark ? .white : C.red)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
@@ -320,7 +320,7 @@ struct NewsFeedView: View {
                 Text(hotText(item.hotValue))
             }
         }
-        .font(.caption)
+        .font(pfStyled(size: 12))
         .foregroundStyle(onDark ? Color.white.opacity(0.78) : C.subLabel)
         .lineLimit(1)
     }
@@ -355,7 +355,7 @@ struct NewsFeedView: View {
         let number = item.order > 0 ? item.order : index + 1
         return HStack(alignment: .top, spacing: 13) {
             Text("\(number)")
-                .font(.system(size: number <= 3 ? 18 : 16,
+                .font(pfStyled(size: number <= 3 ? 18 : 16,
                               weight: number <= 3 ? .bold : .semibold))
                 .monospacedDigit()
                 .foregroundStyle(number <= 3 ? C.red : C.subLabel)
@@ -364,7 +364,7 @@ struct NewsFeedView: View {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(item.title)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(pfStyled(size: 16, weight: .medium))
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
@@ -384,7 +384,7 @@ struct NewsFeedView: View {
             Spacer()
             Button { nextBatch() } label: {
                 Label(Tr("换一批"), systemImage: "arrow.clockwise")
-                    .font(.subheadline.weight(.medium))
+                    .font(pfStyled(size: 15, weight: .medium))
             }
             .buttonStyle(.bordered)
             .disabled(loading)

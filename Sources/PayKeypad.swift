@@ -85,7 +85,7 @@ struct PayKeypadView: View {
                         Image(systemName: "delete.left")
                             .font(.system(size: 22, weight: .regular))
                     } else {
-                        Text(key).font(.system(size: 26, weight: .regular))
+                        Text(key).font(pfStyled(size: 26, weight: .regular))
                     }
                 }
                 .foregroundColor(C.label)

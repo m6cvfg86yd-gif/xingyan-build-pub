@@ -123,7 +123,7 @@ struct DDAdCard: View {
                 ZStack(alignment: .bottomLeading) {
                     LinearGradient(colors: [Color(hex: top), Color(hex: bottom)],
                                    startPoint: .topLeading, endPoint: .bottomTrailing)
-                    Text(emoji).font(.system(size: 64))
+                    Text(emoji).font(pfStyled(size: 64))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     Text(Tr("广告"))
                         .font(pf(9.5)).foregroundColor(.white.opacity(0.92))
@@ -179,7 +179,7 @@ struct DDAdStrip: View {
                 ZStack(alignment: .bottomTrailing) {
                     LinearGradient(colors: [Color(hex: top), Color(hex: bottom)],
                                    startPoint: .topLeading, endPoint: .bottomTrailing)
-                    Text(emoji).font(.system(size: 26)).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Text(emoji).font(pfStyled(size: 26)).frame(maxWidth: .infinity, maxHeight: .infinity)
                     Text(Tr("广告")).font(pf(8.5)).foregroundColor(.white.opacity(0.9))
                         .padding(.horizontal, 4).frame(height: 13)
                         .background(Capsule().fill(Color.black.opacity(0.25)))
@@ -263,7 +263,7 @@ struct DDChannelRow: View {
                         Image(systemName: item.symbol)
                             .font(.system(size: 20, weight: .medium)).foregroundColor(tint)
                     } else {
-                        Text(item.emojiText).font(.system(size: 22))
+                        Text(item.emojiText).font(pfStyled(size: 22))
                     }
                 }
                 Text(Tr(item.title)).font(pf(11.5, .medium)).foregroundColor(DDColor.ink)

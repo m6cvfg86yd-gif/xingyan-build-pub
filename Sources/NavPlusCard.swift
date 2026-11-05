@@ -40,7 +40,7 @@ struct NavPlusCard: View {
                         )
 
                         Text(item.title)
-                            .font(.system(size: 14.5, weight: .medium))
+                            .font(pfStyled(size: 14.5, weight: .medium))
                             .foregroundColor(OrbitTheme.ink)
                         Spacer(minLength: 0)
                     }

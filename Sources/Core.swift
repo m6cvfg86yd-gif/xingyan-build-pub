@@ -464,9 +464,96 @@ enum C {
     static let loginGreen  = Color(hex: 0x1DC9BD)
 }
 
-var fontScale: CGFloat { UIConfig.scale }
+enum AppFontPrefs {
+    private static let familyKey = "chris.appFontFamily"
+    private static let scaleKey = "chris.appFontScale"
+    private static var cachedFamily = (UserDefaults.standard.string(forKey: familyKey) ?? "")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    private static var cachedScale: CGFloat = {
+        let raw = UserDefaults.standard.double(forKey: scaleKey)
+        guard raw >= 0.80, raw <= 1.40 else { return 1 }
+        return CGFloat(raw)
+    }()
+
+    static var family: String { cachedFamily }
+
+    static var scale: CGFloat { cachedScale }
+
+    static func setFamily(_ value: String) {
+        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        cachedFamily = clean
+        UserDefaults.standard.set(clean, forKey: familyKey)
+    }
+
+    static func setScale(_ value: CGFloat) {
+        cachedScale = min(1.40, max(0.80, value))
+        UserDefaults.standard.set(Double(cachedScale), forKey: scaleKey)
+    }
+}
+
+@MainActor
+final class AppFontStore: ObservableObject {
+    static let shared = AppFontStore()
+
+    @Published private(set) var revision = 0
+    private(set) var family = AppFontPrefs.family
+    private(set) var scale = AppFontPrefs.scale
+
+    private init() {}
+
+    func setFamily(_ value: String, canChoose: Bool) {
+        guard canChoose else { return }
+        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let available = clean.isEmpty || UIFont.familyNames.contains(clean)
+        guard available else { return }
+        family = clean
+        AppFontPrefs.setFamily(clean)
+        changed()
+    }
+
+    func setScale(_ value: CGFloat) {
+        scale = min(1.40, max(0.80, value))
+        AppFontPrefs.setScale(scale)
+        changed()
+    }
+
+    private func changed() {
+        revision &+= 1
+        NotificationCenter.default.post(name: .chrisUIPrefsChanged, object: nil)
+    }
+}
+
+var fontScale: CGFloat { UIConfig.scale * AppFontPrefs.scale }
+
+func appFontFaceName(in family: String, weight: Font.Weight) -> String? {
+    let names = UIFont.fontNames(forFamilyName: family)
+    guard !names.isEmpty else { return nil }
+    let candidates: [String]
+    if weight == .medium {
+        candidates = ["medium", "semibold", "demibold", "bold", "regular"]
+    } else if weight == .semibold || weight == .bold || weight == .heavy || weight == .black {
+        candidates = ["semibold", "demibold", "bold", "heavy", "black", "medium", "regular"]
+    } else if weight == .light || weight == .thin || weight == .ultraLight {
+        candidates = ["light", "thin", "ultralight", "regular", "book"]
+    } else {
+        candidates = ["regular", "book", "roman", "text", "medium"]
+    }
+    for needle in candidates {
+        if let match = names.first(where: { $0.lowercased().contains(needle) }) {
+            return match
+        }
+    }
+    return names.first
+}
 
 func pfName(_ weight: Font.Weight) -> String? {
+    let selected = AppFontPrefs.family
+    if !selected.isEmpty,
+       let name = appFontFaceName(in: selected, weight: weight),
+       UIFont(name: name, size: 12) != nil {
+        return name
+    }
+
     var want = "PingFangSC-Regular"
     if weight == .medium {
         want = "PingFangSC-Medium"
@@ -489,11 +576,34 @@ func pf(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
     pfExact(max(9, (size * fontScale * CareMode.scale).rounded()), weight)
 }
 
+func pfStyled(_ size: CGFloat,
+              _ weight: Font.Weight = .regular,
+              design: Font.Design = .default) -> Font {
+    let scaled = max(9, (size * fontScale * CareMode.scale).rounded())
+    if !AppFontPrefs.family.isEmpty,
+       let name = pfName(weight),
+       let font = UIFont(name: name, size: scaled) {
+        return Font(font)
+    }
+    return .system(size: scaled, weight: weight, design: design)
+}
+
+func pfStyled(size: CGFloat,
+              weight: Font.Weight = .regular,
+              design: Font.Design = .default) -> Font {
+    pfStyled(size, weight, design: design)
+}
+
 func systemTextFont(_ size: CGFloat,
                     _ weight: Font.Weight = .regular,
                     relativeTo style: UIFont.TextStyle = .body) -> Font {
     let preferred = max(11, size * fontScale * CareMode.scale)
     let scaled = UIFontMetrics(forTextStyle: style).scaledValue(for: preferred)
+    if !AppFontPrefs.family.isEmpty,
+       let name = pfName(weight),
+       let font = UIFont(name: name, size: scaled.rounded()) {
+        return Font(font)
+    }
     return .system(size: scaled.rounded(), weight: weight)
 }
 
@@ -1138,7 +1248,7 @@ struct GroupAvatarMosaic: View {
     private func tile(_ user: User?, index: Int, count: Int) -> some View {
         if memberIds.count > 9, index == 8 {
             Text("+\(memberIds.count - 8)")
-                .font(.system(size: max(9, size * 0.105), weight: .medium))
+                .font(pfStyled(size: max(9, size * 0.105), weight: .medium))
                 .foregroundColor(C.subLabel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.dyn(0xE7E7EA, 0x2B3037))
@@ -2050,7 +2160,7 @@ struct FlexIcon: View {
                 RemoteImage(path: v).frame(width: size, height: size)
             } else {
                 Text(v)
-                    .font(.system(size: size * 0.86))
+                    .font(pfStyled(size: size * 0.86))
                     .foregroundColor(color)
                     .frame(width: size, height: size)
             }

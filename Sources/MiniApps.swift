@@ -133,7 +133,7 @@ struct MiniAppCardBubble: View {
                     .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
                 Text(info.icon?.isEmpty == false ? info.icon! : (info.isGame ? "🕹️" : "🧩"))
-                    .font(.system(size: 26))
+                    .font(pfStyled(size: 26))
                 if let cv = info.cover, !cv.isEmpty {
                     RemoteImage(path: cv).frame(width: 52, height: 52)
                         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
@@ -326,19 +326,19 @@ struct MiniAppsView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.name)
-                        .font(.body)
+                        .font(pfStyled(size: 17))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     if let desc = item.desc, !desc.isEmpty {
                         Text(desc)
-                            .font(.caption)
+                            .font(pfStyled(size: 12))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
 
                     Text(categoryTitle(for: item))
-                        .font(.caption2)
+                        .font(pfStyled(size: 11))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
@@ -385,7 +385,7 @@ struct MiniAppsView: View {
                 .fill(Color(uiColor: .tertiarySystemFill))
 
             Text(item.iconText)
-                .font(.system(size: 22))
+                .font(pfStyled(size: 22))
 
             if let cover = item.cover, !cover.isEmpty {
                 RemoteImage(path: cover)
@@ -403,9 +403,9 @@ struct MiniAppsView: View {
                 .font(.title2)
                 .foregroundStyle(.secondary)
             Text(Tr("这个能力已经预留，具体服务还没有接入"))
-                .font(.body)
+                .font(pfStyled(size: 17))
             Text(Tr("后台添加小程序入口后会自动出现在这里，不用重新出包"))
-                .font(.caption)
+                .font(pfStyled(size: 12))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -505,10 +505,10 @@ private struct MiniAppCategoryListView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.body)
+                        .font(pfStyled(size: 17))
                         .foregroundStyle(.primary)
                     Text(subtitle)
-                        .font(.caption)
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.secondary)
                 }
 
@@ -516,7 +516,7 @@ private struct MiniAppCategoryListView: View {
 
                 if count > 0 {
                     Text("\(count)")
-                        .font(.caption)
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.secondary)
                 }
 
@@ -596,7 +596,7 @@ struct MiniAppRuntimeView: View {
                             box.web?.evaluateJavaScript("window.chrisRank && chrisRank.show()")
                         } label: {
                             Text("🏆")
-                                .font(.system(size: 20))
+                                .font(pfStyled(size: 20))
                                 .frame(width: 42, height: 42)
                                 .background(Circle().fill(Color.black.opacity(0.35)))
                                 .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.5))

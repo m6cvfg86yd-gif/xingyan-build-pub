@@ -27,11 +27,11 @@ struct MusicDockedPlayerBar: View {
             MusicCover(path: player.current?.cover ?? "", size: 40, radius: 8)
             VStack(alignment: .leading, spacing: 3) {
                 Text(player.current?.title ?? "")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(pfStyled(size: 16, weight: .medium))
                     .foregroundColor(.primary)
                     .lineLimit(1)
                 Text(player.current?.artistText ?? "")
-                    .font(.system(size: 13))
+                    .font(pfStyled(size: 13))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }

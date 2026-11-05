@@ -147,7 +147,7 @@ struct ChatBackgroundSheet: View {
                                                 ? Color.accentColor : Color.secondary.opacity(0.18),
                                                 lineWidth: normalizedChatBackground(current) == item.path ? 2.5 : 0.7))
                                     Text(Tr(item.name))
-                                        .font(.footnote)
+                                        .font(pfStyled(size: 13))
                                         .foregroundColor(.secondary)
                                 }
                                 .frame(maxWidth: .infinity)
@@ -235,7 +235,7 @@ struct ChatBackgroundSheet: View {
             VStack(spacing: 10) {
                 HStack {
                     Text(Tr("今天"))
-                        .font(.caption2)
+                        .font(pfStyled(size: 11))
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 8)
                         .frame(height: 22)
@@ -244,7 +244,7 @@ struct ChatBackgroundSheet: View {
                 }
                 HStack {
                     Text(Tr("默认背景预览"))
-                        .font(.system(size: 14))
+                        .font(pfStyled(size: 14))
                         .foregroundColor(.primary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
@@ -254,7 +254,7 @@ struct ChatBackgroundSheet: View {
                 HStack {
                     Spacer(minLength: 78)
                     Text(Tr("黑白都保持清晰"))
-                        .font(.system(size: 14))
+                        .font(pfStyled(size: 14))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)

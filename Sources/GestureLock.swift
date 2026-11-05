@@ -148,7 +148,7 @@ struct PatternPad: View {
 
             if let n = idx {
                 Text(String(n + 1))
-                    .font(.system(size: dot * 0.19, weight: .semibold, design: .rounded))
+                    .font(pfStyled(size: dot * 0.19, weight: .semibold, design: .rounded))
                     .foregroundColor(.white.opacity(0.92))
             }
         }
@@ -445,7 +445,7 @@ struct GestureSetupView: View {
                                 .foregroundColor(.white)
                         } else {
                             Text(String(i + 1))
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(pfStyled(size: 11, weight: .semibold))
                                 .foregroundColor(i == stageIndex ? .white : C.label)
                         }
                     }

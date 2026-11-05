@@ -123,7 +123,7 @@ struct HealthCheckView: View {
             }
             if !r.detail.isEmpty {
                 Text(r.detail)
-                    .font(.system(size: 11.5, design: .monospaced))
+                    .font(pfStyled(size: 11.5, design: .monospaced))
                     .foregroundColor(r.state == 2 ? C.red : C.subLabel)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -133,7 +133,7 @@ struct PairApproveView: View {
 
                     HStack(spacing: 10) {
                         TextField("6 位数字", text: $code)
-                            .font(.system(size: 26, weight: .bold, design: .monospaced))
+                            .font(pfStyled(size: 26, weight: .bold, design: .monospaced))
                             .keyboardType(.numberPad)
                             .tracking(6)
                             .focused($focused)

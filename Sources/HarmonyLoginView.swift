@@ -117,7 +117,7 @@ struct HarmonyLoginView: View {
                         ProgressView()
                             .tint(accent)
                         Text(Tr("正在进入星言…"))
-                            .font(.system(size: 13, weight: .medium))
+                            .font(pfStyled(size: 13, weight: .medium))
                             .foregroundColor(ink)
                     }
                     .padding(.horizontal, 24)
@@ -168,13 +168,13 @@ struct HarmonyLoginView: View {
             }
 
             Text(brandName)
-                .font(.system(size: 34, weight: .bold))
+                .font(pfStyled(size: 34, weight: .bold))
                 .foregroundColor(ink)
                 .tracking(3)
                 .padding(.top, 12)
 
             Text(brandSubtitle)
-                .font(.system(size: 14.5))
+                .font(pfStyled(size: 14.5))
                 .foregroundColor(subInk)
                 .tracking(0.6)
                 .padding(.top, 9)
@@ -185,19 +185,19 @@ struct HarmonyLoginView: View {
     private var phoneFields: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(Tr("手机号"))
-                .font(.system(size: 13.5, weight: .medium))
+                .font(pfStyled(size: 13.5, weight: .medium))
                 .foregroundColor(ink)
 
             HStack(spacing: 12) {
                 Text("+86")
-                    .font(.system(size: 16.5, weight: .medium))
+                    .font(pfStyled(size: 16.5, weight: .medium))
                     .foregroundColor(ink)
                 Rectangle().fill(fieldStroke).frame(width: 0.7, height: 20)
                 TextField("请输入手机号", text: $phone)
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
                     .focused($focus, equals: .phone)
-                    .font(.system(size: 16.5))
+                    .font(pfStyled(size: 16.5))
                     .foregroundColor(ink)
                     .tint(accent)
                     .onChange(of: phone) { value in
@@ -219,7 +219,7 @@ struct HarmonyLoginView: View {
                         .keyboardType(.numberPad)
                         .textContentType(.oneTimeCode)
                         .focused($focus, equals: .code)
-                        .font(.system(size: 16.5))
+                        .font(pfStyled(16.5))
                         .foregroundColor(ink)
                         .tint(accent)
                         .onChange(of: code) { value in
@@ -229,7 +229,7 @@ struct HarmonyLoginView: View {
                     Button(countdown > 0 ? "\(countdown) 秒" : "重新获取") {
                         if countdown == 0 { requestCode() }
                     }
-                    .font(.system(size: 13.5, weight: .medium))
+                    .font(pfStyled(13.5, .medium))
                     .foregroundColor(countdown > 0 ? subInk : accent)
                     .disabled(countdown > 0)
                 }
@@ -252,7 +252,7 @@ struct HarmonyLoginView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .focused($focus, equals: .user)
-                .font(.system(size: 16.5))
+                .font(pfStyled(16.5))
                 .foregroundColor(ink)
                 .tint(accent)
                 .padding(.horizontal, 18)
@@ -276,7 +276,7 @@ struct HarmonyLoginView: View {
                 .autocorrectionDisabled()
                 .privacySensitive()
                 .focused($focus, equals: .pass)
-                .font(.system(size: 16.5))
+                .font(pfStyled(16.5))
                 .foregroundColor(ink)
                 .tint(accent)
 
@@ -310,7 +310,7 @@ struct HarmonyLoginView: View {
                     hint = ""
                 }
             }
-            .font(.system(size: 13.5))
+            .font(pfStyled(13.5))
             .foregroundColor(subInk)
             .buttonStyle(.plain)
             .frame(maxWidth: 332)
@@ -323,7 +323,7 @@ struct HarmonyLoginView: View {
                             .scaleEffect(0.82)
                     }
                     Text(primaryTitle)
-                        .font(.system(size: 17, weight: .medium))
+                        .font(pfStyled(size: 17, weight: .medium))
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
@@ -339,12 +339,12 @@ struct HarmonyLoginView: View {
 
             if !message.isEmpty {
                 Text(message)
-                    .font(.system(size: 12.5))
+                    .font(pfStyled(size: 12.5))
                     .foregroundColor(C.red)
                     .frame(maxWidth: 332, alignment: .leading)
             } else if !hint.isEmpty {
                 Text(hint)
-                    .font(.system(size: 12.5))
+                    .font(pfStyled(size: 12.5))
                     .foregroundColor(subInk)
                     .frame(maxWidth: 332, alignment: .leading)
             }
@@ -371,7 +371,7 @@ struct HarmonyLoginView: View {
             .buttonStyle(.plain)
 
             Text(.init("我已阅读并同意 [《用户协议》](terms://0) 和 [《隐私政策》](terms://1)"))
-                .font(.system(size: 12.2))
+                .font(pfStyled(size: 12.2))
                 .foregroundColor(subInk)
                 .tint(accent)
                 .environment(\.openURL, OpenURLAction { url in

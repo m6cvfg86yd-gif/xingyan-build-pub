@@ -93,13 +93,13 @@ struct StarForwardHero: View {
                     Image(systemName: "point.3.connected.trianglepath.dotted")
                         .font(.system(size: 10.5, weight: .semibold))
                     Text(kicker)
-                        .font(.system(size: 9.5, weight: .bold))
+                        .font(pfStyled(size: 9.5, weight: .bold))
                         .tracking(1.15)
                     Spacer(minLength: 10)
 
                     if !badge.isEmpty {
                         Text(badge)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(pfStyled(size: 10, weight: .semibold))
                             .padding(.horizontal, 9)
                             .frame(height: 23)
                             .background(Capsule().fill(Color.white.opacity(0.13)))
@@ -111,10 +111,10 @@ struct StarForwardHero: View {
                 HStack(alignment: .bottom, spacing: 12) {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(title)
-                            .font(.system(size: 23, weight: .bold, design: .rounded))
+                            .font(pfStyled(size: 23, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                         Text(subtitle)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(pfStyled(size: 12, weight: .medium))
                             .foregroundStyle(Color.white.opacity(0.72))
                             .lineLimit(2)
                     }
@@ -212,7 +212,7 @@ struct StarForwardQuickTarget: View {
             }
 
             Text(name)
-                .font(.system(size: 10.5, weight: selected ? .semibold : .medium))
+                .font(pfStyled(size: 10.5, weight: selected ? .semibold : .medium))
                 .foregroundStyle(selected ? OrbitTheme.jade : OrbitTheme.secondary)
                 .lineLimit(1)
                 .frame(width: 66)
@@ -246,12 +246,12 @@ struct StarForwardTargetRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(name)
-                        .font(.system(size: 15.5, weight: .semibold))
+                        .font(pfStyled(size: 15.5, weight: .semibold))
                         .foregroundStyle(OrbitTheme.ink)
                         .lineLimit(1)
                     if let countBadge, !countBadge.isEmpty {
                         Text(countBadge)
-                            .font(.system(size: 9, weight: .bold))
+                            .font(pfStyled(size: 9, weight: .bold))
                             .foregroundStyle(OrbitTheme.jade)
                             .padding(.horizontal, 6)
                             .frame(height: 17)
@@ -259,7 +259,7 @@ struct StarForwardTargetRow: View {
                     }
                 }
                 Text(subtitle)
-                    .font(.system(size: 11.5))
+                    .font(pfStyled(size: 11.5))
                     .foregroundStyle(OrbitTheme.secondary)
                     .lineLimit(1)
             }
@@ -325,7 +325,7 @@ struct StarForwardEmpty: View {
                     .foregroundStyle(OrbitTheme.jade.opacity(0.66))
             }
             Text(text)
-                .font(.system(size: 12.5))
+                .font(pfStyled(size: 12.5))
                 .foregroundStyle(OrbitTheme.secondary)
                 .multilineTextAlignment(.center)
         }

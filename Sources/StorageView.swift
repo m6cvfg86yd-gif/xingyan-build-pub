@@ -40,15 +40,15 @@ struct StorageView: View {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(loading ? "…" : mb(appBytes))
-                                .font(.system(size: 34, weight: .semibold, design: .rounded))
+                                .font(pfStyled(size: 34, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.primary)
                             Text(Tr("星言在本机使用的空间"))
-                                .font(.subheadline)
+                                .font(pfStyled(size: 15))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
                         Text(Tr("本 App"))
-                            .font(.caption.weight(.semibold))
+                            .font(pfStyled(size: 12, weight: .semibold))
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 9)
                             .frame(height: 24)
@@ -68,7 +68,7 @@ struct StorageView: View {
                         Text(Tr("本地"))
                             .foregroundStyle(.secondary)
                     }
-                    .font(.caption)
+                    .font(pfStyled(size: 12))
                     .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 6)
@@ -83,7 +83,7 @@ struct StorageView: View {
                             .foregroundStyle(.primary)
                         Spacer(minLength: 8)
                         Text(mb(seg.bytes))
-                            .font(.subheadline)
+                            .font(pfStyled(size: 15))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
@@ -105,7 +105,7 @@ struct StorageView: View {
                             Text(Tr("缓存"))
                                 .foregroundStyle(.primary)
                             Text(Tr("图片和网络临时文件，可安全清理"))
-                                .font(.caption)
+                                .font(pfStyled(size: 12))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 8)
@@ -114,7 +114,7 @@ struct StorageView: View {
                                 .controlSize(.small)
                         } else {
                             Text(mb(cacheBytes))
-                                .font(.subheadline)
+                                .font(pfStyled(size: 15))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
@@ -152,12 +152,12 @@ struct StorageView: View {
                                         .foregroundStyle(.primary)
                                         .lineLimit(1)
                                     Text("\(chat.messages) " + Tr("条消息"))
-                                        .font(.caption)
+                                        .font(pfStyled(size: 12))
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer(minLength: 8)
                                 Text(mb(chat.bytes))
-                                    .font(.subheadline)
+                                    .font(pfStyled(size: 15))
                                     .foregroundStyle(.secondary)
                                     .monospacedDigit()
                             }

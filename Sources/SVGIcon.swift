@@ -31,7 +31,7 @@ struct SVGIcon: View {
             RemoteImage(path: raw).frame(width: size, height: size)
         } else {
             Text(raw)
-                .font(.system(size: size * 0.86))
+                .font(pfStyled(size: size * 0.86))
                 .foregroundColor(color)
                 .frame(width: size, height: size)
         }

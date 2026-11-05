@@ -168,7 +168,7 @@ struct AIWorkspaceView: View {
         let titleView = AnyView(
             HStack(spacing: 7) {
                 Text("✦")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(pfStyled(size: 15, weight: .semibold))
                     .foregroundColor(accent)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(aiName)
@@ -1794,7 +1794,7 @@ private struct AIProfileSheet: View {
 private struct AIWorkspaceMark: View {
     var body: some View {
         Text("✦")
-            .font(.system(size: 13, weight: .semibold))
+            .font(pfStyled(size: 13, weight: .semibold))
             .foregroundColor(.white)
             .frame(width: 32, height: 32)
             .background(

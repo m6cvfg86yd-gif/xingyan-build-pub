@@ -30,18 +30,18 @@ struct PayPasswordView: View {
             Section {
                 VStack(spacing: 16) {
                     Text(title)
-                        .font(.headline)
+                        .font(pfStyled(size: 17, weight: .semibold))
 
                     cells
 
                     if let hint = hint {
                         Text(hint)
-                            .font(.footnote)
+                            .font(pfStyled(size: 13))
                             .foregroundStyle(Color(hex: 0xE5484D))
                             .multilineTextAlignment(.center)
                     } else {
                         Text(Tr("支付密码是 6 位数字，转账付款时要输它确认"))
-                            .font(.footnote)
+                            .font(pfStyled(size: 13))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }

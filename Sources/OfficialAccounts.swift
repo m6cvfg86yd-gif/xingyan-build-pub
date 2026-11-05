@@ -135,14 +135,14 @@ struct OfficialAccountsView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 6) {
                             Text(a.name)
-                                .font(.system(size: 16, weight: .medium))
+                                .font(pfStyled(size: 16, weight: .medium))
                                 .foregroundStyle(OrbitTheme.ink)
                                 .lineLimit(1)
                             OfficialMark()
                             typeChip(a)
                         }
                         Text(a.about.isEmpty ? Tr("还没有简介") : a.about)
-                            .font(.system(size: 12.5))
+                            .font(pfStyled(size: 12.5))
                             .foregroundStyle(OrbitTheme.secondary)
                             .lineLimit(1)
                     }
@@ -166,7 +166,7 @@ struct OfficialAccountsView: View {
 
     private func typeChip(_ a: OAAccount) -> some View {
         Text(a.typeLabel)
-            .font(.system(size: 10, weight: .medium))
+            .font(pfStyled(size: 10, weight: .medium))
             .foregroundColor(a.isService ? OrbitTheme.jade : OrbitTheme.tertiary)
             .padding(.horizontal, 5)
             .padding(.vertical, 1.5)
@@ -184,10 +184,10 @@ struct OfficialAccountsView: View {
                 size: 54
             )
             Text(Tr("还没有公众号"))
-                .font(.system(size: 17, weight: .semibold))
+                .font(pfStyled(size: 17, weight: .semibold))
                 .foregroundStyle(OrbitTheme.ink)
             Text(Tr("关注的信号会在这里形成稳定的内容轨道"))
-                .font(.system(size: 13))
+                .font(pfStyled(size: 13))
                 .foregroundStyle(OrbitTheme.secondary)
         }
         .frame(maxWidth: .infinity)

@@ -62,7 +62,7 @@ struct DistMeView: View {
         VStack(spacing: 10) {
             Text(Tr("我的推广码")).font(pf(12.5)).foregroundColor(C.subLabel)
             Text(me?.code ?? "")
-                .font(.system(size: 26, weight: .semibold, design: .monospaced))
+                .font(pfStyled(size: 26, weight: .semibold, design: .monospaced))
                 .foregroundColor(C.label)
                 .textSelection(.enabled)
             Text(Tr("佣金比例 ") + String(Int(((me?.rate ?? 0.05) * 100).rounded())) + "%"

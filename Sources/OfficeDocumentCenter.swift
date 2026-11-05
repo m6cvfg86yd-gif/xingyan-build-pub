@@ -83,7 +83,7 @@ struct OfficeDocumentHeader: View {
                     Image(systemName: kind.symbol)
                         .font(.system(size: 14, weight: .semibold))
                     Text(kind.badge)
-                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .font(pfStyled(size: 8, weight: .bold, design: .rounded))
                 }
                 .foregroundStyle(.white)
             }
@@ -91,11 +91,11 @@ struct OfficeDocumentHeader: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                    .font(.subheadline.weight(.semibold))
+                    .font(pfStyled(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(subtitle)
-                    .font(.caption)
+                    .font(pfStyled(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -145,7 +145,7 @@ struct OfficeDocumentActionBar: View {
                     Image(systemName: "ellipsis.circle.fill")
                         .font(.system(size: 18, weight: .semibold))
                     Text(Tr("更多"))
-                        .font(.system(size: 10.5, weight: .medium))
+                        .font(pfStyled(size: 10.5, weight: .medium))
                 }
                 .foregroundStyle(C.label)
                 .frame(maxWidth: .infinity)
@@ -178,7 +178,7 @@ struct OfficeDocumentActionBar: View {
                 Image(systemName: symbol)
                     .font(.system(size: 18, weight: .semibold))
                 Text(title)
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 10.5, weight: .medium))
             }
             .foregroundStyle(filled ? Color.white : tint)
             .frame(maxWidth: .infinity)
@@ -234,16 +234,16 @@ struct OfficeDocumentInfoSheet: View {
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
                                 .fill(kind.color)
                             Text(kind.badge)
-                                .font(.system(size: 27, weight: .bold, design: .rounded))
+                                .font(pfStyled(size: 27, weight: .bold, design: .rounded))
                                 .foregroundStyle(.white)
                         }
                         .frame(width: 58, height: 58)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(name)
-                                .font(.headline)
+                                .font(pfStyled(size: 17, weight: .semibold))
                                 .lineLimit(2)
                             Text(kind.name)
-                                .font(.subheadline)
+                                .font(pfStyled(size: 15))
                                 .foregroundStyle(.secondary)
                         }
                     }

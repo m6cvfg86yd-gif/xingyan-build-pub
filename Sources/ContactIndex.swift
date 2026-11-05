@@ -50,7 +50,7 @@ struct ContactIndexBar: View {
             VStack(spacing: 0) {
                 ForEach(letters, id: \.self) { L in
                     Text(L)
-                        .font(.system(size: fontSize, weight: shownLetter == L ? .bold : .medium))
+                        .font(pfStyled(size: fontSize, weight: shownLetter == L ? .bold : .medium))
 
                         .foregroundColor(shownLetter == L ? .white : OrbitTheme.tertiary)
                         .frame(height: rowH)
@@ -110,7 +110,7 @@ struct LetterBubble: View {
 
     var body: some View {
         Text(letter)
-            .font(.system(size: 34, weight: .bold))
+            .font(pfStyled(size: 34, weight: .bold))
             .foregroundColor(OrbitTheme.ink)
             .frame(width: 74, height: 74)
             .background(

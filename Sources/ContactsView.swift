@@ -132,10 +132,10 @@ private var funcs: [(String, String, Color, String)] {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(C.tabText1)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(pfStyled(size: 22, weight: .bold))
                     .foregroundStyle(OrbitTheme.ink)
                 Text("\(filtered.count) 位联系人")
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 10.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.secondary)
             }
 
@@ -209,7 +209,7 @@ private var funcs: [(String, String, Color, String)] {
 
                                         HStack(spacing: 6) {
                                             Text(section.letter)
-                                                .font(.system(size: 10.5, weight: .bold))
+                                                .font(pfStyled(size: 10.5, weight: .bold))
                                                 .foregroundStyle(OrbitTheme.secondary)
                                                 .padding(.horizontal, 8)
                                                 .frame(height: 20)
@@ -233,7 +233,7 @@ private var funcs: [(String, String, Color, String)] {
                                     } else {
                                         Text("\(filtered.count)位联系人")
 
-                                            .font(.system(size: 12.5, weight: .medium))
+                                            .font(pfStyled(size: 12.5, weight: .medium))
                                             .foregroundColor(OrbitTheme.tertiary)
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 20)
@@ -384,7 +384,7 @@ private var funcs: [(String, String, Color, String)] {
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(OrbitTheme.tertiary)
                 Text(Tr("搜索"))
-                    .font(.system(size: 14))
+                    .font(pfStyled(size: 14))
                     .foregroundColor(OrbitTheme.secondary)
                 Spacer(minLength: 0)
             }
@@ -494,7 +494,7 @@ private var funcs: [(String, String, Color, String)] {
                                             .offset(x: 3, y: 3)
                                     }
                                 Text(u.name)
-                                    .font(.system(size: 11.5, weight: .medium))
+                                    .font(pfStyled(size: 11.5, weight: .medium))
                                     .foregroundColor(OrbitTheme.secondary)
                                     .lineLimit(1)
                                     .frame(width: 58)
@@ -531,7 +531,7 @@ private var funcs: [(String, String, Color, String)] {
                     }
                 }
                 Text(item.0)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(pfStyled(size: 11, weight: .medium))
                     .foregroundColor(OrbitTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -615,7 +615,7 @@ private var funcs: [(String, String, Color, String)] {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 5) {
                     Text(user.name)
-                        .font(.system(size: 15.5, weight: .semibold))
+                        .font(pfStyled(size: 15.5, weight: .semibold))
                         .foregroundColor(OrbitTheme.ink)
                         .lineLimit(1)
 
@@ -634,7 +634,7 @@ private var funcs: [(String, String, Color, String)] {
 
                 if let subtitle = contactSubtitle(user) {
                     Text(subtitle)
-                        .font(.system(size: 11, weight: .regular))
+                        .font(pfStyled(size: 11, weight: .regular))
                         .foregroundColor(OrbitTheme.tertiary)
                         .lineLimit(1)
                 }

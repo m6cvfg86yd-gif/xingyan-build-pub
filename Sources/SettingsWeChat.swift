@@ -114,7 +114,7 @@ struct MallAuthManageSheet: View {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(store.mallName)
                                 Text(Tr("获取你的公开信息（昵称、头像、星言号）"))
-                                    .font(.caption)
+                                    .font(pfStyled(size: 12))
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()

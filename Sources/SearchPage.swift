@@ -213,16 +213,16 @@ struct SearchPage: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(Tr("星轨搜索"))
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(pfStyled(size: 20, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
                 Text(Tr("人脉、消息与官方工具，一次找到"))
-                    .font(.system(size: 11.5, weight: .medium))
+                    .font(pfStyled(size: 11.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.secondary)
             }
             Spacer(minLength: 8)
             if !key.isEmpty {
                 Text("\(resultCount)")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(pfStyled(size: 11, weight: .bold))
                     .foregroundStyle(OrbitTheme.jade)
                     .padding(.horizontal, 9)
                     .frame(height: 24)
@@ -303,10 +303,10 @@ struct SearchPage: View {
             VStack(spacing: 10) {
                 StarOrbitIconBadge(symbol: "sparkles", accent: OrbitTheme.jade, size: 48)
                 Text(Tr("从一个关键词进入你的星轨"))
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(pfStyled(size: 16, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
                 Text(Tr("可以搜会话、联系人、群聊，也能直达小星 AI、浏览器和文件快传。"))
-                    .font(.system(size: 12.5))
+                    .font(pfStyled(size: 12.5))
                     .foregroundStyle(OrbitTheme.secondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
@@ -324,10 +324,10 @@ struct SearchPage: View {
             VStack(spacing: 9) {
                 StarOrbitIconBadge(symbol: "moon.stars", accent: OrbitTheme.gold, size: 48)
                 Text(Tr("这条星轨上暂时没有结果"))
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(pfStyled(size: 16, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
                 Text("「\(key)」")
-                    .font(.system(size: 12.5))
+                    .font(pfStyled(size: 12.5))
                     .foregroundStyle(OrbitTheme.secondary)
                     .lineLimit(1)
             }
@@ -359,10 +359,10 @@ struct SearchPage: View {
                                                    size: 40)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(tool.title)
-                                        .font(.system(size: 16, weight: .semibold))
+                                        .font(pfStyled(size: 16, weight: .semibold))
                                         .foregroundStyle(OrbitTheme.ink)
                                     Text(tool.subtitle)
-                                        .font(.system(size: 12.5))
+                                        .font(pfStyled(size: 12.5))
                                         .foregroundStyle(OrbitTheme.secondary)
                                         .lineLimit(1)
                                 }
@@ -407,7 +407,7 @@ struct SearchPage: View {
                     Button { scope = s.0 } label: {
                         HStack(spacing: 6) {
                             Image(systemName: s.2).font(.system(size: 12, weight: .medium))
-                            Text(Tr(s.1)).font(.system(size: 12.5, weight: .medium))
+                            Text(Tr(s.1)).font(pfStyled(size: 12.5, weight: .medium))
                         }
                         .foregroundStyle(on ? AnyShapeStyle(Color.white)
                                             : AnyShapeStyle(OrbitTheme.secondary))
@@ -500,7 +500,7 @@ struct SearchPage: View {
                         .foregroundStyle(OrbitTheme.tertiary)
                 }
                 Text(Tr(text))
-                    .font(.system(size: 13.5, weight: .medium))
+                    .font(pfStyled(size: 13.5, weight: .medium))
                     .foregroundStyle(OrbitTheme.ink)
                     .lineLimit(1)
             }
@@ -530,11 +530,11 @@ struct SearchPage: View {
                                 Avatar(path: chatAvatar(c), size: 42, radius: isGroup ? 12 : 11)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(chatTitle(c))
-                                        .font(.system(size: 15.5, weight: .semibold))
+                                        .font(pfStyled(size: 15.5, weight: .semibold))
                                         .foregroundStyle(OrbitTheme.ink)
                                     if let p = c.lastMessage?.preview, !p.isEmpty {
                                         Text(p)
-                                            .font(.system(size: 12.5))
+                                            .font(pfStyled(size: 12.5))
                                             .foregroundStyle(OrbitTheme.secondary)
                                             .lineLimit(1)
                                     }
@@ -576,11 +576,11 @@ struct SearchPage: View {
                                 Avatar(path: u.avatarPath, size: 42, radius: 12)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(u.name)
-                                        .font(.system(size: 15.5, weight: .semibold))
+                                        .font(pfStyled(size: 15.5, weight: .semibold))
                                         .foregroundStyle(OrbitTheme.ink)
                                     if let username = u.username, !username.isEmpty {
                                         Text("@" + username)
-                                            .font(.system(size: 12))
+                                            .font(pfStyled(size: 12))
                                             .foregroundStyle(OrbitTheme.secondary)
                                     }
                                 }

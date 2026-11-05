@@ -266,7 +266,7 @@ struct MyQRView: View {
                 Text(String(format: "ID %04d", abs(username.hashValue % 10_000)))
                     .monospacedDigit()
             }
-            .font(.system(size: 9.5, weight: .semibold))
+            .font(pfStyled(size: 9.5, weight: .semibold))
             .foregroundStyle(cardSubInk)
             .padding(.horizontal, 18)
             .frame(height: 38)
@@ -334,7 +334,7 @@ struct MyQRView: View {
                         Text(Tr("星言号"))
                             .font(pf(10.5, .medium))
                         Text(username.isEmpty ? "-" : username)
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .font(pfStyled(size: 12, weight: .medium, design: .monospaced))
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
                             .copyOnLongPress(username) { app.show($0) }
@@ -463,16 +463,16 @@ struct MyQRView: View {
                         .frame(width: 38, height: 38)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("XINGYAN · ORBIT ID")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(pfStyled(size: 12, weight: .semibold))
                             .tracking(2.2)
                             .foregroundColor(exportAccent)
                         Text(Tr("星言身份卡"))
-                            .font(.system(size: 13, weight: .medium))
+                            .font(pfStyled(size: 13, weight: .medium))
                             .foregroundColor(exportSub)
                     }
                     Spacer()
                     Text(levelText)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(pfStyled(size: 12, weight: .semibold))
                         .foregroundColor(exportInk)
                         .padding(.horizontal, 13)
                         .frame(height: 32)
@@ -482,10 +482,10 @@ struct MyQRView: View {
 
                 VStack(spacing: 5) {
                     Text(name)
-                        .font(.system(size: 34, weight: .semibold))
+                        .font(pfStyled(size: 34, weight: .semibold))
                         .foregroundColor(exportInk)
                     Text(Tr("星言号") + "  " + username)
-                        .font(.system(size: 16, weight: .medium, design: .monospaced))
+                        .font(pfStyled(size: 16, weight: .medium, design: .monospaced))
                         .foregroundColor(exportSub)
                 }
                 .frame(maxWidth: .infinity)
@@ -504,7 +504,7 @@ struct MyQRView: View {
                 HStack(spacing: 8) {
                     Circle().fill(exportAccent).frame(width: 7, height: 7)
                     Text(Tr("扫码添加好友") + "  ·  " + Tr("星言 · 个人身份"))
-                        .font(.system(size: 14, weight: .medium))
+                        .font(pfStyled(size: 14, weight: .medium))
                         .tracking(0.6)
                         .foregroundColor(exportInk.opacity(0.82))
                 }

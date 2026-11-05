@@ -12,7 +12,7 @@ struct SliderSheet: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 12) {
                 Text(Tr("为确认是本人操作，请拖动滑块把缺口补齐"))
-                    .font(.system(size: 13))
+                    .font(pfStyled(size: 13))
                     .foregroundColor(C.subLabel)
                 SliderCaptchaView(onTicket: { t in
                     onPass(t)
@@ -22,7 +22,7 @@ struct SliderSheet: View {
                 })
                 .id(freshKey)
                 if !err.isEmpty {
-                    Text(err).font(.system(size: 13)).foregroundColor(C.red)
+                    Text(err).font(pfStyled(size: 13)).foregroundColor(C.red)
                 }
                 Spacer(minLength: 0)
             }
@@ -63,7 +63,7 @@ struct SliderCaptchaView: View {
             HStack(spacing: 6) {
                 Image(systemName: done ? "checkmark.seal.fill" : "hand.draw.fill")
                     .font(.system(size: 11))
-                Text(note).font(.system(size: 11.5))
+                Text(note).font(pfStyled(size: 11.5))
             }
             .foregroundColor(done ? C.green : C.subLabel)
         }
@@ -123,7 +123,7 @@ struct SliderCaptchaView: View {
                 .frame(width: dragX + pw, height: trackH)
 
             Text(done ? Tr("验证通过") : (busy ? Tr("正在核对…") : Tr("按住滑块，拖到缺口位置")))
-                .font(.system(size: 12.5))
+                .font(pfStyled(size: 12.5))
                 .foregroundColor(done ? C.green : C.subLabel)
                 .frame(maxWidth: .infinity)
 

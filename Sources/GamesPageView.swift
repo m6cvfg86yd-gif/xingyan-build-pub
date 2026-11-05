@@ -281,7 +281,7 @@ struct GamesPageView: View {
                             .clipped()
                             .overlay(Color.black.opacity(0.30))
                     }
-                    Text(g.iconText).font(.system(size: 66))
+                    Text(g.iconText).font(pfStyled(size: 66))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -368,7 +368,7 @@ struct GamesPageView: View {
         Button { showRankBoard = true } label: {
             HStack(spacing: 11) {
                 Text("🏆")
-                    .font(.system(size: 19))
+                    .font(pfStyled(size: 19))
                     .frame(width: 36, height: 36)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color.dyn(0xFFF3D6, 0x2A2417)))
@@ -404,7 +404,7 @@ struct GamesPageView: View {
             Circle()
                 .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
-            Text(g.iconText).font(.system(size: size * 0.42))
+            Text(g.iconText).font(pfStyled(size: size * 0.42))
             if let cv = g.cover, !cv.isEmpty {
                 RemoteImage(path: cv, mode: .fill, maxSide: max(96, size * 3))
                     .frame(width: size, height: size)
@@ -420,7 +420,7 @@ struct GamesPageView: View {
                 ZStack(alignment: .bottomLeading) {
                     LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                    startPoint: .topLeading, endPoint: .bottomTrailing)
-                    Text(g.iconText).font(.system(size: 46))
+                    Text(g.iconText).font(pfStyled(size: 46))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     if let cv = g.cover, !cv.isEmpty {
                         RemoteImage(path: cv, mode: .fill, maxSide: 640)
@@ -469,7 +469,7 @@ struct GamesPageView: View {
                         Circle()
                             .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                                  startPoint: .topLeading, endPoint: .bottomTrailing))
-                        Text(g.iconText).font(.system(size: 30))
+                        Text(g.iconText).font(pfStyled(size: 30))
                         if let cv = g.cover, !cv.isEmpty {
                             RemoteImage(path: cv, maxSide: 240)
                                 .frame(width: 72, height: 72)
@@ -668,7 +668,7 @@ struct GameWebPage: View {
                             box.web?.evaluateJavaScript("window.chrisRank && chrisRank.show()")
                         } label: {
                             Text("🏆")
-                                .font(.system(size: 20))
+                                .font(pfStyled(size: 20))
                                 .frame(width: 42, height: 42)
                                 .background(Circle().fill(Color.black.opacity(0.35)))
                                 .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.5))

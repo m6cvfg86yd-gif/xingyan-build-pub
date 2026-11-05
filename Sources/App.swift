@@ -1764,6 +1764,7 @@ struct RootView: View {
     @EnvironmentObject var app: AppState
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var realtime = Realtime.shared
+    @ObservedObject private var appFont = AppFontStore.shared
     /// 二级登录确认默认关闭；保留 SavedLoginConfirm，后续可通过该开关恢复。
     @AppStorage("chris.savedLoginConfirmEnabled") private var savedLoginConfirmEnabled = false
 
@@ -1808,6 +1809,7 @@ struct RootView: View {
             .onAppear { L.width = geo.size.width }
             .onChange(of: geo.size.width) { w in L.width = w }
         }
+        .font(pf(17))
         .task { await app.boot() }
         .task {
             // 后台改图标等界面配置时实时事件可能被弱网丢掉；前台定时校准一次。
@@ -1875,7 +1877,7 @@ struct LaunchView: View {
             VStack(spacing: 14) {
                 StarLaunchMark(size: 74, orbiting: false, breathing: false)
                 Text(Tr("正在连接…"))
-                    .font(.system(size: 12.5, weight: .medium))
+                    .font(pfStyled(size: 12.5, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.66))
             }
         }
@@ -2297,11 +2299,11 @@ struct LoginView: View {
                     ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
                     Text(appName)
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(pfStyled(size: 22, weight: .semibold))
                         .foregroundColor(LoginTheme.ink(colorScheme))
                         .padding(.top, 16)
                     Text(Tr("登录后同步最近的聊天记录"))
-                        .font(.system(size: 13))
+                        .font(pfStyled(size: 13))
                         .foregroundColor(LoginTheme.inkSub(colorScheme))
                         .padding(.top, 18)
 
@@ -2321,7 +2323,7 @@ struct LoginView: View {
                                 .resizable()
                                 .frame(width: 22, height: 22)
                             Text(Tr("星言登录"))
-                                .font(.system(size: 16, weight: .medium))
+                                .font(pfStyled(size: 16, weight: .medium))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
@@ -2342,7 +2344,7 @@ struct LoginView: View {
                     Button { showMoreWays = true } label: {
                         HStack(spacing: 4) {
                             Text(Tr("更多登录方式"))
-                                .font(.system(size: 13.5))
+                                .font(pfStyled(size: 13.5))
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 10.5, weight: .semibold))
                         }
@@ -2364,7 +2366,7 @@ struct LoginView: View {
 
                     if let e = error {
                         Text(e)
-                            .font(.system(size: 13))
+                            .font(pfStyled(size: 13))
                             .foregroundColor(C.red)
                             .multilineTextAlignment(.center)
                             .padding(.top, 12)
@@ -2386,7 +2388,7 @@ struct LoginView: View {
                         .padding(.top, 1)
 
                         Text(.init("我已阅读并同意 [《用户协议》](terms://0) 和 [《隐私政策》](terms://1)"))
-                            .font(.system(size: 12))
+                            .font(pfStyled(size: 12))
                             .foregroundColor(LoginTheme.ink(colorScheme))
                             .tint(LoginTheme.accent2)
                             .environment(\.openURL, OpenURLAction { url in
@@ -2426,7 +2428,7 @@ struct LoginView: View {
                         }
                     } label: {
                         Text(Tr("连接诊断"))
-                            .font(.system(size: 12.5, weight: .medium))
+                            .font(pfStyled(size: 12.5, weight: .medium))
                             .foregroundColor(LoginTheme.accent)
                             .padding(.horizontal, 12)
                             .frame(height: 30)
@@ -2437,7 +2439,7 @@ struct LoginView: View {
 
                     if !diag.isEmpty {
                         Text(diag)
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(pfStyled(size: 11, design: .monospaced))
                             .foregroundColor(LoginTheme.ink(colorScheme))
                             .multilineTextAlignment(.leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -2450,7 +2452,7 @@ struct LoginView: View {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 10))
                         Text(Tr("全程 HTTPS 加密传输，密码只以加密哈希保存"))
-                            .font(.system(size: 11.5))
+                            .font(pfStyled(size: 11.5))
                     }
                     .foregroundColor(LoginTheme.inkSub(colorScheme))
                     .padding(.top, 14)
@@ -2458,7 +2460,7 @@ struct LoginView: View {
                     Spacer()
 
                     Text("V1.0.0")
-                        .font(.system(size: 11))
+                        .font(pfStyled(size: 11))
                         .foregroundColor(LoginTheme.inkSub(colorScheme))
                         .padding(.top, 60)
                         .padding(.bottom, 20)
@@ -2536,7 +2538,7 @@ struct LoginView: View {
                             } else {
                                 Circle().fill(LoginTheme.accent.opacity(0.25))
                                     .overlay(Text(String(acc.nickname.prefix(1)))
-                                        .font(.system(size: 30, weight: .semibold))
+                                        .font(pfStyled(size: 30, weight: .semibold))
                                         .foregroundColor(LoginTheme.accent))
                             }
                         }
@@ -2563,15 +2565,15 @@ struct LoginView: View {
 
                 if app.accounts.count > 1 {
                     Text(Tr("← 左右滑动切换账号，点头像直接登录 →"))
-                        .font(.system(size: 11))
+                        .font(pfStyled(size: 11))
                         .foregroundColor(LoginTheme.sub ?? .secondary)
                 } else {
                     Text(quickBusy ? "正在登录…" : "点一下头像，快捷登录")
-                        .font(.system(size: 12))
+                        .font(pfStyled(size: 12))
                         .foregroundColor(LoginTheme.accent)
                 }
                 Text(app.accounts[min(avatarIndex, app.accounts.count - 1)].nickname)
-                    .font(.system(size: 13))
+                    .font(pfStyled(size: 13))
                     .foregroundColor(LoginTheme.sub ?? .secondary)
             }
         }
@@ -2726,7 +2728,7 @@ struct AccountLoginSheet: View {
                             TextField("验证码", text: $code).keyboardType(.numberPad).focused($focus, equals: .code)
                                 .foregroundColor(LoginTheme.ink(colorScheme))
                             Button(Tr("获取验证码")) { sendCode() }
-                                .font(.system(size: 14)).foregroundColor(C.loginGreen)
+                                .font(pfStyled(14)).foregroundColor(C.loginGreen)
                         }
                     } else {
                         row { TextField("账号 / 用户名", text: $username).focused($focus, equals: .user)
@@ -2765,7 +2767,7 @@ struct AccountLoginSheet: View {
                         }
                     }
                     if let e = error {
-                        Text(e).font(.system(size: 13)).foregroundColor(C.red)
+                        Text(e).font(pfStyled(size: 13)).foregroundColor(C.red)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 12)
                     }
@@ -2778,7 +2780,7 @@ struct AccountLoginSheet: View {
                                 Image(systemName: "exclamationmark.shield.fill")
                                 Text(Tr("账号已被限制登录 · 查看处罚说明"))
                             }
-                            .font(.system(size: 14, weight: .medium))
+                            .font(pfStyled(size: 14, weight: .medium))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity, minHeight: 46)
                             .background(LoginTheme.accent2)
@@ -2795,7 +2797,7 @@ struct AccountLoginSheet: View {
                                 Image(systemName: "snowflake")
                                 Text(Tr("账号被冻结了？点这里自助解冻"))
                             }
-                            .font(.system(size: 14, weight: .medium))
+                            .font(pfStyled(size: 14, weight: .medium))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity, minHeight: 46)
                             .background(LoginTheme.accent2)
@@ -2806,7 +2808,7 @@ struct AccountLoginSheet: View {
                     Button { submit() } label: {
                         HStack(spacing: 8) {
                             if busy { ProgressView().progressViewStyle(.circular).tint(.white) }
-                            Text(busy ? Tr("请稍候…") : Tr("登 录")).font(.system(size: 16, weight: .medium))
+                            Text(busy ? Tr("请稍候…") : Tr("登 录")).font(pfStyled(size: 16, weight: .medium))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
@@ -2823,7 +2825,7 @@ struct AccountLoginSheet: View {
                             Text("·").foregroundColor(C.subLabel)
                             Button(Tr("还没有账号？去注册")) { showReg = true }
                         }
-                        .font(.system(size: 13)).foregroundColor(LoginTheme.accent2)
+                        .font(pfStyled(size: 13)).foregroundColor(LoginTheme.accent2)
                         .padding(.top, 16)
                     }
                 }
@@ -2863,7 +2865,7 @@ struct AccountLoginSheet: View {
 
     private func row<C: View>(@ViewBuilder _ c: () -> C) -> some View {
         HStack(spacing: 8) { c() }
-            .font(.system(size: 15))
+            .font(pfStyled(15))
             .frame(height: 54).padding(.horizontal, 14)
             .background(Color.dyn(0xFFFFFF, 0x1C1C1E))
     }
@@ -2934,7 +2936,7 @@ struct UnbanSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(Tr("账号被管理员禁用后，可以在这里用身份证号自己解开。号码要真实合法（18 位，最后一位可能是 X）。同一张身份证只能绑定一个账号，解封动作会写进后台审计日志。"))
-                        .font(.system(size: 12.5))
+                        .font(pfStyled(size: 12.5))
                         .foregroundColor(.secondary)
                         .padding(.bottom, 14)
 
@@ -2950,14 +2952,14 @@ struct UnbanSheet: View {
                         .textInputAutocapitalization(.characters).autocorrectionDisabled(true) }
 
                     if let e = error {
-                        Text(e).font(.system(size: 13)).foregroundColor(C.red)
+                        Text(e).font(pfStyled(size: 13)).foregroundColor(C.red)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12)
                     }
 
                     Button { submit() } label: {
                         HStack(spacing: 8) {
                             if busy { ProgressView().progressViewStyle(.circular).tint(.white) }
-                            Text(busy ? Tr("正在核验…") : Tr("提交并解封")).font(.system(size: 16, weight: .medium))
+                            Text(busy ? Tr("正在核验…") : Tr("提交并解封")).font(pfStyled(size: 16, weight: .medium))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
@@ -2985,7 +2987,7 @@ struct UnbanSheet: View {
 
     private func field<C: View>(@ViewBuilder _ c: () -> C) -> some View {
         HStack(spacing: 8) { c() }
-            .font(.system(size: 15))
+            .font(pfStyled(15))
             .frame(height: 54).padding(.horizontal, 14)
             .background(Color.dyn(0xFFFFFF, 0x1C1C1E))
     }
@@ -3043,10 +3045,10 @@ struct RegisterSheet: View {
                     registrationHero
 
                     Text(Tr("创建你的星言账号"))
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(pfStyled(size: 24, weight: .semibold))
                         .foregroundColor(C.label)
                     Text(Tr("手机号验证后自动生成星言号，之后统一用绑定手机号登录。"))
-                        .font(.system(size: 13))
+                        .font(pfStyled(size: 13))
                         .foregroundColor(C.subLabel)
 
                     VStack(spacing: 0) {
@@ -3054,7 +3056,7 @@ struct RegisterSheet: View {
                             .keyboardType(.phonePad)
                             .textContentType(.telephoneNumber)
                             .focused($focus, equals: .phone)
-                            .font(.system(size: 16.5))
+                            .font(pfStyled(size: 16.5))
                             .padding(.horizontal, 14)
                             .frame(height: 54)
                             .onChange(of: phone) { value in
@@ -3069,7 +3071,7 @@ struct RegisterSheet: View {
                                 .keyboardType(.numberPad)
                                 .textContentType(.oneTimeCode)
                                 .focused($focus, equals: .code)
-                                .font(.system(size: 16.5))
+                                .font(pfStyled(16.5))
                                 .onChange(of: code) { value in
                                     code = String(value.filter(\.isNumber).prefix(6))
                                     error = nil
@@ -3079,7 +3081,7 @@ struct RegisterSheet: View {
                                    : (codeSent ? Tr("重新获取") : Tr("获取验证码"))) {
                                 requestCode()
                             }
-                            .font(.system(size: 14, weight: .medium))
+                            .font(pfStyled(14, .medium))
                             .foregroundColor(canRequestCode ? C.green : C.subLabel)
                             .disabled(!canRequestCode)
                         }
@@ -3095,7 +3097,7 @@ struct RegisterSheet: View {
 
                     if let e = error {
                         Text(e)
-                            .font(.system(size: 13))
+                            .font(pfStyled(size: 13))
                             .foregroundColor(C.red)
                     }
 
@@ -3103,7 +3105,7 @@ struct RegisterSheet: View {
                         HStack(spacing: 8) {
                             if busy { ProgressView().tint(.white).scaleEffect(0.85) }
                             Text(busy ? Tr("请稍候…") : Tr("注册并登录"))
-                                .font(.system(size: 16, weight: .medium))
+                                .font(pfStyled(size: 16, weight: .medium))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
@@ -3117,7 +3119,7 @@ struct RegisterSheet: View {
                         Image(systemName: "lock.shield.fill")
                         Text(Tr("验证码仅用于本次注册 · 加密传输"))
                     }
-                    .font(.system(size: 11.5))
+                    .font(pfStyled(size: 11.5))
                     .foregroundColor(C.subLabel)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 3)
@@ -3163,10 +3165,10 @@ struct RegisterSheet: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(Tr("加入星言"))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(pfStyled(size: 15, weight: .semibold))
                     .foregroundColor(C.label)
                 Text(Tr("真实、克制、只属于你的通讯空间"))
-                    .font(.system(size: 12.5))
+                    .font(pfStyled(size: 12.5))
                     .foregroundColor(C.subLabel)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -3265,7 +3267,7 @@ struct PairSheet: View {
         NavigationStack {
             VStack(spacing: 14) {
                 Text(Tr("用已登录的手机确认，这台设备就能进入"))
-                    .font(.system(size: 14)).foregroundColor(.secondary)
+                    .font(pfStyled(size: 14)).foregroundColor(.secondary)
                     .multilineTextAlignment(.center).padding(.top, 20)
 
                 if let q = qrImage("xingyan://pair?code=" + code, size: 190) {
@@ -3284,21 +3286,21 @@ struct PairSheet: View {
                 }
 
                 Text(code.isEmpty ? "······" : code)
-                    .font(.system(size: 24, weight: .semibold, design: .monospaced))
+                    .font(pfStyled(size: 24, weight: .semibold, design: .monospaced))
                     .tracking(6)
 
                 Text(fail
                      ? "这个码过期了，点下面重新生成"
                      : "另一台已登录的手机：星言 → 扫一扫；或者 我 → 设置 → 登录设备管理 → 确认新设备登录，把这 6 位数字填进去")
-                    .font(.system(size: 12.5)).foregroundColor(.secondary)
+                    .font(pfStyled(size: 12.5)).foregroundColor(.secondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 24)
 
                 if fail {
                     Button(Tr("重新生成")) { start() }
-                        .font(.system(size: 15, weight: .semibold)).foregroundColor(C.loginGreen)
+                        .font(pfStyled(size: 15, weight: .semibold)).foregroundColor(C.loginGreen)
                 } else {
                     ProgressView()
-                    Text(status).font(.system(size: 12)).foregroundColor(.secondary)
+                    Text(status).font(pfStyled(size: 12)).foregroundColor(.secondary)
                 }
                 Spacer()
             }
@@ -3355,10 +3357,10 @@ struct TermsSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(kind == 0 ? "用户协议" : "隐私政策").font(.system(size: 19, weight: .semibold))
+                    Text(kind == 0 ? "用户协议" : "隐私政策").font(pfStyled(size: 19, weight: .semibold))
 
                     Text(LoginTheme.text(kind: kind))
-                    .font(.system(size: 14)).lineSpacing(6)
+                    .font(pfStyled(size: 14)).lineSpacing(6)
                 }
                 .padding(20)
             }
@@ -3415,7 +3417,7 @@ struct CountryPickerView: View {
                         dismiss()
                     } label: {
                         HStack(spacing: 12) {
-                            Text(r.flag).font(.system(size: 20))
+                            Text(r.flag).font(pfStyled(size: 20))
                             Text(r.name).foregroundColor(C.label)
                             Spacer(minLength: 0)
                             Text("+" + r.dial).foregroundColor(C.subLabel)
@@ -3473,18 +3475,18 @@ struct PhoneLoginView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     Spacer(minLength: 30)
                     Text(Tr("手机号登录"))
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(pfStyled(size: 24, weight: .semibold))
 
                     VStack(spacing: 0) {
                         Button { showCountryPicker = true } label: {
                             HStack(spacing: 10) {
-                                Text(dial.flag).font(.system(size: 19))
+                                Text(dial.flag).font(pfStyled(size: 19))
                                 Text(dial.name)
-                                    .font(.system(size: 16.5))
+                                    .font(pfStyled(size: 16.5))
                                     .foregroundColor(C.label)
                                 Spacer(minLength: 0)
                                 Text("+" + dial.dial)
-                                    .font(.system(size: 15.5))
+                                    .font(pfStyled(size: 15.5))
                                     .foregroundColor(C.subLabel)
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 11, weight: .semibold))
@@ -3498,7 +3500,7 @@ struct PhoneLoginView: View {
 
                         TextField("请输入手机号", text: $phone)
                             .keyboardType(.numberPad)
-                            .font(.system(size: 16.5))
+                            .font(pfStyled(16.5))
                             .frame(height: 54)
                             .focused($focused)
                             .overlay(alignment: .bottom) { hairline }
@@ -3506,10 +3508,10 @@ struct PhoneLoginView: View {
                         HStack(spacing: 10) {
                             TextField("请输入验证码", text: $code)
                                 .keyboardType(.numberPad)
-                                .font(.system(size: 16.5))
+                                .font(pfStyled(16.5))
                             Button { sendCode() } label: {
                                 Text(countDown > 0 ? "\(countDown)s" : Tr("获取验证码"))
-                                    .font(.system(size: 14.5, weight: .semibold))
+                                    .font(pfStyled(size: 14.5, weight: .semibold))
                                     .foregroundColor(countDown > 0 || !phoneLenOK
                                                      ? LoginTheme.disabledGray : LoginTheme.accent2)
                             }
@@ -3521,7 +3523,7 @@ struct PhoneLoginView: View {
                     }
 
                     Text(Tr("获取验证码后会收到一条短信，把 6 位数字填在上面"))
-                        .font(.system(size: 12))
+                        .font(pfStyled(size: 12))
                         .foregroundColor(LoginTheme.inkSub(colorScheme))
 
                     Button {
@@ -3530,7 +3532,7 @@ struct PhoneLoginView: View {
                         HStack(spacing: 8) {
                             if busy { ProgressView().progressViewStyle(.circular).tint(.white) }
                             Text(Tr("登录"))
-                                .font(.system(size: 16, weight: .medium))
+                                .font(pfStyled(size: 16, weight: .medium))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
@@ -3540,7 +3542,7 @@ struct PhoneLoginView: View {
                     .disabled(!canSubmit)
 
                     if let e = error {
-                        Text(e).font(.system(size: 13)).foregroundColor(C.red)
+                        Text(e).font(pfStyled(size: 13)).foregroundColor(C.red)
                     }
 
                     HStack(alignment: .top, spacing: 8) {
@@ -3557,7 +3559,7 @@ struct PhoneLoginView: View {
                         .padding(.top, 1)
 
                         Text(.init("我已阅读并同意 [《用户协议》](terms://0) 和 [《隐私政策》](terms://1)"))
-                            .font(.system(size: 12))
+                            .font(pfStyled(size: 12))
                             .tint(LoginTheme.accent2)
                             .environment(\.openURL, OpenURLAction { url in
                                 if url.scheme == "terms" {

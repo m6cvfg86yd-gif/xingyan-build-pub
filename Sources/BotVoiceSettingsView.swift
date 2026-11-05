@@ -50,7 +50,7 @@ struct BotVoiceSettingsView: View {
 
                 Section {
                     Text(Tr("想更自然的声音（接近元宝那种）需要接云端语音合成——等密钥配好，这里会多出一组「真人音色」。"))
-                        .font(.system(size: 13))
+                        .font(pfStyled(size: 13))
                         .foregroundColor(C.subLabel)
                 }
             }
@@ -67,8 +67,8 @@ struct BotVoiceSettingsView: View {
     private func row(title: String, sub: String, on: Bool) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15.5)).foregroundColor(C.label)
-                Text(sub).font(.system(size: 12)).foregroundColor(C.subLabel)
+                Text(title).font(pfStyled(size: 15.5)).foregroundColor(C.label)
+                Text(sub).font(pfStyled(size: 12)).foregroundColor(C.subLabel)
             }
             Spacer()
             if on { Image(systemName: "checkmark").foregroundColor(C.green) }

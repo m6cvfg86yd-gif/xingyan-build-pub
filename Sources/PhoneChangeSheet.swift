@@ -22,12 +22,12 @@ struct PhoneChangeSheet: View {
             NavBar(title: Tr("更换手机号"), back: { dismiss() })
             VStack(alignment: .leading, spacing: 14) {
                 Text(Tr("新手机号要能收短信验证码；手机号一年只能换一次。"))
-                    .font(.system(size: 13)).foregroundColor(C.subLabel)
+                    .font(pfStyled(size: 13)).foregroundColor(C.subLabel)
 
                 HStack(spacing: 10) {
                     TextField(Tr("新手机号"), text: $phone).keyboardType(.numberPad)
                     Button(Tr("获取验证码")) { sendCode() }
-                        .font(.system(size: 14)).foregroundColor(C.loginGreen)
+                        .font(pfStyled(size: 14)).foregroundColor(C.loginGreen)
                         .disabled(!phoneOK || busy)
                 }
                 .padding(.horizontal, 14).frame(height: 52)
@@ -39,19 +39,19 @@ struct PhoneChangeSheet: View {
 
                 if !devCode.isEmpty {
                     Text(Tr("本机直接显示验证码：") + devCode)
-                        .font(.system(size: 13)).foregroundColor(C.loginGreen)
+                        .font(pfStyled(size: 13)).foregroundColor(C.loginGreen)
                 }
 
                 SecureField(Tr("当前登录密码（没配短信通道时用）"), text: $password)
                     .padding(.horizontal, 14).frame(height: 52)
                     .background(Color.dyn(0xFFFFFF, 0x1C1C1E))
 
-                if !note.isEmpty { Text(note).font(.system(size: 13)).foregroundColor(C.subLabel) }
-                if !error.isEmpty { Text(error).font(.system(size: 13)).foregroundColor(C.red) }
+                if !note.isEmpty { Text(note).font(pfStyled(size: 13)).foregroundColor(C.subLabel) }
+                if !error.isEmpty { Text(error).font(pfStyled(size: 13)).foregroundColor(C.red) }
 
                 Button { submit() } label: {
                     Text(busy ? Tr("提交中…") : Tr("确认更换"))
-                        .font(.system(size: 17, weight: .medium)).foregroundColor(.white)
+                        .font(pfStyled(size: 17, weight: .medium)).foregroundColor(.white)
                         .frame(maxWidth: .infinity).frame(height: 48)
                         .background(phoneOK && !busy ? C.loginGreen : C.subLabel)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))

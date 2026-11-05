@@ -182,6 +182,7 @@ struct NotifyView: View {
 
 struct GeneralView: View {
     @ObservedObject private var lang = LangStore.shared
+    @ObservedObject private var fontStore = AppFontStore.shared
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
 
@@ -201,6 +202,9 @@ struct GeneralView: View {
                      app.appearance == "dark" ? Tr("深色")
                          : (app.appearance == "light" ? Tr("浅色") : Tr("跟随系统")),
                      key: "g.theme")
+                link(Tr("字体与字号"),
+                     fontSummary,
+                     key: "g.font")
                 link(Tr("界面语言"), Lang.name, key: "g.lang")
                 link(Tr("聊天背景"),
                      (app.me?.chatBackground ?? "auto") == "auto" ? Tr("恢复默认") : Tr("自定义"),
@@ -221,6 +225,7 @@ struct GeneralView: View {
         NavigationLink {
             switch key {
             case "g.theme": AppearanceView()
+            case "g.font": FontSettingsView()
             case "g.lang": LanguageView()
             case "g.chatbg": ChatBackgroundSheet()
             case "g.storage": StorageView()
@@ -238,6 +243,11 @@ struct GeneralView: View {
                     .foregroundStyle(.primary)
             }
         }
+    }
+
+    private var fontSummary: String {
+        let family = fontStore.family.isEmpty ? Tr("苹方 · 默认") : fontStore.family
+        return family + " · \(Int(fontStore.scale * 100))%"
     }
 
     private func row(_ title: String, _ value: String, _ tap: @escaping () -> Void) -> some View {
@@ -318,7 +328,7 @@ struct AppearanceView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(Tr("自动"))
                         Text(Tr("根据 iPhone 的显示设置自动切换"))
-                            .font(.caption)
+                            .font(pfStyled(size: 12))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -350,7 +360,7 @@ struct AppearanceView: View {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(Tr("原生 Material 遮罩"))
                             Text(Tr("开启后使用系统磨砂材料，关闭后使用实体底栏背景"))
-                                .font(.caption)
+                                .font(pfStyled(size: 12))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -381,7 +391,7 @@ struct AppearanceView: View {
                 AppearanceHomePreview(dark: mode == "dark", selected: selected)
                 HStack(spacing: 6) {
                     Text(title)
-                        .font(.subheadline)
+                        .font(pfStyled(size: 15))
                         .foregroundStyle(.primary)
                     if selected {
                         Image(systemName: "checkmark.circle.fill")
@@ -425,7 +435,7 @@ private struct AppearanceHomePreview: View {
             VStack(spacing: 9) {
                 HStack {
                     Text("9:41")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .font(pfStyled(size: 10, weight: .semibold, design: .rounded))
                     Spacer()
                     HStack(spacing: 3) {
                         Image(systemName: "cellularbars")
@@ -516,7 +526,7 @@ struct LanguageView: View {
                                 Text(option.name)
                                     .foregroundStyle(.primary)
                                 Text(option.detail)
-                                    .font(.footnote)
+                                    .font(pfStyled(size: 13))
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()

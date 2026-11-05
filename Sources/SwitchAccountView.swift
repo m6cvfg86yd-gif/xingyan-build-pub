@@ -19,7 +19,7 @@ struct SwitchAccountView: View {
             VStack(spacing: 0) {
                 NavBar(title: Tr("切换账号"), back: { dismiss() }) {
                     Text("\(app.accounts.count)/\(AccountStore.maxCount)")
-                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                        .font(pfStyled(size: 10.5, weight: .bold, design: .rounded))
                         .foregroundStyle(OrbitTheme.jade)
                         .padding(.horizontal, 10)
                         .frame(height: 27)
@@ -49,7 +49,7 @@ struct SwitchAccountView: View {
                                     .foregroundStyle(C.red)
                                     .padding(.top, 1)
                                 Text(note)
-                                    .font(.system(size: 12.5))
+                                    .font(pfStyled(size: 12.5))
                                     .foregroundStyle(C.red)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -118,11 +118,11 @@ struct SwitchAccountView: View {
                     Image(systemName: "point.3.connected.trianglepath.dotted")
                         .font(.system(size: 10.5, weight: .semibold))
                     Text("IDENTITY ORBIT")
-                        .font(.system(size: 9.5, weight: .bold))
+                        .font(pfStyled(size: 9.5, weight: .bold))
                         .tracking(1.25)
                     Spacer(minLength: 10)
                     Text(Tr("安全切换"))
-                        .font(.system(size: 9.5, weight: .semibold))
+                        .font(pfStyled(size: 9.5, weight: .semibold))
                         .padding(.horizontal, 8)
                         .frame(height: 22)
                         .background(Capsule().fill(Color.white.opacity(0.12)))
@@ -145,10 +145,10 @@ struct SwitchAccountView: View {
 
                     VStack(alignment: .leading, spacing: 5) {
                         Text(Tr("选择你的星言身份"))
-                            .font(.system(size: 21, weight: .bold, design: .rounded))
+                            .font(pfStyled(size: 21, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                         Text(Tr("切换后，会话和资料会回到对应账号"))
-                            .font(.system(size: 11.5, weight: .medium))
+                            .font(pfStyled(size: 11.5, weight: .medium))
                             .foregroundStyle(Color.white.opacity(0.69))
                             .lineLimit(2)
                     }
@@ -163,7 +163,7 @@ struct SwitchAccountView: View {
                             .frame(width: index == 0 ? 23 : 9, height: 4)
                     }
                     Text(app.accounts.isEmpty ? Tr("还没有保存账号") : Tr("左右滑动也可以切换"))
-                        .font(.system(size: 9.5, weight: .medium))
+                        .font(pfStyled(size: 9.5, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.58))
                         .padding(.leading, 3)
                 }
@@ -232,12 +232,12 @@ struct SwitchAccountView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 7) {
                             Text(displayName(account))
-                                .font(.system(size: 16.5, weight: .semibold))
+                                .font(pfStyled(size: 16.5, weight: .semibold))
                                 .foregroundStyle(OrbitTheme.ink)
                                 .lineLimit(1)
                             if current {
                                 Text(Tr("当前使用"))
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(pfStyled(size: 9, weight: .bold))
                                     .foregroundStyle(OrbitTheme.jade)
                                     .padding(.horizontal, 7)
                                     .frame(height: 18)
@@ -248,7 +248,7 @@ struct SwitchAccountView: View {
                         }
 
                         Text("@" + account.username)
-                            .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                            .font(pfStyled(size: 11.5, weight: .medium, design: .monospaced))
                             .foregroundStyle(OrbitTheme.secondary)
                             .lineLimit(1)
 
@@ -260,7 +260,7 @@ struct SwitchAccountView: View {
                             Text(statusText(current: current,
                                             loading: loading,
                                             tokenReady: tokenReady))
-                                .font(.system(size: 10.5, weight: .medium))
+                                .font(pfStyled(size: 10.5, weight: .medium))
                                 .foregroundStyle(current ? OrbitTheme.jade
                                                  : (tokenReady ? OrbitTheme.secondary : C.red.opacity(0.82)))
                         }
@@ -330,10 +330,10 @@ struct SwitchAccountView: View {
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(Tr("添加一个星言身份"))
-                        .font(.system(size: 15.5, weight: .semibold))
+                        .font(pfStyled(size: 15.5, weight: .semibold))
                         .foregroundStyle(OrbitTheme.ink)
                     Text(addSubtitle)
-                        .font(.system(size: 11))
+                        .font(pfStyled(size: 11))
                         .foregroundStyle(OrbitTheme.secondary)
                 }
                 Spacer(minLength: 8)
@@ -363,10 +363,10 @@ struct SwitchAccountView: View {
                 .padding(.top, 1)
             VStack(alignment: .leading, spacing: 3) {
                 Text(Tr("账号只保存在这台设备"))
-                    .font(.system(size: 11.5, weight: .semibold))
+                    .font(pfStyled(size: 11.5, weight: .semibold))
                     .foregroundStyle(OrbitTheme.secondary)
                 Text(Tr("登录凭证放入本机钥匙串，切换时会先结束旧账号通话"))
-                    .font(.system(size: 10.5))
+                    .font(pfStyled(size: 10.5))
                     .foregroundStyle(OrbitTheme.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -423,7 +423,7 @@ struct SwitchAccountView: View {
                 .frame(width: size, height: size)
                 .overlay {
                     Text("星")
-                        .font(.system(size: size * 0.48, weight: .semibold))
+                        .font(pfStyled(size: size * 0.48, weight: .semibold))
                         .foregroundStyle(.white)
                 }
         }

@@ -94,16 +94,16 @@ struct ChatScrollDiagView: View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 6) {
                 Text("滚动诊断 · 点一下清空")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(pfStyled(size: 10, weight: .semibold))
                     .foregroundColor(.white)
                 Spacer(minLength: 0)
                 Text(diag.lines.isEmpty ? "（还没有记录）" : "\(diag.lines.count) 条")
-                    .font(.system(size: 9.5))
+                    .font(pfStyled(size: 9.5))
                     .foregroundColor(.white.opacity(0.7))
             }
             ForEach(diag.lines.indices, id: \.self) { i in
                 Text(diag.lines[i])
-                    .font(.system(size: 9.5, design: .monospaced))
+                    .font(pfStyled(size: 9.5, design: .monospaced))
                     .foregroundColor(.white.opacity(0.92))
                     .lineLimit(1)
             }

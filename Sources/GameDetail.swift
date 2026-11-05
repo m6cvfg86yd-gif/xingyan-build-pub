@@ -49,7 +49,7 @@ struct GameDetailView: View {
         ZStack {
             LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
-            Text(game.iconText).font(.system(size: 76))
+            Text(game.iconText).font(pfStyled(size: 76))
             if let cv = game.cover, !cv.isEmpty {
                 RemoteImage(path: cv, mode: .fill, maxSide: 1200)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -343,7 +343,7 @@ struct GameRankBoardView: View {
 
             if podiumItems.isEmpty {
                 VStack(spacing: 6) {
-                    Text("🏁").font(.system(size: 30))
+                    Text("🏁").font(pfStyled(size: 30))
                     Text(Tr("还没有真实游戏成绩")).font(pf(14)).foregroundColor(.white)
                     Text(Tr("先玩一局，成绩会自动进入好友排行"))
                         .font(pf(11.5)).foregroundColor(.white.opacity(0.70))
@@ -378,7 +378,7 @@ struct GameRankBoardView: View {
                     Circle()
                         .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                              startPoint: .topLeading, endPoint: .bottomTrailing))
-                    Text(g.iconText).font(.system(size: place == 1 ? 28 : 24))
+                    Text(g.iconText).font(pfStyled(size: place == 1 ? 28 : 24))
                     if let cv = g.cover, !cv.isEmpty {
                         RemoteImage(path: cv, mode: .fill)
                             .frame(width: place == 1 ? 58 : 50,
@@ -457,7 +457,7 @@ struct GameRankBoardView: View {
         ZStack {
             Circle().fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
-            Text(g.iconText).font(.system(size: size * 0.42))
+            Text(g.iconText).font(pfStyled(size: size * 0.42))
             if let cv = g.cover, !cv.isEmpty {
                 RemoteImage(path: cv, mode: .fill)
                     .frame(width: size, height: size)
@@ -490,7 +490,7 @@ struct GameRankBoardView: View {
                 Circle()
                     .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
-                Text(g.iconText).font(.system(size: 22))
+                Text(g.iconText).font(pfStyled(size: 22))
                 if let cv = g.cover, !cv.isEmpty {
                     RemoteImage(path: cv)
                         .frame(width: 44, height: 44)
@@ -526,7 +526,7 @@ struct GameRankBoardView: View {
                     RoundedRectangle(cornerRadius: 11, style: .continuous)
                         .fill(LinearGradient(colors: [Color(hex: 0x2B2F3A), Color(hex: 0x171B22)],
                                              startPoint: .topLeading, endPoint: .bottomTrailing))
-                    Text(g.iconText).font(.system(size: 22))
+                    Text(g.iconText).font(pfStyled(size: 22))
                     if let cv = g.cover, !cv.isEmpty {
                         RemoteImage(path: cv).frame(width: 42, height: 42)
                             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))

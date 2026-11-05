@@ -25,10 +25,10 @@ struct AppleSettingsView: View {
                         Avatar(path: app.me?.avatarPath ?? "", size: 54, radius: 17)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(app.me?.name ?? Tr("星言用户"))
-                                .font(.body.weight(.semibold))
+                                .font(pfStyled(size: 17, weight: .semibold))
                                 .foregroundStyle(.primary)
                             Text(accountSubtitle)
-                                .font(.caption)
+                                .font(pfStyled(size: 12))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -59,6 +59,12 @@ struct AppleSettingsView: View {
                 } label: {
                     settingsRow(Tr("外观与显示"), symbol: "circle.lefthalf.filled",
                                 color: .gray)
+                }
+                NavigationLink {
+                    FontSettingsView()
+                } label: {
+                    settingsRow(Tr("字体与字号"), symbol: "textformat.size",
+                                color: C.green)
                 }
                 NavigationLink {
                     LanguageView()
@@ -172,7 +178,7 @@ struct AppleSettingsView: View {
                                     color: .gray)
                         Spacer()
                         Text(AppInfo.build)
-                            .font(.caption)
+                            .font(pfStyled(size: 12))
                             .foregroundStyle(.secondary)
                     }
                 }
