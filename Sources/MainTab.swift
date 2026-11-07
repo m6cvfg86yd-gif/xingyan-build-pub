@@ -57,11 +57,18 @@ struct MainTabView: View {
 
             .ignoresSafeArea(edges: app.tabBarHidden ? [] : .bottom)
 
-            .safeAreaInset(edge: .bottom) {
-                Color.clear
-                    .frame(height: app.tabBarHidden
-                           ? 0
-                           : L.tabH + L.safeBottom)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !app.tabBarHidden {
+                    NativeTabBar(selection: $tab,
+                                 uiVersion: app.uiVersion,
+                                 badge: app.showDot("chats", auto: unreadTotal > 0) ? unreadTotal : 0,
+                                 contactsDot: app.showDot("contacts", auto: app.friendRequests > 0),
+                                 momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
+                                 meDot: app.showDot("me", auto: false),
+                                 avatarPath: tabAvatarPath)
+                        .frame(height: max(49, L.tabH - 6))
+                        .transition(.move(edge: .bottom))
+                }
             }
 
             .overlay(alignment: .top) {
@@ -90,19 +97,6 @@ struct MainTabView: View {
                 }
             }
 
-            if !app.tabBarHidden {
-                NativeTabBar(selection: $tab,
-                             uiVersion: app.uiVersion,
-                             badge: app.showDot("chats", auto: unreadTotal > 0) ? unreadTotal : 0,
-                             contactsDot: app.showDot("contacts", auto: app.friendRequests > 0),
-                             momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
-                             meDot: app.showDot("me", auto: false),
-                             avatarPath: tabAvatarPath)
-                    .frame(height: max(49, L.tabH - 6))
-
-                    .offset(y: UIConfig.num("tabBarDrop", 0) + (L.compactPhone ? 2 : 8))
-                    .transition(.move(edge: .bottom))
-            }
         }
 
         .background(C.pageBg.ignoresSafeArea())
