@@ -68,12 +68,14 @@ struct OrbitTabGlyph: View {
         }
         context.stroke(star, with: .color(color), style: line)
 
-        var eyes = Path()
-        eyes.move(to: CGPoint(x: 10.85, y: 11.8))
-        eyes.addLine(to: CGPoint(x: 10.85, y: 13.05))
-        eyes.move(to: CGPoint(x: 13.15, y: 11.8))
-        eyes.addLine(to: CGPoint(x: 13.15, y: 13.05))
-        context.stroke(eyes, with: .color(color.opacity(0.86)), style: fine)
+        if selected {
+            var eyes = Path()
+            eyes.move(to: CGPoint(x: 10.85, y: 11.8))
+            eyes.addLine(to: CGPoint(x: 10.85, y: 13.05))
+            eyes.move(to: CGPoint(x: 13.15, y: 11.8))
+            eyes.addLine(to: CGPoint(x: 13.15, y: 13.05))
+            context.stroke(eyes, with: .color(color.opacity(0.86)), style: fine)
+        }
 
         context.fill(Path(ellipseIn: CGRect(x: 20.2, y: 2.8, width: 2.2, height: 2.2)),
                      with: .color(accent.opacity(selected ? 0.90 : 0.58)))

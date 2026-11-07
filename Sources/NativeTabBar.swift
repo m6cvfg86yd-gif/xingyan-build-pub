@@ -324,9 +324,16 @@ struct NativeTabBar: UIViewRepresentable {
             let bounce = CAKeyframeAnimation(keyPath: "transform.scale")
             bounce.values = [1.0, 0.84, 1.10, 0.97, 1.0]
             bounce.keyTimes = [0, 0.16, 0.48, 0.74, 1]
-            bounce.duration = 0.34
+            bounce.duration = 0.38
             bounce.timingFunction = CAMediaTimingFunction(name: .easeOut)
             button.layer.add(bounce, forKey: "xingyan.tabBounce")
+
+            let lift = CAKeyframeAnimation(keyPath: "transform.translation.y")
+            lift.values = [0, 1.4, -1.2, 0]
+            lift.keyTimes = [0, 0.18, 0.56, 1]
+            lift.duration = 0.38
+            lift.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            button.layer.add(lift, forKey: "xingyan.tabLift")
         }
 
         private func stabilizeLayout(_ bar: UITabBar) {
@@ -362,7 +369,19 @@ struct NativeTabBar: UIViewRepresentable {
                 let iconKey = "\(styleKey)|\(custom ?? "__default__")|\(avatarKey)"
                 guard appliedIconKeys[index] != iconKey else { continue }
 
-                if index < 3, custom == nil {
+                if index == 0, custom == nil {
+                    let rendered = renderedIcon(custom: nil, index: 0, size: size,
+                                                loader: loader,
+                                                avatarPath: "",
+                                                normalColor: normalColor,
+                                                selectedColor: selectedColor)
+                    items[index].image = rendered.normal.withRenderingMode(.alwaysOriginal)
+                    items[index].selectedImage = rendered.selected.withRenderingMode(.alwaysOriginal)
+                    appliedIconKeys[index] = iconKey
+                    continue
+                }
+
+                if index > 0, index < 3, custom == nil {
                     items[index].image = UIImage(systemName: symbols[index])?
                         .withRenderingMode(.alwaysTemplate)
                     items[index].selectedImage = gradientSymbol(
