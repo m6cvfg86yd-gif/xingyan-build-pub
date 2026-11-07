@@ -19,8 +19,6 @@ struct MeView: View {
     @State private var teenOn = false
     @State private var showTeenCard = false
 
-    @State private var statusPanel: StatusPanelKind? = nil
-
     private var memberActive: Bool { (app.me?.memberTier ?? "").isEmpty == false }
     private var gold: Color { Color(hexString: (app.me?.memberColor?.isEmpty == false) ? app.me!.memberColor! : "#E0B44A") }
     private var gold2: Color { Color(hexString: (app.me?.memberColor2?.isEmpty == false) ? app.me!.memberColor2! : "#B8862A") }
@@ -125,7 +123,7 @@ struct MeView: View {
 
                 HStack(spacing: 0) {
                     orbitMeStat(value: "\(friendCount)", title: Tr("朋友")) {
-                        statusPanel = .friends
+                        app.show(Tr("朋友列表请在通讯录查看"))
                     }
                     orbitMeDivider
                     orbitMeStat(value: daysText, title: Tr("活跃天")) {
@@ -143,8 +141,6 @@ struct MeView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         memberPill
-                        statusChip
-                        friendsStatusChip
                         if app.me?.ops == true {
                             manageChip
                         }
@@ -218,7 +214,6 @@ struct MeView: View {
                     .buttonStyle(.plain)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    compactStatusActions
                 }
                 .padding(.vertical, 3)
             }
@@ -288,53 +283,6 @@ struct MeView: View {
         .buttonStyle(.plain)
     }
 
-    private var compactStatusActions: some View {
-        HStack(spacing: 9) {
-            Button {
-                statusPanel = .status
-            } label: {
-                Image(systemName: "face.smiling")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(moodOn ? Color.white : .primary)
-                    .frame(width: 38, height: 38)
-                    .background {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(moodOn
-                                  ? AnyShapeStyle(LinearGradient(
-                                      colors: [Color(hexString: moodC1), Color(hexString: moodC2)],
-                                      startPoint: .topLeading, endPoint: .bottomTrailing))
-                                  : AnyShapeStyle(.thinMaterial))
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(moodOn ? Color.white.opacity(0.30) : C.hairline, lineWidth: 0.6)
-                    }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Tr("当前状态"))
-
-            Button {
-                statusPanel = .friends
-            } label: {
-                Image(systemName: "person.2.wave.2")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .frame(width: 38, height: 38)
-                    .background {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(.thinMaterial)
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(C.hairline, lineWidth: 0.6)
-                    }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Tr("朋友的状态"))
-        }
-        .fixedSize()
-    }
-
     private func nativeMeItemRow(_ item: DiscoverItem) -> some View {
         let symbol = RowIcon.sf(action: item.action, label: item.label)
         let color = Color(hexString: item.color ?? "#4A90D9", fallback: 0x4A90D9)
@@ -375,20 +323,6 @@ struct MeView: View {
 
             .sheet(isPresented: $showMyQR) { MyQRView() }
 
-            .sheet(item: $statusPanel) { k in
-                Group {
-                    if k == .friends {
-
-                        FriendsStatusView().bottomPanel([.height(320), .medium, .large], open: .medium)
-                    } else if (app.me?.moodIcon ?? "").isEmpty && (app.me?.moodText ?? "").isEmpty {
-                        StatusView().bottomPanel([.height(340), .height(600), .large], open: .height(600))
-                    } else {
-                        StatusDetailView().bottomPanel([.height(340), .height(600), .large], open: .height(600))
-                    }
-                }
-                .environmentObject(app)
-            }
-
             .sheet(isPresented: $showTeenCard) {
                 TeenModeView().environmentObject(app)
             }
@@ -413,16 +347,6 @@ struct MeView: View {
                 } else if key == "channels" {
 
                     ChannelsView()
-                } else if key == "status" {
-
-                    if (app.me?.moodIcon ?? "").isEmpty && (app.me?.moodText ?? "").isEmpty {
-                        StatusView()
-                    } else {
-                        StatusDetailView()
-                    }
-                } else if key == "friendsStatus" {
-
-                    FriendsStatusView()
                 } else if key == "manage" {
 
                     UserManageView()
@@ -865,8 +789,6 @@ struct MeView: View {
                 HStack(spacing: 8) {
                     Spacer(minLength: 0)
                     memberPill
-                    statusChip
-                    friendsStatusChip
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 12)
@@ -986,15 +908,6 @@ struct MeView: View {
         .buttonStyle(.plain)
     }
 
-    private var friendsStatusChip: some View {
-        chip {
-            Text("👥")
-            Text(Tr("朋友的状态"))
-        } action: {
-            statusPanel = .friends
-        }
-    }
-
     private var manageChip: some View {
         chip {
             Text("🛠")
@@ -1011,43 +924,6 @@ struct MeView: View {
         } action: {
             path.append("faces")
         }
-    }
-
-    private var statusChip: some View {
-        let mood = app.me?.moodText ?? ""
-        let c1 = app.me?.moodColor ?? ""
-        let c2 = app.me?.moodColor2 ?? ""
-        let hasColor = !mood.isEmpty && !c1.isEmpty
-        return Button {
-            statusPanel = .status
-        } label: {
-            HStack(spacing: L.v(2, 1, 4)) {
-                if !mood.isEmpty {
-                    Text(app.me?.moodIcon ?? "")
-                    Text(mood)
-                } else {
-                    Text("＋").foregroundColor(C.subLabel)
-                    Text(Tr("状态"))
-                }
-            }
-
-            .font(pf(11.5, .medium))
-            .foregroundColor(hasColor ? .white : C.label)
-            .padding(.horizontal, 12)
-            .frame(height: 28)
-            .background(
-                Capsule().fill(hasColor
-                    ? AnyShapeStyle(LinearGradient(colors: [Color(hexString: c1),
-                                                            Color(hexString: c2.isEmpty ? c1 : c2)],
-                                                   startPoint: .leading, endPoint: .trailing))
-                    : AnyShapeStyle(Color.clear))
-            )
-            .overlay(
-                Capsule().stroke(hasColor ? Color.white.opacity(0.35)
-                                          : Color.dyn(0xE5E5E5, 0x333335), lineWidth: 0.6)
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     private func chip<Content: View>(@ViewBuilder content: () -> Content, action: @escaping () -> Void) -> some View {
@@ -1091,42 +967,6 @@ struct MeView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(MenuPressStyle())
-    }
-}
-
-fileprivate enum StatusPanelKind: String, Identifiable {
-    case status, friends
-    var id: String { rawValue }
-}
-
-fileprivate struct BottomPanelModifier: ViewModifier {
-    var detents: Set<PresentationDetent>
-
-    var open: PresentationDetent
-    @State private var sel: PresentationDetent? = nil
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        let pick = Binding(get: { sel ?? open }, set: { sel = $0 })
-        if #available(iOS 16.4, *) {
-            content
-                .presentationDetents(detents, selection: pick)
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(18)
-                .presentationBackgroundInteraction(.enabled(upThrough: .large))
-        } else {
-            content
-                .presentationDetents(detents, selection: pick)
-                .presentationDragIndicator(.visible)
-        }
-    }
-}
-
-fileprivate extension View {
-
-    func bottomPanel(_ detents: Set<PresentationDetent>,
-                     open: PresentationDetent) -> some View {
-        modifier(BottomPanelModifier(detents: detents, open: open))
     }
 }
 
