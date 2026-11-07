@@ -1773,11 +1773,6 @@ struct ChatsView: View {
                         }
                     }
 
-                    .overlay(alignment: .bottom) {
-                        Rectangle().fill(OrbitTheme.divider).frame(height: 0.5)
-                            .opacity(scrolled > 6 ? 1 : 0)
-                    }
-
                     .opacity(navFadeForFloor)
                     .allowsHitTesting(!floorUp)
                     Spacer(minLength: 0)
