@@ -664,6 +664,7 @@ struct ChatsView: View {
     private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x121212) }
 
     @State private var scrolled: CGFloat = 0
+    @State private var filterHidden = false
 
     @State private var pullDown: CGFloat = 0
     @State private var floorDragActive = false
@@ -865,6 +866,13 @@ struct ChatsView: View {
             showOAList = true
         } else {
             path.append(chat)
+        }
+    }
+
+    private func setFilterHidden(_ hidden: Bool) {
+        guard filterHidden != hidden else { return }
+        withAnimation(.easeOut(duration: hidden ? 0.16 : 0.22)) {
+            filterHidden = hidden
         }
     }
 
@@ -1648,6 +1656,17 @@ struct ChatsView: View {
                     }
                     .id(chatFilter)
                     .coordinateSpace(name: "chatsScroll")
+                    .overlay(alignment: .topLeading) {
+                        ScrollOffsetProbe(
+                            onChange: { _, active in
+                                if active, scrolled > 8 {
+                                    setFilterHidden(true)
+                                }
+                            }
+                        )
+                        .frame(width: 1, height: 1)
+                        .allowsHitTesting(false)
+                    }
 
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 8)
@@ -1709,6 +1728,9 @@ struct ChatsView: View {
 
                         if s > scrolled || s < 1 {
                             if abs(s - scrolled) > 0.5 { scrolled = s }
+                        }
+                        if s < 1 {
+                            setFilterHidden(false)
                         }
 
                         let p = heavyPull(max(0, -v))
@@ -1784,6 +1806,9 @@ struct ChatsView: View {
                         .allowsHitTesting(false)
                     if chatFilterVisible {
                         chatFilterBar(unreadCounts: snapshot.unreadCounts)
+                            .offset(y: filterHidden ? -chatFilterH : 0)
+                            .opacity(filterHidden ? 0 : 1)
+                            .allowsHitTesting(!filterHidden)
                     }
                     Spacer(minLength: 0)
                         .allowsHitTesting(false)
