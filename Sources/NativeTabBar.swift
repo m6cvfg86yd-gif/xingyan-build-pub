@@ -369,19 +369,7 @@ struct NativeTabBar: UIViewRepresentable {
                 let iconKey = "\(styleKey)|\(custom ?? "__default__")|\(avatarKey)"
                 guard appliedIconKeys[index] != iconKey else { continue }
 
-                if index == 0, custom == nil {
-                    let rendered = renderedIcon(custom: nil, index: 0, size: size,
-                                                loader: loader,
-                                                avatarPath: "",
-                                                normalColor: normalColor,
-                                                selectedColor: selectedColor)
-                    items[index].image = rendered.normal.withRenderingMode(.alwaysOriginal)
-                    items[index].selectedImage = rendered.selected.withRenderingMode(.alwaysOriginal)
-                    appliedIconKeys[index] = iconKey
-                    continue
-                }
-
-                if index > 0, index < 3, custom == nil {
+                if index < 3, custom == nil {
                     items[index].image = UIImage(systemName: symbols[index])?
                         .withRenderingMode(.alwaysTemplate)
                     items[index].selectedImage = gradientSymbol(
