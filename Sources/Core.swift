@@ -397,9 +397,9 @@ func colorDyn(_ raw: String?, light: UInt32, dark: UInt32) -> Color {
 
 enum C {
 
-    static var pageBg      : Color { UIConfig.color("pageBg", 0xEDEDED, 0x191919) }
-    static var navBg       : Color { UIConfig.color("navBg", 0xEDEDED, 0x191919) }
-    static var tabBg       : Color { UIConfig.color("tabBg", 0xF7F7F7, 0x191919) }
+    static var pageBg      : Color { UIConfig.color("pageBg", 0xEDEDED, 0x121212) }
+    static var navBg       : Color { UIConfig.color("navBg", 0xEDEDED, 0x121212) }
+    static var tabBg       : Color { UIConfig.color("tabBg", 0xF7F7F7, 0x121212) }
     static var cardBg      : Color { UIConfig.color("cardBg", 0xFFFFFF, 0x1C1C1E) }
     static var chatRowBg   : Color { UIConfig.color("chatRowBg", 0xFFFFFF, 0x2A2A2A) }
     static var pinnedBg    : Color { UIConfig.color("pinnedBg", 0xF2F2F2, 0x333335) }
@@ -430,10 +430,10 @@ enum C {
     static var orange      : Color { UIConfig.color("orangeColor", 0xB27C37, 0xE3B464) }
     static var tabInk      : Color { UIConfig.color("tabInkColor", 0x191919, 0xB5B5B5) }
 
-    static var chatsTopBg  : Color { UIConfig.color("chatsTopBg", 0xF7F7F7, 0x191919) }
+    static var chatsTopBg  : Color { UIConfig.color("chatsTopBg", 0xF7F7F7, 0x121212) }
 
-    static var chatsPageBg : Color { UIConfig.color("chatsPageBg", 0xEDEDED, 0x191919) }
-    static var chatsRowBg  : Color { UIConfig.color("chatsRowBg", 0xFFFFFF, 0x191919) }
+    static var chatsPageBg : Color { UIConfig.color("chatsPageBg", 0xEDEDED, 0x121212) }
+    static var chatsRowBg  : Color { UIConfig.color("chatsRowBg", 0xFFFFFF, 0x121212) }
 
     static var contactsBg  : Color { UIConfig.color("contactsBg", 0xFFFFFF, 0x141419) }
 
