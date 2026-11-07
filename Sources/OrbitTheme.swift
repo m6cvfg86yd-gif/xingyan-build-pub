@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum OrbitTheme {
-    static let canvas = Color.dyn(0xF5F4F0, 0x121212)
+    static let canvas = Color.dyn(0xFFFFFF, 0x121212)
     static let raised = Color.dyn(0xFFFFFF, 0x191919)
     static let field = Color.dyn(0xECEAE4, 0x171B19)
     static let fieldRaised = Color.dyn(0xE6E3DC, 0x1D2220)
