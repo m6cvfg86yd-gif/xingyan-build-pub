@@ -454,7 +454,7 @@ private var funcs: [(String, String, Color, String)] {
                     .foregroundColor(.white)
                     .padding(.horizontal, app.friendRequests > 9 ? 6 : 0)
                     .frame(minWidth: 20, minHeight: 20)
-                    .background(Capsule().fill(C.red))
+                    .background(Capsule().fill(Color(.systemRed)))
             }
 
         }
@@ -526,7 +526,7 @@ private var funcs: [(String, String, Color, String)] {
                             .foregroundColor(.white)
                             .padding(.horizontal, app.friendRequests > 9 ? 4 : 0)
                             .frame(minWidth: 16, minHeight: 16)
-                            .background(Capsule().fill(C.red))
+                            .background(Capsule().fill(Color(.systemRed)))
                             .offset(x: 6, y: -5)
                     }
                 }
@@ -582,7 +582,7 @@ private var funcs: [(String, String, Color, String)] {
                         .foregroundColor(.white)
                         .padding(.horizontal, app.friendRequests > 9 ? 6 : 0)
                         .frame(minWidth: 18, minHeight: 18)
-                        .background(Capsule().fill(C.red))
+                        .background(Capsule().fill(Color(.systemRed)))
                         .padding(.trailing, 16)
                 }
             }

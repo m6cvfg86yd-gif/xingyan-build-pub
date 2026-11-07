@@ -130,23 +130,34 @@ struct MiniAppCardBubble: View {
         WeChatMessageCard {
             HStack(spacing: 10) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(C.fieldBg)
                     Text(info.icon?.isEmpty == false ? info.icon! : (info.isGame ? "🕹️" : "🧩"))
                         .font(pfStyled(size: 25))
                     if let cv = info.cover, !cv.isEmpty {
                         RemoteImage(path: cv)
-                            .frame(width: 50, height: 50)
-                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                            .frame(width: 54, height: 54)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                 }
-                .frame(width: 50, height: 50)
+                .frame(width: 54, height: 54)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(info.name)
-                        .font(pfStyled(size: 15.5, weight: .medium))
-                        .foregroundColor(C.label)
-                        .lineLimit(2)
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 6) {
+                        Text(info.name)
+                            .font(pfStyled(size: 16, weight: .semibold))
+                            .foregroundColor(C.label)
+                            .lineLimit(2)
+                            .layoutPriority(1)
+                        Text(info.isGame ? Tr("小游戏") : Tr("小程序"))
+                            .font(pfStyled(size: 9.5, weight: .semibold))
+                            .foregroundColor(C.green)
+                            .padding(.horizontal, 6)
+                            .frame(height: 18)
+                            .background(C.green.opacity(0.09),
+                                        in: Capsule(style: .continuous))
+                            .fixedSize()
+                    }
                     Text(info.desc?.isEmpty == false ? info.desc! : Tr("点开就能玩"))
                         .font(pfStyled(size: 12.5))
                         .foregroundColor(C.subLabel)
@@ -155,14 +166,15 @@ struct MiniAppCardBubble: View {
                 Spacer(minLength: 0)
             }
 
-            Divider()
-                .overlay(C.hairline)
-                .padding(.vertical, 9)
+            Rectangle()
+                .fill(Color.primary.opacity(0.065))
+                .frame(height: 0.5)
+                .padding(.vertical, 10)
 
             WeChatMessageCardFooter(
-                symbol: "square.grid.2x2.fill",
-                title: Tr("小程序"),
-                trailing: info.isGame ? Tr("小游戏") : Tr("打开")
+                symbol: info.isGame ? "gamecontroller.fill" : "square.grid.2x2.fill",
+                title: info.isGame ? Tr("小游戏") : Tr("小程序"),
+                trailing: Tr("打开")
             )
         }
         .onTapGesture { onOpen() }

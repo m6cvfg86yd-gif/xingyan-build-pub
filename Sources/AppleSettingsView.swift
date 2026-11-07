@@ -51,6 +51,12 @@ struct AppleSettingsView: View {
                     settingsRow(Tr("账号安全"), symbol: "lock.shield.fill",
                                 color: .blue)
                 }
+                NavigationLink {
+                    SecurityAcademyView()
+                } label: {
+                    settingsRow(Tr("安全学院"), symbol: "graduationcap.fill",
+                                color: .green)
+                }
             }
 
             Section(header: Text(Tr("通用"))) {

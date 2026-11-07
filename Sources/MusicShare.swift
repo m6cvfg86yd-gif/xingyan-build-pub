@@ -53,6 +53,145 @@ extension MusicTrack {
     }
 }
 
+private func recommendedMusicQueue(_ tracks: [MusicTrack],
+                                   mode: CopyMode,
+                                   myId: String,
+                                   recentIds: [String]) -> [MusicTrack] {
+    let liked = myId.isEmpty ? [] : tracks.filter { ($0.likes ?? []).contains(myId) }
+    let recentSet = Set(recentIds)
+    let recentTracks = tracks.filter { recentSet.contains($0.id) }
+    let tasteTracks = liked + recentTracks
+    let likedIds = Set(liked.map(\.id))
+
+    var artistAffinity: [String: Int] = [:]
+    var categoryAffinity: [String: Int] = [:]
+    var recentWeight: [String: Int] = [:]
+    var userTracks: [String: Set<String>] = [:]
+    var neighborAffinity: [String: Int] = [:]
+
+    for track in liked where track.artistText != "未知歌手" {
+        artistAffinity[track.artistText, default: 0] += 32
+    }
+    for track in liked where !track.displayCategory.isEmpty {
+        categoryAffinity[track.displayCategory, default: 0] += 15
+    }
+    for (index, id) in recentIds.prefix(80).enumerated() {
+        recentWeight[id] = max(16, 128 - index * 2)
+        if let track = recentTracks.first(where: { $0.id == id }) {
+            if track.artistText != "未知歌手" {
+                artistAffinity[track.artistText, default: 0] += max(4, 26 - index / 3)
+            }
+            if !track.displayCategory.isEmpty {
+                categoryAffinity[track.displayCategory, default: 0] += max(2, 12 - index / 6)
+            }
+        }
+    }
+
+    for track in tracks {
+        for userId in Set(track.likes ?? []) where !userId.isEmpty {
+            userTracks[userId, default: []].insert(track.id)
+        }
+    }
+    if !myId.isEmpty, !likedIds.isEmpty {
+        for (userId, ids) in userTracks where userId != myId {
+            let overlap = ids.intersection(likedIds).count
+            guard overlap > 0 else { continue }
+            let strength = min(90, overlap * overlap * 18)
+            for id in ids.subtracting(likedIds) {
+                neighborAffinity[id, default: 0] += strength
+            }
+        }
+    }
+
+    let profileReady = !liked.isEmpty || !recentIds.isEmpty
+
+    func score(_ track: MusicTrack) -> Int {
+        let likedTrack = !myId.isEmpty && (track.likes ?? []).contains(myId)
+        let recent = recentWeight[track.id] ?? 0
+        let artist = artistAffinity[track.artistText] ?? 0
+        let category = categoryAffinity[track.displayCategory] ?? 0
+        let neighbor = neighborAffinity[track.id] ?? 0
+        let learned = RecommendationEventStore.shared.score(track.id)
+        let poolQuality = RecommendationEventStore.shared.quality(track.id)
+        let exposure = RecommendationEventStore.shared.exposureCount(track.id)
+        let globalHeat = (track.likeCount ?? (track.likes ?? []).count) * 4
+            + (track.shareCount ?? 0) * 7
+
+        switch mode {
+        case .standard:
+            return globalHeat
+                + Int(learned * 14)
+                + Int(poolQuality * 220)
+                + (exposure == 0 ? 70 : 0)
+                + neighbor * 18
+                + artist * 10
+                + category * 7
+                + recent * 4
+                + (likedTrack ? 420 : 0)
+        case .fresh:
+            return globalHeat
+                + Int(learned * 11)
+                + Int(poolQuality * 160)
+                + (exposure == 0 ? 280 : 0)
+                + neighbor * 34
+                + artist * 16
+                + category * 10
+                + (likedTrack ? -1_100 : 220)
+                + (recent > 0 ? -recent * 4 : 190)
+        case .familiar:
+            return globalHeat * 2
+                + Int(learned * 22)
+                + Int(poolQuality * 300)
+                + (exposure < 2 ? 45 : 0)
+                + neighbor * 24
+                + artist * 18
+                + category * 11
+                + recent * 9
+                + (likedTrack ? 1_800 : 0)
+                + (profileReady ? 1 : 0)
+        }
+    }
+
+    let ranked = tracks.enumerated()
+        .map { (offset: $0.offset, track: $0.element, base: score($0.element)) }
+        .sorted { lhs, rhs in
+            if lhs.base != rhs.base { return lhs.base > rhs.base }
+            let la = lhs.track.at ?? 0
+            let ra = rhs.track.at ?? 0
+            return la == ra ? lhs.offset < rhs.offset : la > ra
+        }
+
+    var remaining = ranked
+    var output: [MusicTrack] = []
+    output.reserveCapacity(remaining.count)
+    let artistPenalty = mode == .familiar ? 82 : 180
+    let categoryPenalty = mode == .familiar ? 26 : 58
+
+    while !remaining.isEmpty {
+        let window = min(14, remaining.count)
+        var bestIndex = 0
+        var bestScore = Int.min
+        for index in 0..<window {
+            let candidate = remaining[index]
+            let artistRepeats = output.suffix(4).filter {
+                $0.artistText == candidate.track.artistText
+            }.count
+            let categoryRepeats = output.suffix(6).filter {
+                $0.displayCategory == candidate.track.displayCategory
+            }.count
+            let adjusted = candidate.base
+                - artistRepeats * artistPenalty
+                - categoryRepeats * categoryPenalty
+            if adjusted > bestScore {
+                bestScore = adjusted
+                bestIndex = index
+            }
+        }
+        output.append(remaining.remove(at: bestIndex).track)
+    }
+    return output
+}
+
 struct FriendNowPlaying: Decodable, Identifiable {
     var id: String
     var name: String
@@ -361,6 +500,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     private var nowId = ""
     private var nowAt = Date.distantPast
+    private var listenedSeconds: Double = 0
 
     var queue: [MusicTrack] = []
 
@@ -422,14 +562,35 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         if let st = stream, playing { st.rate = v }
     }
 
+    func recordPlaybackOutcome() {
+        guard let current else { return }
+        if listenedSeconds >= 10, progress >= 0.78 {
+            RecommendationEventStore.shared.record(current.id, .complete)
+        } else if listenedSeconds < 10 {
+            RecommendationEventStore.shared.record(current.id, .skip, weight: 2)
+        }
+    }
+
     func next() {
+        recordPlaybackOutcome()
         guard let cur = current, let i = queue.firstIndex(where: { $0.id == cur.id }) else { return }
+        if playMode == 2, queue.count > 1,
+           let n = queue.filter({ $0.id != cur.id }).randomElement() {
+            play(n)
+            return
+        }
         let n = queue[(i + 1) % queue.count]
         play(n)
     }
 
     func prev() {
+        recordPlaybackOutcome()
         guard let cur = current, let i = queue.firstIndex(where: { $0.id == cur.id }) else { return }
+        if playMode == 2, queue.count > 1,
+           let n = queue.filter({ $0.id != cur.id }).randomElement() {
+            play(n)
+            return
+        }
         let n = queue[(i - 1 + queue.count) % queue.count]
         play(n)
     }
@@ -474,6 +635,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
             syncNowPlaying()
             return
         }
+        recordPlaybackOutcome()
         play(t)
     }
 
@@ -508,6 +670,8 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         ensureRemote()
         cacheCover(t)
         current = t
+        listenedSeconds = 0
+        RecommendationEventStore.shared.record(t.id, .play)
         reportNow(t)
 
         MusicLibrary.shared.markPlayed(t)
@@ -661,6 +825,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
 
     func stop() {
+        recordPlaybackOutcome()
         player?.stop()
         player = nil
         stopStream()
@@ -670,6 +835,7 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         progress = 0
         seconds = 0
         total = 0
+        listenedSeconds = 0
         stopTimer()
         syncNowPlaying()
     }
@@ -703,6 +869,9 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
     func stopTimer() { timer?.invalidate(); timer = nil }
     func tick() {
+        if playing {
+            listenedSeconds += 0.3
+        }
 
         if sleepElapsed() {
             sleepStopped = true
@@ -740,6 +909,9 @@ final class MusicPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
 
     private func finished() {
+        if let current {
+            RecommendationEventStore.shared.record(current.id, .complete)
+        }
         playing = false
         level = 0
         progress = 0
@@ -823,14 +995,14 @@ struct MusicBubble: View {
         WeChatMessageCard {
             HStack(spacing: 10) {
                 ZStack(alignment: .bottomTrailing) {
-                    MusicCover(path: info.cover, size: 52, radius: 5)
+                    MusicCover(path: info.cover, size: 56, radius: 12)
                     MusicPlayButton(playing: player.isPlaying(info.id),
                                     loading: player.loadingId == info.id, size: 21)
                         .offset(x: 3, y: 3)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(info.title)
-                        .font(pfStyled(size: 15.5, weight: .medium))
+                        .font(pfStyled(size: 16, weight: .semibold))
                         .foregroundColor(C.label)
                         .lineLimit(2)
                     Text(info.artist.isEmpty ? Tr("未知歌手") : info.artist)
@@ -842,9 +1014,9 @@ struct MusicBubble: View {
             }
 
             Rectangle()
-                .fill(C.hairline)
+                .fill(Color.primary.opacity(0.065))
                 .frame(height: 0.5)
-                .padding(.vertical, 9)
+                .padding(.vertical, 10)
 
             WeChatMessageCardFooter(symbol: "music.note", title: Tr("星言听一听"),
                                     trailing: Tr("音乐"))
@@ -881,6 +1053,7 @@ struct ListenView: View {
 
     @State private var iconPickFor = ""
     @State private var showIconPick = false
+    @State private var showKTVSearch = false
 
     @State private var manageMode = false
     @State private var pickedTracks: Set<String> = []
@@ -891,8 +1064,10 @@ struct ListenView: View {
     @ObservedObject private var musicLibrary = MusicLibrary.shared
     @ObservedObject private var musicSheet = MusicSheet.shared
     @ObservedObject private var musicDock = MusicDockState.shared
+    @ObservedObject private var copyVoice = CopyVoiceStore.shared
 
     private var sendMode: Bool { sendTo != nil }
+    private var isAdmin: Bool { app.me?.ops == true }
 
     private var matched: [MusicTrack] {
         let q = query.trimmingCharacters(in: .whitespaces)
@@ -946,27 +1121,30 @@ struct ListenView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            Color(uiColor: .systemGroupedBackground)
-                .ignoresSafeArea()
-            topAmbientGlow
+            if !sendMode && tab == 0 {
+                immersiveMusicBackdrop
+            } else {
+                Color(uiColor: .systemGroupedBackground)
+                    .ignoresSafeArea()
+                topAmbientGlow
+            }
 
             musicList
         }
-        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .background((tab == 0 && !sendMode
+                     ? Color.black
+                     : Color(uiColor: .systemGroupedBackground)).ignoresSafeArea())
         .navigationTitle(Tr(sendMode ? "选择音乐" : "听一听"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        .searchable(
-            text: $query,
-            placement: .navigationBarDrawer(displayMode: .automatic),
-            prompt: Text(Tr("搜索歌名 / 歌手 / 分类"))
-        )
+        .modifier(MusicAdminSearchModifier(enabled: isAdmin, text: $query))
         .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(tab == 0 && !sendMode ? .dark : nil, for: .navigationBar)
         .toolbar { musicToolbar }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !sendMode && player.current != nil {
-                MusicDockedPlayerBar()
+                MusicDockedPlayerBar(fadesBackgroundWhilePlaying: !isAdmin)
                     .padding(.horizontal, 10)
                     .padding(.bottom, 8)
             }
@@ -984,7 +1162,7 @@ struct ListenView: View {
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if player.current != nil {
-                        MusicDockedPlayerBar()
+                        MusicDockedPlayerBar(fadesBackgroundWhilePlaying: !isAdmin)
                             .padding(.horizontal, 10)
                             .padding(.bottom, 8)
                     }
@@ -1043,6 +1221,11 @@ struct ListenView: View {
                       allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let dir = urls.first { importFolder(dir) }
         }
+        .fullScreenCover(isPresented: $showKTVSearch) {
+            KTVSongPickerView(tracks: tracks, mode: copyVoice.mode,
+                              myId: app.me?.id ?? "",
+                              recentIds: musicLibrary.recents.map(\.id))
+        }
     }
 
     private func leaveListen() {
@@ -1071,6 +1254,23 @@ struct ListenView: View {
         }
         lastTracksRefresh = Date()
         loading = false
+        autoPlayCurrentModeIfNeeded()
+    }
+
+    private func autoPlayCurrentModeIfNeeded() {
+        guard !sendMode, !isAdmin, player.current == nil else { return }
+        switch copyVoice.mode {
+        case .standard:
+            MusicPlayer.shared.playMode = 0
+        case .fresh:
+            MusicPlayer.shared.playMode = 2
+        case .familiar:
+            MusicPlayer.shared.playMode = 0
+        }
+        let selected = queue(for: copyVoice.mode)
+        guard let first = selected.first else { return }
+        MusicPlayer.shared.setQueue(selected)
+        MusicPlayer.shared.play(first)
     }
 
     private var topAmbientGlow: some View {
@@ -1101,6 +1301,37 @@ struct ListenView: View {
         .allowsHitTesting(false)
     }
 
+    private var immersiveMusicBackdrop: some View {
+        ZStack {
+            Color.black
+            if let cover = homeLead?.cover, !cover.isEmpty {
+                RemoteImage(path: cover, mode: .fill, maxSide: 900)
+                    .blur(radius: 64, opaque: true)
+                    .scaleEffect(1.18)
+                    .opacity(0.62)
+            } else {
+                RadialGradient(
+                    colors: [OrbitTheme.jade.opacity(0.44), Color.black],
+                    center: .topLeading,
+                    startRadius: 20,
+                    endRadius: 520
+                )
+            }
+            LinearGradient(
+                stops: [
+                    .init(color: Color.black.opacity(0.10), location: 0),
+                    .init(color: Color.black.opacity(0.42), location: 0.42),
+                    .init(color: Color.black.opacity(0.78), location: 0.76),
+                    .init(color: Color.black, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+
     @ViewBuilder
     private var musicList: some View {
         Group {
@@ -1128,9 +1359,11 @@ struct ListenView: View {
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 0) {
                         if !sendMode {
-                            musicTabRail
-                                .padding(.top, 8)
-                                .padding(.bottom, 18)
+                            if tab != 0 {
+                                musicTabRail
+                                    .padding(.top, 8)
+                                    .padding(.bottom, 18)
+                            }
                         }
 
                         if manageMode {
@@ -1196,83 +1429,37 @@ struct ListenView: View {
 
     @ViewBuilder
     private var musicHomeContent: some View {
-        musicSectionHeader(Tr("为你推荐"), refresh: true)
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 16) {
-                ForEach(Array(recommend.prefix(8))) { track in
-                    recommendationHeroCard(track)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 4)
-        }
-        .padding(.bottom, 30)
+        musicHomeContentHero
+            .environment(\.colorScheme, .dark)
+    }
 
-        if !musicLibrary.recents.isEmpty {
-            musicSectionHeader(Tr("最近播放"))
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 12) {
-                    ForEach(Array(musicLibrary.recents.prefix(8))) { recent in
-                        recentPlaybackCard(recent.asTrack)
+    private var immersiveTabRail: some View {
+        HStack(spacing: 3) {
+            ForEach(Array([Tr("推荐"), Tr("音乐"), Tr("朋友")].enumerated()), id: \.offset) { index, title in
+                Button {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.88)) {
+                        tab = index
                     }
+                } label: {
+                    Text(title)
+                        .font(pfStyled(size: 13.5, weight: tab == index ? .semibold : .medium))
+                        .foregroundStyle(tab == index ? Color.black : Color.white.opacity(0.82))
+                        .padding(.horizontal, 14)
+                        .frame(height: 30)
+                        .background {
+                            if tab == index {
+                                Capsule(style: .continuous).fill(.white)
+                            }
+                        }
                 }
-                .padding(.horizontal, 18)
+                .buttonStyle(.plain)
             }
-            .padding(.bottom, 26)
         }
-
-        if cats.count > 1 {
-            musicSectionHeader(Tr("分类探索"))
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 16),
-                    GridItem(.flexible(), spacing: 16)
-                ],
-                spacing: 16
-            ) {
-                ForEach(cats, id: \.self) { value in
-                    categoryLargeCard(value)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 28)
+        .padding(3)
+        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+        .overlay {
+            Capsule(style: .continuous).stroke(.white.opacity(0.16), lineWidth: 0.6)
         }
-
-        musicSectionHeader(Tr("我的音乐"))
-        musicLibraryCards
-            .padding(.horizontal, 18)
-            .padding(.bottom, 26)
-
-        Button {
-            withAnimation(.easeOut(duration: 0.18)) { tab = 1 }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "music.note.list")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(OrbitTheme.jade)
-                    .frame(width: 30, height: 30)
-                    .background(OrbitTheme.jade.opacity(0.10), in: Circle())
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(Tr("全部歌曲"))
-                        .font(pfStyled(size: 15.5, weight: .semibold))
-                        .foregroundStyle(.primary)
-                    Text("\(tracks.count) " + Tr("首"))
-                        .font(pfStyled(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 62)
-            .background(Color.primary.opacity(0.035),
-                        in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 18)
-        .padding(.bottom, 34)
     }
 
     private var discoveryArtworkSide: CGFloat {
@@ -1585,7 +1772,23 @@ struct ListenView: View {
     @ViewBuilder
     private var musicHomeContentHero: some View {
         if let lead = homeLead {
-            let heroHeight = min(max(500, L.height * 0.58), 660)
+            let heroHeight = isAdmin
+                ? min(max(500, L.height * 0.58), 660)
+                : min(max(610, L.height * 0.76), 780)
+            let heroStops: [Gradient.Stop] = isAdmin
+                ? [
+                    .init(color: .black.opacity(0.08), location: 0),
+                    .init(color: .clear, location: 0.30),
+                    .init(color: .black.opacity(0.30), location: 0.58),
+                    .init(color: .black.opacity(0.94), location: 1)
+                ]
+                : [
+                    .init(color: .black.opacity(0.30), location: 0),
+                    .init(color: .clear, location: 0.26),
+                    .init(color: .black.opacity(0.12), location: 0.46),
+                    .init(color: .black.opacity(0.48), location: 0.65),
+                    .init(color: .black.opacity(0.96), location: 1)
+                ]
             let isCurrent = player.current?.id == lead.id
             let lyrics = MusicLyrics.parse(
                 lead.lyrics ?? "",
@@ -1596,30 +1799,33 @@ struct ListenView: View {
             let nextLyric = lyrics.indices.contains(lyricIndex + 1) ? lyrics[lyricIndex + 1].text : ""
 
             Button {
-                MusicPlayer.shared.setQueue(tracks)
+                MusicPlayer.shared.setQueue(isAdmin ? tracks : queue(for: copyVoice.mode))
                 if !player.isPlaying(lead.id) { player.toggle(lead) }
                 MusicSheet.shared.open(lead)
             } label: {
                 ZStack(alignment: .bottomLeading) {
-                    RemoteImage(path: lead.cover ?? "", mode: .fill, maxSide: 1400)
+                    RemoteImage(path: lead.cover ?? "", mode: .fill, maxSide: 1600)
                         .frame(maxWidth: .infinity)
                         .frame(height: heroHeight)
+                        .scaleEffect(isAdmin ? 1 : 1.035)
                         .clipped()
 
+                    if !isAdmin {
+                        HeroAtmosphere()
+                            .frame(height: heroHeight)
+                            .allowsHitTesting(false)
+                    }
+
                     LinearGradient(
-                        stops: [
-                            .init(color: .black.opacity(0.08), location: 0),
-                            .init(color: .clear, location: 0.30),
-                            .init(color: .black.opacity(0.30), location: 0.58),
-                            .init(color: .black.opacity(0.94), location: 1)
-                        ],
+                        stops: heroStops,
                         startPoint: .top,
                         endPoint: .bottom
                     )
 
                     VStack(alignment: .leading, spacing: 0) {
                         HStack {
-                            Text(Tr(isCurrent ? "正在播放" : "为你推荐"))
+                            Text(isCurrent ? Tr("正在播放")
+                                           : (isAdmin ? Tr("为你推荐") : copyVoice.mode.name))
                                 .font(pfStyled(size: 11.5, weight: .semibold))
                                 .tracking(0.8)
                                 .foregroundStyle(.white.opacity(0.86))
@@ -1654,6 +1860,7 @@ struct ListenView: View {
                                 Text(lead.title)
                                     .font(pfStyled(size: 34, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
+                                    .shadow(color: .black.opacity(0.36), radius: 18, y: 6)
                                     .lineLimit(2)
                                     .minimumScaleFactor(0.76)
                                 Text(lead.artistText)
@@ -1680,24 +1887,37 @@ struct ListenView: View {
                         }
                     }
                     .padding(.horizontal, 22)
-                    .padding(.top, 14)
+                    .padding(.top, 64)
                     .padding(.bottom, 24)
                 }
                 .frame(height: heroHeight)
                 .clipped()
             }
             .buttonStyle(.plain)
+            .overlay(alignment: .top) {
+                immersiveTabRail
+                    .padding(.top, 12)
+            }
         }
 
-        musicLibraryCards
-            .padding(.horizontal, 18)
-            .padding(.top, 20)
-            .padding(.bottom, 30)
+        if isAdmin {
+            let editorial = recommend.filter { $0.id != homeLead?.id }
+            if !editorial.isEmpty {
+                musicSectionHeader(Tr("为你精选"), refresh: true)
+                    .padding(.top, 14)
+                immersiveEditorialRail(Array(editorial.prefix(8)))
+            }
 
-        musicSectionHeader(Tr("继续播放"))
-        LazyVStack(spacing: 0) {
-            ForEach(Array(recommend.filter { $0.id != homeLead?.id }.prefix(6))) { track in
-                premiumTrackRow(track)
+            musicSectionHeader(Tr("我的音乐"))
+            musicLibraryCards
+                .padding(.horizontal, 18)
+                .padding(.bottom, 30)
+
+            musicSectionHeader(Tr("继续播放"))
+            LazyVStack(spacing: 0) {
+                ForEach(Array(recommend.filter { $0.id != homeLead?.id }.prefix(6))) { track in
+                    premiumTrackRow(track)
+                }
             }
         }
 
@@ -1836,18 +2056,6 @@ struct ListenView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 34)
 
-        musicSectionHeader(Tr("今日推荐"), refresh: true)
-
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 16) {
-                ForEach(Array(recommend.prefix(10).enumerated()), id: \.element.id) { index, track in
-                    musicMixCard(track, rank: index + 1)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 30)
-        }
-
         Button {
             withAnimation(.easeOut(duration: 0.18)) { tab = 1 }
         } label: {
@@ -1876,6 +2084,105 @@ struct ListenView: View {
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.bottom, 38)
+    }
+
+    private var editorialCardWidth: CGFloat {
+        min(340, max(272, L.width * 0.78))
+    }
+
+    private func immersiveEditorialRail(_ list: [MusicTrack]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 14) {
+                ForEach(Array(list.enumerated()), id: \.element.id) { index, track in
+                    immersiveEditorialCard(track, index: index)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 2)
+        }
+        .padding(.bottom, 30)
+    }
+
+    private func immersiveEditorialCard(_ track: MusicTrack, index: Int) -> some View {
+        let width = editorialCardWidth
+        let height = min(332, width * 0.94)
+        return Button {
+            playRecommended(track)
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                if (track.cover ?? "").isEmpty {
+                    LinearGradient(
+                        colors: [OrbitTheme.jade.opacity(0.92), Color(hex: 0x101713)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                } else {
+                    RemoteImage(path: track.cover ?? "", mode: .fill, maxSide: 1000)
+                }
+
+                LinearGradient(
+                    stops: [
+                        .init(color: .black.opacity(0.04), location: 0),
+                        .init(color: .clear, location: 0.34),
+                        .init(color: .black.opacity(0.24), location: 0.64),
+                        .init(color: .black.opacity(0.88), location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                Text(String(format: "%02d", index + 1))
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.74))
+                    .padding(.horizontal, 9)
+                    .frame(height: 26)
+                    .background(.black.opacity(0.24), in: Capsule())
+                    .overlay(Capsule().stroke(.white.opacity(0.14), lineWidth: 0.6))
+                    .padding(16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity,
+                           alignment: .topLeading)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(track.displayCategory.isEmpty ? Tr("精选") : track.displayCategory)
+                        .font(pfStyled(size: 11, weight: .semibold))
+                        .tracking(0.7)
+                        .foregroundStyle(.white.opacity(0.64))
+                        .textCase(.uppercase)
+
+                    HStack(alignment: .bottom, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(track.title)
+                                .font(pfStyled(size: 25, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.78)
+                            Text(track.artistText)
+                                .font(pfStyled(size: 14, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.70))
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 6)
+                        MusicPlayButton(
+                            playing: player.isPlaying(track.id),
+                            loading: player.loadingId == track.id,
+                            size: 48,
+                            tint: .black,
+                            bg: .white.opacity(0.94)
+                        )
+                    }
+                }
+                .padding(20)
+            }
+            .frame(width: width, height: height)
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(.white.opacity(0.16), lineWidth: 0.7)
+            }
+            .shadow(color: .black.opacity(0.34), radius: 24, y: 14)
+            .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private var musicLibraryCards: some View {
@@ -2435,20 +2742,39 @@ struct ListenView: View {
     @ToolbarContentBuilder
     private var musicToolbar: some ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
-            Button {
-                leaveListen()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(width: 38, height: 38)
-                    .contentShape(Rectangle())
+            HStack(spacing: 2) {
+                Button {
+                    leaveListen()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 38, height: 38)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Tr("返回"))
+
+                if !sendMode && !isAdmin {
+                    Button {
+                        showKTVSearch = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 16, weight: .semibold))
+                            .frame(width: 36, height: 38)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Tr("点歌台"))
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Tr("返回"))
         }
 
         ToolbarItem(placement: .navigationBarTrailing) {
             HStack(spacing: 10) {
+                if !sendMode && !isAdmin {
+                    copyModeMenu
+                }
+
                 if !sendMode && tab == 1 && cats.count > 1 {
                     Menu {
                         Button {
@@ -2488,6 +2814,78 @@ struct ListenView: View {
         }
     }
 
+    private var copyModeMenu: some View {
+        Menu {
+            Section(Tr("语言模式")) {
+                ForEach(CopyMode.allCases) { mode in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            selectCopyMode(mode)
+                        }
+                    } label: {
+                        Label((copyVoice.mode == mode ? "✓ " : "") + mode.name,
+                              systemImage: mode.symbol)
+                    }
+                }
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0.16), OrbitTheme.jade.opacity(0.10)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                Circle()
+                    .stroke(
+                        AngularGradient(
+                            colors: [.white.opacity(0.50), OrbitTheme.jade.opacity(0.48),
+                                     .white.opacity(0.16), .white.opacity(0.50)],
+                            center: .center
+                        ),
+                        lineWidth: 0.8
+                    )
+                Image(systemName: copyVoice.mode.symbol)
+                    .font(.system(size: 14.5, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .shadow(color: OrbitTheme.jade.opacity(0.28), radius: 4)
+            }
+            .frame(width: 34, height: 34)
+            .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+            .contentShape(Circle())
+        }
+        .accessibilityLabel(Tr("语言模式"))
+        .accessibilityValue(copyVoice.mode.name)
+    }
+
+    private func selectCopyMode(_ mode: CopyMode) {
+        MusicPlayer.shared.recordPlaybackOutcome()
+        copyVoice.mode = mode
+        guard !sendMode, !tracks.isEmpty else { return }
+
+        switch mode {
+        case .standard:
+            MusicPlayer.shared.playMode = 0
+        case .fresh:
+            MusicPlayer.shared.playMode = 2
+        case .familiar:
+            MusicPlayer.shared.playMode = 0
+        }
+        let selected = queue(for: mode)
+        guard let first = selected.first else { return }
+        MusicPlayer.shared.setQueue(selected)
+        MusicPlayer.shared.play(first)
+    }
+
+    private func queue(for mode: CopyMode) -> [MusicTrack] {
+        recommendedMusicQueue(tracks, mode: mode, myId: app.me?.id ?? "",
+                              recentIds: musicLibrary.recents.map(\.id))
+    }
+
     @ViewBuilder
     private var content: some View {
 
@@ -2512,22 +2910,14 @@ struct ListenView: View {
                     if tab == 0 {
 
                         HStack(spacing: 8) {
-                            Text(Tr("今日推荐")).font(pf(17, .semibold)).foregroundColor(C.label)
+                            Text(Tr("全部歌曲")).font(pf(17, .semibold)).foregroundColor(C.label)
                             Spacer(minLength: 0)
-                            Button { batch += 1 } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 12))
-                                    Text(Tr("换一批")).font(pf(13))
-                                }
-                                .foregroundColor(C.subLabel)
-                            }
-                            .buttonStyle(.plain)
                         }
                         .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
 
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
                                             GridItem(.flexible(), spacing: 12)], spacing: 14) {
-                            ForEach(Array(recommend.enumerated()), id: \.element.id) { i, t in
+                            ForEach(Array(tracks.enumerated()), id: \.element.id) { i, t in
                                 bigCard(t, rank: i + 1, wide: true)
                             }
                         }
@@ -2536,7 +2926,7 @@ struct ListenView: View {
 
                         if artists.count > 1 {
                             HStack {
-                                Text(Tr("推荐音乐人")).font(pf(17, .semibold)).foregroundColor(C.label)
+                                Text(Tr("音乐人")).font(pf(17, .semibold)).foregroundColor(C.label)
                                 Spacer(minLength: 0)
                             }
                             .padding(.horizontal, 16).padding(.top, 20).padding(.bottom, 10)
@@ -2855,6 +3245,421 @@ struct ListenView: View {
 
 }
 
+private struct MusicAdminSearchModifier: ViewModifier {
+    let enabled: Bool
+    @Binding var text: String
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content.searchable(
+                text: $text,
+                placement: .navigationBarDrawer(displayMode: .automatic),
+                prompt: Text(Tr("搜索歌名 / 歌手 / 分类"))
+            )
+        } else {
+            content
+        }
+    }
+}
+
+private struct HeroAtmosphere: View {
+    @State private var drifting = false
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [OrbitTheme.jade.opacity(0.30), .clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: max(geo.size.width, geo.size.height) * 0.46
+                        )
+                    )
+                    .frame(width: geo.size.width * 1.28,
+                           height: geo.size.width * 1.28)
+                    .blur(radius: 34)
+                    .offset(
+                        x: drifting ? geo.size.width * 0.18 : geo.size.width * -0.14,
+                        y: drifting ? -geo.size.height * 0.16 : -geo.size.height * 0.03
+                    )
+
+                Ellipse()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(hex: 0xFFB45B).opacity(0.16), .clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: geo.size.width * 0.46
+                        )
+                    )
+                    .frame(width: geo.size.width * 0.94,
+                           height: geo.size.height * 0.42)
+                    .blur(radius: 44)
+                    .offset(
+                        x: drifting ? -geo.size.width * 0.20 : geo.size.width * 0.20,
+                        y: geo.size.height * 0.18
+                    )
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .blendMode(.screen)
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 11).repeatForever(autoreverses: true)) {
+                drifting = true
+            }
+        }
+    }
+}
+
+struct KTVSongPickerView: View {
+    let tracks: [MusicTrack]
+    let mode: CopyMode
+    let myId: String
+    let recentIds: [String]
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    @State private var query = ""
+    @State private var category = ""
+    @State private var selected: MusicTrack?
+    @State private var exposedIds = Set<String>()
+    @FocusState private var searchFocused: Bool
+
+    private var categories: [String] {
+        var seen = Set<String>()
+        return tracks.compactMap {
+            let value = $0.displayCategory
+            return !value.isEmpty && seen.insert(value).inserted ? value : nil
+        }
+        .sorted()
+    }
+
+    private var results: [MusicTrack] {
+        let key = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return tracks.filter { track in
+            let categoryOK = category.isEmpty || track.displayCategory == category
+            guard categoryOK else { return false }
+            guard !key.isEmpty else { return true }
+            return track.title.localizedCaseInsensitiveContains(key)
+                || track.artistText.localizedCaseInsensitiveContains(key)
+                || track.displayCategory.localizedCaseInsensitiveContains(key)
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            ktvBackdrop
+
+            VStack(spacing: 0) {
+                header
+                searchField
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+                categoryRail
+                    .padding(.top, 12)
+
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 9) {
+                        if results.isEmpty {
+                            VStack(spacing: 12) {
+                                Image(systemName: "music.note.list")
+                                    .font(.system(size: 34, weight: .light))
+                                Text(Tr("没有找到歌曲"))
+                                    .font(pfStyled(size: 17, weight: .semibold))
+                                Text(Tr("换个关键词试试"))
+                                    .font(pfStyled(size: 13.5))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .foregroundStyle(.white.opacity(0.72))
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 90)
+                        } else {
+                            ForEach(Array(results.enumerated()), id: \.element.id) { index, track in
+                                songRow(track, index: index + 1)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 120)
+                }
+                .scrollDismissesKeyboard(.interactively)
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            selectionDock
+        }
+        .statusBarHidden(false)
+        .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                searchFocused = true
+            }
+        }
+    }
+
+    private var ktvBackdrop: some View {
+        ZStack {
+            Color(hex: 0x070B0A)
+            RadialGradient(
+                colors: [OrbitTheme.jade.opacity(scheme == .dark ? 0.34 : 0.26), .clear],
+                center: .topLeading,
+                startRadius: 16,
+                endRadius: 430
+            )
+            RadialGradient(
+                colors: [Color(hex: 0xFFB45B).opacity(0.12), .clear],
+                center: .bottomTrailing,
+                startRadius: 8,
+                endRadius: 360
+            )
+            LinearGradient(
+                colors: [.black.opacity(0.04), .black.opacity(0.55)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: 38, height: 38)
+                    .background(.white.opacity(0.10), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Tr("关闭"))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Tr("点歌台"))
+                    .font(pfStyled(size: 23, weight: .bold, design: .rounded))
+                Text("\(mode.name) · \(tracks.count) " + Tr("首"))
+                    .font(pfStyled(size: 11.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.56))
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "mic.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(OrbitTheme.jade)
+                .frame(width: 38, height: 38)
+                .background(OrbitTheme.jade.opacity(0.12), in: Circle())
+                .overlay(Circle().stroke(OrbitTheme.jade.opacity(0.24), lineWidth: 0.7))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.top, max(8, L.safeTop + 2))
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.52))
+            TextField("", text: $query,
+                      prompt: Text(Tr("搜索歌名、歌手或分类"))
+                        .foregroundColor(.white.opacity(0.42)))
+                .focused($searchFocused)
+                .textInputAutocapitalization(.never)
+                .submitLabel(.search)
+                .foregroundStyle(.white)
+            if !query.isEmpty {
+                Button {
+                    query = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.white.opacity(0.42))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 13)
+        .frame(height: 46)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(.white.opacity(0.12), lineWidth: 0.7)
+        }
+    }
+
+    private var categoryRail: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                categoryChip("", Tr("全部"))
+                ForEach(categories, id: \.self) { value in
+                    categoryChip(value, value)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 3)
+        }
+    }
+
+    private func categoryChip(_ value: String, _ title: String) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.16)) { category = value }
+        } label: {
+            Text(title)
+                .font(pfStyled(size: 13, weight: category == value ? .semibold : .medium))
+                .foregroundStyle(category == value ? Color.black : Color.white.opacity(0.72))
+                .padding(.horizontal, 13)
+                .frame(height: 31)
+                .background(
+                    category == value ? Color.white : Color.white.opacity(0.08),
+                    in: Capsule(style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func songRow(_ track: MusicTrack, index: Int) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                selected = track
+            }
+            RecommendationEventStore.shared.record(track.id, .click)
+            if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                RecommendationEventStore.shared.record(track.id, .search)
+            }
+            UISelectionFeedbackGenerator().selectionChanged()
+        } label: {
+            HStack(spacing: 12) {
+                Text(String(format: "%02d", index))
+                    .font(pfStyled(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(selected?.id == track.id ? OrbitTheme.jade : .white.opacity(0.34))
+                    .frame(width: 22)
+
+                MusicCover(path: track.cover ?? "", size: 54, radius: 10)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(track.title)
+                        .font(pfStyled(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(track.artistText)
+                            .lineLimit(1)
+                        Text("·")
+                        Text(track.displayCategory)
+                            .lineLimit(1)
+                    }
+                    .font(pfStyled(size: 12))
+                    .foregroundStyle(.white.opacity(0.52))
+                }
+
+                Spacer(minLength: 8)
+                Image(systemName: selected?.id == track.id ? "checkmark.circle.fill" : "plus.circle.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(selected?.id == track.id ? OrbitTheme.jade : .white.opacity(0.32))
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 74)
+            .background(
+                selected?.id == track.id ? OrbitTheme.jade.opacity(0.10) : Color.white.opacity(0.045),
+                in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .stroke(selected?.id == track.id
+                            ? OrbitTheme.jade.opacity(0.42)
+                            : Color.white.opacity(0.07),
+                            lineWidth: 0.7)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onAppear {
+            if exposedIds.insert(track.id).inserted {
+                RecommendationEventStore.shared.record(track.id, .exposure)
+            }
+        }
+    }
+
+    private var selectionDock: some View {
+        HStack(spacing: 12) {
+            if let selected {
+                MusicCover(path: selected.cover ?? "", size: 44, radius: 9)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(selected.title)
+                        .font(pfStyled(size: 15, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(selected.artistText)
+                        .font(pfStyled(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 6)
+                Button {
+                    startSinging(selected)
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "mic.fill")
+                        Text(Tr("开始演唱"))
+                    }
+                    .font(pfStyled(size: 14.5, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 16)
+                    .frame(height: 42)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: 0xDDF7B7), OrbitTheme.jade],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        in: Capsule(style: .continuous)
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                Image(systemName: "hand.tap.fill")
+                    .foregroundStyle(OrbitTheme.jade)
+                Text(Tr("先选一首歌"))
+                    .font(pfStyled(size: 14, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.72))
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 64)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(.white.opacity(0.13), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.22), radius: 18, y: 8)
+        .padding(.horizontal, 10)
+        .padding(.bottom, max(8, L.safeBottom * 0.32))
+    }
+
+    private func startSinging(_ track: MusicTrack) {
+        MusicPlayer.shared.recordPlaybackOutcome()
+        switch mode {
+        case .standard:
+            MusicPlayer.shared.playMode = 0
+        case .fresh:
+            MusicPlayer.shared.playMode = 2
+        case .familiar:
+            MusicPlayer.shared.playMode = 0
+        }
+        var queue = recommendedMusicQueue(tracks, mode: mode, myId: myId,
+                                          recentIds: recentIds)
+        queue.removeAll { $0.id == track.id }
+        queue.insert(track, at: 0)
+        MusicPlayer.shared.setQueue(queue)
+        MusicPlayer.shared.play(track)
+        dismiss()
+    }
+}
+
 @MainActor
 final class MusicSheet: ObservableObject {
     static let shared = MusicSheet()
@@ -3052,6 +3857,7 @@ struct MusicPlayingView: View {
     private func likeIt() {
         guard let track = t else { return }
         let now = !liked
+        RecommendationEventStore.shared.record(track.id, now ? .like : .unlike)
         likedNow = now
         likeCountNow = max(0, likeCount + (now ? 1 : -1))
         if now {
@@ -3838,7 +4644,10 @@ struct MusicPlayingView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $shareTo) {
                 ForwardPickerView(items: [ForwardItem(kind: "music", content: musicCardJSON)]) {
-                    if let track = t { Task { await API.shared.musicShareCount(track.id) } }
+                    if let track = t {
+                        RecommendationEventStore.shared.record(track.id, .share)
+                        Task { await API.shared.musicShareCount(track.id) }
+                    }
                 }
                 .environmentObject(app)
             }

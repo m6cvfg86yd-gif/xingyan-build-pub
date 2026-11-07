@@ -47,9 +47,9 @@ final class StickerCatalog: ObservableObject {
                                      withExtension: "json",
                                      subdirectory: "emoji/star-orbit"),
            let data = try? Data(contentsOf: url),
-           let payload = try? JSONDecoder().decode(StickerCatalogPayload.self, from: data) {
+            let payload = try? JSONDecoder().decode(StickerCatalogPayload.self, from: data) {
             merge(payload)
-            StickerLib.installBundledStarPackIfNeeded()
+            StickerLib.removeBundledStarPackIfNeeded()
             didLoad = true
         }
 
@@ -76,7 +76,9 @@ final class StickerCatalog: ObservableObject {
         for category in payload.categories ?? [] where !categories.contains(where: { $0.id == category.id }) {
             categories.append(category)
         }
-        for pack in payload.packs ?? [] where !packs.contains(where: { $0.id == pack.id }) {
+        for pack in payload.packs ?? []
+            where pack.id != "star-orbit-daily"
+            && !packs.contains(where: { $0.id == pack.id }) {
             packs.append(pack)
         }
     }

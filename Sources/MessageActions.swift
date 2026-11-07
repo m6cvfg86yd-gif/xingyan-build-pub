@@ -110,7 +110,17 @@ struct ForwardPickerView: View {
     }
 
     private var selectedChats: [Chat] {
-        app.chats.filter { picked.contains($0.id) }
+        var seen = Set<String>()
+        return app.chats.filter {
+            picked.contains($0.id) && seen.insert($0.id).inserted
+        }
+    }
+
+    private var uniqueItems: [ForwardItem] {
+        var seen = Set<String>()
+        return items.filter {
+            seen.insert($0.kind + "\u{1F}" + $0.content).inserted
+        }
     }
 
     private var contentSummary: String {
@@ -353,17 +363,39 @@ struct ForwardPickerView: View {
     }
 
     private func sendSelected() {
+        guard !sending else { return }
         let targets = selectedChats
-        guard !targets.isEmpty else { return }
+        let payloads = uniqueItems
+        guard !targets.isEmpty, !payloads.isEmpty else { return }
         sending = true
         Task {
+            var delivered = 0
+            var failed = 0
             for chat in targets {
-                for it in items {
-                    _ = try? await API.shared.send(chatId: chat.id, kind: it.kind, content: it.content)
+                for it in payloads {
+                    // A stable id makes failover retries idempotent on the server.
+                    let clientId = UUID().uuidString.lowercased()
+                    do {
+                        if try await API.shared.send(chatId: chat.id, kind: it.kind,
+                                                     content: it.content,
+                                                     clientId: clientId) != nil {
+                            delivered += 1
+                        } else {
+                            failed += 1
+                        }
+                    } catch {
+                        failed += 1
+                    }
                 }
             }
             sending = false
-            if targets.count == 1 {
+            if delivered == 0 {
+                app.show(Tr("转发失败，请检查网络后重试"))
+                return
+            }
+            if failed > 0 {
+                app.show(Tr("部分内容转发失败，请重试"))
+            } else if targets.count == 1 {
                 app.show(Tr("已转发给") + "「" + targets[0].name + "」")
             } else {
                 app.show(Tr("已转发给") + " " + String(targets.count) + " " + Tr("个聊天"))

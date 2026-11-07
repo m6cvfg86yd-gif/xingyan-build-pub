@@ -27,6 +27,17 @@ struct AccountSecurityView: View {
     var body: some View {
         List {
             Section {
+                NavigationLink {
+                    SecurityAcademyView()
+                } label: {
+                    LabeledContent(Tr("安全学院"),
+                                   value: Tr("反诈 / 账号 / 隐私"))
+                }
+            } footer: {
+                Text(Tr("学习验证码、假客服、投资诈骗、屏幕共享和隐私权限等安全知识。"))
+            }
+
+            Section {
                 Button {
                     app.show(Tr("账号一年只能改一次，需要的话联系客服"))
                 } label: {

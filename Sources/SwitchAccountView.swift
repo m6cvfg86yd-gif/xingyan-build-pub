@@ -13,6 +13,140 @@ struct SwitchAccountView: View {
     private var me: String { app.me?.username ?? "" }
 
     var body: some View {
+        nativeBody
+    }
+
+    private var nativeBody: some View {
+        List {
+            Section {
+                ForEach(app.accounts) { account in
+                    let current = account.username == me
+                    Button {
+                        guard !current else { return }
+                        tap(account, current: current)
+                    } label: {
+                        nativeAccountRow(account)
+                    }
+                    .buttonStyle(.plain)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if !current {
+                            Button(role: .destructive) {
+                                remove(account)
+                            } label: {
+                                Label(Tr("从本机移除"), systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text(Tr("已登录账号"))
+            } footer: {
+                Text(Tr("每个账号的聊天和资料相互独立，切换后会恢复到对应账号。"))
+            }
+
+            Section {
+                Button {
+                    adding = true
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Tr("添加新账号"))
+                                .font(pfStyled(size: 17))
+                                .foregroundStyle(C.label)
+                            Text(addSubtitle)
+                                .font(pfStyled(size: 13))
+                                .foregroundStyle(C.subLabel)
+                        }
+                    } icon: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 22, weight: .regular))
+                            .foregroundStyle(OrbitTheme.jade)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+
+            if !note.isEmpty {
+                Section {
+                    Label(note, systemImage: "exclamationmark.circle.fill")
+                        .font(pfStyled(size: 13))
+                        .foregroundStyle(C.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(C.pageBg)
+        .navigationTitle(Tr("切换账号"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Text("\(app.accounts.count)/\(AccountStore.maxCount)")
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .background(C.pageBg.ignoresSafeArea())
+        .hidesTabBar()
+        .fullScreenCover(isPresented: $adding) {
+            HarmonyLoginView()
+                .environmentObject(app)
+        }
+        .onChange(of: app.accounts.count) { _ in
+            if !note.isEmpty { note = "" }
+        }
+    }
+
+    private func nativeAccountRow(_ account: SavedAccount) -> some View {
+        let current = account.username == me
+        let loading = busy == account.username
+        let tokenReady = !AccountStore.token(for: account.username).isEmpty
+
+        return HStack(spacing: 12) {
+            Avatar(path: account.avatar, size: 40, radius: 10)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayName(account))
+                    .font(pfStyled(size: 17))
+                    .foregroundStyle(C.label)
+                    .lineLimit(1)
+
+                Text("@" + account.username)
+                    .font(pfStyled(size: 13))
+                    .foregroundStyle(C.subLabel)
+                    .lineLimit(1)
+
+                if !tokenReady && !current {
+                    Text(Tr("登录状态已失效，点击重新登录"))
+                        .font(pfStyled(size: 11))
+                        .foregroundStyle(C.red.opacity(0.86))
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            if loading {
+                ProgressView()
+                    .tint(OrbitTheme.jade)
+                    .scaleEffect(0.82)
+            } else if current {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.jade)
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(C.subLabel.opacity(0.72))
+            }
+        }
+        .padding(.vertical, 2)
+        .frame(minHeight: 50)
+        .contentShape(Rectangle())
+    }
+
+    private var legacyBody: some View {
         ZStack {
             StarRouteBackdrop()
 

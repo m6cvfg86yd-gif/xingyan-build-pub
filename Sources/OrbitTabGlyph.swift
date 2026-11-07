@@ -23,7 +23,7 @@ struct OrbitTabGlyph: View {
 
             switch kind {
             case 0:
-                drawConversation(context, line: line, fine: fine)
+                drawStar(context, line: line, fine: fine)
             case 1:
                 drawContacts(context, line: line, fine: fine)
             case 2:
@@ -35,26 +35,48 @@ struct OrbitTabGlyph: View {
         .frame(width: 24, height: 24)
     }
 
-    private func drawConversation(_ context: GraphicsContext,
-                                  line: StrokeStyle, fine: StrokeStyle) {
-        var orbit = Path()
-        orbit.addArc(center: CGPoint(x: 12, y: 12), radius: 10.2,
-                     startAngle: .degrees(-72), endAngle: .degrees(206),
-                     clockwise: false)
-        context.stroke(orbit, with: .color(accent.opacity(selected ? 0.62 : 0.38)),
-                       style: fine)
-
-        var bubble = Path(roundedRect: CGRect(x: 4.4, y: 5.8, width: 15.2, height: 11.2),
-                          cornerRadius: 4.6)
-        bubble.move(to: CGPoint(x: 8.6, y: 16.6))
-        bubble.addLine(to: CGPoint(x: 7.8, y: 20.1))
-        bubble.addLine(to: CGPoint(x: 12.5, y: 17.1))
+    private func drawStar(_ context: GraphicsContext,
+                          line: StrokeStyle, fine: StrokeStyle) {
+        var star = Path()
+        star.move(to: CGPoint(x: 12, y: 1.8))
+        star.addCurve(to: CGPoint(x: 21.9, y: 12),
+                      control1: CGPoint(x: 12.6, y: 7.2),
+                      control2: CGPoint(x: 16.8, y: 11.4))
+        star.addCurve(to: CGPoint(x: 12, y: 22.2),
+                      control1: CGPoint(x: 16.8, y: 12.6),
+                      control2: CGPoint(x: 12.6, y: 16.8))
+        star.addCurve(to: CGPoint(x: 2.1, y: 12),
+                      control1: CGPoint(x: 7.2, y: 16.8),
+                      control2: CGPoint(x: 11.4, y: 12.6))
+        star.addCurve(to: CGPoint(x: 12, y: 1.8),
+                      control1: CGPoint(x: 11.4, y: 7.2),
+                      control2: CGPoint(x: 7.2, y: 11.4))
+        star.closeSubpath()
         if selected {
-            context.fill(bubble, with: .color(color.opacity(0.18)))
+            context.fill(
+                star,
+                with: .linearGradient(
+                    Gradient(stops: [
+                        .init(color: color.opacity(0.52), location: 0),
+                        .init(color: Color(hex: 0xA7D96A).opacity(0.34), location: 0.72),
+                        .init(color: Color(hex: 0xD9B95F).opacity(0.20), location: 1)
+                    ]),
+                    startPoint: CGPoint(x: 4, y: 4),
+                    endPoint: CGPoint(x: 20, y: 20)
+                )
+            )
         }
-        context.stroke(bubble, with: .color(color), style: line)
-        context.fill(Path(ellipseIn: CGRect(x: 18.2, y: 3.8, width: 3.1, height: 3.1)),
-                     with: .color(accent))
+        context.stroke(star, with: .color(color), style: line)
+
+        var eyes = Path()
+        eyes.move(to: CGPoint(x: 10.85, y: 11.8))
+        eyes.addLine(to: CGPoint(x: 10.85, y: 13.05))
+        eyes.move(to: CGPoint(x: 13.15, y: 11.8))
+        eyes.addLine(to: CGPoint(x: 13.15, y: 13.05))
+        context.stroke(eyes, with: .color(color.opacity(0.86)), style: fine)
+
+        context.fill(Path(ellipseIn: CGRect(x: 20.2, y: 2.8, width: 2.2, height: 2.2)),
+                     with: .color(accent.opacity(selected ? 0.90 : 0.58)))
     }
 
     private func drawContacts(_ context: GraphicsContext,
@@ -95,25 +117,67 @@ struct OrbitTabGlyph: View {
 
     private func drawWorld(_ context: GraphicsContext,
                            line: StrokeStyle, fine: StrokeStyle) {
-        let globe = Path(ellipseIn: CGRect(x: 4.1, y: 4.1, width: 15.8, height: 15.8))
+        let planetRect = CGRect(x: 5.4, y: 5.2, width: 13.2, height: 13.2)
+        let planet = Path(ellipseIn: planetRect)
         if selected {
-            context.fill(globe, with: .color(color.opacity(0.14)))
+            context.fill(
+                planet,
+                with: .linearGradient(
+                    Gradient(stops: [
+                        .init(color: color.opacity(0.44), location: 0),
+                        .init(color: Color(hex: 0xA7D96A).opacity(0.28), location: 0.72),
+                        .init(color: Color(hex: 0xD9B95F).opacity(0.16), location: 1)
+                    ]),
+                    startPoint: CGPoint(x: 6, y: 5.5),
+                    endPoint: CGPoint(x: 18, y: 18.5)
+                )
+            )
         }
-        context.stroke(globe, with: .color(color), style: line)
+        context.stroke(planet, with: .color(color), style: line)
 
-        var meridian = Path()
-        meridian.addEllipse(in: CGRect(x: 8.2, y: 4.2, width: 7.6, height: 15.6))
-        context.stroke(meridian, with: .color(color.opacity(0.58)), style: fine)
+        context.drawLayer { layer in
+            layer.clip(to: planet)
+            let shade = Path(ellipseIn: CGRect(x: 8.5, y: 4.7, width: 11.1, height: 14.7))
+            layer.stroke(shade, with: .color(color.opacity(0.46)), style: fine)
+        }
 
         context.drawLayer { layer in
             layer.translateBy(x: 12, y: 12)
-            layer.rotate(by: .degrees(-27))
-            let ring = Path(ellipseIn: CGRect(x: -10.7, y: -4.8, width: 21.4, height: 9.6))
-            layer.stroke(ring, with: .color(accent.opacity(selected ? 0.72 : 0.45)),
-                         style: fine)
+            layer.rotate(by: .degrees(-24))
+            let ring = Path(ellipseIn: CGRect(x: -11.3, y: -4.1, width: 22.6, height: 8.2))
+            if selected {
+                layer.fill(
+                    ring,
+                    with: .linearGradient(
+                        Gradient(colors: [
+                            color.opacity(0.20),
+                            Color(hex: 0xA7D96A).opacity(0.12),
+                            Color(hex: 0xD9B95F).opacity(0.06)
+                        ]),
+                        startPoint: CGPoint(x: -11, y: 0),
+                        endPoint: CGPoint(x: 11, y: 0)
+                    )
+                )
+            }
+            layer.stroke(ring, with: selected
+                         ? .linearGradient(
+                            Gradient(colors: [
+                                color.opacity(0.92),
+                                Color(hex: 0xA7D96A),
+                                Color(hex: 0xD9B95F)
+                            ]),
+                            startPoint: CGPoint(x: -11, y: 0),
+                            endPoint: CGPoint(x: 11, y: 0)
+                           )
+                         : .color(accent.opacity(0.56)),
+                         style: StrokeStyle(lineWidth: selected ? 1.5 : 1.1,
+                                            lineCap: .round))
         }
-        context.fill(Path(ellipseIn: CGRect(x: 19.3, y: 4.4, width: 3.0, height: 3.0)),
-                     with: .color(accent))
+
+        context.fill(Path(ellipseIn: CGRect(x: 9.0, y: 8.0, width: 2.0, height: 2.0)),
+                     with: .color(Color.white.opacity(selected ? 0.82 : 0.26)))
+        context.fill(Path(ellipseIn: CGRect(x: 19.3, y: 3.2, width: 2.8, height: 2.8)),
+                     with: .color(accent.opacity(selected ? 0.92 : 0.58)))
     }
 
     private func drawProfile(_ context: GraphicsContext,

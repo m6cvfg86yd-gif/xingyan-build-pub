@@ -76,17 +76,12 @@ struct ProfileEditView: View {
             }
 
             Section {
-                LabeledContent(Tr("拍一拍")) {
-                    HStack(spacing: 4) {
-                        Text(Tr("朋友拍了拍我的"))
-                            .foregroundStyle(.secondary)
-                        TextField(Tr("后缀"), text: $patText)
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: 96)
-                            .onChange(of: patText) { v in
-                                if v.count > 10 { patText = String(v.prefix(10)) }
-                            }
-                    }
+                LabeledContent(Tr("星语提示")) {
+                    TextField(Tr("收到一束星光"), text: $patText)
+                        .multilineTextAlignment(.trailing)
+                        .onChange(of: patText) { v in
+                            if v.count > 10 { patText = String(v.prefix(10)) }
+                        }
                 }
 
                 LabeledContent(Tr("个性签名")) {
@@ -96,7 +91,7 @@ struct ProfileEditView: View {
             } header: {
                 Text(Tr("个人介绍"))
             } footer: {
-                Text(Tr("拍一拍最多 10 个字；留空就是「拍了拍我」。"))
+                Text(Tr("好友向你发送星语时显示这句提示，最多 10 个字；留空显示「你收到一束星光」。"))
             }
 
             Section {
@@ -304,17 +299,14 @@ struct ProfileEditView: View {
             divider
 
             HStack(spacing: 8) {
-                Text(Tr("拍一拍"))
+                Text(Tr("星语提示"))
                     .font(pf(16)).foregroundColor(C.label)
-                    .frame(width: 70, alignment: .leading)
+                    .frame(width: 82, alignment: .leading)
 
                 Spacer(minLength: 8)
-                Text(Tr("朋友拍了拍我的"))
-                    .font(pf(15)).foregroundColor(C.subLabel).fixedSize()
-                TextField(Tr("填一个后缀"), text: $patText)
+                TextField(Tr("收到一束星光"), text: $patText)
                     .font(pf(16)).foregroundColor(C.label)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: 120)
+                    .multilineTextAlignment(.trailing)
                     .onChange(of: patText) { v in
                         if v.count > 10 { patText = String(v.prefix(10)) }
                     }
@@ -322,7 +314,7 @@ struct ProfileEditView: View {
             .padding(.horizontal, 14)
             .frame(height: 56)
             HStack(spacing: 8) {
-                Text(Tr("最多 10 个字；留空就是「拍了拍我」"))
+                Text(Tr("显示在好友发来的星语提醒后，最多 10 个字"))
                     .font(pf(11.5)).foregroundColor(C.subLabel)
                 Spacer(minLength: 0)
                 Text("\(patText.count)/10")
@@ -411,11 +403,11 @@ struct ProfileEditView: View {
 
     private var patRow: some View {
         HStack(spacing: 8) {
-            Text(Tr("拍一拍")).font(pf(16)).foregroundColor(C.label)
-                .frame(width: 70, alignment: .leading)
-            Text(Tr("朋友拍了拍我的")).font(pf(15)).foregroundColor(C.subLabel).fixedSize()
-            TextField(Tr("后缀"), text: $patText)
+            Text(Tr("星语提示")).font(pf(16)).foregroundColor(C.label)
+                .frame(width: 82, alignment: .leading)
+            TextField(Tr("收到一束星光"), text: $patText)
                 .font(pf(16)).foregroundColor(C.label)
+                .multilineTextAlignment(.trailing)
                 .onChange(of: patText) { v in
                     if v.count > 10 { patText = String(v.prefix(10)) }
                 }

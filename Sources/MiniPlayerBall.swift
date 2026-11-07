@@ -21,6 +21,7 @@ final class MusicDockState: ObservableObject {
 
 struct MusicDockedPlayerBar: View {
     @ObservedObject private var player = MusicPlayer.shared
+    var fadesBackgroundWhilePlaying = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -51,8 +52,12 @@ struct MusicDockedPlayerBar: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 64)
-        .background(.thinMaterial,
-                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.thinMaterial)
+                .opacity(fadesBackgroundWhilePlaying && player.playing ? 0.12 : 1)
+                .animation(.easeInOut(duration: 0.38), value: player.playing)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture {

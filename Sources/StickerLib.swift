@@ -34,7 +34,7 @@ enum StickerLib {
     }
 
     private static let remoteKey = "sticker.installed.remote"
-    private static let bundledStarMigrationKey = "sticker.starOrbit.installed.v1"
+    private static let bundledStarRemovalKey = "sticker.starOrbit.removed.v2"
 
     static var remoteIds: [String] {
         get { (UserDefaults.standard.array(forKey: remoteKey) as? [String]) ?? [] }
@@ -53,10 +53,10 @@ enum StickerLib {
         remoteIds = remoteIds.filter { $0 != id }
     }
 
-    static func installBundledStarPackIfNeeded() {
-        guard !UserDefaults.standard.bool(forKey: bundledStarMigrationKey) else { return }
-        addRemote("star-orbit-daily")
-        UserDefaults.standard.set(true, forKey: bundledStarMigrationKey)
+    static func removeBundledStarPackIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: bundledStarRemovalKey) else { return }
+        removeRemote("star-orbit-daily")
+        UserDefaults.standard.set(true, forKey: bundledStarRemovalKey)
     }
 
 }

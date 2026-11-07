@@ -143,6 +143,18 @@ enum UIConfig {
         return def
     }
 
+    static var avatarCircle: Bool {
+        if numbers.keys.contains("avatarShape") {
+            return num("avatarShape", 0) > 0
+        }
+        return UserDefaults.standard.bool(forKey: "appearance.avatarCircle")
+    }
+
+    static func setAvatarCircle(_ value: Bool) {
+        numbers["avatarShape"] = value ? 1 : 0
+        UserDefaults.standard.set(value, forKey: "appearance.avatarCircle")
+    }
+
     static func color(_ key: String, _ light: UInt32, _ dark: UInt32) -> Color {
         guard let raw = strings[key] else { return Color.dyn(light, dark) }
         let parts = raw.split(separator: "|").map { String($0).trimmingCharacters(in: .whitespaces) }
@@ -449,7 +461,7 @@ enum C {
     })
     static let iconGray    = Color.dyn(0x6F6F6F, 0x9A9A9A)
 
-    static var chatBarIcon : Color { UIConfig.color("chatBarIcon", 0x6F6F6F, 0x9A9A9A) }
+    static var chatBarIcon : Color { UIConfig.color("chatBarIcon", 0x4A4A4A, 0x9A9A9A) }
 
     static var tabTitle0: String { UIConfig.text("tabTitle0", "聊天") }
     static var tabTitle1: String { UIConfig.text("tabTitle1", "通讯录") }
@@ -898,6 +910,12 @@ func cacheUploadedImage(_ image: UIImage, path: String, maxSide: CGFloat = 640) 
     ImageStore.shared.diskWrite(path, data)
 }
 
+func chatWallpaperDecodeSide() -> CGFloat {
+    let bounds = UIScreen.main.bounds
+    let native = max(bounds.width, bounds.height) * UIScreen.main.scale
+    return min(3200, max(2400, ceil(native)))
+}
+
 struct RemoteImage: View {
     let path: String
     var icon: String = "photo"
@@ -1068,7 +1086,12 @@ struct Avatar: View {
 
         .overlay {
             if level >= 4, GrowthFlags.avatarFrame != false {
-                QQAvatarFrame(level: level, size: size, circle: circle, radius: radius)
+                QQAvatarFrame(
+                    level: level,
+                    size: size,
+                    circle: circle || UIConfig.avatarCircle,
+                    radius: radius
+                )
             }
         }
     }
@@ -1078,7 +1101,7 @@ struct Avatar: View {
     }
 
     private var shape: AnyShape {
-        if circle { return AnyShape(Circle()) }
+        if circle || UIConfig.avatarCircle { return AnyShape(Circle()) }
         return AnyShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
     }
 }
@@ -1098,7 +1121,8 @@ struct GroupAvatarMosaic: View {
     @State private var loadedMemberKey = ""
 
     private var resolvedUsers: [String: User] {
-        let local = fetchedMembers + ([app.me].compactMap { $0 } + app.contacts)
+        // 本机资料优先：刚换头像/昵称时不必等服务端生成新的群拼图。
+        let local = [app.me].compactMap { $0 } + app.contacts + fetchedMembers
         var out: [String: User] = [:]
         for user in local where out[user.id] == nil {
             out[user.id] = user
@@ -1113,6 +1137,12 @@ struct GroupAvatarMosaic: View {
     private var slots: [User?] {
         let lookup = resolvedUsers
         return Array(memberIds.prefix(shownCount)).map { lookup[$0] }
+    }
+
+    private var shape: AnyShape {
+        UIConfig.avatarCircle
+            ? AnyShape(Circle())
+            : AnyShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
     }
 
     var body: some View {
@@ -1134,7 +1164,8 @@ struct GroupAvatarMosaic: View {
         }
         .frame(width: size, height: size)
         .background(Color.dyn(0xE8E8EC, 0x222528))
-        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        .clipShape(shape)
+        .overlay(shape.stroke(C.hairline.opacity(0.45), lineWidth: 0.5))
         .task(id: memberIds) {
             await refreshMembers()
         }
@@ -1822,7 +1853,41 @@ enum TimeFmt {
     private static let fClock: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale.current
+        f.calendar = Calendar.current
+        f.timeZone = TimeZone.current
         f.dateFormat = DateFormatter.dateFormat(fromTemplate: "jm", options: 0, locale: Locale.current) ?? "HH:mm"
+        return f
+    }()
+    private static func systemDateFormatter(_ template: String,
+                                            fallback: String) -> DateFormatter {
+        let locale = Locale.current
+        let f = DateFormatter()
+        f.locale = locale
+        f.calendar = Calendar.current
+        f.timeZone = TimeZone.current
+        f.dateFormat = DateFormatter.dateFormat(
+            fromTemplate: template,
+            options: 0,
+            locale: locale
+        ) ?? fallback
+        return f
+    }
+    private static let fSystemWeekday = systemDateFormatter("EEE", fallback: "EEE")
+    private static let fSystemShortDate: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale.current
+        f.calendar = Calendar.current
+        f.timeZone = TimeZone.current
+        f.dateStyle = .short
+        f.timeStyle = .none
+        return f
+    }()
+    private static let fSystemRelative: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.locale = Locale.current
+        f.calendar = Calendar.current
+        f.dateTimeStyle = .named
+        f.unitsStyle = .short
         return f
     }()
     private static let fBill = make("yyyy年M月d日 H:mm:ss")
@@ -1833,16 +1898,18 @@ enum TimeFmt {
         if cal.isDateInToday(d) {
             return fClock.string(from: d)
         }
-        if cal.isDateInYesterday(d) { return "昨天" }
+        if cal.isDateInYesterday(d) {
+            return fSystemRelative.localizedString(for: d, relativeTo: Date())
+        }
         let days = cal.dateComponents([.day],
                                       from: cal.startOfDay(for: d),
                                       to: cal.startOfDay(for: Date())).day ?? 99
 
-        if days == 2 { return "前天" }
-        if days < 7 { return fWeekday.string(from: d) }
-        return cal.isDate(d, equalTo: Date(), toGranularity: .year)
-            ? fMonthDay.string(from: d)
-            : fYearMonthDay.string(from: d)
+        if days == 2 {
+            return fSystemRelative.localizedString(for: d, relativeTo: Date())
+        }
+        if days < 7 { return fSystemWeekday.string(from: d) }
+        return fSystemShortDate.string(from: d)
     }
 
     static func bubble(_ s: String?) -> String {
@@ -2071,7 +2138,7 @@ struct UnreadBadge: View {
                 .padding(.horizontal, count > 9 ? 5 : 0)
                 .frame(minWidth: 18, minHeight: 18)
 
-                .background(Capsule().fill(C.red))
+                .background(Capsule().fill(Color(.systemRed)))
                 .overlay(Capsule().stroke(border, lineWidth: 1.2))
         }
     }
@@ -2083,7 +2150,7 @@ struct UnreadDot: View {
     var border: Color = C.cardBg
     var body: some View {
         Circle()
-            .fill(C.red)
+            .fill(Color(.systemRed))
             .frame(width: size, height: size)
             .overlay(Circle().stroke(border, lineWidth: 1.2))
     }

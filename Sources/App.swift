@@ -241,8 +241,11 @@ final class AppState: ObservableObject {
     @Published var openMiniApp: MiniApp?
     /// 从小程序返回时恢复原来的聊天；小程序始终只由一个全屏窗口承载。
     @Published var resumeChatAfterMiniApp: Chat?
+    private var miniAppReturnTask: Task<Void, Never>?
 
     func launchMiniApp(_ mini: MiniApp, returningTo chat: Chat? = nil) {
+        miniAppReturnTask?.cancel()
+        miniAppReturnTask = nil
         resumeChatAfterMiniApp = chat
         if openChat != nil {
             openChat = nil
@@ -256,10 +259,14 @@ final class AppState: ObservableObject {
 
     func miniAppDidClose() {
         openMiniApp = nil
+        miniAppReturnTask?.cancel()
         guard let chat = resumeChatAfterMiniApp else { return }
         resumeChatAfterMiniApp = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { [weak self] in
+        miniAppReturnTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
             self?.openChat = chat
+            self?.miniAppReturnTask = nil
         }
     }
     @Published var loadingChats = false
@@ -332,6 +339,8 @@ final class AppState: ObservableObject {
         pendingPushChatId = nil
         wantChatsTab = false
         resumeChatAfterMiniApp = nil
+        miniAppReturnTask?.cancel()
+        miniAppReturnTask = nil
         openMiniApp = nil
         scanCardUser = nil
         scanWebURL = nil
@@ -600,6 +609,11 @@ final class AppState: ObservableObject {
         await API.shared.loadEndpointList()
     }
 
+    func setAvatarCircle(_ value: Bool) {
+        UIConfig.setAvatarCircle(value)
+        uiVersion &+= 1
+    }
+
     private func cacheUIConfig(_ ui: [String: Any], _ icons: [String: String]) {
         if let d = try? JSONSerialization.data(withJSONObject: ui),
            let s = String(data: d, encoding: .utf8) {
@@ -782,6 +796,7 @@ final class AppState: ObservableObject {
         AppLog.info("启动 " + AppInfo.build + " · " + AppInfo.deviceKind + " · " + API.shared.server)
         Task { await API.shared.touchCurrentDevice() }
         await LocalNotify.refresh()
+        SecurityAcademyNotifier.scheduleIfNeeded()
         await loadHomeDataParallel()
     }
 
@@ -1103,9 +1118,12 @@ final class AppState: ObservableObject {
             row.updatedAt = latest.createdAt ?? row.updatedAt
         }
         row.unread = 0
-        chats.removeAll { $0.id == chat.id }
-        let firstUnpinned = chats.firstIndex { $0.pinned != true } ?? chats.count
-        chats.insert(row, at: firstUnpinned)
+        if let index = chats.firstIndex(where: { $0.id == chat.id }) {
+            chats[index] = row
+        } else {
+            let firstUnpinned = chats.firstIndex { $0.pinned != true } ?? chats.count
+            chats.insert(row, at: firstUnpinned)
+        }
         if let userId = me?.id, !userId.isEmpty {
             LocalStore.saveChatList(chats, userId: userId)
         }
@@ -1143,7 +1161,9 @@ final class AppState: ObservableObject {
         let rest = chats.filter { $0.pinned != true }.sorted {
             let ra = $0.botRank ?? 9, rb = $1.botRank ?? 9
             if ra != rb { return ra < rb }
-            return ($0.updatedAt ?? "") > ($1.updatedAt ?? "")
+            let ta = TimeFmt.date($0.lastMessage?.createdAt ?? $0.updatedAt) ?? .distantPast
+            let tb = TimeFmt.date($1.lastMessage?.createdAt ?? $1.updatedAt) ?? .distantPast
+            return ta > tb
         }
         chats = top + rest
     }

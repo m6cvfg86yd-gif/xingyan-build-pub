@@ -253,6 +253,7 @@ struct QuoteRef: Codable, Hashable {
 
 struct Message: Codable, Identifiable, Hashable {
     var id: String
+    var clientId: String? = nil
     var chatId: String?
     var seq: Int?
     var senderId: String?
@@ -315,12 +316,25 @@ struct Message: Codable, Identifiable, Hashable {
         let fn = patFromName, tn = patToName
 
         let tail = patTail.trimmingCharacters(in: .whitespacesAndNewlines)
-        let targetTail = tail.isEmpty ? "" : ("的" + tail)
-        let meTail = tail.isEmpty ? "我" : ("我的" + tail)
-        if !patFrom.isEmpty, patFrom == myId, !tn.isEmpty { return "我拍了拍“" + tn + "”" + targetTail }
-        if !patTo.isEmpty, patTo == myId, !fn.isEmpty { return "“" + fn + "”拍了拍" + meTail }
-        if !fn.isEmpty, !tn.isEmpty { return "“" + fn + "”拍了拍“" + tn + "”" + targetTail }
-        return "拍了拍"
+        if !patFrom.isEmpty, patFrom == myId, !tn.isEmpty {
+            if !tail.isEmpty {
+                return String(format: Tr("你提醒了「%@」：%@"), tn, tail)
+            }
+            return String(format: Tr("我向「%@」发去一束星光"), tn)
+        }
+        if !patTo.isEmpty, patTo == myId, !fn.isEmpty {
+            if !tail.isEmpty {
+                return String(format: Tr("「%@」提醒你：%@"), fn, tail)
+            }
+            return String(format: Tr("「%@」向你发来一束星光"), fn)
+        }
+        if !fn.isEmpty, !tn.isEmpty {
+            if !tail.isEmpty {
+                return String(format: Tr("「%@」提醒了「%@」：%@"), fn, tn, tail)
+            }
+            return String(format: Tr("「%@」向「%@」发去一束星光"), fn, tn)
+        }
+        return Tr("星语提醒")
     }
 
     var isCallRecord: Bool {

@@ -6,6 +6,7 @@ struct MainTabView: View {
     @State private var tab = 0
     @State private var loadedTabs: Set<Int> = [0]
     @State private var shownCrash = false
+    @AppStorage("xingyan.topGreenGlow") private var topGreenGlow = true
 
     @ObservedObject private var lang = LangStore.shared
 
@@ -99,11 +100,6 @@ struct MainTabView: View {
                              avatarPath: tabAvatarPath)
                     .frame(height: max(49, L.tabH - 6))
 
-                    .background {
-                        TabBarBottomMask()
-                            .ignoresSafeArea(edges: .bottom)
-                    }
-
                     .offset(y: UIConfig.num("tabBarDrop", 0) + (L.compactPhone ? 2 : 8))
                     .transition(.move(edge: .bottom))
             }
@@ -111,8 +107,10 @@ struct MainTabView: View {
 
         .background(C.pageBg.ignoresSafeArea())
         .overlay(alignment: .top) {
-            StarStatusRail(tab: tab)
-                .zIndex(100)
+            if topGreenGlow {
+                StarStatusRail(tab: tab)
+                    .zIndex(100)
+            }
         }
 
         .overlay(CallOverlay())
@@ -275,41 +273,6 @@ struct MainTabView: View {
         }
 
         .onAppear { CrashCatcher.note("启动", "7 主界面出现") }
-    }
-}
-
-private struct TabBarBottomMask: View {
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        let native = UIConfig.num("tabUseNativeMaterial", 1) > 0
-        let alpha = min(1, max(0.55, UIConfig.num("tabMaskOpacity", 0.94)))
-
-        ZStack {
-            if native {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .opacity(alpha)
-                    .overlay {
-                        LinearGradient(
-                            colors: [
-                                OrbitTheme.jade.opacity(scheme == .dark ? 0.08 : 0.055),
-                                Color.clear
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    }
-            } else {
-                C.tabBg.opacity(alpha)
-            }
-        }
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(C.navLine.opacity(0.72))
-                .frame(height: 0.5)
-        }
-        .allowsHitTesting(false)
     }
 }
 
@@ -652,13 +615,13 @@ struct TabBar: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 3)
                                     .frame(minWidth: 15, minHeight: 15)
-                                    .background(Capsule().fill(C.red))
+                                    .background(Capsule().fill(Color(.systemRed)))
                                     .offset(x: 5, y: -3)
                             }
 
                             if i == 2 && momentsDot {
                                 Circle()
-                                    .fill(C.red)
+                                    .fill(Color(.systemRed))
                                     .frame(width: 9, height: 9)
                                     .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.5))
                                     .offset(x: 4, y: -2)
@@ -666,7 +629,7 @@ struct TabBar: View {
 
                             if i == 1 && contactsDot {
                                 Circle()
-                                    .fill(C.red)
+                                    .fill(Color(.systemRed))
                                     .frame(width: 9, height: 9)
                                     .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.5))
                                     .offset(x: 4, y: -2)
@@ -674,7 +637,7 @@ struct TabBar: View {
 
                             if i == 3 && meDot {
                                 Circle()
-                                    .fill(C.red)
+                                    .fill(Color(.systemRed))
                                     .frame(width: 9, height: 9)
                                     .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.5))
                                     .offset(x: 4, y: -2)
@@ -816,11 +779,16 @@ struct NavBar<Right: View>: View {
     let titleView: AnyView?
     let back: (() -> Void)?
     let onLongPressTitle: (() -> Void)?
+    private let titleColor: Color?
+    private let titleOutline: Color?
+    private let hideChromeExceptBack: Bool
 
     let leftExtra: AnyView?
 
+    var backGlass: Bool = false
     var floating: Bool = true
 
+    var titleGlass: Bool = true
     var leftExtraGlass: Bool = true
     var rightGlass: Bool = true
     private let right: Right
@@ -828,9 +796,14 @@ struct NavBar<Right: View>: View {
     init(title: String,
          back: (() -> Void)? = nil,
          onLongPressTitle: (() -> Void)? = nil,
+         titleColor: Color? = nil,
+         titleOutline: Color? = nil,
+         hideChromeExceptBack: Bool = false,
          titleView: AnyView? = nil,
          leftExtra: AnyView? = nil,
+         backGlass: Bool = false,
          floating: Bool = true,
+         titleGlass: Bool = true,
          leftExtraGlass: Bool = true,
          rightGlass: Bool = true,
          @ViewBuilder right: () -> Right) {
@@ -838,8 +811,13 @@ struct NavBar<Right: View>: View {
         self.titleView = titleView
         self.back = back
         self.onLongPressTitle = onLongPressTitle
+        self.titleColor = titleColor
+        self.titleOutline = titleOutline
+        self.hideChromeExceptBack = hideChromeExceptBack
         self.leftExtra = leftExtra
+        self.backGlass = backGlass
         self.floating = floating
+        self.titleGlass = titleGlass
         self.leftExtraGlass = leftExtraGlass
         self.rightGlass = rightGlass
         self.right = right()
@@ -855,21 +833,31 @@ struct NavBar<Right: View>: View {
                     Group {
                         if let titleView { titleView } else { titleText }
                     }
+                    .opacity(hideChromeExceptBack ? 0 : 1)
+                    .allowsHitTesting(!hideChromeExceptBack)
+                    .animation(.easeOut(duration: 0.16), value: hideChromeExceptBack)
                     .padding(.horizontal, 14)
                     .frame(height: 36)
                     .background {
-                        GlassBackground(shape: Capsule(),
-                                        shadow: true,
-                                        seed: 0.30,
-                                        darkEdgeOff: true)
+                        if titleGlass {
+                            GlassBackground(shape: Capsule(),
+                                            shadow: true,
+                                            seed: 0.30,
+                                            darkEdgeOff: true)
+                        }
                     }
                 }
             } else {
 
-                if let titleView { titleView } else { titleText }
+                Group {
+                    if let titleView { titleView } else { titleText }
+                }
+                    .opacity(hideChromeExceptBack ? 0 : 1)
+                    .allowsHitTesting(!hideChromeExceptBack)
 
                 if titleView == nil && titleStroke > 0 {
                     titleText.offset(x: titleStroke)
+                        .opacity(hideChromeExceptBack ? 0 : 1)
                 }
             }
 
@@ -880,6 +868,15 @@ struct NavBar<Right: View>: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(Color.accentColor)
                             .frame(width: 44, height: 44)
+                            .background {
+                                if backGlass {
+                                    GlassBackground(shape: Circle(),
+                                                    shadow: true,
+                                                    seed: 0.18,
+                                                    native: true)
+                                        .frame(width: 36, height: 36)
+                                }
+                            }
                     }
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
@@ -894,10 +891,14 @@ struct NavBar<Right: View>: View {
                             .padding(.horizontal, 6)
                             .background { GlassBackground(shape: Capsule(), shadow: true, seed: 0.55) }
                             .padding(.leading, 6)
+                            .opacity(hideChromeExceptBack ? 0 : 1)
+                            .allowsHitTesting(!hideChromeExceptBack)
                     } else {
                         leftExtra
                             .frame(height: useFloating ? 36 : L.navH)
                             .padding(.leading, useFloating ? 6 : 0)
+                            .opacity(hideChromeExceptBack ? 0 : 1)
+                            .allowsHitTesting(!hideChromeExceptBack)
                     }
                 }
                 Spacer(minLength: 0)
@@ -913,8 +914,12 @@ struct NavBar<Right: View>: View {
                             }
                         }
                         .padding(.trailing, 10)
+                        .opacity(hideChromeExceptBack ? 0 : 1)
+                        .allowsHitTesting(!hideChromeExceptBack)
                 } else {
                     right
+                        .opacity(hideChromeExceptBack ? 0 : 1)
+                        .allowsHitTesting(!hideChromeExceptBack)
                 }
             }
         }
@@ -926,7 +931,10 @@ struct NavBar<Right: View>: View {
     private var titleText: some View {
         Text(title)
             .font(pf(titleSize, weight))
-            .foregroundColor(C.label)
+            .foregroundColor(titleColor ?? C.label)
+            .shadow(color: titleOutline ?? .clear, radius: 0.8, x: 0.6, y: 0)
+            .shadow(color: titleOutline ?? .clear, radius: 0.8, x: -0.6, y: 0)
+            .shadow(color: titleOutline ?? .clear, radius: 0.8, x: 0, y: 0.6)
             .onLongPressGesture { onLongPressTitle?() }
     }
 
@@ -944,11 +952,19 @@ extension NavBar where Right == EmptyView {
     init(title: String,
          back: (() -> Void)? = nil,
          onLongPressTitle: (() -> Void)? = nil,
+         titleColor: Color? = nil,
+         titleOutline: Color? = nil,
+         hideChromeExceptBack: Bool = false,
          titleView: AnyView? = nil,
          leftExtra: AnyView? = nil,
+         backGlass: Bool = false,
          floating: Bool = true) {
         self.init(title: title, back: back, onLongPressTitle: onLongPressTitle,
-                  titleView: titleView, leftExtra: leftExtra, floating: floating) { EmptyView() }
+                  titleColor: titleColor,
+                  titleOutline: titleOutline,
+                  hideChromeExceptBack: hideChromeExceptBack,
+                  titleView: titleView, leftExtra: leftExtra,
+                  backGlass: backGlass, floating: floating) { EmptyView() }
     }
 }
 
@@ -1106,7 +1122,7 @@ struct MenuRow: View {
                             .frame(width: 32, height: 32)
                             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                         if badge {
-                            Circle().fill(C.red).frame(width: 9, height: 9).offset(x: 4.5, y: -4.5)
+                            Circle().fill(Color(.systemRed)).frame(width: 9, height: 9).offset(x: 4.5, y: -4.5)
                         }
                     }
                     .frame(width: 32, height: 32)
@@ -1134,9 +1150,32 @@ struct MenuPressStyle: ButtonStyle {
     }
 }
 
+enum ChatInfoCardTone {
+    case standard
+    case group
+    case direct
+}
+
+enum ChatInfoCardTint {
+    static let group = Color.dyn(0xFFFFFF, 0x14231D)
+    static let direct = Color.dyn(0xFFFFFF, 0x181A24)
+}
+
+private struct ChatInfoCardToneKey: EnvironmentKey {
+    static let defaultValue: ChatInfoCardTone = .standard
+}
+
+extension EnvironmentValues {
+    var chatInfoCardTone: ChatInfoCardTone {
+        get { self[ChatInfoCardToneKey.self] }
+        set { self[ChatInfoCardToneKey.self] = newValue }
+    }
+}
+
 struct GroupCard<Content: View>: View {
     let content: Content
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.chatInfoCardTone) private var tone
 
     var glass: Bool = false
 
@@ -1167,7 +1206,7 @@ struct GroupCard<Content: View>: View {
                 .padding(.bottom, 10)
         } else {
             VStack(spacing: 0) { content }
-                .background(bg ?? C.cardBg)
+                .background(bg ?? resolvedBackground)
                 .clipShape(RoundedRectangle(cornerRadius: scheme == .dark ? 14 : 0,
                                             style: .continuous))
                 .overlay {
@@ -1178,6 +1217,15 @@ struct GroupCard<Content: View>: View {
                 }
                 .padding(.horizontal, scheme == .dark ? 12 : 0)
                 .padding(.bottom, scheme == .dark ? 8 : 0)
+        }
+    }
+
+    private var resolvedBackground: Color {
+        guard scheme == .dark else { return C.cardBg }
+        switch tone {
+        case .group: return ChatInfoCardTint.group
+        case .direct: return ChatInfoCardTint.direct
+        case .standard: return C.cardBg
         }
     }
 }

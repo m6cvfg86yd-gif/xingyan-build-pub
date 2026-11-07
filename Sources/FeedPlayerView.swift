@@ -83,7 +83,8 @@ struct FeedPlayerView: View {
                 if var s = ui[it.id] { s.comments = n; ui[it.id] = s }
             }
             .environmentObject(app)
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.fraction(0.64), .large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showShare) { ShareSheet(items: shareItems) }
         .task(id: index) {

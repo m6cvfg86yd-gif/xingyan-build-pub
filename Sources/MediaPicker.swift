@@ -469,14 +469,25 @@ struct MediaSendSheet: View {
 
     let payload: Payload
 
-    var onSend: (Bool, Bool) -> Void
+    var onSend: (Bool, Bool, UIImage?) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
     @State private var liveOn = true
     @State private var originalOn = false
+    @State private var editedImage: UIImage?
+    @State private var showPhotoEditor = false
+
+    init(payload: Payload, onSend: @escaping (Bool, Bool, UIImage?) -> Void) {
+        self.payload = payload
+        self.onSend = onSend
+        if case .image(let image) = payload {
+            _editedImage = State(initialValue: image)
+        }
+    }
 
     private var isLive: Bool { if case .live = payload { return true }; return false }
+    private var singleImage: UIImage? { if case .image(let image) = payload { return image }; return nil }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -485,13 +496,34 @@ struct MediaSendSheet: View {
                 preview
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
+                if singleImage != nil {
+                    Button {
+                        showPhotoEditor = true
+                    } label: {
+                        Label(Tr("编辑照片"), systemImage: "slider.horizontal.3")
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .frame(height: 34)
+                            .background(.black.opacity(0.42), in: Capsule())
+                            .overlay {
+                                Capsule().stroke(.white.opacity(0.16), lineWidth: 0.7)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(14)
+                }
+            }
 
             VStack(spacing: 12) {
                 if isLive {
                     toggleRow(Tr("实况"), sub: Tr("打开后对方长按可以看这段动效（两边都是 iPhone 才有效）"), on: $liveOn)
                 }
-                toggleRow(Tr("原视频"),
-                          sub: Tr("不压缩，画质最好但发送和加载都会慢很多"),
+                toggleRow(singleImage == nil ? Tr("原视频") : Tr("原图"),
+                          sub: singleImage == nil
+                            ? Tr("不压缩，画质最好但发送和加载都会慢很多")
+                            : Tr("保留最高画质，发送和加载会更慢"),
                           on: $originalOn)
 
                 HStack(spacing: 12) {
@@ -505,7 +537,7 @@ struct MediaSendSheet: View {
                     .buttonStyle(.plain)
 
                     Button {
-                        onSend(liveOn, originalOn)
+                        onSend(liveOn, originalOn, singleImage == nil ? nil : editedImage)
                         dismiss()
                     } label: {
                         Text(Tr("发送"))
@@ -521,13 +553,21 @@ struct MediaSendSheet: View {
             .background(Color.dyn(0xFFFFFF, 0x1C1C1E))
         }
         .ignoresSafeArea(edges: .top)
+        .fullScreenCover(isPresented: $showPhotoEditor) {
+            if let image = singleImage {
+                PhotoEditorView(image: image) { output in
+                    editedImage = output
+                    showPhotoEditor = false
+                }
+            }
+        }
     }
 
     @ViewBuilder
     private var preview: some View {
         switch payload {
         case .image(let img):
-            Image(uiImage: img).resizable().scaledToFit()
+            Image(uiImage: editedImage ?? img).resizable().scaledToFit()
         case .images(let list):
 
             ScrollView {

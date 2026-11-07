@@ -244,9 +244,7 @@ struct DiagView: View {
         var files = 0
         var dirs: [URL] = []
         if let c = fm.urls(for: .cachesDirectory, in: .userDomainMask).first { dirs.append(c) }
-        if let d = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
-            dirs.append(d.appendingPathComponent("Local", isDirectory: true))
-        }
+        dirs.append(LocalStore.root)
         for dir in dirs {
             guard let e = fm.enumerator(at: dir, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]) else { continue }
             for case let f as URL in e {

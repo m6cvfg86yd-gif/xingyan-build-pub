@@ -194,6 +194,7 @@ struct EmojiPanel: View {
     var onCaptureSticker: (() -> Void)? = nil
 
     var mine: StickerMine? = nil
+    var onExpandedChange: ((Bool) -> Void)? = nil
 
     @State private var tab = 1
 
@@ -205,11 +206,20 @@ struct EmojiPanel: View {
     @State private var expanded = false
 
     private var mineTab: Int { 3 + installed.count }
+    private var emojiRowH: CGFloat {
+        min(46, max(40, (L.width - 20) / 7))
+    }
+    private var collapsedH: CGFloat {
+        let handleH: CGFloat = 24
+        let tabsH = L.v(42, 11.6, 46)
+        let deleteH = L.v(38, 10.4, 42)
+        return handleH + tabsH + deleteH + emojiRowH * 5 + 10
+    }
     private var expandedH: CGFloat {
         min(max(panelH * 2.15, 390), L.height * 0.68)
     }
 
-    private let cols = Array(repeating: GridItem(.flexible(), spacing: 0), count: 8)
+    private let cols = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
     private static let recentKey = "emoji.recent"
 
     private static func loadRecent() -> [String] {
@@ -232,9 +242,9 @@ struct EmojiPanel: View {
     private func tile(_ glyph: String) -> some View {
         Button { use(glyph) } label: {
             Text(glyph)
-                .font(pf(L.v(23, 6.6, 28)))
+                .font(pf(L.v(29, 8.2, 32)))
                 .frame(maxWidth: .infinity)
-                .frame(height: panelH * 0.80 / 4)
+                .frame(height: emojiRowH)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -409,11 +419,14 @@ struct EmojiPanel: View {
             withAnimation(.easeOut(duration: 0.16)) { tab = i }
         } label: {
             Image(systemName: symbol)
-                .font(.system(size: L.v(16, 4.6, 19), weight: .medium))
+                .font(.system(size: L.v(16, 4.6, 18), weight: .medium))
                 .foregroundColor(tab == i ? C.green : C.subLabel)
-                .frame(width: L.v(34, 10, 38), height: L.v(28, 8, 32))
-                .background(Circle().fill(tab == i ? C.green.opacity(0.12) : Color.clear))
-                .contentShape(Rectangle())
+                .frame(width: L.v(34, 10, 38), height: 32)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(tab == i ? C.green.opacity(0.10) : Color.clear)
+            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -430,10 +443,13 @@ struct EmojiPanel: View {
                     Text(pack.icon).font(pf(L.v(17, 4.8, 20)))
                 }
             }
-                .frame(width: L.v(30, 9, 34), height: L.v(28, 8, 32))
-                .background(Circle().fill(tab == i ? C.green.opacity(0.14) : Color.clear))
-                .overlay(Circle().stroke(tab == i ? C.green.opacity(0.55) : Color.clear, lineWidth: 1))
-                .contentShape(Rectangle())
+            .frame(width: L.v(28, 8.2, 31), height: 27)
+            .frame(width: L.v(34, 10, 38), height: 32)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(tab == i ? C.green.opacity(0.10) : Color.clear)
+            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(pack.name)
@@ -515,6 +531,40 @@ struct EmojiPanel: View {
                     }
             )
 
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: L.v(2, 0.8, 4)) {
+                    tabButton(0, Tr("最近"), "clock")
+                    tabButton(1, Tr("表情"), "face.smiling")
+                    tabButton(2, Tr("系统"), "globe.asia.australia")
+                    ForEach(installed.indices, id: \.self) { i in
+                        packTabButton(3 + i, installed[i])
+                    }
+                    tabButton(mineTab, Tr("我的"), "star")
+
+                    Button { onOpenStore?() } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: L.v(16, 4.8, 18), weight: .semibold))
+                            .foregroundColor(C.subLabel)
+                            .frame(width: L.v(32, 9.6, 36), height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Tr("表情商店"))
+
+                    Button { onCaptureSticker?() } label: {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: L.v(15.5, 4.6, 18), weight: .medium))
+                            .foregroundColor(C.green)
+                            .frame(width: L.v(32, 9.6, 36), height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Tr("拍摄表情"))
+                }
+                .padding(.horizontal, L.v(10, 3.2, 13))
+            }
+            .frame(height: L.v(42, 11.6, 46))
+
             TabView(selection: $tab) {
                 recentPage.tag(0)
                 classicPage.tag(1)
@@ -538,71 +588,24 @@ struct EmojiPanel: View {
                 installed = buildInstalled()
                 if tab > mineTab { tab = 1 }
             }
+            .onChange(of: expanded) { value in
+                onExpandedChange?(value)
+            }
 
-            HStack(spacing: 0) {
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: L.v(6, 2, 8)) {
-                        tabButton(0, Tr("最近"), "clock")
-                        tabButton(1, Tr("经典"), "face.smiling")
-                        tabButton(2, Tr("系统"), "globe.asia.australia")
-                        ForEach(installed.indices, id: \.self) { i in
-                            packTabButton(3 + i, installed[i])
-                        }
-                        tabButton(mineTab, Tr("我的"), "star")
-                        Button { onOpenStore?() } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: L.v(15, 4.4, 18), weight: .medium))
-                                .foregroundColor(C.subLabel)
-                                .frame(width: L.v(30, 9, 34), height: L.v(28, 8, 32))
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Tr("表情商店"))
-
-                        Button { onCaptureSticker?() } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "camera.fill")
-                                    .font(.system(size: L.v(13.5, 4.0, 16), weight: .medium))
-                                Text(Tr("拍摄表情"))
-                                    .font(pf(11.5, .medium))
-                                    .lineLimit(1)
-                            }
-                            .foregroundColor(C.green)
-                            .padding(.horizontal, 10)
-                            .frame(height: L.v(28, 8, 32))
-                            .background(Capsule().fill(C.green.opacity(0.12)))
-                            .overlay(Capsule().stroke(C.green.opacity(0.38), lineWidth: 0.8))
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Tr("拍摄表情"))
-                    }
-                    .padding(.horizontal, 2)
-                }
+            HStack {
                 Spacer()
                 Button(action: onDelete) {
-                    SVGIcon(markup: I.deleteKey, size: L.v(22, 6.4, 26), color: C.iconGray)
-                        .frame(width: L.v(36, 10, 42), height: L.v(26, 7.4, 30))
-                }
-                .buttonStyle(.plain)
-                Button(action: onSend) {
-                    Text(Tr("发送"))
-                        .font(pf(15))
-                        .foregroundColor(draft.isEmpty ? C.subLabel : Color(hex: 0x0D0D0D))
-                        .padding(.horizontal, 14)
-                        .frame(height: 30)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(draft.isEmpty ? Color.dyn(0xE8E8E8, 0x3A3A3C) : C.green)
-                        )
+                    SVGIcon(markup: I.deleteKey,
+                            size: L.v(21, 6.2, 24),
+                            color: C.iconGray)
+                        .frame(width: L.v(32, 9.4, 36), height: 32)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, L.v(12, 3.8, 16))
-            .frame(height: L.v(38, 10.4, 46))
+            .padding(.horizontal, L.v(12, 3.8, 15))
+            .frame(height: L.v(38, 10.4, 42))
         }
-        .frame(height: expanded ? expandedH : panelH)
+        .frame(height: expanded ? expandedH : collapsedH)
         .animation(.spring(response: 0.30, dampingFraction: 0.86), value: expanded)
     }
 }
@@ -822,6 +825,7 @@ struct MentionPanel: View {
     let title: (User) -> String
     let onPick: (User) -> Void
     let onPickAll: () -> Void
+    @State private var activeLetter = ""
 
     private var filtered: [User] {
         let k = query.trimmingCharacters(in: .whitespaces)
@@ -831,6 +835,14 @@ struct MentionPanel: View {
                 || ($0.nickname ?? "").contains(k)
                 || ($0.username ?? "").contains(k)
         }
+    }
+
+    private var grouped: [(letter: String, users: [User])] {
+        Dictionary(grouping: filtered) { pinyinInitial(title($0)) }
+            .map { (letter: $0.key, users: $0.value.sorted {
+                title($0).localizedCompare(title($1)) == .orderedAscending
+            }) }
+            .sorted { $0.letter < $1.letter }
     }
 
     var body: some View {
@@ -852,19 +864,66 @@ struct MentionPanel: View {
             .padding(.top, 10)
             .padding(.bottom, 6)
 
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    if canAtAll && query.trimmingCharacters(in: .whitespaces).isEmpty {
-                        row(icon: "person.3.fill", user: nil, name: Tr("所有人")) { onPickAll() }
+            if !grouped.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 5) {
+                        ForEach(grouped, id: \.letter) { group in
+                            Button {
+                                activeLetter = group.letter
+                            } label: {
+                                Text(group.letter)
+                                    .font(pf(11.5, activeLetter == group.letter ? .bold : .semibold))
+                                    .foregroundColor(activeLetter == group.letter ? .white : C.subLabel)
+                                    .frame(width: 26, height: 26)
+                                    .background {
+                                        Circle().fill(activeLetter == group.letter
+                                                      ? C.green
+                                                      : Color.primary.opacity(0.045))
+                                    }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Tr("跳到 ") + group.letter)
+                        }
                     }
-                    ForEach(filtered) { u in
-                        row(icon: nil, user: u, name: title(u)) { onPick(u) }
+                    .padding(.horizontal, 14)
+                }
+                .padding(.bottom, 6)
+            }
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        if canAtAll && query.trimmingCharacters(in: .whitespaces).isEmpty {
+                            row(icon: "person.3.fill", user: nil, name: Tr("所有人")) { onPickAll() }
+                        }
+                        ForEach(grouped, id: \.letter) { group in
+                            Section {
+                                ForEach(group.users) { u in
+                                    row(icon: nil, user: u, name: title(u)) { onPick(u) }
+                                }
+                            } header: {
+                                Text(group.letter)
+                                    .font(pf(11, .semibold))
+                                    .foregroundColor(C.subLabel)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 14)
+                                    .frame(height: 24)
+                                    .background(C.tabBg)
+                                    .id(group.letter)
+                            }
+                        }
+                        if filtered.isEmpty && !query.trimmingCharacters(in: .whitespaces).isEmpty {
+                            Text(Tr("没有找到这个人"))
+                                .font(pf(13))
+                                .foregroundColor(C.subLabel)
+                                .padding(.top, 26)
+                        }
                     }
-                    if filtered.isEmpty && !query.trimmingCharacters(in: .whitespaces).isEmpty {
-                        Text(Tr("没有找到这个人"))
-                            .font(pf(13))
-                            .foregroundColor(C.subLabel)
-                            .padding(.top, 26)
+                    .onChange(of: activeLetter) { letter in
+                        guard !letter.isEmpty else { return }
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            proxy.scrollTo(letter, anchor: .top)
+                        }
                     }
                 }
             }

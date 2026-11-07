@@ -7,6 +7,7 @@ final class LangStore: ObservableObject {
     @Published var code: String {
         didSet { UserDefaults.standard.set(code, forKey: LangStore.key) }
     }
+    @Published var copyVersion = 0
 
     private init() {
         if let saved = UserDefaults.standard.string(forKey: LangStore.key) {

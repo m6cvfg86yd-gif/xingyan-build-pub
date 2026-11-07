@@ -129,7 +129,18 @@ struct StarLaunchBackdrop: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Color(hex: 0x040806)
+                LinearGradient(
+                    stops: [
+                        .init(color: Color(hex: 0x061522), location: 0),
+                        .init(color: Color(hex: 0x0A3D43), location: 0.24),
+                        .init(color: Color(hex: 0x0C5536), location: 0.52),
+                        .init(color: Color(hex: 0x352A70), location: 0.78),
+                        .init(color: Color(hex: 0x150C2E), location: 0.92),
+                        .init(color: Color(hex: 0x06040E), location: 1)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
 
                 if !remote.isEmpty {
                     RemoteImage(path: remote, mode: .fill, maxSide: 1600)
@@ -144,18 +155,51 @@ struct StarLaunchBackdrop: View {
 
                 RadialGradient(
                     colors: [
-                        Color(hex: 0x2F9B5E).opacity(0.25),
-                        Color(hex: 0x0C3B27).opacity(0.12),
+                        Color(hex: 0x39E39C).opacity(0.46),
+                        Color(hex: 0x0B8B6A).opacity(0.22),
                         Color.clear
                     ],
-                    center: UnitPoint(x: 0.52, y: 0.40),
+                    center: UnitPoint(x: 0.24, y: 0.30),
                     startRadius: 6,
                     endRadius: max(geo.size.width, geo.size.height) * 0.68
                 )
 
+                RadialGradient(
+                    colors: [
+                        Color(hex: 0x63D8FF).opacity(0.32),
+                        Color(hex: 0x1768A8).opacity(0.14),
+                        Color.clear
+                    ],
+                    center: UnitPoint(x: 0.90, y: 0.22),
+                    startRadius: 0,
+                    endRadius: max(geo.size.width, geo.size.height) * 0.54
+                )
+
+                RadialGradient(
+                    colors: [
+                        Color(hex: 0xC15CFF).opacity(0.35),
+                        Color(hex: 0x6634A8).opacity(0.17),
+                        Color.clear
+                    ],
+                    center: UnitPoint(x: 0.88, y: 0.66),
+                    startRadius: 0,
+                    endRadius: max(geo.size.width, geo.size.height) * 0.56
+                )
+
+                RadialGradient(
+                    colors: [
+                        Color(hex: 0xFFD36A).opacity(0.27),
+                        Color(hex: 0xA76521).opacity(0.12),
+                        Color.clear
+                    ],
+                    center: UnitPoint(x: 0.54, y: 0.84),
+                    startRadius: 0,
+                    endRadius: max(geo.size.width, geo.size.height) * 0.42
+                )
+
                 Ellipse()
                     .stroke(
-                        Color(hex: 0xB8FFD2).opacity(0.09),
+                        Color(hex: 0xC5FFF5).opacity(0.16),
                         style: StrokeStyle(lineWidth: 0.8, dash: [3, 8])
                     )
                     .frame(width: geo.size.width * 1.42,
@@ -165,7 +209,7 @@ struct StarLaunchBackdrop: View {
                             y: -geo.size.height * 0.15)
 
                 Ellipse()
-                    .stroke(Color(hex: 0x6CE65A).opacity(0.10), lineWidth: 0.7)
+                    .stroke(Color(hex: 0x9D7BFF).opacity(0.16), lineWidth: 0.7)
                     .frame(width: geo.size.width * 0.92,
                            height: geo.size.width * 0.34)
                     .rotationEffect(.degrees(18))

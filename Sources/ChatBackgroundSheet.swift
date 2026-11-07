@@ -406,7 +406,7 @@ struct ChatBackgroundSheet: View {
             return
         }
         if let data = ImageStore.shared.diskRead(cacheKey),
-           let image = RemoteImage.downsampled(data, maxSide: 1600) {
+           let image = RemoteImage.downsampled(data, maxSide: chatWallpaperDecodeSide()) {
             ImageStore.shared.put(path, image)
             Task.detached(priority: .userInitiated) { ImageStore.shared.diskWrite(path, data) }
         }

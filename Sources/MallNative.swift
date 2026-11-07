@@ -477,8 +477,12 @@ final class DDStore: ObservableObject {
     }
 
     private var fileURL: URL {
-        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        return dir.appendingPathComponent("dd_mall.json")
+        if let target = LocalStore.privateFile("mall-state.json") {
+            LocalStore.migrateLegacyDocumentFile("dd_mall.json", to: target)
+            return target
+        }
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return dir.appendingPathComponent("Xingyan/PrivateData/mall-state.json")
     }
 
     private init() {

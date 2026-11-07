@@ -677,19 +677,51 @@ struct NewsFeedView: View {
 }
 
 struct NewsView: View {
+    @EnvironmentObject private var app: AppState
     @State private var refreshToken = 0
+    @State private var official: API.OfficialAccount?
+    @State private var editingOfficial: API.OfficialAccount?
 
     var body: some View {
         NewsFeedView(refreshToken: refreshToken)
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle(Tr("时刻新闻"))
+        .navigationTitle((official?.name?.isEmpty == false) ? official!.name! : Tr("时刻新闻"))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button { refreshToken += 1 } label: {
-                    Image(systemName: "arrow.clockwise")
+                HStack(spacing: 12) {
+                    if app.me?.ops == true, official != nil {
+                        Button {
+                            editingOfficial = official
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                        }
+                        .accessibilityLabel(Tr("管理时刻新闻"))
+                    }
+                    Button { refreshToken += 1 } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .accessibilityLabel(Tr("刷新"))
                 }
-                .accessibilityLabel(Tr("刷新"))
+            }
+        }
+        .task {
+            guard app.me?.ops == true else { return }
+            let list = (try? await API.shared.officialAccounts()) ?? []
+            official = list.first {
+                $0.key.lowercased().contains("news") ||
+                $0.name == "星联世界" ||
+                $0.name == "时刻新闻"
+            }
+        }
+        .sheet(item: $editingOfficial) { item in
+            OfficialEditSheet(item: item) {
+                let list = (try? await API.shared.officialAccounts()) ?? []
+                official = list.first {
+                    $0.key.lowercased().contains("news") ||
+                    $0.name == "星联世界" ||
+                    $0.name == "时刻新闻"
+                }
             }
         }
         .hidesTabBar()

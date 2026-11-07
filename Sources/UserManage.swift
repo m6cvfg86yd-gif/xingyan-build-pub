@@ -70,6 +70,7 @@ struct UserManageView: View {
     @State private var faceForRealName = UIConfig.num("realnameFace", 1) > 0
     @State private var chatFilterBar = UIConfig.num("chatFilterBar", 1) > 0
     @State private var chatsCardStyle = UIConfig.num("chatsCardStyle", 1) > 0
+    @State private var roundAvatars = UIConfig.avatarCircle
 
     @State private var meLayout = Int(UIConfig.num("meLayout", 0))
 
@@ -553,6 +554,34 @@ struct UserManageView: View {
                     .labelsHidden().tint(C.green)
             }
             .padding(.horizontal, 16).frame(height: 62)
+
+            HairLine(inset: 16)
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(Tr("圆形头像")).font(pf(16)).foregroundColor(C.label)
+                    Text(Tr("开 = 会话、通讯录和个人资料全部用圆形；关 = 星言默认圆角方形"))
+                        .font(pf(12)).foregroundColor(C.subLabel)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 6)
+                Toggle("", isOn: Binding(
+                    get: { roundAvatars },
+                    set: { v in
+                        roundAvatars = v
+                        app.setAvatarCircle(v)
+                        Task {
+                            let ok = await API.shared.opsSetUIKey("avatarShape", v ? 1 : 0)
+                            if ok {
+                                await app.refreshUI(force: true)
+                            }
+                            msg = ok ? (v ? Tr("已切换为圆形头像") : Tr("已切换为圆角方形头像"))
+                                     : Tr("已在本机切换，服务器暂未保存")
+                        }
+                    }))
+                    .labelsHidden().tint(C.green)
+            }
+            .padding(.horizontal, 16).frame(height: 66)
 
             HairLine(inset: 16)
 

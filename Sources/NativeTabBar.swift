@@ -25,7 +25,7 @@ private final class CompactDotTabBar: UITabBar {
                 dotViews[index] = view
                 return view
             }()
-            dot.backgroundColor = UIColor(C.red)
+            dot.backgroundColor = .systemRed
             dot.layer.borderColor = UIColor(C.tabBg).cgColor
             dot.layer.borderWidth = 1
             dot.isHidden = !dotIndexes.contains(index)
@@ -227,6 +227,7 @@ struct NativeTabBar: UIViewRepresentable {
         refresh(bar)
         bar.setNeedsLayout()
         bar.layoutIfNeeded()
+        context.coordinator.animateSelection(in: bar, index: selection)
     }
 
     private func applyColors(_ bar: UITabBar) {
@@ -234,15 +235,8 @@ struct NativeTabBar: UIViewRepresentable {
         bar.unselectedItemTintColor = UIColor(OrbitTheme.secondary)
 
         let appearance = UITabBarAppearance()
-        appearance.configureWithTransparentBackground()
-        appearance.backgroundEffect = nil
-        appearance.backgroundColor = .clear
-        appearance.backgroundImage = UIImage()
-        bar.backgroundImage = UIImage()
-        bar.shadowImage = UIImage()
-        bar.backgroundColor = .clear
+        appearance.configureWithDefaultBackground()
         bar.isOpaque = false
-        appearance.shadowColor = UIColor.clear
         let normalTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.secondary),
             .font: pfUIFont(10.5, .medium)
@@ -270,9 +264,7 @@ struct NativeTabBar: UIViewRepresentable {
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.isTranslucent = true
-        if let bar = bar as? CompactDotTabBar {
-            bar.clearsNativeBackdrop = scheme == .dark
-        }
+        (bar as? CompactDotTabBar)?.clearsNativeBackdrop = false
     }
 
     private func refresh(_ bar: UITabBar) {
@@ -295,11 +287,13 @@ struct NativeTabBar: UIViewRepresentable {
         var selection: Binding<Int>
         fileprivate let customKeys = ["tab2.chat", "tab2.contacts", "tab2.world", "tab2.me"]
         private let legacyKeys = ["tab.chat", "tab.contacts", "tab.discover", "tab.me"]
-        private let symbols = ["message", "person.2", "safari", "person.crop.circle"]
-        private let selectedSymbols = ["message.fill", "person.2.fill", "safari",
-                                       "person.crop.circle.fill"]
+        private let symbols = ["message", "person.2", "globe.americas", "person.crop.circle"]
+        private let selectedSymbols = ["message.fill", "person.2.fill",
+                                       "globe.americas.fill", "person.crop.circle.fill"]
         private var appliedIconKeys: [Int: String] = [:]
         private var appliedStyleKey = ""
+        private var lastSelection: Int?
+        private let selectionFeedback = UISelectionFeedbackGenerator()
 
         init(selection: Binding<Int>) {
             self.selection = selection
@@ -307,8 +301,27 @@ struct NativeTabBar: UIViewRepresentable {
 
         func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
             guard let index = tabBar.items?.firstIndex(where: { $0 === item }) else { return }
+            selectionFeedback.prepare()
+            selectionFeedback.selectionChanged()
             selection.wrappedValue = index
             stabilizeLayout(tabBar)
+        }
+
+        func animateSelection(in bar: UITabBar, index: Int) {
+            defer { lastSelection = index }
+            guard let previous = lastSelection, previous != index else { return }
+            let buttons = bar.subviews
+                .filter { String(describing: type(of: $0)).contains("UITabBarButton") }
+                .sorted { $0.frame.minX < $1.frame.minX }
+            guard buttons.indices.contains(index) else { return }
+            let button = buttons[index]
+            button.layer.removeAnimation(forKey: "xingyan.tabBounce")
+            let bounce = CAKeyframeAnimation(keyPath: "transform.scale")
+            bounce.values = [1.0, 0.84, 1.10, 0.97, 1.0]
+            bounce.keyTimes = [0, 0.16, 0.48, 0.74, 1]
+            bounce.duration = 0.34
+            bounce.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            button.layer.add(bounce, forKey: "xingyan.tabBounce")
         }
 
         private func stabilizeLayout(_ bar: UITabBar) {
@@ -322,7 +335,9 @@ struct NativeTabBar: UIViewRepresentable {
         }
 
         fileprivate func customIcon(_ index: Int) -> String? {
-            IconOverrides.custom(customKeys[index]) ?? IconOverrides.custom(legacyKeys[index])
+            // 前三个入口固定使用系统图标，只有“我的”允许显示头像。
+            if index < 3 { return nil }
+            return IconOverrides.custom(customKeys[index]) ?? IconOverrides.custom(legacyKeys[index])
         }
 
         fileprivate func applyIcons(in bar: UITabBar, loader: TabIconLoader, revision: Int,
@@ -343,8 +358,12 @@ struct NativeTabBar: UIViewRepresentable {
                 guard appliedIconKeys[index] != iconKey else { continue }
 
                 if index < 3, custom == nil {
-                    items[index].image = UIImage(systemName: symbols[index])
-                    items[index].selectedImage = UIImage(systemName: selectedSymbols[index])
+                    items[index].image = UIImage(systemName: symbols[index])?
+                        .withRenderingMode(.alwaysTemplate)
+                    items[index].selectedImage = gradientSymbol(
+                        selectedSymbols[index],
+                        size: size
+                    )
                     appliedIconKeys[index] = iconKey
                     continue
                 }
@@ -393,6 +412,27 @@ struct NativeTabBar: UIViewRepresentable {
                 UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).addClip()
                 image.draw(in: CGRect(origin: .zero, size: size))
             }
+        }
+
+        private func gradientSymbol(_ name: String, size: CGFloat) -> UIImage? {
+            let content = Image(systemName: name)
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            Color(hex: 0x20C96B),
+                            Color(hex: 0xA7D96A),
+                            Color(hex: 0xD9B95F)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: size + 2, height: size + 2)
+            let renderer = ImageRenderer(content: content)
+            renderer.scale = UIScreen.main.scale
+            return renderer.uiImage?.withRenderingMode(.alwaysOriginal)
         }
 
         private func render(custom: String?, index: Int, selected: Bool, size: CGFloat,

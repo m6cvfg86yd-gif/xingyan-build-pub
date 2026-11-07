@@ -284,8 +284,7 @@ struct AppearanceView: View {
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
     @Environment(\.colorScheme) private var systemColorScheme
-    @State private var tabNativeMaterial = UIConfig.num("tabUseNativeMaterial", 1) > 0
-    @State private var tabMaskBusy = false
+    @AppStorage("xingyan.topGreenGlow") private var topGreenGlow = true
 
     private var effectiveMode: String {
         if app.appearance == "auto" {
@@ -339,36 +338,18 @@ struct AppearanceView: View {
             if app.me?.ops == true ||
                 (app.me?.username ?? "").caseInsensitiveCompare("wzy245441545") == .orderedSame {
                 Section {
-                    Toggle(isOn: Binding(
-                        get: { tabNativeMaterial },
-                        set: { value in
-                            tabNativeMaterial = value
-                            tabMaskBusy = true
-                            Task {
-                                let ok = await API.shared.opsSetUIKey(
-                                    "tabUseNativeMaterial", value ? 1 : 0
-                                )
-                                if ok { await app.refreshUI(force: true) }
-                                else {
-                                    tabNativeMaterial = !value
-                                    app.show(Tr("底栏设置保存失败"))
-                                }
-                                tabMaskBusy = false
-                            }
-                        }
-                    )) {
+                    Toggle(isOn: $topGreenGlow) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(Tr("原生 Material 遮罩"))
-                            Text(Tr("开启后使用系统磨砂材料，关闭后使用实体底栏背景"))
+                            Text(Tr("顶部绿色氛围光"))
+                            Text(Tr("控制会话页顶部状态栏区域的绿色渐变"))
                                 .font(pfStyled(size: 12))
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .disabled(tabMaskBusy)
                 } header: {
-                    Text(Tr("底栏管理"))
+                    Text(Tr("界面管理"))
                 } footer: {
-                    Text(Tr("仅管理账号可见，切换后四个页面统一生效。"))
+                    Text(Tr("仅管理账号可见；开关会立即生效并记住本机选择。"))
                 }
             }
         }
@@ -378,9 +359,6 @@ struct AppearanceView: View {
         .hidesTabBar()
         .animation(.easeInOut(duration: 0.18), value: effectiveMode)
         .animation(.easeInOut(duration: 0.18), value: app.appearance)
-        .onAppear {
-            tabNativeMaterial = UIConfig.num("tabUseNativeMaterial", 1) > 0
-        }
     }
 
     private func appearanceChoice(mode: String, title: String, selected: Bool) -> some View {

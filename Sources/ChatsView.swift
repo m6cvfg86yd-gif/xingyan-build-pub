@@ -103,6 +103,77 @@ struct RowSwipeCatcher: UIViewRepresentable {
     }
 }
 
+private struct OfficialRowAdminEditor: View {
+    @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String
+    @State private var subtitle: String
+    @State private var saving = false
+    private let nameKey: String
+    private let subtitleKey: String
+    private let screenTitle: String
+
+    init(name: String, subtitle: String,
+         nameKey: String, subtitleKey: String, screenTitle: String) {
+        _name = State(initialValue: name)
+        _subtitle = State(initialValue: subtitle)
+        self.nameKey = nameKey
+        self.subtitleKey = subtitleKey
+        self.screenTitle = screenTitle
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField(Tr("官方名称"), text: $name)
+                    TextField(Tr("展示说明"), text: $subtitle, axis: .vertical)
+                        .lineLimit(2...4)
+                } header: {
+                    Text(Tr("官方账号资料"))
+                } footer: {
+                    Text(Tr("名称和说明会显示在会话页的官方账号行。"))
+                }
+            }
+            .navigationTitle(screenTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Tr("取消")) { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(saving ? Tr("保存中…") : Tr("保存")) {
+                        save()
+                    }
+                    .disabled(saving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func save() {
+        guard !saving else { return }
+        saving = true
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanSubtitle = subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            let savedName = await API.shared.opsSetUIKey(nameKey, cleanName)
+            let savedSubtitle = await API.shared.opsSetUIKey(subtitleKey, cleanSubtitle)
+            if savedName && savedSubtitle {
+                await app.refreshUI(force: true)
+                app.show(Tr("官方账号已更新"))
+                dismiss()
+            } else {
+                app.show(Tr("保存失败，请重试"))
+            }
+            saving = false
+        }
+    }
+}
+
 struct ChatRow: View {
     let chat: Chat
     @EnvironmentObject private var app: AppState
@@ -117,7 +188,7 @@ struct ChatRow: View {
             textColumn
         }
         .padding(.horizontal, 16)
-        .frame(height: L.rowH)
+        .frame(minHeight: L.rowH)
         .contentShape(Rectangle())
         .task { await loadPeerIfNeeded() }
     }
@@ -169,17 +240,17 @@ struct ChatRow: View {
     }
 
     private var textColumn: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 1) {
             HStack(alignment: .center, spacing: 5) {
                 Text(displayTitle)
-                    .font(pfStyled(size: 17, weight: .medium))
-                    .foregroundStyle(OrbitTheme.ink)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.9)
+                    .truncationMode(.tail)
                     .layoutPriority(1)
 
                 if chat.showsOfficialMark {
-                    OfficialMark()
+                    OfficialVerifiedV()
                         .fixedSize()
                 }
 
@@ -198,13 +269,16 @@ struct ChatRow: View {
                 Spacer(minLength: 6)
 
                 Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
-                    .font(pfStyled(size: 12, weight: .medium))
-                    .foregroundStyle(OrbitTheme.tertiary)
-                    .monospacedDigit()
-                    .fixedSize()
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(minWidth: 42, alignment: .trailing)
             }
+
             mentionPreview
-                .font(pfStyled(size: 14))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
@@ -213,10 +287,13 @@ struct ChatRow: View {
 
     private var mentionPreview: Text {
         let raw = (chat.lastMessage?.preview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let preview = raw.isEmpty ? fallbackPreview(chat.lastMessage?.kind ?? "") : raw
-        let body = Text(preview).foregroundColor(OrbitTheme.secondary)
+        let kind = chat.lastMessage?.kind ?? ""
+        let preview = kind == "pat"
+            ? Tr("星语提醒")
+            : (raw.isEmpty ? fallbackPreview(kind) : raw)
+        let body = Text(preview)
         guard chat.lastMessage?.mentionMe == true, chat.unreadCount > 0 else { return body }
-        return Text(Tr("[有人@我] ")).foregroundColor(OrbitTheme.jade) + body
+        return Text(Tr("[有人@我] ")).foregroundColor(.green) + body
     }
 
     /// 旧服务端或实时推送偶尔只带 kind 不带 preview，列表仍按微信占位。
@@ -237,6 +314,7 @@ struct ChatRow: View {
         case "channels", "channel", "feed", "shortvideo": return "[视频号]"
         case "call", "voicecall": return "[语音通话]"
         case "videocall": return "[视频通话]"
+        case "pat": return Tr("星语提醒")
         case "system": return "消息"
         case "": return idlePreview
         default: return "[消息]"
@@ -271,8 +349,9 @@ struct ChatRow: View {
 
     private var avatar: some View {
         Group {
-            if (chat.avatar ?? "").isEmpty,
-               chat.type == "group" || (chat.memberCount ?? 0) > 2 {
+            if (chat.type == "group" || (chat.memberCount ?? 0) > 2),
+               (chat.avatar ?? "").isEmpty
+                || (chat.avatar ?? "").contains("/uploads/group-") {
                 GroupAvatarMosaic(chatId: chat.id,
                                   memberIds: chat.memberIds ?? [],
                                   size: L.avatar, radius: 16)
@@ -306,6 +385,10 @@ extension Notification.Name {
     static let chrisChatCleared = Notification.Name("chris.chatCleared")
 }
 
+private enum ChatSwipeFeedback {
+    static let light = UIImpactFeedbackGenerator(style: .light)
+}
+
 struct SwipeChatRow: View {
     enum Mode { case none, hideConfirm, delConfirm }
 
@@ -325,13 +408,8 @@ struct SwipeChatRow: View {
     @State private var dragging = false
 
     private var btnW: CGFloat { UIConfig.num("swipeBtnW", 80) }
-    private var btnFont: CGFloat { UIConfig.num("swipeFont", 15) }
+    private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
     private var fullW: CGFloat { btnW * 3 }
-
-    private var cardInset: CGFloat { UIConfig.num("swipeInset", 0) }
-    private var cardRadius: CGFloat { UIConfig.num("swipeRadius", 0) }
-    private var iconSize: CGFloat { UIConfig.num("swipeIcon", 17) }
-    private var cardH: CGFloat { max(20, L.rowH - cardInset * 2) }
 
     private var blueBg: Color { UIConfig.color("swipeBlue", 0x2E7CF6, 0x0A84FF) }
 
@@ -342,12 +420,6 @@ struct SwipeChatRow: View {
     @State private var crossedOpen = false
 
     @State private var dragVelocity: CGFloat = 0
-
-    private var barReveal: CGFloat {
-        min(1, max(0, -offset / max(1, fullW)))
-    }
-
-    private let haptic = UIImpactFeedbackGenerator(style: .light)
 
     private var swipeSpring: Animation {
 
@@ -362,7 +434,7 @@ struct SwipeChatRow: View {
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
-    private var rowBg: Color { cardStyle ? .clear : OrbitTheme.raised }
+    private var rowBg: Color { cardStyle ? .clear : Color.dyn(0xFFFFFF, 0x171719) }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -423,7 +495,7 @@ struct SwipeChatRow: View {
                     let nowCrossed = (-offset > fullW * 0.42)
                     if nowCrossed != crossedOpen {
                         crossedOpen = nowCrossed
-                        haptic.impactOccurred(intensity: nowCrossed ? 0.55 : 0.35)
+                        ChatSwipeFeedback.light.impactOccurred(intensity: nowCrossed ? 0.55 : 0.35)
                     }
 
                 },
@@ -459,45 +531,35 @@ struct SwipeChatRow: View {
             switch mode {
             case .none:
 
-                bar("标为未读", "envelope.badge.fill", blueBg, btnW) {
+                bar("标为未读", blueBg, btnW) {
                     onUnread()
                     close()
                 }
-                bar("不显示", "eye.slash.fill", yellowBg, btnW, sep: true) {
+                bar("不显示", yellowBg, btnW) {
                     onHide(false)
                     close()
                 }
-                bar("删除", "trash.fill", redBg, btnW, sep: true) {
+                bar("删除", redBg, btnW) {
                     onDelete()
                     close()
                 }
             case .hideConfirm:
 
-                bar("不显示该聊天", "eye.slash.fill", yellowBg, fullW) {
+                bar("不显示该聊天", yellowBg, fullW) {
                     onHide(false)
                     close()
                 }
             case .delConfirm:
 
-                bar("清空记录同时不显示聊天", "trash.fill", redBg, fullW) {
+                bar("清空记录同时不显示聊天", redBg, fullW) {
                     onDelete()
                     close()
                 }
             }
         }
-        .frame(height: cardH)
-        .clipShape(RoundedRectangle(cornerRadius: cardRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: cardRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(cardInset > 0 ? 0.22 : 0),
-                              lineWidth: cardInset > 0 ? 0.6 : 0)
-        )
-        .padding(.vertical, cardInset)
+        .frame(height: L.rowH)
         .frame(width: max(0, -offset), height: L.rowH, alignment: .trailing)
         .clipped()
-
-        .shadow(color: .black.opacity(cardInset > 0 ? 0.16 : 0),
-                radius: cardInset > 0 ? 9 : 0, x: 0, y: 3)
     }
 
     private func settle(velocity vx: CGFloat) {
@@ -513,39 +575,25 @@ struct SwipeChatRow: View {
         } else {
             open = -offset > fullW * 0.42
         }
-        if open { haptic.impactOccurred() }
+        if open { ChatSwipeFeedback.light.impactOccurred() }
         withAnimation(swipeSpring) {
             offset = open ? -fullW : 0
             if !open { mode = .none }
         }
     }
 
-    private func bar(_ title: String, _ symbol: String, _ bg: Color, _ width: CGFloat,
-                     sep: Bool = false,
+    private func bar(_ title: String, _ bg: Color, _ width: CGFloat,
                      action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: symbol)
-                    .font(.system(size: iconSize, weight: .medium))
-                    .foregroundColor(.white)
-                Text(title)
-                    .font(pfExact(btnFont, .medium))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .scaleEffect(0.88 + 0.12 * barReveal)
-            .opacity(0.62 + 0.38 * barReveal)
-            .frame(width: max(0, width), height: cardH)
-            .background(bg)
-            .overlay(alignment: .leading) {
-                if sep {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.36))
-                        .frame(width: 0.5)
-                }
-            }
-            .contentShape(Rectangle())
+            Text(title)
+                .font(pfExact(btnFont, .semibold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.68)
+                .allowsTightening(true)
+                .frame(width: max(0, width), height: L.rowH)
+                .background(bg)
+                .contentShape(Rectangle())
         }
         .buttonStyle(RowSwipeActionButtonStyle())
     }
@@ -562,8 +610,7 @@ struct SwipeChatRow: View {
 private struct RowSwipeActionButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.82 : 1)
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.76 : 1)
             .animation(.easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
@@ -603,16 +650,18 @@ struct ChatsView: View {
 
     @State private var keyword = ""
     @State private var chatFilter: ChatFilter = .all
+    @State private var cachedSnapshot = ChatFilterSnapshot(list: [], unreadCounts: [:])
     @Namespace private var filterSelectionNS
     private let chatFilterH: CGFloat = 46
     private var chatFilterVisible: Bool { UIConfig.num("chatsOrbitFilter", 1) > 0 }
     private var chatFilterOffset: CGFloat { chatFilterVisible ? chatFilterH : 0 }
-    private var chatsCardStyle: Bool { UIConfig.num("chatsOrbitCard", 1) > 0 }
+    private var chatsCardStyle: Bool { false }
     private var chatsCardInset: CGFloat { max(8, UIConfig.num("chatsOrbitInset", 12)) }
     private var chatsCardRadius: CGFloat { max(16, UIConfig.num("chatsOrbitRadius", 22)) }
     private var chatsPageFill: Color {
-        OrbitTheme.raised
+        Color.dyn(0xFFFFFF, 0x111113)
     }
+    private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x171719) }
 
     @State private var scrolled: CGFloat = 0
 
@@ -656,6 +705,12 @@ struct ChatsView: View {
     @State private var openRow: String?
 
     @State private var showSearch = false
+    @State private var showOfficialConversation = false
+    @State private var showOfficialAdminEditor = false
+    @State private var showOfficialIconPicker = false
+    @State private var showWeatherConversation = false
+    @State private var showWeatherAdminEditor = false
+    @State private var showWeatherIconPicker = false
 
     @State private var botCardChat: Chat?
 
@@ -706,7 +761,7 @@ struct ChatsView: View {
         if count > 0 {
             Group {
                 if item == .all {
-                    Circle().fill(C.red).frame(width: 7, height: 7)
+                    Circle().fill(Color(.systemRed)).frame(width: 7, height: 7)
                 } else {
                     Text(count > 99 ? "99+" : "\(count)")
                         .font(pfExact(9, .semibold))
@@ -716,7 +771,7 @@ struct ChatsView: View {
                         .padding(.horizontal, count > 9 ? 4 : 3)
                         .frame(minWidth: 15)
                         .frame(height: 15)
-                        .background(Capsule().fill(C.red))
+                        .background(Capsule().fill(Color(.systemRed)))
                 }
             }
             .overlay {
@@ -747,68 +802,58 @@ struct ChatsView: View {
     }
 
     private func chatFilterBar(unreadCounts: [ChatFilter: Int]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(ChatFilter.allCases) { item in
-                    Button {
-                        chooseFilter(item)
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: item.symbol)
-                                .font(.system(size: 10.5, weight: .semibold))
-                            Text(Tr(item.rawValue))
-                                .font(pfStyled(size: 12,
-                                              weight: chatFilter == item ? .semibold : .medium))
-                                .lineLimit(1)
-                            let count = unreadCounts[item, default: 0]
-                            if count > 0 {
-                                Text(count > 99 ? "99+" : "\(count)")
-                                    .font(pfStyled(size: 8.5, weight: .bold))
-                                    .padding(.horizontal, count > 9 ? 4 : 3)
-                                    .frame(height: 15)
-                                    .background(Capsule().fill(C.red))
-                                    .foregroundStyle(Color.white)
+        GeometryReader { geo in
+            let count = max(1, ChatFilter.allCases.count)
+            let itemWidth = max(64, (geo.size.width - 16) / CGFloat(count))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(ChatFilter.allCases) { item in
+                        Button {
+                            chooseFilter(item)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(Tr(item.rawValue))
+                                    .font(.subheadline.weight(chatFilter == item ? .semibold : .medium))
+                                    .lineLimit(1)
+                                let count = unreadCounts[item, default: 0]
+                                if count > 0 {
+                                    Text(count > 99 ? "99+" : "\(count)")
+                                        .font(pfStyled(size: 8.5, weight: .bold))
+                                        .padding(.horizontal, count > 9 ? 4 : 3)
+                                        .frame(height: 15)
+                                        .background(
+                                            Capsule().fill(
+                                                chatFilter == item
+                                                    ? Color.white.opacity(0.24)
+                                                    : Color(.systemRed)
+                                            )
+                                        )
+                                        .foregroundStyle(.white)
+                                }
                             }
-                        }
-                        .foregroundStyle(chatFilter == item
-                                         ? OrbitTheme.jade
-                                         : OrbitTheme.secondary)
-                        .padding(.horizontal, 10)
-                        .frame(height: 31)
-                        .background {
-                            if chatFilter == item {
-                                Capsule()
-                                    .fill(OrbitTheme.jadeSoft)
-                                    .overlay(
-                                        Capsule().stroke(OrbitTheme.jade.opacity(0.24),
-                                                         lineWidth: 0.7)
-                                    )
-                                    .matchedGeometryEffect(id: "chatFilterSelection",
-                                                           in: filterSelectionNS)
+                            .foregroundStyle(chatFilter == item ? Color.white : Color.primary)
+                            .frame(width: itemWidth - 2, height: 31)
+                            .background {
+                                if chatFilter == item {
+                                    Capsule()
+                                        .fill(Color.accentColor)
+                                        .matchedGeometryEffect(id: "chatFilterSelection",
+                                                               in: filterSelectionNS)
+                                }
                             }
+                            .contentShape(Capsule())
                         }
-                        .contentShape(Capsule())
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 8)
+                .frame(minWidth: geo.size.width, alignment: .leading)
             }
-            .padding(.horizontal, 12)
         }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 18)
-                .onEnded { g in
-                    let dx = g.translation.width
-                    guard abs(dx) > 36, abs(dx) > abs(g.translation.height) * 1.25 else { return }
-                    moveFilter(dx < 0 ? 1 : -1)
-                }
-        )
         .padding(.top, 7)
         .padding(.bottom, 5)
         .frame(height: chatFilterH)
-        .background(OrbitTheme.canvas)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(OrbitTheme.divider).frame(height: 0.5)
-        }
+        .background(chatsPageFill.ignoresSafeArea(edges: .horizontal))
         .zIndex(2)
     }
 
@@ -835,7 +880,7 @@ struct ChatsView: View {
     private var unreadTotal: Int { app.chats.reduce(0) { $0 + ($1.unread ?? 0) } }
 
     private var chatTopHeader: some View {
-        HStack(spacing: 11) {
+        HStack(spacing: 12) {
             Button {
                 showAccounts = true
             } label: {
@@ -844,6 +889,7 @@ struct ChatsView: View {
                         RoundedRectangle(cornerRadius: 13, style: .continuous)
                             .stroke(OrbitTheme.jade.opacity(0.42), lineWidth: 1)
                     )
+                    .frame(width: L.avatar, alignment: .center)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("切换账号"))
@@ -851,12 +897,12 @@ struct ChatsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(app.me?.name ?? "星言")
                     .font(pfStyled(size: 20, weight: .bold))
-                    .foregroundStyle(OrbitTheme.ink)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(app.offline ? Tr("离线")
                      : (unreadTotal > 0 ? "\(unreadTotal) 条未读消息" : Tr("消息已读完")))
                     .font(pfStyled(size: 10.5, weight: .medium))
-                    .foregroundStyle(OrbitTheme.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
@@ -881,24 +927,49 @@ struct ChatsView: View {
                 .buttonStyle(.plain)
             }
 
-            Button {
-                showSearch = true
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15.5, weight: .semibold))
-                    .foregroundStyle(OrbitTheme.ink)
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(OrbitTheme.field))
-                    .overlay(Circle().stroke(OrbitTheme.divider, lineWidth: 0.6))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Tr("搜索"))
-
-            NativeGlassPlusButton {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
-                    plusMenu = true
+            HStack(spacing: 0) {
+                Button {
+                    showSearch = true
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.primary)
+                        .frame(width: 41, height: 38)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(NavPlusPressStyle())
+                .accessibilityLabel(Tr("搜索"))
+
+                Rectangle()
+                    .fill(Color.primary.opacity(0.20))
+                    .frame(width: 0.5, height: 16)
+
+                Button {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
+                        plusMenu = true
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16.5, weight: .semibold))
+                        .foregroundStyle(Color.primary)
+                        .frame(width: 41, height: 38)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(NavPlusPressStyle())
+                .accessibilityLabel(Tr("更多"))
             }
+            .frame(height: 38)
+            .background {
+                GlassBackground(
+                    shape: Capsule(style: .continuous),
+                    opacity: 0.84,
+                    edgeAlpha: 0.72,
+                    shadow: true,
+                    seed: 0.62,
+                    native: true
+                )
+            }
+            .clipShape(Capsule(style: .continuous))
         }
         .padding(.horizontal, 16)
         .frame(height: L.navH)
@@ -1286,20 +1357,10 @@ struct ChatsView: View {
 
     @ViewBuilder private func chatsNavGlass(_ scrolled: CGFloat) -> some View {
         let blur = UIConfig.num("chatsNavGlassAlpha", 1)
-        let mask = UIConfig.num("chatsNavMaskAlpha", 0.25)
-
-        Group {
-            if scheme == .dark {
-
-                HarmonyDarkMask(strength: 0.98)
-            } else {
-                ZStack {
-                    Rectangle().fill(.bar)
-                        .opacity(max(0, min(1, blur)))
-                    (UIConfig.colorIfSet("chatsNavMaskColor") ?? OrbitTheme.canvas)
-                        .opacity(max(0.72, min(1, mask + 0.5)))
-                }
-            }
+        ZStack {
+            Rectangle().fill(.bar)
+                .opacity(max(0, min(1, blur)))
+            chatsPageFill.opacity(scheme == .dark ? 0.82 : 0.90)
         }
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
@@ -1307,9 +1368,215 @@ struct ChatsView: View {
 
     @ViewBuilder private var chatsCardBackground: some View {
         RoundedRectangle(cornerRadius: chatsCardRadius, style: .continuous)
-            .fill(OrbitTheme.raised)
+            .fill(chatsCardFill)
             .shadow(color: Color.black.opacity(scheme == .dark ? 0.22 : 0.07),
                     radius: 16, x: 0, y: 7)
+    }
+
+    private var officialRowName: String {
+        let custom = UIConfig.text("officialRowName", "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return custom.isEmpty ? Tr("官方公告") : custom
+    }
+
+    private var officialRowSubtitle: String {
+        let fallback = Tr("平台公告、安全学堂与反诈提醒")
+        let custom = UIConfig.text("officialRowSubtitle", "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return custom.isEmpty ? fallback : custom
+    }
+
+    private var officialRowAvatar: String {
+        UIConfig.text("officialRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var officialConversationRow: some View {
+        ZStack(alignment: .trailing) {
+            Button {
+                showOfficialConversation = true
+            } label: {
+                HStack(spacing: 12) {
+                    if officialRowAvatar.isEmpty {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(LinearGradient(
+                                    colors: [Color(hex: 0x25B779), Color(hex: 0x0E6041)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: L.avatar * 0.42, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.96))
+                        }
+                        .frame(width: L.avatar, height: L.avatar)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.white.opacity(0.18), lineWidth: 0.7)
+                        }
+                    } else {
+                        Avatar(path: officialRowAvatar,
+                               size: L.avatar,
+                               radius: 14)
+                    }
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 5) {
+                            Text(officialRowName)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            OfficialVerifiedV(size: 15)
+                        }
+                        Text(officialRowSubtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+
+                    if app.me?.ops != true {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                            .padding(.trailing, 2)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 74)
+                .background(chatsPageFill)
+                .contentShape(Rectangle())
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(OrbitTheme.divider)
+                        .frame(height: 0.5)
+                        .padding(.leading, 78)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(officialRowName)
+            .accessibilityHint(Tr("查看官方公告和反诈课堂"))
+
+            if app.me?.ops == true {
+                Menu {
+                    Button {
+                        showOfficialAdminEditor = true
+                    } label: {
+                        Label(Tr("编辑官方账号"), systemImage: "square.and.pencil")
+                    }
+                    Button {
+                        showOfficialIconPicker = true
+                    } label: {
+                        Label(Tr("更换头像"), systemImage: "photo.badge.plus")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle.fill")
+                        .font(.system(size: 21, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 38, height: 38)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .padding(.trailing, 12)
+                .accessibilityLabel(Tr("管理官方账号"))
+            }
+        }
+    }
+
+    private var weatherRowName: String {
+        let custom = UIConfig.text("weatherRowName", "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return custom.isEmpty ? Tr("星言天气") : custom
+    }
+
+    private var weatherRowSubtitle: String {
+        let fallback = Tr("今日天气、温度与出行提醒")
+        let custom = UIConfig.text("weatherRowSubtitle", "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return custom.isEmpty ? fallback : custom
+    }
+
+    private var weatherRowAvatar: String {
+        UIConfig.text("weatherRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var weatherConversationRow: some View {
+        ZStack(alignment: .trailing) {
+            Button {
+                showWeatherConversation = true
+            } label: {
+                HStack(spacing: 12) {
+                    if weatherRowAvatar.isEmpty {
+                        Image(systemName: "cloud.sun.fill")
+                            .font(.system(size: L.avatar * 0.42, weight: .semibold))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, Color(hex: 0xFFD35C))
+                            .frame(width: L.avatar, height: L.avatar)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(hex: 0x4C9DFF), Color(hex: 0x1558B8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            )
+                    } else {
+                        Avatar(path: weatherRowAvatar, size: L.avatar, radius: 14)
+                    }
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 5) {
+                            Text(weatherRowName)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            OfficialVerifiedV(size: 15)
+                        }
+                        Text(weatherRowSubtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    if app.me?.ops != true {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                            .padding(.trailing, 2)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 74)
+                .background(chatsPageFill)
+                .contentShape(Rectangle())
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(OrbitTheme.divider)
+                        .frame(height: 0.5)
+                        .padding(.leading, 78)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(weatherRowName)
+            .accessibilityHint(Tr("查看天气和出行提醒"))
+
+            if app.me?.ops == true {
+                Menu {
+                    Button {
+                        showWeatherAdminEditor = true
+                    } label: {
+                        Label(Tr("编辑天气账号"), systemImage: "square.and.pencil")
+                    }
+                    Button {
+                        showWeatherIconPicker = true
+                    } label: {
+                        Label(Tr("更换头像"), systemImage: "photo.badge.plus")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle.fill")
+                        .font(.system(size: 21, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 38, height: 38)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .padding(.trailing, 12)
+                .accessibilityLabel(Tr("管理天气账号"))
+            }
+        }
     }
 
     @ViewBuilder private func chatListRows(_ chats: [Chat]) -> some View {
@@ -1328,13 +1595,15 @@ struct ChatsView: View {
     }
 
     var body: some View {
-        let snapshot = chatSnapshot()
+        let snapshot = cachedSnapshot
         return NavigationStack(path: $path) {
 
             ZStack(alignment: .top) {
                 if app.chats.isEmpty {
                     VStack(spacing: 0) {
                         Color.clear.frame(height: L.safeTop + L.navH + chatFilterOffset)
+                        officialConversationRow
+                        weatherConversationRow
                         emptyView
                         Spacer(minLength: 0)
                     }
@@ -1343,6 +1612,8 @@ struct ChatsView: View {
                         LazyVStack(spacing: 0) {
 
                             Color.clear.frame(height: L.safeTop + L.navH + chatFilterOffset)
+                            officialConversationRow
+                            weatherConversationRow
                             if snapshot.list.isEmpty {
                                 Text(Tr("这个分类暂时没有会话"))
                                     .font(pf(14))
@@ -1540,6 +1811,11 @@ struct ChatsView: View {
                 if n == 0 { app.tabBarDepth = 0 }
             }
 
+            .onAppear { cachedSnapshot = chatSnapshot() }
+            .onChange(of: app.chats) { _ in cachedSnapshot = chatSnapshot() }
+            .onChange(of: chatFilter) { _ in cachedSnapshot = chatSnapshot() }
+            .onChange(of: keyword) { _ in cachedSnapshot = chatSnapshot() }
+
             .onChange(of: floorUp) { v in
                 withAnimation(.easeOut(duration: 0.2)) { app.floorFull = v }
             }
@@ -1556,6 +1832,14 @@ struct ChatsView: View {
             }
             .navigationDestination(isPresented: $showOAList) {
                 OfficialAccountsView()
+            }
+            .navigationDestination(isPresented: $showOfficialConversation) {
+                OfficialNoticeCenterView().environmentObject(app)
+            }
+            .navigationDestination(isPresented: $showWeatherConversation) {
+                WeatherOfficialView(name: weatherRowName,
+                                    subtitle: weatherRowSubtitle,
+                                    avatar: weatherRowAvatar)
             }
             .navigationDestination(for: String.self) { key in
                 if key == "newGroup" {
@@ -1625,6 +1909,40 @@ struct ChatsView: View {
             NavigationStack { PayCodePage() }
                 .environmentObject(app)
         }
+        .sheet(isPresented: $showOfficialAdminEditor) {
+            OfficialRowAdminEditor(name: officialRowName,
+                                   subtitle: officialRowSubtitle,
+                                   nameKey: "officialRowName",
+                                   subtitleKey: "officialRowSubtitle",
+                                   screenTitle: Tr("编辑官方账号"))
+                .environmentObject(app)
+        }
+        .sheet(isPresented: $showOfficialIconPicker) {
+            PhotoPicker { image in
+                Task {
+                    await saveAccountIcon(image,
+                                          key: "officialRowAvatar",
+                                          success: Tr("官方头像已更新"))
+                }
+            }
+        }
+        .sheet(isPresented: $showWeatherAdminEditor) {
+            OfficialRowAdminEditor(name: weatherRowName,
+                                   subtitle: weatherRowSubtitle,
+                                   nameKey: "weatherRowName",
+                                   subtitleKey: "weatherRowSubtitle",
+                                   screenTitle: Tr("编辑天气账号"))
+                .environmentObject(app)
+        }
+        .sheet(isPresented: $showWeatherIconPicker) {
+            PhotoPicker { image in
+                Task {
+                    await saveAccountIcon(image,
+                                          key: "weatherRowAvatar",
+                                          success: Tr("天气头像已更新"))
+                }
+            }
+        }
         .task {
             HitchWatch.shared.start("会话列表")
 
@@ -1648,6 +1966,21 @@ struct ChatsView: View {
             }
         }
 
+    }
+
+    private func saveAccountIcon(_ image: UIImage, key: String, success: String) async {
+        do {
+            let path = try await API.shared.upload(image: image)
+            let saved = await API.shared.opsSetUIKey(key, path)
+            if saved {
+                await app.refreshUI(force: true)
+                app.show(success)
+            } else {
+                app.show(Tr("头像保存失败"))
+            }
+        } catch {
+            app.show((error as? APIError)?.errorDescription ?? Tr("头像保存失败"))
+        }
     }
 
     private var emptyView: some View {

@@ -109,14 +109,14 @@ struct ShopLinkCard: View {
 
     private var richBody: some View {
         WeChatMessageCard {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
                 RemoteImage(path: link.image, mode: .fill, maxSide: 360)
-                    .frame(width: 84, height: 84)
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .frame(width: 82, height: 82)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(link.title)
-                        .font(pfStyled(size: 15.5, weight: .medium))
+                        .font(pfStyled(size: 16, weight: .semibold))
                         .foregroundColor(C.bubbleText)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -154,9 +154,9 @@ struct ShopLinkCard: View {
             }
 
             Rectangle()
-                .fill(C.hairline)
+                .fill(Color.primary.opacity(0.065))
                 .frame(height: 0.5)
-                .padding(.vertical, 9)
+                .padding(.vertical, 10)
 
             WeChatMessageCardFooter(symbol: "link", title: Tr("网页链接"), trailing: Tr("打开"))
         }
@@ -164,26 +164,26 @@ struct ShopLinkCard: View {
 
     private var simpleBody: some View {
         WeChatMessageCard {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
 
                 if !link.image.isEmpty {
                     RemoteImage(path: link.image, mode: .fill, maxSide: 240)
-                        .frame(width: 50, height: 50)
-                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                        .frame(width: 56, height: 56)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 } else {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(Color(hexString: "#FF5000"))
                         Text("淘")
                             .font(pf(16, .semibold))
                             .foregroundColor(.white)
                     }
-                    .frame(width: 50, height: 50)
+                    .frame(width: 56, height: 56)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(link.title)
-                        .font(pfStyled(size: 15.5, weight: .medium))
+                        .font(pfStyled(size: 16, weight: .semibold))
                         .foregroundColor(C.bubbleText)
                         .lineLimit(2)
                     Text(link.sub)
@@ -195,9 +195,9 @@ struct ShopLinkCard: View {
             }
 
             Rectangle()
-                .fill(C.hairline)
+                .fill(Color.primary.opacity(0.065))
                 .frame(height: 0.5)
-                .padding(.vertical, 9)
+                .padding(.vertical, 10)
 
             WeChatMessageCardFooter(symbol: "link", title: Tr("网页链接"), trailing: Tr("打开"))
         }

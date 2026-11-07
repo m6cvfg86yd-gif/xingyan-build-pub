@@ -453,57 +453,85 @@ struct MallAdminSection: View {
 
     private var adsCard: some View {
         VStack(spacing: 0) {
-            row(Tr("广告位（商城里的京东式小广告）"),
-                Tr("广告条插在楼层之间 · 插卡混在瀑布流里；开着 ") + String(store.ads.count)
-                    + Tr(" 条 · 共 ") + String(store.allAds.count) + Tr(" 条"))
-            if store.allAds.isEmpty {
-                hint(Tr("还没有广告，下面点「加一条广告」"))
-            } else {
-                ForEach(store.allAds) { a in
-                    HairLine(inset: 16)
-                    HStack(spacing: 12) {
-                        Text(a.emoji ?? "🛍")
-                            .font(pfStyled(size: 22))
-                            .frame(width: 44, height: 44)
-                            .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                .fill(Color(hex: a.topColor).opacity(0.85)))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(a.title).font(pf(14)).foregroundColor(C.label).lineLimit(2)
-                            Text((a.isGrid ? Tr("插卡") : Tr("广告条")) + "　"
-                                 + Tr("序号 ") + String(a.sort ?? 99) + "　" + adActionText(a))
-                                .font(pf(11.5)).foregroundColor(C.subLabel).lineLimit(1)
-                        }
-                        Spacer(minLength: 0)
-                        VStack(spacing: 6) {
-                            Toggle("", isOn: Binding(
-                                get: { a.on ?? true },
-                                set: { v in Task { await setAdOn(a, v) } }))
-                                .labelsHidden().tint(C.green)
-                                .scaleEffect(0.82)
-                            Button { editingAd = a } label: { pill(Tr("编辑"), C.green) }
-                                .buttonStyle(.plain)
-                        }
-                        Button { Task { await removeAd(a) } } label: { pill(Tr("删除"), C.red) }
-                            .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                }
-            }
+            adsHeader
+            adsList
             HairLine(inset: 16)
-            Button { addingAd = true } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill").font(.system(size: 17)).foregroundColor(C.green)
-                    Text(Tr("加一条广告")).font(pf(15.5)).foregroundColor(C.label)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 16).frame(height: 52)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+            adsAddButton
         }
         .background(C.cardBg)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var adsHeader: some View {
+        let subtitle = Tr("广告条插在楼层之间 · 插卡混在瀑布流里；开着 ")
+            + String(store.ads.count)
+            + Tr(" 条 · 共 ")
+            + String(store.allAds.count)
+            + Tr(" 条")
+        return row(Tr("广告位（商城里的京东式小广告）"), subtitle)
+    }
+
+    @ViewBuilder
+    private var adsList: some View {
+        if store.allAds.isEmpty {
+            hint(Tr("还没有广告，下面点「加一条广告」"))
+        } else {
+            ForEach(store.allAds) { ad in
+                HairLine(inset: 16)
+                adRow(ad)
+            }
+        }
+    }
+
+    private func adRow(_ ad: DDAd) -> some View {
+        HStack(spacing: 12) {
+            Text(ad.emoji ?? "🛍")
+                .font(pfStyled(size: 22))
+                .frame(width: 44, height: 44)
+                .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color(hex: ad.topColor).opacity(0.85)))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(ad.title).font(pf(14)).foregroundColor(C.label).lineLimit(2)
+                Text(adMeta(ad))
+                    .font(pf(11.5)).foregroundColor(C.subLabel).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            VStack(spacing: 6) {
+                Toggle("", isOn: Binding(
+                    get: { ad.on ?? true },
+                    set: { value in Task { await setAdOn(ad, value) } }))
+                    .labelsHidden().tint(C.green)
+                    .scaleEffect(0.82)
+                Button { editingAd = ad } label: { pill(Tr("编辑"), C.green) }
+                    .buttonStyle(.plain)
+            }
+            Button { Task { await removeAd(ad) } } label: { pill(Tr("删除"), C.red) }
+                .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func adMeta(_ ad: DDAd) -> String {
+        (ad.isGrid ? Tr("插卡") : Tr("广告条"))
+            + "　"
+            + Tr("序号 ")
+            + String(ad.sort ?? 99)
+            + "　"
+            + adActionText(ad)
+    }
+
+    private var adsAddButton: some View {
+        Button { addingAd = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill").font(.system(size: 17)).foregroundColor(C.green)
+                Text(Tr("加一条广告")).font(pf(15.5)).foregroundColor(C.label)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16).frame(height: 52)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func adActionText(_ a: DDAd) -> String {
@@ -532,60 +560,92 @@ struct MallAdminSection: View {
 
     private var productCard: some View {
         VStack(spacing: 0) {
-            row(Tr("商品（上架 / 下架 / 改价 / 删除）"),
-                Tr("上架中的 ") + String(store.live.count) + Tr(" 件 · 共 ")
-                    + String(store.products.count) + Tr(" 件"))
-            if store.products.isEmpty {
-                hint(Tr("还没有商品，下面点「上架一件新商品」"))
-            } else {
-                ForEach(Array(store.products.enumerated()), id: \.element.id) { i, p in
-                    HairLine(inset: 16)
-                    HStack(spacing: 12) {
-                        DDThumb(em: p.em, size: 48, radius: 8, img: p.img)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(p.title).font(pf(14)).foregroundColor(C.label).lineLimit(2)
-                            Text("¥" + moneyFmt(p.price) + "　" + Tr("单买 ¥") + moneyFmt(p.orig)
-                                 + "　" + p.cate)
-                                .font(pf(11.5)).foregroundColor(C.subLabel).lineLimit(1)
-                        }
-                        Spacer(minLength: 0)
-                        VStack(spacing: 6) {
-                            Toggle("", isOn: Binding(
-                                get: { p.live },
-                                set: { v in Task { await setOn(p, v) } }))
-                                .labelsHidden().tint(C.green)
-                                .scaleEffect(0.82)
-                            Button { editing = p } label: { pill(Tr("编辑"), C.green) }
-                                .buttonStyle(.plain)
-                        }
-                        Button { Task { await remove(p) } } label: {
-                            pill(Tr("删除"), C.red)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                }
-            }
+            productsHeader
+            productsList
             HairLine(inset: 16)
-            Button { adding = true } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill").font(.system(size: 17)).foregroundColor(C.green)
-                    Text(Tr("上架一件新商品")).font(pf(15.5)).foregroundColor(C.label)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 16).frame(height: 52)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+            productsAddButton
             if !busy.isEmpty {
-                Text(busy).font(pf(12)).foregroundColor(C.subLabel)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16).padding(.bottom, 10)
+                productsStatus
             }
         }
         .background(C.cardBg)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var productsHeader: some View {
+        let subtitle = Tr("上架中的 ")
+            + String(store.live.count)
+            + Tr(" 件 · 共 ")
+            + String(store.products.count)
+            + Tr(" 件")
+        return row(Tr("商品（上架 / 下架 / 改价 / 删除）"), subtitle)
+    }
+
+    @ViewBuilder
+    private var productsList: some View {
+        if store.products.isEmpty {
+            hint(Tr("还没有商品，下面点「上架一件新商品」"))
+        } else {
+            ForEach(Array(store.products.enumerated()), id: \.element.id) { _, product in
+                HairLine(inset: 16)
+                productRow(product)
+            }
+        }
+    }
+
+    private func productRow(_ product: DDProduct) -> some View {
+        HStack(spacing: 12) {
+            DDThumb(em: product.em, size: 48, radius: 8, img: product.img)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(product.title).font(pf(14)).foregroundColor(C.label).lineLimit(2)
+                Text(productMeta(product))
+                    .font(pf(11.5)).foregroundColor(C.subLabel).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            VStack(spacing: 6) {
+                Toggle("", isOn: Binding(
+                    get: { product.live },
+                    set: { value in Task { await setOn(product, value) } }))
+                    .labelsHidden().tint(C.green)
+                    .scaleEffect(0.82)
+                Button { editing = product } label: { pill(Tr("编辑"), C.green) }
+                    .buttonStyle(.plain)
+            }
+            Button { Task { await remove(product) } } label: {
+                pill(Tr("删除"), C.red)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func productMeta(_ product: DDProduct) -> String {
+        "¥" + moneyFmt(product.price)
+            + "　"
+            + Tr("单买 ¥")
+            + moneyFmt(product.orig)
+            + "　"
+            + product.cate
+    }
+
+    private var productsAddButton: some View {
+        Button { adding = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill").font(.system(size: 17)).foregroundColor(C.green)
+                Text(Tr("上架一件新商品")).font(pf(15.5)).foregroundColor(C.label)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16).frame(height: 52)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var productsStatus: some View {
+        Text(busy).font(pf(12)).foregroundColor(C.subLabel)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16).padding(.bottom, 10)
     }
 
     private func row(_ title: String, _ sub: String) -> some View {

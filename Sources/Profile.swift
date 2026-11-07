@@ -1527,7 +1527,12 @@ struct GroupCreateView: View {
         .hidesTabBar()
 
         .sheet(isPresented: $showFace) {
-            FaceGroupView { chat in onCreated(chat) }
+            FaceGroupView { chat in
+                dismiss()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    onCreated(chat)
+                }
+            }
                 .environmentObject(app)
         }
     }

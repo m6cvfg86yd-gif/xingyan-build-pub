@@ -46,18 +46,18 @@ struct MallCardBubble: View {
     var body: some View {
         Button { onOpen() } label: {
             WeChatMessageCard {
-                HStack(spacing: 10) {
-                    DDThumb(em: info.em, size: 62, radius: 5,
+                HStack(spacing: 12) {
+                    DDThumb(em: info.em, size: 70, radius: 12,
                             img: info.img.isEmpty ? nil : info.img)
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(info.title)
-                            .font(pfStyled(size: 15.5, weight: .medium))
+                            .font(pfStyled(size: 16, weight: .semibold))
                             .foregroundColor(C.label)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text("¥" + moneyFmt(info.price))
-                                .font(pf(16, .semibold))
+                                .font(pf(18, .bold))
                                 .foregroundColor(DDColor.red)
                             if info.orig > info.price {
                                 Text("¥" + moneyFmt(info.orig))
@@ -71,10 +71,10 @@ struct MallCardBubble: View {
                     Spacer(minLength: 0)
                 }
 
-                Rectangle()
-                    .fill(C.hairline)
-                    .frame(height: 0.5)
-                    .padding(.vertical, 9)
+            Rectangle()
+                .fill(Color.primary.opacity(0.065))
+                .frame(height: 0.5)
+                .padding(.vertical, 10)
 
                 WeChatMessageCardFooter(
                     symbol: "bag.fill",

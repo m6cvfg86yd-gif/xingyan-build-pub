@@ -498,95 +498,143 @@ struct ChannelsView: View {
     }
 
     private func commentSheet(_ item: FeedItem) -> some View {
-        VStack(spacing: 14) {
-            Text(Tr("评论")).font(pf(16, .medium)).padding(.top, 16)
-            Text(item.desc ?? "").font(pf(13)).foregroundColor(.secondary)
-                .multilineTextAlignment(.center).padding(.horizontal, 20)
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(Tr("评论"))
+                        .font(pf(16, .semibold))
+                        .foregroundColor(C.label)
+                    Text(item.desc ?? "")
+                        .font(pf(12.5))
+                        .foregroundColor(C.subLabel)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Button { commentFor = nil } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(C.subLabel)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(C.searchBg))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 8)
+            .padding(.bottom, 11)
+
+            HairLine(inset: 0)
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 10) {
+                LazyVStack(alignment: .leading, spacing: 13) {
                     if comments.isEmpty {
-                        Text(Tr("还没有评论，来说第一句")).font(pf(13)).foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 4)
+                        Text(Tr("还没有评论，来说第一句"))
+                            .font(pf(14))
+                            .foregroundColor(C.subLabel)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 20)
                     }
                     ForEach(comments) { c in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(c.name ?? Tr("用户")).font(pf(13, .medium))
-                            Text(c.text ?? "").font(pf(14))
+                        HStack(alignment: .top, spacing: 10) {
+                            Avatar(path: c.avatar ?? "用户", size: 34, radius: 17, circle: true)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(c.name ?? Tr("用户"))
+                                    .font(pf(12.5, .medium))
+                                    .foregroundColor(C.subLabel)
+                                Text(c.text ?? "")
+                                    .font(pf(14.5))
+                                    .foregroundColor(C.label)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 13)
             }
-            .frame(maxHeight: 220)
-            TextField("说点什么…", text: $commentText)
-                .textFieldStyle(.roundedBorder).padding(.horizontal, 20)
-            Button { sendComment(item) } label: {
-                Text(Tr("发送")).font(pf(16, .medium)).foregroundColor(.white)
-                    .frame(maxWidth: .infinity).frame(height: 46)
-                    .background(RoundedRectangle(cornerRadius: 23).fill(C.green))
+            .frame(maxHeight: .infinity)
+
+            HairLine(inset: 0)
+
+            HStack(spacing: 9) {
+                TextField("说点什么…", text: $commentText)
+                    .font(pf(14.5))
+                    .padding(.horizontal, 13)
+                    .frame(height: 38)
+                    .background(
+                        RoundedRectangle(cornerRadius: 19, style: .continuous)
+                            .fill(C.searchBg)
+                    )
+                Button { sendComment(item) } label: {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(C.green))
+                }
+                .buttonStyle(.plain)
+                .disabled(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
-            Spacer()
+            .padding(.horizontal, 14)
+            .padding(.top, 9)
+            .padding(.bottom, max(10, L.safeBottom + 4))
+            .background(.ultraThinMaterial)
         }
-        .presentationDetents([.height(430)])
+        .background(C.cardBg)
+        .presentationDetents([.fraction(0.64), .large])
+        .presentationDragIndicator(.visible)
         .task { await loadComments(item) }
     }
 
     private var publishSheet: some View {
         VStack(spacing: 0) {
-
-            HStack {
+            HStack(spacing: 10) {
                 Button { showPublish = false } label: {
-                    Text(Tr("取消"))
-                        .font(pf(16))
-                        .foregroundColor(C.label)
-                        .frame(height: 44)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(C.subLabel)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(C.searchBg))
                 }
                 .buttonStyle(.plain)
 
                 Spacer()
 
                 Text(Tr("发布视频"))
-                    .font(pf(16.5, .semibold))
+                    .font(pf(17, .semibold))
                     .foregroundColor(C.label)
 
                 Spacer()
 
-                Button { publish() } label: {
-                    Text(Tr("发布"))
-                        .font(pf(15, .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 18)
-                        .frame(height: 34)
-                        .background(Capsule().fill(pendingVideoPath.isEmpty ? C.subLabel : C.green))
-                }
-                .buttonStyle(.plain)
-                .disabled(pendingVideoPath.isEmpty)
+                Color.clear.frame(width: 36, height: 36)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 6)
+            .padding(.horizontal, 18)
+            .padding(.top, 8)
+            .padding(.bottom, 10)
 
             HairLine(inset: 0)
-                .padding(.top, 6)
 
             ScrollView {
-                VStack(spacing: 14) {
-
-                    HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top, spacing: 14) {
                         ZStack {
                             if let c = pendingCover {
                                 Image(uiImage: c).resizable().scaledToFill()
                             } else {
-                                C.searchBg
-                                Image(systemName: "video.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(C.subLabel)
+                                LinearGradient(
+                                    colors: [Color(hex: 0x31584B), Color(hex: 0x101916)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.76))
                             }
-                            VStack { Spacer()
-                                HStack { Spacer()
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Spacer()
                                     if uploadMB > 0 {
                                         Text(String(format: "%.1f MB", uploadMB))
                                             .font(pfStyled(size: 10.5, weight: .medium))
@@ -596,121 +644,226 @@ struct ChannelsView: View {
                                     }
                                 }
                             }
-                            .padding(6)
+                            .padding(8)
                         }
-                        .frame(width: 92, height: 122)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .frame(width: 132, height: 178)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+                        )
 
-                        ZStack(alignment: .topLeading) {
-                            if publishDesc.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
                                 Text(Tr("添加作品描述…"))
-                                    .font(pf(15.5))
+                                    .font(pf(12.5, .medium))
                                     .foregroundColor(C.subLabel)
-                                    .padding(.top, 8)
-                                    .padding(.leading, 5)
+                                Spacer()
+                                Text("\(publishDesc.count)/120")
+                                    .font(pf(11))
+                                    .foregroundColor(C.subLabel.opacity(0.7))
                             }
-                            TextEditor(text: $publishDesc)
-                                .font(pf(15.5))
-                                .foregroundColor(C.label)
-                                .scrollContentBackground(.hidden)
-                                .background(Color.clear)
+
+                            ZStack(alignment: .topLeading) {
+                                if publishDesc.isEmpty {
+                                    Text(Tr("添加作品描述…"))
+                                        .font(pf(14.5))
+                                        .foregroundColor(C.subLabel)
+                                        .padding(.top, 10)
+                                        .padding(.leading, 6)
+                                }
+                                TextEditor(text: $publishDesc)
+                                    .font(pf(14.5))
+                                    .foregroundColor(C.label)
+                                    .scrollContentBackground(.hidden)
+                                    .background(Color.clear)
+                                    .onChange(of: publishDesc) { value in
+                                        if value.count > 120 {
+                                            publishDesc = String(value.prefix(120))
+                                        }
+                                    }
+                            }
+                            .padding(6)
+                            .frame(height: 124)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color.dyn(0xFFFFFF, 0x1A1D1B))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(Color.dyn(0xE8EAE7, 0xFFFFFF).opacity(0.08), lineWidth: 0.8)
+                            )
+
+                            HStack(spacing: 7) {
+                                Image(systemName: "waveform")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text(Tr("原创声音"))
+                                    .font(pf(11.5, .medium))
+                            }
+                            .foregroundColor(C.green)
+                            .padding(.horizontal, 9)
+                            .frame(height: 27)
+                            .background(Capsule().fill(C.green.opacity(0.1)))
                         }
-                        .frame(height: 122)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
 
                     VStack(spacing: 0) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 15))
-                                .foregroundColor(C.label)
-                                .frame(width: 22)
-                            Text(Tr("音乐")).font(pf(15.5)).foregroundColor(C.label)
+                        publishSettingRow(icon: "music.note",
+                                          title: Tr("音乐"),
+                                          detail: nil) {
                             TextField(Tr("选填，例如：原声"), text: $publishMusic)
-                                .font(pf(15))
+                                .font(pf(14))
                                 .multilineTextAlignment(.trailing)
                                 .foregroundColor(C.subLabel)
                         }
-                        .padding(.horizontal, 16)
-                        .frame(height: 52)
 
                         if flags.allowTrim != false {
-                            HairLine(inset: 16)
-                            VStack(spacing: 10) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "wand.and.stars")
-                                        .font(.system(size: 15))
-                                        .foregroundColor(C.label)
-                                        .frame(width: 22)
-                                    Text(Tr("剪掉水印")).font(pf(15.5)).foregroundColor(C.label)
-                                    Spacer()
-                                    Text(trimTitle)
-                                        .font(pf(14.5))
+                            HairLine(inset: 52)
+                            publishSettingRow(icon: "wand.and.stars",
+                                              title: Tr("剪掉水印"),
+                                              detail: trimTitle) {
+                                Menu {
+                                    Button(Tr("不处理")) { trim = 0 }
+                                    Button(Tr("底部 10%")) { trim = 1 }
+                                    Button(Tr("底部 14%")) { trim = 2 }
+                                    Button(Tr("右侧 12%")) { trim = 3 }
+                                    Button(Tr("右下角")) { trim = 4 }
+                                } label: {
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(C.subLabel)
                                 }
-                                Picker("剪掉水印", selection: $trim) {
-                                    Text(Tr("不处理")).tag(0)
-                                    Text(Tr("底部 10%")).tag(1)
-                                    Text(Tr("底部 14%")).tag(2)
-                                    Text(Tr("右侧 12%")).tag(3)
-                                    Text(Tr("右下角")).tag(4)
-                                }
-                                .pickerStyle(.segmented)
-                                Text(Tr("剪完会把画面放大回原尺寸，只是把带水印的那一条切掉。"))
-                                    .font(pf(11.5))
-                                    .foregroundColor(C.subLabel)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
                         }
 
-                        HairLine(inset: 16)
-                        HStack(spacing: 12) {
-                            Image(systemName: "bolt.hd.fill")
-                                .font(.system(size: 15))
-                                .foregroundColor(C.label)
-                                .frame(width: 22)
-                            Text(Tr("清晰度")).font(pf(15.5)).foregroundColor(C.label)
-                            Spacer()
-                            Text(Tr("自动转 720p · 秒开")).font(pf(14.5)).foregroundColor(C.subLabel)
+                        HairLine(inset: 52)
+                        publishSettingRow(icon: "bolt.hd.fill",
+                                          title: Tr("清晰度"),
+                                          detail: Tr("自动转 720p · 秒开")) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(C.green)
                         }
-                        .padding(.horizontal, 16)
-                        .frame(height: 52)
                     }
-                    .background(C.cardBg)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .padding(.horizontal, 16)
+                    .background(Color.dyn(0xFFFFFF, 0x171A18))
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.dyn(0xECEEEB, 0xFFFFFF).opacity(0.07), lineWidth: 0.8)
+                    )
 
-                    Text(Tr("发布后会先在后台转码，视频马上就能看，不用等。"))
-                        .font(pf(12))
-                        .foregroundColor(C.subLabel)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 2)
+                    HStack(alignment: .top, spacing: 9) {
+                        Image(systemName: "i.circle")
+                            .font(.system(size: 13))
+                            .foregroundColor(C.green.opacity(0.8))
+                            .padding(.top, 1)
+                        Text(Tr("发布后会先在后台转码，视频马上就能看，不用等。"))
+                            .font(pf(11.5))
+                            .foregroundColor(C.subLabel)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 2)
+
+                    if !uploadStage.isEmpty || uploadMB > 0 {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(uploadStage)
+                                    .font(pf(11.5, .medium))
+                                    .foregroundColor(C.subLabel)
+                                Spacer()
+                                if uploadMB > 0 {
+                                    Text(String(format: "%.1f MB", uploadMB))
+                                        .font(pf(11))
+                                        .foregroundColor(C.subLabel)
+                                }
+                            }
+                            ProgressView(value: max(0.02, min(1, uploadProgress)))
+                                .tint(C.green)
+                        }
+                        .padding(12)
+                        .background(C.searchBg)
+                        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    }
                 }
-                .padding(.bottom, 20)
+                .padding(.horizontal, 18)
+                .padding(.top, 16)
+                .padding(.bottom, 24)
             }
 
-            Button { publish() } label: {
-                Text(Tr("发布"))
-                    .font(pf(16.5, .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(RoundedRectangle(cornerRadius: 25, style: .continuous)
-                        .fill(pendingVideoPath.isEmpty ? C.subLabel : C.green))
+            HStack(spacing: 10) {
+                Button { showPublish = false } label: {
+                    Text(Tr("取消"))
+                        .font(pf(14.5, .semibold))
+                        .foregroundColor(C.label)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 46)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(C.searchBg)
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Button { publish() } label: {
+                    Text(Tr("发布"))
+                        .font(pf(15, .semibold))
+                        .foregroundColor(pendingVideoPath.isEmpty ? C.subLabel : Color(hex: 0x07150D))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 46)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: pendingVideoPath.isEmpty
+                                            ? [C.searchBg, C.searchBg]
+                                            : [Color(hex: 0x79F0AE), Color(hex: 0x2DCF80)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        )
+                        .shadow(color: pendingVideoPath.isEmpty ? .clear : C.green.opacity(0.2),
+                                radius: 14, y: 5)
+                }
+                .buttonStyle(.plain)
+                .disabled(pendingVideoPath.isEmpty)
+                .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.plain)
-            .disabled(pendingVideoPath.isEmpty)
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 18)
+            .padding(.top, 10)
+            .padding(.bottom, max(10, L.safeBottom + 4))
             .background(.ultraThinMaterial)
         }
-        .background(C.pageBg)
-        .presentationDetents([.height(560), .large])
+        .background(C.pageBg.ignoresSafeArea())
+        .presentationDetents([.large])
+        .presentationDragIndicator(.hidden)
+    }
+
+    private func publishSettingRow<Accessory: View>(
+        icon: String,
+        title: String,
+        detail: String? = nil,
+        @ViewBuilder accessory: () -> Accessory
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(C.label.opacity(0.82))
+                .frame(width: 22)
+            Text(title)
+                .font(pf(15))
+                .foregroundColor(C.label)
+            Spacer(minLength: 10)
+            if let detail {
+                Text(detail)
+                    .font(pf(13.5))
+                    .foregroundColor(C.subLabel)
+                    .lineLimit(1)
+            }
+            accessory()
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 52)
     }
 
     private var trimTitle: String {

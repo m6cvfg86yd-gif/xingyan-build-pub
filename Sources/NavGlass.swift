@@ -126,8 +126,18 @@ struct NativeGlassPlusButton: View {
     let action: () -> Void
 
     var body: some View {
+        NativeGlassIconButton(symbol: "plus", label: Tr("更多"), action: action)
+    }
+}
+
+struct NativeGlassIconButton: View {
+    let symbol: String
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
         Button(action: action) {
-            Image(systemName: "plus")
+            Image(systemName: symbol)
                 .font(.system(size: 16.5, weight: .semibold))
                 .foregroundStyle(Color(hex: 0x34C759))
                 .frame(width: 38, height: 38)
@@ -135,7 +145,7 @@ struct NativeGlassPlusButton: View {
         }
         .buttonStyle(NavPlusPressStyle())
         .background { NativeGlassCircleBackground() }
-        .accessibilityLabel(Tr("更多"))
+        .accessibilityLabel(label)
     }
 }
 

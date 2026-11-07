@@ -3,6 +3,24 @@ import WebKit
 
 final class WebBox: ObservableObject {
     weak var web: WKWebView?
+
+    func shutdown() {
+        guard let web else { return }
+        web.stopLoading()
+        web.evaluateJavaScript("""
+        try {
+          window.__crTimer && clearInterval(window.__crTimer);
+          window.stop();
+          document.querySelectorAll('video,audio').forEach(function (node) {
+            try { node.pause(); node.removeAttribute('src'); node.load(); } catch (e) {}
+          });
+        } catch (e) {}
+        """, completionHandler: nil)
+        web.navigationDelegate = nil
+        web.uiDelegate = nil
+        web.removeFromSuperview()
+        self.web = nil
+    }
 }
 
 final class RankBridge: NSObject, WKScriptMessageHandler {
@@ -13,6 +31,17 @@ final class RankBridge: NSObject, WKScriptMessageHandler {
 
     let room = RoomBridge()
     weak var web: WKWebView?
+    weak var userContentController: WKUserContentController?
+
+    func shutdown() {
+        onScore = nil
+        onRank = nil
+        room.onMove = nil
+        userContentController?.removeAllScriptMessageHandlers()
+        userContentController?.removeAllUserScripts()
+        userContentController = nil
+        web = nil
+    }
 
     func userContentController(_ uc: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any] else { return }

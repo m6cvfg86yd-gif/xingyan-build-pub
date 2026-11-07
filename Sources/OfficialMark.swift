@@ -43,8 +43,54 @@ struct OfficialMark: View {
     }
 }
 
+/// 会话列表中官方号昵称后的渐变 V 认证标识。
+struct OfficialVerifiedV: View {
+    var size: CGFloat = 17
+
+    private let gradient = LinearGradient(
+        colors: [
+            Color(hex: 0x20C96B),
+            Color(hex: 0xA7D96A),
+            Color(hex: 0xD9B95F)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.dyn(0xF7FFF9, 0x101A15).opacity(0.96))
+
+            Text("V")
+                .font(.system(size: size * 0.61, weight: .black, design: .rounded))
+                .foregroundStyle(gradient)
+                .offset(y: -0.15)
+
+            Circle()
+                .strokeBorder(gradient, lineWidth: 0.9)
+
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.30), Color.clear],
+                        center: .topLeading,
+                        startRadius: 0,
+                        endRadius: size * 0.75
+                    )
+                )
+                .allowsHitTesting(false)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: OrbitTheme.jade.opacity(0.20), radius: 2.5, x: 0, y: 1)
+        .accessibilityLabel(Tr("官方账号"))
+    }
+}
+
 extension Chat {
     var showsOfficialMark: Bool {
-        !(oaId ?? "").isEmpty || oaDigest == true
+        !(oaId ?? "").isEmpty
+            || oaDigest == true
+            || !(bot ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

@@ -19,9 +19,6 @@ private enum ChatTheme {
     static let groupSenderNameOnDark = Color.dyn(0xFFFFFF, 0xFFFFFF)
     static let secondaryOnMine = Color.dyn(0x999999, 0xB7D7CF)
     static let timeInk = Color.dyn(0x8A8A8E, 0x8A8D94)
-    static let quoteBg = Color.dyn(0xE9E9EB, 0x282C31)
-    static let quoteBgMine = Color.dyn(0xE9E9EB, 0x06483C)
-    static let quoteInk = Color.dyn(0x4F555C, 0xD3D7DE)
     static let composerBg = Color.dyn(0xFFFFFF, 0x23262C)
     static let separator = Color.dyn(0xE5E5E5, 0x2F3238)
     static let link = Color.dyn(0x0067DC, 0x7CCBFF)
@@ -145,6 +142,26 @@ struct BubbleShape: Shape {
     }
 }
 
+private struct BubbleUsesLightInkKey: EnvironmentKey {
+    static let defaultValue: Bool? = nil
+}
+
+private struct BubbleWallpaperTintKey: EnvironmentKey {
+    static let defaultValue: Color? = nil
+}
+
+extension EnvironmentValues {
+    fileprivate var bubbleUsesLightInk: Bool? {
+        get { self[BubbleUsesLightInkKey.self] }
+        set { self[BubbleUsesLightInkKey.self] = newValue }
+    }
+
+    fileprivate var bubbleWallpaperTint: Color? {
+        get { self[BubbleWallpaperTintKey.self] }
+        set { self[BubbleWallpaperTintKey.self] = newValue }
+    }
+}
+
 struct BubbleFill: View {
     var mine: Bool
     var tail: Bool = true
@@ -155,13 +172,23 @@ struct BubbleFill: View {
 
     var glass: Bool = true
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.bubbleUsesLightInk) private var wallpaperUsesLightInk
+    @Environment(\.bubbleWallpaperTint) private var wallpaperTint
+
+    private var usesDarkBackdrop: Bool {
+        wallpaperUsesLightInk ?? (scheme == .dark)
+    }
 
     private var tint: Color {
         if mine {
-
-            return ChatTheme.bubbleMine.opacity(UIConfig.num("bubbleTintMine", scheme == .dark ? 0.08 : 0.16))
+            return ChatTheme.bubbleMine.opacity(usesDarkBackdrop ? 0.28 : 0.15)
         }
-        return ChatTheme.bubbleOther.opacity(UIConfig.num("bubbleTintOther", scheme == .dark ? 0.05 : 0.34))
+        if let wallpaperTint {
+            return wallpaperTint.opacity(usesDarkBackdrop ? 0.20 : 0.12)
+        }
+        return usesDarkBackdrop
+            ? Color.black.opacity(0.10)
+            : Color.white.opacity(0.10)
     }
     private var gloss: Color {
 
@@ -172,65 +199,37 @@ struct BubbleFill: View {
     }
 
     private var edge: LinearGradient {
-        let a = UIConfig.num("bubbleEdge", 0)
+        let a = max(UIConfig.num("bubbleEdge", 0), usesDarkBackdrop ? 0.10 : 0.20)
         return LinearGradient(colors: [Color.white.opacity(a),
                                        Color.white.opacity(a * 0.42)],
                               startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     var body: some View {
-        #if compiler(>=6.2)
-
-        if #available(iOS 26.0, *), glass, UIConfig.num("bubbleNativeGlass", 0) > 0 {
-            Color.clear
-                .glassEffect(.regular.tint(mine ? C.green.opacity(UIConfig.num("bubbleNativeTint", 0.30)) : nil),
-                             in: BubbleShape(mine: mine, tail: tail, pill: pill))
-
-                .allowsHitTesting(false)
-        } else {
-            legacyBubble
-        }
-        #else
-        legacyBubble
-        #endif
-    }
-
-    private var legacyBubble: some View {
         ZStack {
+            BubbleShape(mine: mine, tail: tail, pill: pill)
+                .fill(.thinMaterial)
 
-            if glass, UIConfig.num("bubbleGlass", 0) > 0 {
-
-                let layers = max(1, min(3, Int(UIConfig.num("glassLayers", 2))))
-                ZStack {
-                    ForEach(0..<layers, id: \.self) { _ in
-                        BubbleShape(mine: mine, tail: tail, pill: pill).fill(.ultraThinMaterial)
-                    }
-                }
-
-                .opacity(UIConfig.num("bubbleGlassAlpha", 0))
-            } else {
-                BubbleShape(mine: mine, tail: tail, pill: pill)
-                    .fill(mine ? ChatTheme.bubbleMine : ChatTheme.bubbleOther)
-            }
+            BubbleShape(mine: mine, tail: tail, pill: pill)
+                .fill(usesDarkBackdrop
+                      ? Color.black.opacity(0.48)
+                      : Color.white.opacity(0.82))
 
             BubbleShape(mine: mine, tail: tail, pill: pill).fill(tint)
 
-            BubbleShape(mine: mine, tail: tail, pill: pill)
-                .fill(LinearGradient(stops: [
-                    .init(color: gloss, location: 0),
-                    .init(color: Color.clear, location: 0.42),
-                    .init(color: Color.clear, location: 0.68),
-                    .init(color: shade, location: 1)
-                ], startPoint: .top, endPoint: .bottom))
+            if UIConfig.num("bubbleGloss", 0) > 0
+                || UIConfig.num("bubbleShade", 0) > 0 {
+                BubbleShape(mine: mine, tail: tail, pill: pill)
+                    .fill(LinearGradient(stops: [
+                        .init(color: gloss, location: 0),
+                        .init(color: Color.clear, location: 0.42),
+                        .init(color: Color.clear, location: 0.68),
+                        .init(color: shade, location: 1)
+                    ], startPoint: .top, endPoint: .bottom))
+            }
 
             BubbleShape(mine: mine, tail: tail, pill: pill)
                 .stroke(edge, lineWidth: 0.9)
-
-            BubbleShape(mine: mine, tail: tail, pill: pill)
-                .stroke(LinearGradient(colors: [Color.clear,
-                                                Color.black.opacity(scheme == .dark ? 0.22 : 0.05)],
-                                       startPoint: .center, endPoint: .bottom),
-                        lineWidth: 0.6)
 
             if UIConfig.num("bubbleIridescent", 0) > 0 {
                 BubbleShape(mine: mine, tail: tail, pill: pill)
@@ -248,10 +247,62 @@ struct BubbleFill: View {
                             lineWidth: 1.1)
             }
         }
+        .allowsHitTesting(false)
     }
 }
 
 enum PanelKind { case none, emoji, plus, gift, mention }
+
+private enum ChatImmersiveEdge { case top, bottom }
+
+private struct ChatImmersiveEdgeMask: View {
+    let edge: ChatImmersiveEdge
+    let tint: Color?
+    let scheme: ColorScheme
+    var lighten = false
+    var immersive = false
+
+    var body: some View {
+        ZStack {
+            Group {
+                if immersive {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                } else {
+                    Rectangle()
+                        .fill(Color.dyn(0xF7F7F7, 0x18181A))
+                }
+            }
+            .mask(
+                LinearGradient(
+                    colors: [Color.black, Color.black.opacity(0.72), Color.clear],
+                    startPoint: edge == .top ? .top : .bottom,
+                    endPoint: edge == .top ? .bottom : .top
+                )
+            )
+
+            if let tint {
+                LinearGradient(
+                    colors: edge == .top
+                        ? [tint.opacity(scheme == .dark ? 0.52 : 0.30), tint.opacity(0.04)]
+                        : [tint.opacity(0.04), tint.opacity(scheme == .dark ? 0.54 : 0.32)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+
+            LinearGradient(
+                colors: edge == .top
+                    ? [Color.black.opacity(scheme == .dark ? 0.20 : 0.015), Color.clear]
+                    : [Color.clear, Color.black.opacity(scheme == .dark ? 0.22 : 0.015)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .opacity(lighten ? 0.56 : 1)
+        .allowsHitTesting(false)
+    }
+}
 
 struct KeyboardLiftDisable: ViewModifier {
     let enabled: Bool
@@ -262,6 +313,87 @@ struct KeyboardLiftDisable: ViewModifier {
             content.ignoresSafeArea(.keyboard, edges: .bottom)
         } else {
             content
+        }
+    }
+}
+
+private struct QuickIconButtonStyle: ButtonStyle {
+    let ink: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(configuration.isPressed ? ink.opacity(0.10) : Color.clear)
+            }
+            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+private struct StarWhisperLine: View {
+    let text: String
+    let ink: Color
+    let surface: Color
+    let border: Color
+    let accent: Color
+    let active: Bool
+
+    @State private var arrived = false
+    @State private var bloom = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(accent)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(ink)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 5)
+        .background {
+            ZStack {
+                Capsule(style: .continuous).fill(.ultraThinMaterial)
+                Capsule(style: .continuous).fill(surface)
+            }
+        }
+        .overlay {
+            Capsule(style: .continuous).stroke(border, lineWidth: 0.6)
+        }
+        .overlay {
+            if active {
+                Capsule(style: .continuous)
+                    .stroke(accent.opacity(bloom ? 0 : 0.42), lineWidth: 1)
+                    .scaleEffect(bloom ? 1.16 : 0.98)
+                    .opacity(bloom ? 0 : 1)
+            }
+        }
+        .scaleEffect(arrived ? 1 : 0.92)
+        .opacity(arrived ? 1 : 0)
+        .onAppear {
+            if active {
+                play()
+            } else {
+                arrived = true
+            }
+        }
+        .onChange(of: active) { isActive in
+            if isActive { play() }
+        }
+    }
+
+    private func play() {
+        arrived = false
+        bloom = false
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.72)) {
+            arrived = true
+        }
+        withAnimation(.easeOut(duration: 0.82).delay(0.08)) {
+            bloom = true
         }
     }
 }
@@ -280,15 +412,23 @@ struct ChatDetailView: View {
     @State private var senderAvatarCache: [String: String] = [:]
     @State private var groupSenderProfilesLoaded = false
     @State private var backgroundLuminance: Double? = nil
+    @State private var backgroundTopLuminance: Double? = nil
+    @State private var backgroundBottomLuminance: Double? = nil
+    @State private var wallpaperTopTint: Color? = nil
+    @State private var wallpaperBottomTint: Color? = nil
+    @State private var hidesChatNavigation = false
+    @State private var navRevealTask: Task<Void, Never>?
     @State private var historySyncTask: Task<Void, Never>?
 
     @State private var hiddenMessageIds: Set<String> = []
 
     @State private var persistTask: Task<Void, Never>?
     @State private var input = ""
+    @State private var inputBoxHeight: CGFloat = 39
     @State private var loading = true
     @State private var initialRetryTask: Task<Void, Never>?
     @State private var panel: PanelKind = .none
+    @State private var emojiPanelExpanded = false
     @State private var plusItems: [PlusItem] = []
 
     @State private var showPickCard = false
@@ -367,6 +507,8 @@ struct ChatDetailView: View {
     @State private var showCall = false
 
     @State private var redialAsk: Message? = nil
+    @State private var patAnimatingId: String?
+    @State private var patAnimationTask: Task<Void, Never>?
 
     @State private var showCallChoice = false
     @State private var billInfo: TransferInfo?
@@ -400,6 +542,13 @@ struct ChatDetailView: View {
 
     private var isStarWorld: Bool { chat.bot == "qqnews" }
 
+    private var redPacketDetailPresented: Binding<Bool> {
+        Binding(
+            get: { redPacketDetail != nil },
+            set: { if !$0 { redPacketDetail = nil } }
+        )
+    }
+
     private func openActions(_ m: Message) {
         if selectMode { toggleSelect(m); return }
         let contentRect = frameBox.frames[m.id] ?? .zero
@@ -429,8 +578,43 @@ struct ChatDetailView: View {
     }
 
     private func visibleMessages(_ rows: [Message]) -> [Message] {
-        rows.filter { !hiddenMessageIds.contains($0.id) }
+        let sorted = rows.filter { !hiddenMessageIds.contains($0.id) }
             .sorted(by: messageSortsBefore)
+        var seenClientIds = Set<String>()
+        var recentProductCards: [String: Message] = [:]
+        var out: [Message] = []
+        out.reserveCapacity(sorted.count)
+
+        for message in sorted {
+            if let cid = message.clientId?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !cid.isEmpty {
+                if !seenClientIds.insert(cid).inserted { continue }
+            }
+
+            if message.kindName == "mall" {
+                let key = (message.senderId ?? "") + "\u{1F}" + message.body
+                if let previous = recentProductCards[key],
+                   duplicateProductCard(previous, message) {
+                    continue
+                }
+                recentProductCards[key] = message
+            }
+            out.append(message)
+        }
+        return out
+    }
+
+    private func duplicateProductCard(_ first: Message, _ second: Message) -> Bool {
+        guard first.senderId == second.senderId,
+              first.body == second.body else { return false }
+        if let a = TimeFmt.date(first.createdAt),
+           let b = TimeFmt.date(second.createdAt) {
+            return abs(b.timeIntervalSince(a)) <= 30
+        }
+        if let a = first.seq, let b = second.seq {
+            return abs(b - a) <= 3
+        }
+        return false
     }
 
     private func messageSortsBefore(_ a: Message, _ b: Message) -> Bool {
@@ -445,6 +629,17 @@ struct ChatDetailView: View {
         guard !hiddenMessageIds.contains(message.id) else { return }
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
             messages.remove(at: index)
+        }
+        if let cid = message.clientId?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !cid.isEmpty,
+           messages.contains(where: { $0.clientId == cid }) {
+            return
+        }
+        if message.kindName == "mall",
+           messages.contains(where: {
+               $0.kindName == "mall" && duplicateProductCard($0, message)
+           }) {
+            return
         }
         var low = 0, high = messages.count
         while low < high {
@@ -834,28 +1029,132 @@ struct ChatDetailView: View {
         default:
             break
         }
-        if !path.isEmpty, scheme == .dark { return true }
-        if let backgroundLuminance { return backgroundLuminance <= 0.18 }
+        if let backgroundLuminance { return backgroundLuminance < 0.46 }
         return scheme == .dark
+    }
+
+    private var adaptiveSystemInk: Color {
+        senderNameUsesLightInk
+            ? Color.white.opacity(0.92)
+            : Color(hex: 0x3F4247)
+    }
+
+    private var composerUsesLightInk: Bool {
+        let path = normalizedChatBackground(backgroundPath)
+        switch path {
+        case "solid:white":
+            return false
+        case "solid:black":
+            return true
+        default:
+            break
+        }
+        if let backgroundBottomLuminance { return backgroundBottomLuminance < 0.46 }
+        return senderNameUsesLightInk
+    }
+
+    private var topBarUsesLightInk: Bool {
+        let path = normalizedChatBackground(backgroundPath)
+        switch path {
+        case "solid:white":
+            return false
+        case "solid:black":
+            return true
+        default:
+            break
+        }
+        if let backgroundTopLuminance { return backgroundTopLuminance < 0.46 }
+        return senderNameUsesLightInk
+    }
+
+    private var adaptiveTopInk: Color {
+        topBarUsesLightInk
+            ? Color.white.opacity(0.94)
+            : Color(hex: 0x20242A)
+    }
+
+    private var adaptiveTopOutline: Color {
+        topBarUsesLightInk
+            ? Color.black.opacity(0.62)
+            : Color.white.opacity(0.68)
+    }
+
+    private var adaptiveSystemSecondaryInk: Color {
+        senderNameUsesLightInk
+            ? Color.white.opacity(0.78)
+            : Color(hex: 0x62666C)
+    }
+
+    private var adaptiveSystemSurface: Color {
+        senderNameUsesLightInk
+            ? Color.black.opacity(0.40)
+            : Color.white.opacity(0.76)
+    }
+
+    private var adaptiveSystemBorder: Color {
+        senderNameUsesLightInk
+            ? Color.white.opacity(0.16)
+            : Color.black.opacity(0.07)
+    }
+
+    private var adaptiveMicInk: Color {
+        composerUsesLightInk
+            ? Color(hex: 0x7DE2AC)
+            : Color(hex: 0x148758)
+    }
+
+    private var adaptiveEmojiInk: Color {
+        composerUsesLightInk
+            ? Color(hex: 0xF4D078)
+            : Color(hex: 0x9A6513)
+    }
+
+    private var adaptivePlusInk: Color {
+        composerUsesLightInk
+            ? Color(hex: 0xA8C8FF)
+            : Color(hex: 0x3568C4)
+    }
+
+    private var adaptiveComposerSurface: Color {
+        composerUsesLightInk
+            ? Color.black.opacity(0.34)
+            : Color.white.opacity(0.82)
+    }
+
+    private var adaptiveComposerStroke: Color {
+        composerUsesLightInk
+            ? Color.white.opacity(0.16)
+            : Color.black.opacity(0.07)
     }
 
     private func refreshBackgroundLuminance() async {
         let path = normalizedChatBackground(backgroundPath)
         guard !path.isEmpty else {
             backgroundLuminance = nil
+            backgroundTopLuminance = nil
+            backgroundBottomLuminance = nil
+            wallpaperTopTint = nil
+            wallpaperBottomTint = nil
             return
         }
         switch path {
         case "solid:white":
             backgroundLuminance = 1
+            backgroundTopLuminance = 1
+            backgroundBottomLuminance = 1
+            wallpaperTopTint = .white
+            wallpaperBottomTint = .white
             return
         case "solid:black":
             backgroundLuminance = 0
+            backgroundTopLuminance = 0
+            backgroundBottomLuminance = 0
+            wallpaperTopTint = .black
+            wallpaperBottomTint = .black
             return
         default:
             break
         }
-        backgroundLuminance = nil
 
         var data = await Task.detached(priority: .utility) {
             ImageStore.shared.diskRead(path)
@@ -865,22 +1164,55 @@ struct ChatDetailView: View {
         }
         guard !Task.isCancelled, let data else { return }
 
-        let luminance = await Task.detached(priority: .utility) { () -> Double? in
+        let samples = await Task.detached(priority: .utility) {
+            () -> (full: [Double], top: [Double], bottom: [Double])? in
             guard let image = RemoteImage.downsampled(data, maxSide: 64)?.cgImage else {
                 return nil
             }
-            return Self.averageImageLuminance(image)
+            guard let full = Self.averageImageSample(
+                image,
+                normalizedRect: CGRect(x: 0, y: 0, width: 1, height: 1)
+            ),
+            let top = Self.averageImageSample(
+                image,
+                normalizedRect: CGRect(x: 0, y: 0.66, width: 1, height: 0.34)
+            ),
+            let bottom = Self.averageImageSample(
+                image,
+                normalizedRect: CGRect(x: 0, y: 0, width: 1, height: 0.34)
+            ) else { return nil }
+            return (full, top, bottom)
         }.value
         guard !Task.isCancelled,
               path == normalizedChatBackground(backgroundPath),
-              let luminance else { return }
-        backgroundLuminance = luminance
+              let samples else { return }
+        backgroundLuminance = samples.full[0]
+        backgroundTopLuminance = samples.top[0]
+        backgroundBottomLuminance = samples.bottom[0]
+        wallpaperTopTint = Color(
+            red: samples.top[1],
+            green: samples.top[2],
+            blue: samples.top[3]
+        )
+        wallpaperBottomTint = Color(
+            red: samples.bottom[1],
+            green: samples.bottom[2],
+            blue: samples.bottom[3]
+        )
     }
 
-    private static func averageImageLuminance(_ image: CGImage) -> Double {
+    private static func averageImageSample(_ image: CGImage,
+                                           normalizedRect: CGRect) -> [Double]? {
         let source = CIImage(cgImage: image)
+        let extent = source.extent
+        let sampleRect = CGRect(
+            x: extent.minX + normalizedRect.minX * extent.width,
+            y: extent.minY + normalizedRect.minY * extent.height,
+            width: normalizedRect.width * extent.width,
+            height: normalizedRect.height * extent.height
+        )
         let output = source.applyingFilter("CIAreaAverage", parameters: [
-            kCIInputExtentKey: CIVector(cgRect: source.extent)
+            kCIInputExtentKey: CIVector(cgRect: sampleRect)
         ])
         var pixel = [UInt8](repeating: 0, count: 4)
         let context = CIContext(options: [.workingColorSpace: NSNull()])
@@ -897,9 +1229,15 @@ struct ChatDetailView: View {
             let c = Double(value) / 255
             return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
         }
-        return 0.2126 * linear(pixel[0])
+        let luminance = 0.2126 * linear(pixel[0])
             + 0.7152 * linear(pixel[1])
             + 0.0722 * linear(pixel[2])
+        return [
+            luminance,
+            Double(pixel[0]) / 255,
+            Double(pixel[1]) / 255,
+            Double(pixel[2]) / 255
+        ]
     }
 
     private var groupAnnouncement: String {
@@ -911,6 +1249,10 @@ struct ChatDetailView: View {
 
     var body: some View {
         ZStack {
+            chatBackdrop
+                .ignoresSafeArea()
+                .transaction { $0.animation = nil }
+                .zIndex(0)
 
             messageList
 
@@ -924,33 +1266,7 @@ struct ChatDetailView: View {
                     },
                     including: (focused || panel != .none) ? .all : .none
                 )
-                .background {
-                    ZStack {
-                        ChatTheme.page
-                        if !backgroundPath.isEmpty {
-                            if let solid = chatBackgroundSolidColor(backgroundPath) {
-                                solid
-                            } else {
-                                RemoteImage(path: backgroundPath)
-                                    .id(backgroundPath)
-                            }
-                            if scheme == .dark, chatBackgroundSolidColor(backgroundPath) == nil {
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: Color.black.opacity(0.56), location: 0),
-                                        .init(color: Color.black.opacity(0.66), location: 0.56),
-                                        .init(color: Color.black.opacity(0.76), location: 1)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            }
-                        }
-                    }
-                    .ignoresSafeArea()
-
-                    .transaction { $0.animation = nil }
-                }
+                .zIndex(1)
 
             if isStarWorld && newsMode {
                 NewsFeedView(compact: true)
@@ -1034,7 +1350,7 @@ struct ChatDetailView: View {
             Text(Tr("对方通过验证后，你们就能聊天了。"))
         }
 
-        .onChange(of: focused) { f in pinToBottomSoon(force: f) }
+        .onChange(of: focused) { pinAfterFocusChange($0) }
         .onChange(of: panel) { _ in pinToBottomSoon() }
 
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -1042,16 +1358,24 @@ struct ChatDetailView: View {
             AnyView(VStack(spacing: 0) {
 
             NavBar(title: navTitleShown, back: navBackAction,
+                   titleColor: adaptiveTopInk,
+                   titleOutline: adaptiveTopOutline,
+                   hideChromeExceptBack: hidesChatNavigation,
                    titleView: (!selectMode && peerTyping.isEmpty && chat.showsOfficialMark) ? AnyView(
                        HStack(spacing: 6) {
                            Text(navTitle)
                                .font(pf(17, .semibold))
-                               .foregroundColor(C.label)
+                               .foregroundColor(adaptiveTopInk)
+                               .shadow(color: adaptiveTopOutline, radius: 0.8, x: 0.7, y: 0)
+                               .shadow(color: adaptiveTopOutline, radius: 0.8, x: -0.7, y: 0)
+                               .shadow(color: adaptiveTopOutline, radius: 0.8, x: 0, y: 0.7)
                            OfficialMark()
                        }
                    ) : nil,
                    leftExtra: selectMode ? nil : leftUnreadBadge,
+                   backGlass: true,
                    floating: true,
+                   titleGlass: false,
                    rightGlass: false) {
                 HStack(spacing: 0) {
 
@@ -1061,7 +1385,7 @@ struct ChatDetailView: View {
                         } label: {
                             Text(Tr("取消"))
                                 .font(pf(15.5))
-                                .foregroundColor(C.label)
+                                .foregroundColor(adaptiveTopInk)
                                 .frame(width: 52, height: 36)
                         }
                         .buttonStyle(.plain)
@@ -1071,7 +1395,7 @@ struct ChatDetailView: View {
                         } label: {
                             Text(newsMode ? Tr("对话") : Tr("新闻"))
                                 .font(pf(15.5))
-                                .foregroundColor(C.label)
+                                .foregroundColor(adaptiveTopInk)
                                 .frame(width: 52, height: 36)
                         }
                         .buttonStyle(.plain)
@@ -1085,7 +1409,8 @@ struct ChatDetailView: View {
                         } label: {
                             Image(systemName: "ellipsis")
                                 .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(C.label)
+                                .foregroundColor(adaptiveTopInk)
+                                .shadow(color: adaptiveTopOutline, radius: 0.8, x: 0.5, y: 0)
                                 .frame(width: 44, height: 36)
                                 .contentShape(Rectangle().inset(by: -8))
                         }
@@ -1096,16 +1421,11 @@ struct ChatDetailView: View {
                 .zIndex(2)
             }
             .background {
-
-                if UIConfig.num("navGlassBar", 0) > 0 {
-                    if scheme == .dark {
-                        HarmonyDarkMask(strength: 1)
-                            .ignoresSafeArea(edges: .top)
-                    } else {
-                        C.navBg
-                        .ignoresSafeArea(edges: .top)
-                    }
-                }
+                ChatImmersiveEdgeMask(edge: .top,
+                                      tint: wallpaperTopTint,
+                                      scheme: scheme,
+                                      immersive: hidesChatNavigation)
+                    .ignoresSafeArea(edges: .top)
             }
 
             if !isGroup && peerBanned {
@@ -1229,6 +1549,7 @@ struct ChatDetailView: View {
         }
         .onChange(of: panel) { next in
             if next != .none { kbHeight = 0 }
+            if next != .emoji { emojiPanelExpanded = false }
         }
 
         .overlay {
@@ -1265,12 +1586,21 @@ struct ChatDetailView: View {
                 .environmentObject(app)
         }
         .sheet(item: $quoteInspect) { item in
-            QuoteInspectSheet(quote: item.quote) { id in
-                quoteInspect = nil
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                    jumpToMessage(id)
+            QuoteInspectSheet(
+                quote: item.quote,
+                onOpenImage: { path in
+                    quoteInspect = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        openImage(path)
+                    }
+                },
+                onJump: { id in
+                    quoteInspect = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        jumpToMessage(id)
+                    }
                 }
-            }
+            )
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
@@ -1337,7 +1667,7 @@ struct ChatDetailView: View {
         }
         .sheet(isPresented: $showCamera) {
 
-            CameraPicker(onPick: { image in sendImage(image) },
+            CameraPicker(onPick: { image in pendingMedia = .image(image) },
                          onVideo: { url in sendRecordedVideo(url) })
         }
 
@@ -1404,10 +1734,7 @@ struct ChatDetailView: View {
             }
             .environmentObject(app)
         }
-        .sheet(isPresented: Binding(
-            get: { redPacketDetail != nil },
-            set: { if !$0 { redPacketDetail = nil } }
-        )) {
+        .sheet(isPresented: redPacketDetailPresented) {
             if let id = redPacketDetail {
                 RedPacketDetailView(id: id, myId: myId).environmentObject(app)
             }
@@ -1497,8 +1824,8 @@ struct ChatDetailView: View {
         .sheet(isPresented: Binding(get: { pendingMedia != nil },
                                     set: { if !$0 { pendingMedia = nil } })) {
             if let p = pendingMedia {
-                MediaSendSheet(payload: p) { live, original in
-                    let payload = p
+                MediaSendSheet(payload: p) { live, original, edited in
+                    let payload = edited.map { MediaSendSheet.Payload.image($0) } ?? p
                     pendingMedia = nil
                     sendMedia(payload, live: live, original: original)
                 }
@@ -1637,6 +1964,9 @@ struct ChatDetailView: View {
 
             if ev.type == "message", ev.chatId == chat.id, let message = ev.message {
                 upsertVisibleMessage(message)
+                if message.kindName == "pat" {
+                    animateStarWhisper(message.id)
+                }
                 if let seq = message.seq { Realtime.shared.ackDelivery(chatId: chat.id, seq: seq) }
                 markConversationReadSoon()
             } else if (ev.type == "message" || ev.type == "chat"), ev.chatId == chat.id {
@@ -1666,7 +1996,14 @@ struct ChatDetailView: View {
             settleTask = nil
             pinTask?.cancel()
             pinTask = nil
-            LocalStore.saveChat(chat.id, messages)
+            navRevealTask?.cancel()
+            navRevealTask = nil
+            patAnimationTask?.cancel()
+            patAnimationTask = nil
+            let snapshot = messages
+            Task.detached(priority: .utility) {
+                LocalStore.saveChat(chat.id, snapshot)
+            }
             let latest = messages.last
             Task { @MainActor in
                 await app.loadChats()
@@ -1751,16 +2088,19 @@ struct ChatDetailView: View {
                 }
 
                 .overlay(alignment: .topLeading) {
-                    ScrollOffsetProbe(onChange: { _ in
-
+                    ScrollOffsetProbe(onChange: { _, _ in
                         if ChatScrollHandle.shared.moving, let g = ChatScrollHandle.shared.gap {
                             wasAtBottom = g <= 16
+                            hideNavigationWhileScrolling()
                         }
-                    }, onDragChange: { dragging in
-
-                        if dragging {
+                    }, onScrollStateChange: { scrolling in
+                        if scrolling {
                             ScrollGate.shared.touch()
                             followOwnSendUntil = Date.distantPast
+                            navRevealTask?.cancel()
+                            hideNavigationWhileScrolling()
+                        } else {
+                            revealNavigationAfterScrolling()
                         }
                     }, onSizeChange: {
 
@@ -1796,13 +2136,13 @@ struct ChatDetailView: View {
                 scrollToEnd(proxy, animated: false)
             }
 
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidChangeFrameNotification)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { n in
                 ChatScrollDiag.shared.note("键盘位置变了")
-                pinToBottomSoon()
+                pinThroughKeyboardTransition(proxy, notice: n)
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
                 ChatScrollDiag.shared.note("键盘弹起")
-                pinToBottomSoon()
+                pinToBottomImmediately(proxy)
             }
 
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
@@ -1819,6 +2159,7 @@ struct ChatDetailView: View {
                 atBottom = true
                 scrollToEnd(proxy, animated: false)
                 scheduleSettledBottom()
+                revealChatNavigation()
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
                     CrashCatcher.note("聊天页",
@@ -1828,6 +2169,32 @@ struct ChatDetailView: View {
                 }
             }
         }
+    }
+
+    private func hideNavigationWhileScrolling() {
+        guard !hidesChatNavigation else { return }
+        navRevealTask?.cancel()
+        hidesChatNavigation = true
+    }
+
+    private func revealNavigationAfterScrolling() {
+        navRevealTask?.cancel()
+        navRevealTask = Task { @MainActor in
+            while ChatScrollHandle.shared.moving {
+                try? await Task.sleep(nanoseconds: 220_000_000)
+                guard !Task.isCancelled else { return }
+            }
+            try? await Task.sleep(nanoseconds: 220_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.18)) {
+                hidesChatNavigation = false
+            }
+        }
+    }
+
+    private func revealChatNavigation() {
+        navRevealTask?.cancel()
+        hidesChatNavigation = false
     }
 
     private func autoLoadOlder() {
@@ -1861,6 +2228,44 @@ struct ChatDetailView: View {
                 ChatScrollHandle.shared.allowAutomaticPinning()
                 scroller?.scrollTo("__bottom", anchor: .bottom)
             }
+        }
+    }
+
+    private func pinAfterFocusChange(_ focused: Bool) {
+        if focused {
+            pinToBottomImmediately()
+        } else {
+            pinToBottomSoon()
+        }
+    }
+
+    private func pinToBottomImmediately() {
+        guard atBottomNow else { return }
+        pinTask?.cancel()
+        ChatScrollHandle.shared.allowAutomaticPinning()
+        atBottom = true
+        wasAtBottom = true
+        scroller?.scrollTo("__bottom", anchor: .bottom)
+        pinTick += 1
+    }
+
+    private func pinToBottomImmediately(_ proxy: ScrollViewProxy) {
+        guard atBottomNow else { return }
+        ChatScrollHandle.shared.allowAutomaticPinning()
+        scrollToEnd(proxy, animated: false)
+    }
+
+    private func pinThroughKeyboardTransition(_ proxy: ScrollViewProxy,
+                                              notice: Notification) {
+        guard atBottomNow else { return }
+        let value = notice.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey]
+            as? Double ?? 0.25
+        pinToBottomImmediately(proxy)
+        DispatchQueue.main.async {
+            pinToBottomImmediately(proxy)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + value + 0.02) {
+            pinToBottomImmediately(proxy)
         }
     }
 
@@ -1981,6 +2386,33 @@ struct ChatDetailView: View {
         return o
     }
 
+    private var chatBackdrop: some View {
+        ZStack {
+            ChatTheme.page
+            if !backgroundPath.isEmpty {
+                if let solid = chatBackgroundSolidColor(backgroundPath) {
+                    solid
+                } else {
+                    RemoteImage(path: backgroundPath,
+                                mode: .fill,
+                                maxSide: chatWallpaperDecodeSide())
+                        .id(backgroundPath)
+                }
+                if scheme == .dark, chatBackgroundSolidColor(backgroundPath) == nil {
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.black.opacity(0.56), location: 0),
+                            .init(color: Color.black.opacity(0.66), location: 0.56),
+                            .init(color: Color.black.opacity(0.76), location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+            }
+        }
+    }
+
     private func backfillVoiceText() {
         for m in messages where m.kindName == "audio" && asrCache[m.id] == nil {
             if let t = VoiceText.get(m.id) { asrCache[m.id] = t }
@@ -1993,16 +2425,14 @@ struct ChatDetailView: View {
             if showTime(for: message) { timeLine(message) }
             if message.kindName == "pat" {
 
-                Text(message.patText(myId: myId))
-                    .font(pf(12.5))
-                    .foregroundColor(UIConfig.color("patInk", 0x8A8A8E, 0x9A9AA0))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: UIConfig.num("patRadius", 6), style: .continuous)
-                            .fill(.thinMaterial)
-                    )
+                StarWhisperLine(
+                    text: message.patText(myId: myId),
+                    ink: adaptiveSystemSecondaryInk,
+                    surface: adaptiveSystemSurface,
+                    border: adaptiveSystemBorder,
+                    accent: adaptiveMicInk,
+                    active: patAnimatingId == message.id
+                )
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 40)
                     .padding(.bottom, gapAfter(message))
@@ -2011,7 +2441,8 @@ struct ChatDetailView: View {
                 if message.isCallRecord && !message.callFrom.isEmpty {
                     callRow(message)
                 } else {
-                        SystemLine(message: message)
+                        SystemLine(message: message,
+                                   usesLightInk: senderNameUsesLightInk)
                             .padding(.bottom, gapAfter(message))
 
                             .contentShape(Rectangle())
@@ -2069,27 +2500,45 @@ struct ChatDetailView: View {
 
     private func timeLine(_ message: Message) -> some View {
         Text(TimeFmt.bubble(message.createdAt))
-            .font(pf(L.msgTimeSize))
-            .foregroundColor(ChatTheme.timeInk)
+            .font(.caption2)
+            .monospacedDigit()
+            .foregroundColor(adaptiveSystemInk)
 
-            .padding(.horizontal, L.o("chatTimePadX", 8))
-            .padding(.vertical, L.o("chatTimePadY", 3))
-            .background(RoundedRectangle(cornerRadius: L.o("chatTimeRadius", 4), style: .continuous)
-                .fill(.thinMaterial))
+            .padding(.horizontal, L.o("chatTimePadX", 9))
+            .padding(.vertical, L.o("chatTimePadY", 4))
+            .background {
+                ZStack {
+                    Capsule(style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    Capsule(style: .continuous)
+                        .fill(adaptiveSystemSurface)
+                }
+            }
+            .overlay {
+                Capsule(style: .continuous)
+                    .stroke(adaptiveSystemBorder, lineWidth: 0.6)
+            }
             .frame(maxWidth: .infinity)
-            .padding(.top, L.o("chatTimeGapTop", 12))
-            .padding(.bottom, L.o("chatTimeGapBottom", 12))
+            .padding(.top, L.o("chatTimeGapTop", 10))
+            .padding(.bottom, L.o("chatTimeGapBottom", 10))
     }
 
     private func recallLine(_ message: Message) -> some View {
         Text(recallText(message))
-            .font(pf(13))
+            .font(.footnote)
 
-            .foregroundColor(ChatTheme.timeInk)
+            .foregroundColor(adaptiveSystemInk)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(.thinMaterial))
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(adaptiveSystemSurface)
+                }
+            )
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 40)
     }
@@ -2107,6 +2556,7 @@ struct ChatDetailView: View {
                    myId: myId,
                    senderName: senderNameFor(message),
                    senderNameUsesLightInk: senderNameUsesLightInk,
+                   wallpaperTint: wallpaperBottomTint,
                    senderAvatarPath: senderAvatarFor(message),
                    senderQQLevel: app.contact(for: message.senderId ?? "")?.qqLevel ?? 0,
                    currentNickname: app.me?.nickname ?? "",
@@ -2335,17 +2785,50 @@ struct ChatDetailView: View {
         return TimeFmt.minutesBetween(messages[index - 1].createdAt, message.createdAt) >= 5
     }
 
-    private var quickBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-
-                ForEach(quickChips) { c in quickChip(c) }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+    private func animateStarWhisper(_ messageId: String) {
+        guard !messageId.isEmpty else { return }
+        patAnimationTask?.cancel()
+        patAnimatingId = messageId
+        patAnimationTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_100_000_000)
+            guard !Task.isCancelled, patAnimatingId == messageId else { return }
+            patAnimatingId = nil
         }
+    }
 
-        .background(UIConfig.num("quickBarBg", 0) > 0 ? C.cardBg : Color.clear)
+    private var quickBar: some View {
+        let chips = quickChips
+        return Group {
+            if chips.count <= 7 {
+                HStack(spacing: 0) {
+                    ForEach(chips) { c in quickChip(c) }
+                }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(chips) { c in
+                            quickChip(c)
+                                .frame(width: 52)
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                }
+            }
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 2)
+        .padding(.vertical, 2)
+        .background {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Rectangle()
+                    .fill(composerUsesLightInk
+                          ? Color.black.opacity(0.16)
+                          : Color.white.opacity(0.44))
+            }
+        }
     }
 
     private var quickChips: [QuickChip] {
@@ -2360,12 +2843,11 @@ struct ChatDetailView: View {
         Group {
             if !cfg.image.isEmpty {
                 RemoteImage(path: cfg.image, mode: .fit, maxSide: 200)
-                    .frame(width: side, height: side)
+                    .frame(width: max(20, side - 2), height: max(20, side - 2))
             } else {
-                Image(systemName: "plus.circle")
-                    .font(.system(size: side, weight: .regular))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(panel == .plus ? C.green : (optionalHexColor(cfg.color) ?? C.chatBarIcon))
+                Image(systemName: "plus")
+                    .font(.system(size: max(21, side - 3), weight: .semibold))
+                    .foregroundStyle(panel == .plus ? C.green : adaptivePlusInk)
             }
         }
         .frame(width: L.composerIconBox, height: L.composerIconBox)
@@ -2373,7 +2855,9 @@ struct ChatDetailView: View {
     }
 
     private func quickChip(_ c: QuickChip) -> some View {
-        Button {
+        let symbol = quickChipSymbol(c.action)
+        let title = chatEntryLabel(c.label, action: c.action)
+        return Button {
             switch c.action {
             case "photo": showPhoto = true
             case "camera": showCamera = true
@@ -2388,20 +2872,57 @@ struct ChatDetailView: View {
                                     action: c.action, enabled: true))
             }
         } label: {
-            Text(chatEntryLabel(c.label, action: c.action))
-                .font(pf(13.5))
-                .foregroundColor(C.label)
-                .padding(.horizontal, 12)
-                .frame(height: 30)
-
-                .background {
-                    if UIConfig.num("quickChipGlass", 0) > 0 {
-                        CardGlassBox(radius: 15)
-                    }
-                }
-                .contentShape(Rectangle())
+            Image(systemName: symbol)
+                .font(.system(size: 24, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(quickChipInk)
+                .shadow(color: composerUsesLightInk
+                        ? Color.black.opacity(0.40)
+                        : Color.clear,
+                        radius: 1.2, x: 0, y: 0.8)
+                .frame(maxWidth: .infinity)
+                .frame(height: 42)
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .buttonStyle(QuickIconButtonStyle(ink: quickChipInk))
+        .accessibilityLabel(Text(title))
+        .help(title)
+    }
+
+    private var quickChipInk: Color {
+        composerUsesLightInk ? Color.white : Color(hex: 0x161616)
+    }
+
+    private func quickChipSymbol(_ action: String) -> String {
+        switch action {
+        case "photo":
+            return "photo"
+        case "camera":
+            return "camera"
+        case "location":
+            return "location"
+        case "file":
+            return "doc"
+        case "transfer":
+            return "arrow.left.arrow.right"
+        case "redpacket":
+            return "envelope"
+        case "card":
+            return "person.crop.rectangle"
+        case "gift":
+            return "gift"
+        case "music":
+            return "music.note"
+        case "videocall":
+            return "video"
+        case "voice":
+            return "waveform"
+        case "favorite":
+            return "star"
+        default:
+            return "circle.grid.2x2"
+        }
     }
 
     private var sysTeamToolsBar: some View {
@@ -2636,9 +3157,6 @@ struct ChatDetailView: View {
         .frame(height: L.inputH)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .overlay(alignment: .top) {
-            Rectangle().fill(C.navLine).frame(height: 0.5)
-        }
         .background {
             GlassBackground(shape: Rectangle(),
                             opacity: max(UIConfig.num("glassAlpha", 0.8), 0.92),
@@ -2649,19 +3167,33 @@ struct ChatDetailView: View {
         }
     }
 
+    private var composerMaxHeight: CGFloat {
+        min(220, max(120, L.height * 0.36))
+    }
+
+    private var composerInputHeight: CGFloat {
+        (voiceMode || recorder.recording) ? L.inputH : max(L.inputH, inputBoxHeight)
+    }
+
+    private var composerFieldRadius: CGFloat {
+        min(19.5, composerInputHeight / 2)
+    }
+
     private var activeComposer: some View {
         VStack(spacing: 0) {
 
             if let q = quote {
                 HStack(spacing: 8) {
-                    Rectangle().fill(C.green).frame(width: 3, height: 38)
+                    Rectangle().fill(adaptiveMicInk).frame(width: 3, height: 38)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(q.senderId == myId ? Tr("我") : displayName(q))
                             .font(pf(11.5))
-                            .foregroundColor(C.green)
+                            .foregroundColor(adaptiveMicInk)
                         Text(quoteComposerSummary(q))
                             .font(pf(12.5))
-                            .foregroundColor(ChatTheme.quoteInk)
+                            .foregroundColor(composerUsesLightInk
+                                             ? Color.white.opacity(0.84)
+                                             : Color(hex: 0x4B5055))
                             .lineLimit(1)
                     }
                     Spacer(minLength: 0)
@@ -2675,13 +3207,15 @@ struct ChatDetailView: View {
                     Button { quote = nil } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 17))
-                            .foregroundColor(C.subLabel)
+                            .foregroundColor(composerUsesLightInk
+                                             ? Color.white.opacity(0.68)
+                                             : C.subLabel)
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(ChatTheme.panel)
+                .background(adaptiveComposerSurface)
             }
 
             if let draft = reEditDraft {
@@ -2706,9 +3240,6 @@ struct ChatDetailView: View {
                 .padding(.trailing, 6)
                 .frame(height: 36)
                 .background(ChatTheme.panel)
-                .overlay(alignment: .top) {
-                    Rectangle().fill(C.navLine).frame(height: 0.5)
-                }
                 .contentShape(Rectangle())
                 .onTapGesture {
                     input = draft
@@ -2718,11 +3249,21 @@ struct ChatDetailView: View {
             }
             HStack(spacing: 6) {
 
-                Image(systemName: voiceMode ? "keyboard" : "mic")
-                    .font(.system(size: 21, weight: .regular))
-                    .foregroundColor(recorder.recording ? C.green : C.chatBarIcon)
-                    .frame(width: L.composerIconBox, height: L.composerIconBox)
-                    .contentShape(Rectangle())
+                Image(systemName: recorder.recording
+                      ? "waveform"
+                      : (voiceMode ? "keyboard" : "mic"))
+                    .font(.system(size: recorder.recording ? 15 : 18,
+                                  weight: .medium))
+                    .foregroundStyle(
+                        recorder.recording
+                            ? (recorder.willCancel ? C.red : C.green)
+                            : (voiceMode ? C.green : adaptiveMicInk)
+                    )
+                    .frame(width: 36, height: 36)
+                    .scaleEffect(pressStart != nil ? 0.93 : 1)
+                    .animation(.spring(response: 0.20, dampingFraction: 0.74),
+                               value: pressStart)
+                    .contentShape(Circle())
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { v in
@@ -2758,6 +3299,7 @@ struct ChatDetailView: View {
                                 }
                             }
                     )
+                    .accessibilityLabel(Tr(voiceMode ? "切换到键盘" : "语音"))
 
                 HStack(spacing: 0) {
                     if voiceMode {
@@ -2833,6 +3375,14 @@ struct ChatDetailView: View {
                                               bridge: composerBridge,
                                               font: chatComposerUIFont(),
                                               tintColor: UIColor(hex: 0x2F7FD8),
+                                              minHeight: L.inputH,
+                                              maxHeight: composerMaxHeight,
+                                              onHeightChange: { height in
+                                                  guard abs(inputBoxHeight - height) > 0.5 else { return }
+                                                  withAnimation(.easeOut(duration: 0.12)) {
+                                                      inputBoxHeight = height
+                                                  }
+                                              },
                                               onBeginEditing: { panel = .none })
 
                             .onChange(of: input) { v in
@@ -2849,7 +3399,7 @@ struct ChatDetailView: View {
                                 } label: {
                                     Image(systemName: dictation.listening ? "mic.fill" : "mic")
                                         .font(.system(size: 17))
-                                        .foregroundColor(dictation.listening ? C.green : C.chatBarIcon)
+                                        .foregroundColor(dictation.listening ? C.green : adaptiveMicInk)
                                         .frame(width: 30, height: 30)
                                 }
                                 .buttonStyle(.plain)
@@ -2858,25 +3408,18 @@ struct ChatDetailView: View {
                     }
                 }
                 .padding(.horizontal, 8)
-                .frame(height: L.inputH)
+                .frame(height: composerInputHeight)
                 .background {
-                    Capsule(style: .continuous)
-                        .fill(recorder.recording
-                              ? (recorder.willCancel
-                                 ? Color.dyn(0xFFF1F1, 0x3A2A2A)
-                                 : Color.dyn(0xF2F2F2, 0x242427))
-                              : Color(uiColor: .secondarySystemBackground))
+                    if recorder.recording {
+                        RoundedRectangle(cornerRadius: composerFieldRadius, style: .continuous)
+                            .fill(recorder.willCancel
+                                  ? Color.dyn(0xFFF1F1, 0x3A2A2A)
+                                  : Color.dyn(0xF2F2F2, 0x242427))
+                    }
                 }
-                .overlay {
-                    Capsule(style: .continuous)
-                        .stroke(
-                            recorder.recording
-                                ? (recorder.willCancel ? C.red.opacity(0.6) : C.green.opacity(0.6))
-                                : (focused ? Color.accentColor.opacity(0.48)
-                                           : Color(uiColor: .separator).opacity(0.32)),
-                            lineWidth: focused || recorder.recording ? 1 : 0.5
-                        )
-                }
+                .shadow(color: focused ? C.green.opacity(0.13) : Color.black.opacity(0.05),
+                        radius: focused ? 9 : 4,
+                        y: 2)
 
                 if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 
@@ -2886,9 +3429,9 @@ struct ChatDetailView: View {
                             panel = (panel == .emoji) ? .none : .emoji
                         } label: {
                             Image(systemName: "face.smiling")
-                                .font(.system(size: L.composerIcon, weight: .regular))
-                                .symbolRenderingMode(.hierarchical)
-                                .foregroundStyle(panel == .emoji ? C.green : C.chatBarIcon)
+                                .font(.system(size: max(19, L.composerIcon - 3), weight: .medium))
+                                .symbolRenderingMode(.monochrome)
+                                .foregroundStyle(panel == .emoji ? C.green : adaptiveEmojiInk)
                                 .frame(width: L.composerIconBox, height: L.composerIconBox)
                                 .contentShape(Rectangle())
                         }
@@ -2916,19 +3459,49 @@ struct ChatDetailView: View {
                     Button {
                         sendText()
                     } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 32, weight: .semibold))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, C.green)
+                        ZStack {
+                            Circle()
+                                .fill(LinearGradient(
+                                    colors: [Color(hex: 0x4EDC7C), C.green],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 15.5, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .offset(x: -0.5, y: 0.5)
+                        }
                             .frame(width: 36, height: 36)
+                            .shadow(color: C.green.opacity(0.22), radius: 7, y: 3)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Tr("发送"))
+                    .transition(.scale(scale: 0.72).combined(with: .opacity))
                 }
             }
             .padding(.leading, 10)
             .padding(.trailing, 11)
             .padding(.vertical, 8)
+            .background {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(.thinMaterial)
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(composerUsesLightInk
+                              ? Color.black.opacity(0.16)
+                              : Color.white.opacity(0.38))
+                }
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(composerUsesLightInk
+                            ? Color.white.opacity(0.13)
+                            : Color.black.opacity(0.06),
+                            lineWidth: 0.6)
+            }
+            .padding(.horizontal, 8)
+            .animation(.spring(response: 0.24, dampingFraction: 0.82),
+                       value: input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
             if kbUp {
                 quickBar
@@ -2938,7 +3511,8 @@ struct ChatDetailView: View {
 
                 .background {
                     Group {
-                        if panel != .none {
+                        if panel != .none,
+                           !(panel == .emoji && emojiPanelExpanded) {
                             ChatPanelGlassBackground()
                         } else {
                             Color.clear
@@ -2965,22 +3539,14 @@ struct ChatDetailView: View {
         .onDisappear { dictation.stop() }
 
         .background {
-            Group {
-                if scheme == .dark {
-                    HarmonyDarkMask(strength: 1)
-                        .ignoresSafeArea(edges: .bottom)
-                } else {
-                    GlassBackground(shape: Rectangle(),
-                                    opacity: max(UIConfig.num("glassAlpha", 0.8), 0.92),
-                                    edgeAlpha: UIConfig.num("glassEdgeAlpha", 0.65),
-                                    seed: 0.54,
-                                    native: true)
+            if !(panel == .emoji && emojiPanelExpanded) {
+                ChatImmersiveEdgeMask(edge: .bottom,
+                                      tint: wallpaperBottomTint,
+                                      scheme: scheme,
+                                      lighten: kbUp,
+                                      immersive: hidesChatNavigation)
                     .ignoresSafeArea(edges: .bottom)
-                }
             }
-        }
-        .overlay(alignment: .top) {
-            Rectangle().fill(C.navLine).frame(height: 0.5)
         }
     }
 
@@ -3001,7 +3567,8 @@ struct ChatDetailView: View {
                        onOpenStore: { panel = .none; showStickerStore = true },
 
                        onCaptureSticker: { panel = .none; showCaptureSticker = true },
-                       mine: myStickers)
+                       mine: myStickers,
+                       onExpandedChange: { emojiPanelExpanded = $0 })
         case .plus:
             PlusPanel(items: plusItems,
                       onTap: { item in handlePlus(item) },
@@ -4378,12 +4945,12 @@ struct ChatDetailView: View {
 
 struct SystemLine: View {
     let message: Message
+    var usesLightInk: Bool = false
 
     var body: some View {
         HStack(spacing: 4) {
-            Text(message.body)
-                .font(pf(13))
-                .foregroundColor(ink)
+            displayText
+                .font(.footnote)
                 .multilineTextAlignment(.center)
             if message.isCallRecord {
                 callIcon(size: 13)
@@ -4392,8 +4959,16 @@ struct SystemLine: View {
 
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 4, style: .continuous)
-            .fill(.thinMaterial))
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(usesLightInk
+                          ? Color.black.opacity(0.40)
+                          : Color.white.opacity(0.76))
+            }
+        )
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 40)
     }
@@ -4421,10 +4996,34 @@ struct SystemLine: View {
         return message.isVideoCall ? I.callRecordVideo : I.callRecord
     }
 
+    private var displayText: Text {
+        let raw = message.body
+        guard let invite = raw.range(of: " 邀请 "),
+              let joined = raw.range(of: " 加入了群聊", options: .backwards),
+              invite.upperBound <= joined.lowerBound else {
+            return Text(raw).foregroundColor(ink)
+        }
+        let inviter = String(raw[..<invite.lowerBound])
+        let invitees = String(raw[invite.upperBound..<joined.lowerBound])
+        guard !inviter.isEmpty, !invitees.isEmpty else {
+            return Text(raw).foregroundColor(ink)
+        }
+        let pink = usesLightInk ? Color(hex: 0xFF9CC4) : Color(hex: 0xC33F78)
+        return Text(inviter).foregroundColor(pink)
+            + Text(" 邀请 ").foregroundColor(ink)
+            + Text(invitees).foregroundColor(pink)
+            + Text(" 加入了群聊").foregroundColor(ink)
+    }
+
     private var ink: Color {
 
-        guard message.isCallRecord else { return ChatTheme.timeInk }
-        return message.isBadCallRecord ? ChatTheme.mentionMe : ChatTheme.timeInk
+        let normal = usesLightInk
+            ? Color.white.opacity(0.92)
+            : Color(hex: 0x3F4247)
+        guard message.isCallRecord else { return normal }
+        return message.isBadCallRecord
+            ? (usesLightInk ? Color(hex: 0xFFAAA0) : Color(hex: 0xC7352F))
+            : normal
     }
 }
 
@@ -4480,6 +5079,7 @@ private struct QuoteInspectItem: Identifiable {
 
 struct QuoteInspectSheet: View {
     let quote: QuoteRef
+    let onOpenImage: (String) -> Void
     let onJump: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -4532,6 +5132,11 @@ struct QuoteInspectSheet: View {
                                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                                         .stroke(C.hairline, lineWidth: 0.7)
                                 }
+                                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .onTapGesture {
+                                    onOpenImage(quote.thumbPath)
+                                }
+                                .accessibilityAddTraits(.isButton)
                         }
 
                         Text(quote.summary.isEmpty ? Tr("[引用]") : quote.summary)
@@ -4579,6 +5184,7 @@ struct MessageRow: View {
     var myId: String = ""
     var senderName: String = ""
     var senderNameUsesLightInk: Bool = false
+    var wallpaperTint: Color? = nil
 
     var senderAvatarPath: String = ""
     var senderQQLevel: Int = 0
@@ -4629,6 +5235,7 @@ struct MessageRow: View {
     @State private var voiceScrub: Double = -1
 
     @State private var albumOpen = false
+    @State private var patPulse = false
 
     private var avatarPath: String {
         if let p = message.senderAvatar, !p.isEmpty { return p }
@@ -4654,6 +5261,8 @@ struct MessageRow: View {
             if !mine { Spacer(minLength: 0) }
         }
 
+        .environment(\.bubbleUsesLightInk, senderNameUsesLightInk)
+        .environment(\.bubbleWallpaperTint, wallpaperTint)
         .onAppear { albumOpen = AlbumFold.isOpen(message.id) }
     }
 
@@ -4663,9 +5272,20 @@ struct MessageRow: View {
             ? GrowthStore.shared.shownLevel
             : senderQQLevel
         return Avatar(path: avatarPath, size: L.chatAvatar, radius: 4, level: lv)
+            .scaleEffect(patPulse ? 1.10 : 1)
+            .shadow(color: C.green.opacity(patPulse ? 0.30 : 0),
+                    radius: patPulse ? 9 : 0)
+            .animation(.spring(response: 0.24, dampingFraction: 0.62), value: patPulse)
             .contentShape(Rectangle())
 
-            .onTapGesture(count: 2) { onPat?(message.senderId ?? "") }
+            .onTapGesture(count: 2) {
+                patPulse = true
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 190_000_000)
+                    patPulse = false
+                }
+                onPat?(message.senderId ?? "")
+            }
             .onTapGesture { onOpenAvatar?(message.senderId ?? "") }
     }
 
@@ -4776,16 +5396,66 @@ struct MessageRow: View {
         if message.isRecalled {
             Text(mine ? "你撤回了一条消息" : "对方撤回了一条消息")
                 .font(pf(12))
-                .foregroundColor(ChatTheme.secondary)
+                .foregroundColor(senderNameUsesLightInk
+                                 ? Color.white.opacity(0.92)
+                                 : Color(hex: 0x3F4247))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.thinMaterial))
+                .background(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(senderNameUsesLightInk
+                                  ? Color.black.opacity(0.40)
+                                  : Color.white.opacity(0.76))
+                    }
+                )
         } else {
             bubble
         }
     }
 
     private var bubbleFill: Color { mine ? ChatTheme.bubbleMine : ChatTheme.bubbleOther }
+
+    private var bubblePrimaryInk: Color {
+        senderNameUsesLightInk
+            ? Color.white.opacity(0.98)
+            : Color(hex: 0x101315)
+    }
+
+    private var bubbleSecondaryInk: Color {
+        senderNameUsesLightInk
+            ? Color.white.opacity(0.84)
+            : Color(hex: 0x4B5055)
+    }
+
+    private var bubbleMentionInk: Color {
+        senderNameUsesLightInk
+            ? Color(hex: 0xFFB4AB)
+            : Color(hex: 0xA82020)
+    }
+
+    private var bubbleLinkInk: Color {
+        senderNameUsesLightInk
+            ? Color(hex: 0xA9D9FF)
+            : Color(hex: 0x0D5AA8)
+    }
+
+    private var quoteSurface: Color {
+        if senderNameUsesLightInk {
+            return Color.black.opacity(mine ? 0.34 : 0.30)
+        }
+        return mine
+            ? Color(hex: 0xE7F4DE).opacity(0.78)
+            : Color(hex: 0xF0F1F3).opacity(0.80)
+    }
+
+    private var quoteBorder: Color {
+        senderNameUsesLightInk
+            ? Color.white.opacity(0.18)
+            : Color.black.opacity(0.075)
+    }
 
     @ViewBuilder
     private var bubble: some View {
@@ -4830,7 +5500,7 @@ struct MessageRow: View {
 
                 Text(linkFallbackText(message.body))
                     .font(pf(L.chatFontSize))
-                    .foregroundColor(ChatTheme.ink)
+                    .foregroundColor(bubblePrimaryInk)
                     .padding(.horizontal, L.bubblePadHPill)
                     .padding(.vertical, L.bubblePadV)
                 .background(BubbleFill(mine: mine, tail: showTail, seed: bubbleSeed(message.id)))
@@ -4860,7 +5530,7 @@ struct MessageRow: View {
                      ? "[名片] 原文：" + String(message.body.prefix(80))
                      : Tr("[名片]"))
                     .font(pf(L.chatFontSize))
-                    .foregroundColor(ChatTheme.ink)
+                    .foregroundColor(bubblePrimaryInk)
                     .padding(.horizontal, L.bubblePadHPill)
                     .padding(.vertical, L.bubblePadV)
                     .background(BubbleFill(mine: mine, tail: showTail, seed: bubbleSeed(message.id)))
@@ -4877,7 +5547,7 @@ struct MessageRow: View {
             } else {
                 Text(Tr("[音乐]"))
                     .font(pf(L.chatFontSize))
-                    .foregroundColor(ChatTheme.ink)
+                    .foregroundColor(bubblePrimaryInk)
                     .padding(.horizontal, L.bubblePadHPill)
                     .padding(.vertical, L.bubblePadV)
                     .background(BubbleFill(mine: mine, tail: showTail, seed: bubbleSeed(message.id)))
@@ -4892,7 +5562,7 @@ struct MessageRow: View {
             } else {
                 Text(Tr("[商品]"))
                     .font(pf(L.chatFontSize))
-                    .foregroundColor(ChatTheme.ink)
+                    .foregroundColor(bubblePrimaryInk)
                     .padding(.horizontal, L.bubblePadHPill)
                     .padding(.vertical, L.bubblePadV)
                     .background(BubbleFill(mine: mine, tail: showTail, seed: bubbleSeed(message.id)))
@@ -4916,7 +5586,7 @@ struct MessageRow: View {
             } else {
                 Text(Tr("[小游戏]"))
                     .font(pf(L.chatFontSize))
-                    .foregroundColor(ChatTheme.ink)
+                    .foregroundColor(bubblePrimaryInk)
                     .padding(.horizontal, L.bubblePadHPill)
                     .padding(.vertical, L.bubblePadV)
                     .background(BubbleFill(mine: mine, tail: showTail, seed: bubbleSeed(message.id)))
@@ -4929,7 +5599,7 @@ struct MessageRow: View {
             } else {
                 Text(Tr("[通知]"))
                     .font(pf(L.chatFontSize))
-                    .foregroundColor(ChatTheme.ink)
+                    .foregroundColor(bubblePrimaryInk)
                     .padding(.horizontal, L.bubblePadHPill)
                     .padding(.vertical, L.bubblePadV)
                     .background(BubbleFill(mine: mine, tail: showTail, seed: bubbleSeed(message.id)))
@@ -4949,7 +5619,7 @@ struct MessageRow: View {
             if message.body.hasPrefix("{") {
                 Text(unknownCardText(message.body))
                     .font(pf(L.chatFontSize))
-                    .foregroundColor(ChatTheme.ink)
+                    .foregroundColor(bubblePrimaryInk)
                     .padding(.horizontal, L.bubblePadHPill)
                     .padding(.vertical, L.bubblePadV)
                     .background(BubbleFill(mine: mine, tail: showTail, seed: bubbleSeed(message.id)))
@@ -4961,7 +5631,7 @@ struct MessageRow: View {
             Text(richBody(message.body))
                 .font(pf(L.chatFontSize))
 
-                .foregroundColor(mine && UIConfig.num("bubbleMineWhiteText", 1) > 0 ? ChatTheme.mineInk : ChatTheme.ink)
+                .foregroundColor(bubblePrimaryInk)
                 .lineSpacing(textLineSpacing(message.body))
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -4978,7 +5648,7 @@ struct MessageRow: View {
         VStack(alignment: mine ? .trailing : .leading, spacing: 4) {
             Text(richBody(raw))
                 .font(pf(L.chatFontSize))
-                .foregroundColor(mine && UIConfig.num("bubbleMineWhiteText", 1) > 0 ? ChatTheme.mineInk : ChatTheme.ink)
+                .foregroundColor(bubblePrimaryInk)
                 .lineSpacing(textLineSpacing(raw))
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -4987,19 +5657,23 @@ struct MessageRow: View {
                 .background(BubbleFill(mine: mine, tail: showTail, glass: false))
 
             Button {
-                onOpenQuote?(q)
+                if (q.kind == "image" || q.kind == "images"), !q.thumbPath.isEmpty {
+                    onOpenImage?(q.thumbPath)
+                } else {
+                    onOpenQuote?(q)
+                }
             } label: {
                 HStack(alignment: .top, spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         if !q.sender.isEmpty {
                             Text(q.sender)
                                 .font(pf(12, .medium))
-                                .foregroundColor(ChatTheme.quoteInk)
+                                .foregroundColor(bubbleSecondaryInk)
                                 .lineLimit(1)
                         }
                         Text(q.summary.isEmpty ? Tr("[引用]") : q.summary)
                             .font(pf(12.5))
-                            .foregroundColor(ChatTheme.quoteInk)
+                            .foregroundColor(bubbleSecondaryInk)
                             .lineLimit(3)
                             .multilineTextAlignment(.leading)
                     }
@@ -5020,13 +5694,12 @@ struct MessageRow: View {
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(.ultraThinMaterial)
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(mine ? ChatTheme.quoteBgMine : ChatTheme.quoteBg)
-                        .opacity(0.72)
+                        .fill(quoteSurface)
                 }
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .stroke(C.hairline.opacity(0.55), lineWidth: 0.5)
+                    .stroke(quoteBorder, lineWidth: 0.5)
             }
             .frame(maxWidth: 250, alignment: mine ? .trailing : .leading)
         }
@@ -5063,7 +5736,7 @@ struct MessageRow: View {
         var linked = RichText.linkified(s)
         let linkRanges = linked.runs.compactMap { $0.link == nil ? nil : $0.range }
         for range in linkRanges {
-            linked[range].foregroundColor = mine ? ChatTheme.linkOnMine : ChatTheme.link
+            linked[range].foregroundColor = bubbleLinkInk
             linked[range].underlineStyle = .single
         }
         return linked
@@ -5149,9 +5822,9 @@ struct MessageRow: View {
                 var seg = AttributedString(token)
                 let name = String(token.dropFirst())
                 if atMe && mineNames.contains(name) {
-                    seg.foregroundColor = mine ? ChatTheme.mentionMeOnMine : ChatTheme.mentionMe
+                    seg.foregroundColor = bubbleMentionInk
                 } else {
-                    seg.foregroundColor = mine ? ChatTheme.linkOnMine : ChatTheme.link
+                    seg.foregroundColor = bubbleLinkInk
                 }
                 out += seg
                 i = j
@@ -5189,9 +5862,9 @@ struct MessageRow: View {
 
             MapSnapshotView(point: pt, width: 216, height: 136)
             VStack(alignment: .leading, spacing: 2) {
-                Text(name).font(pf(15)).foregroundColor(ChatTheme.ink).lineLimit(1)
+                Text(name).font(pf(15)).foregroundColor(bubblePrimaryInk).lineLimit(1)
                 Text(addr.isEmpty ? "点击查看地图" : addr)
-                    .font(pf(12)).foregroundColor(ChatTheme.secondary).lineLimit(1)
+                    .font(pf(12)).foregroundColor(bubbleSecondaryInk).lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
@@ -5310,13 +5983,13 @@ struct MessageRow: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(mine ? Color.white.opacity(0.18) : C.green.opacity(0.11))
+                        .fill(C.green.opacity(0.12))
                     Circle()
-                        .stroke(mine ? Color.white.opacity(0.24) : C.green.opacity(0.18),
+                        .stroke(C.green.opacity(0.20),
                                 lineWidth: 0.7)
                     Image(systemName: playing ? "pause.fill" : "play.fill")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(mine ? Color.white : C.green)
+                        .foregroundStyle(C.green)
                         .offset(x: playing ? 0 : 1)
                 }
                 .frame(width: 34, height: 34)
@@ -5328,16 +6001,12 @@ struct MessageRow: View {
                     HStack(spacing: 4) {
                         Text(voiceClock(elapsed))
                             .foregroundStyle(live
-                                ? (mine ? Color.white : C.green)
-                                : (mine ? ChatTheme.mineInk.opacity(0.62) : ChatTheme.secondary))
-                        Text("/")
-                            .foregroundStyle(mine
-                                ? ChatTheme.mineInk.opacity(0.34)
-                                : ChatTheme.secondary.opacity(0.45))
-                        Text(voiceClock(total))
-                            .foregroundStyle(mine
-                                ? ChatTheme.mineInk.opacity(0.62)
+                                ? C.green
                                 : ChatTheme.secondary)
+                        Text("/")
+                            .foregroundStyle(ChatTheme.secondary.opacity(0.45))
+                        Text(voiceClock(total))
+                            .foregroundStyle(ChatTheme.secondary)
                         Spacer(minLength: 0)
                     }
                     .font(pfStyled(size: 10.5, weight: .medium, design: .monospaced))
@@ -5353,7 +6022,7 @@ struct MessageRow: View {
 
         .overlay(alignment: .topTrailing) {
             if !mine, !playedVoice.contains(message.id), !VoicePlayed.isPlayed(message.id) {
-                Circle().fill(C.red)
+                Circle().fill(Color(.systemRed))
                     .frame(width: 8, height: 8)
                     .offset(x: -5, y: 5)
             }
@@ -5412,20 +6081,19 @@ struct MessageRow: View {
                         )
                         let path = Path(roundedRect: rect, cornerRadius: barWidth / 2)
                         let color = at <= clamped && live
-                            ? (mine ? Color.white.opacity(0.96) : C.green)
-                            : (mine ? Color.white.opacity(0.28) : ChatTheme.ink.opacity(0.20))
+                            ? C.green
+                            : ChatTheme.ink.opacity(0.20)
                         context.fill(path, with: .color(color))
                     }
                 }
 
                 if live {
                     Circle()
-                        .fill(mine ? Color.white : C.green)
+                        .fill(C.green)
                         .frame(width: 8, height: 8)
-                        .overlay(Circle().stroke(mine ? C.green.opacity(0.42)
-                                                      : Color.white.opacity(0.92),
+                        .overlay(Circle().stroke(Color.white.opacity(0.92),
                                                  lineWidth: 1.5))
-                        .shadow(color: (mine ? Color.black : C.green).opacity(0.22),
+                        .shadow(color: C.green.opacity(0.22),
                                 radius: 3, y: 1)
                         .position(x: min(width - 4, max(4, width * clamped)),
                                   y: height / 2)
@@ -5613,7 +6281,7 @@ struct MessageRow: View {
         return HStack(spacing: 10) {
             Text(icon).font(pf(30))
             VStack(alignment: .leading, spacing: 2) {
-                Text(name).font(pf(15, .medium)).foregroundColor(ChatTheme.ink)
+                Text(name).font(pf(15, .medium)).foregroundColor(bubblePrimaryInk)
                     Text("¥\(String(format: "%.0f", price))").font(pfMoney(12)).foregroundColor(C.red)
             }
         }
@@ -5691,11 +6359,11 @@ struct MessageRow: View {
 
     private func card(icon: String, title: String, detail: String) -> some View {
         HStack(spacing: 10) {
-            SVGIcon(markup: icon, size: 20, color: mine ? ChatTheme.ink : C.green)
+            SVGIcon(markup: icon, size: 20, color: mine ? bubblePrimaryInk : C.green)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(pf(15, .medium)).foregroundColor(ChatTheme.ink)
+                Text(title).font(pf(15, .medium)).foregroundColor(bubblePrimaryInk)
                 if !detail.isEmpty {
-                    Text(detail).font(pf(12)).foregroundColor(ChatTheme.secondary).lineLimit(2)
+                    Text(detail).font(pf(12)).foregroundColor(bubbleSecondaryInk).lineLimit(2)
                 }
             }
         }
@@ -5883,6 +6551,7 @@ extension MessageRow: Equatable {
             && lhs.myId == rhs.myId
             && lhs.senderName == rhs.senderName
             && lhs.senderNameUsesLightInk == rhs.senderNameUsesLightInk
+            && lhs.wallpaperTint == rhs.wallpaperTint
             && lhs.senderAvatarPath == rhs.senderAvatarPath
             && lhs.senderQQLevel == rhs.senderQQLevel
             && lhs.currentNickname == rhs.currentNickname

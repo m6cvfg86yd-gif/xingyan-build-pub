@@ -547,6 +547,7 @@ struct GameWebPage: View {
     @State private var capsuleMenu = false
 
     @State private var about = false
+    @State private var closing = false
 
     private var isRoomGame: Bool { false }
     @State private var tables: [GameTable] = []
@@ -571,6 +572,7 @@ struct GameWebPage: View {
             .onDisappear {
                 Self.setGameAudio(false)
                 StatusBarStyle.shared.set(light: false)
+                box.shutdown()
             }
             .task {
                 if isRoomGame { await loadTables() }
@@ -588,7 +590,7 @@ struct GameWebPage: View {
                 }
                 Button(Tr("关于")) { about = true }
                 Button(Tr("重新进入")) { Task { await prepare(force: true) } }
-                Button(Tr("关闭"), role: .destructive) { dismiss() }
+                Button(Tr("关闭"), role: .destructive) { closeGame() }
                 Button(Tr("取消"), role: .cancel) { }
             }
             .sheet(isPresented: $share) {
@@ -686,8 +688,16 @@ struct GameWebPage: View {
     private var miniCapsule: some View {
         GameWindowCapsule(
             onMenu: { capsuleMenu = true },
-            onClose: { dismiss() }
+            onClose: { closeGame() }
         )
+    }
+
+    private func closeGame() {
+        guard !closing else { return }
+        closing = true
+        Self.setGameAudio(false)
+        box.shutdown()
+        dismiss()
     }
 
     private var lobby: some View {
@@ -1051,6 +1061,7 @@ struct GameWebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         let cfg = WKWebViewConfiguration()
+        context.coordinator.userContentController = cfg.userContentController
         cfg.allowsInlineMediaPlayback = true
         cfg.mediaTypesRequiringUserActionForPlayback = []
 
@@ -1095,4 +1106,12 @@ struct GameWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ v: WKWebView, context: Context) { }
+
+    static func dismantleUIView(_ v: WKWebView, coordinator: RankBridge) {
+        v.stopLoading()
+        v.navigationDelegate = nil
+        v.uiDelegate = nil
+        coordinator.shutdown()
+        v.removeFromSuperview()
+    }
 }

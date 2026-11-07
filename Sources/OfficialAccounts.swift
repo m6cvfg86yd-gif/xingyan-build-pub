@@ -53,6 +53,8 @@ struct OfficialAccountsView: View {
     @State private var loading = true
     @State private var openAccountId = ""
     @State private var showAccount = false
+    @State private var showOfficialNotice = false
+    @State private var showSecurityAcademy = false
 
     private var followed: [OAAccount] { accounts.filter { $0.followed } }
     private var others: [OAAccount] { accounts.filter { !$0.followed } }
@@ -73,6 +75,26 @@ struct OfficialAccountsView: View {
                             StarOrbitMetric(value: "\(accounts.count)", label: Tr("个账号"))
                         ]
                     )
+                    .padding(.horizontal, 12)
+
+                    HStack(spacing: 10) {
+                        platformEntry(
+                            title: Tr("官方公告"),
+                            subtitle: Tr("版本 / 服务 / 平台通知"),
+                            symbol: "checkmark.seal.fill",
+                            tint: OrbitTheme.jade
+                        ) {
+                            showOfficialNotice = true
+                        }
+                        platformEntry(
+                            title: Tr("安全学院"),
+                            subtitle: Tr("反诈 / 账号 / 隐私"),
+                            symbol: "shield.lefthalf.filled.badge.checkmark",
+                            tint: Color(hex: 0x4D7FE8)
+                        ) {
+                            showSecurityAcademy = true
+                        }
+                    }
                     .padding(.horizontal, 12)
 
                     if loading && accounts.isEmpty {
@@ -121,6 +143,50 @@ struct OfficialAccountsView: View {
         .navigationDestination(isPresented: $showAccount) {
             OfficialAccountPage(accountId: openAccountId).environmentObject(app)
         }
+        .navigationDestination(isPresented: $showOfficialNotice) {
+            OfficialNoticeCenterView().environmentObject(app)
+        }
+        .navigationDestination(isPresented: $showSecurityAcademy) {
+            SecurityAcademyView()
+        }
+    }
+
+    private func platformEntry(title: String,
+                               subtitle: String,
+                               symbol: String,
+                               tint: Color,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 11) {
+                Image(systemName: symbol)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 38, height: 38)
+                    .background(tint.opacity(0.10),
+                                in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(pfStyled(size: 14.5, weight: .semibold))
+                        .foregroundStyle(OrbitTheme.ink)
+                    Text(subtitle)
+                        .font(pfStyled(size: 10.5))
+                        .foregroundStyle(OrbitTheme.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity)
+            .frame(height: 64)
+            .background(.regularMaterial,
+                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(OrbitTheme.divider, lineWidth: 0.6)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private func row(_ a: OAAccount) -> some View {

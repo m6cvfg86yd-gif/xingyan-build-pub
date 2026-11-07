@@ -87,10 +87,6 @@
       <array><string>AppIcon60x60</string></array>
     </dict>
   </dict>
-	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

@@ -122,11 +122,14 @@ struct ScrollOffsetProbe: UIViewRepresentable {
     final class Coordinator {
         var obsOffset: NSKeyValueObservation?
         var obsDrag: NSKeyValueObservation?
+        var obsDecelerating: NSKeyValueObservation?
+        var obsTracking: NSKeyValueObservation?
         var obsBounds: NSKeyValueObservation?
         var obsSize: NSKeyValueObservation?
         var scroll: UIScrollView?
-        var report: (CGFloat) -> Void = { _ in }
+        var report: (CGFloat, Bool) -> Void = { _, _ in }
         var reportDrag: (Bool) -> Void = { _ in }
+        var reportScrollState: (Bool) -> Void = { _ in }
         var reportBounds: () -> Void = { }
         var reportSize: () -> Void = { }
 
@@ -136,14 +139,22 @@ struct ScrollOffsetProbe: UIViewRepresentable {
 
             sv.alwaysBounceVertical = true
             obsOffset = sv.observe(\.contentOffset, options: [.new]) { [weak self] s, _ in
-                if s.isDragging || s.isDecelerating || s.isTracking {
+                let active = s.isDragging || s.isDecelerating || s.isTracking
+                if active {
                     ChatScrollHandle.shared.noteUserMotion()
                 }
-                self?.report(s.contentOffset.y)
+                self?.reportScrollState(active)
+                self?.report(s.contentOffset.y, active)
             }
             obsDrag = sv.observe(\.isDragging, options: [.new]) { [weak self] s, _ in
                 if s.isDragging { ChatScrollHandle.shared.noteUserMotion() }
                 self?.reportDrag(s.isDragging)
+            }
+            obsDecelerating = sv.observe(\.isDecelerating, options: [.new]) { [weak self] s, _ in
+                self?.reportScrollState(s.isDragging || s.isDecelerating || s.isTracking)
+            }
+            obsTracking = sv.observe(\.isTracking, options: [.new]) { [weak self] s, _ in
+                self?.reportScrollState(s.isDragging || s.isDecelerating || s.isTracking)
             }
 
             obsBounds = sv.observe(\.bounds, options: [.new]) { [weak self] _, _ in
@@ -156,9 +167,11 @@ struct ScrollOffsetProbe: UIViewRepresentable {
         }
     }
 
-    var onChange: (CGFloat) -> Void
+    var onChange: (CGFloat, Bool) -> Void
 
     var onDragChange: (Bool) -> Void = { _ in }
+
+    var onScrollStateChange: (Bool) -> Void = { _ in }
 
     var onBoundsChange: () -> Void = { }
 
@@ -176,6 +189,7 @@ struct ScrollOffsetProbe: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {
         context.coordinator.report = onChange
         context.coordinator.reportDrag = onDragChange
+        context.coordinator.reportScrollState = onScrollStateChange
         context.coordinator.reportBounds = onBoundsChange
         context.coordinator.reportSize = onSizeChange
         Self.bind(uiView, context.coordinator, attempt: 0)
@@ -184,8 +198,10 @@ struct ScrollOffsetProbe: UIViewRepresentable {
     private static func bind(_ uiView: UIView, _ c: Coordinator, attempt: Int) {
         if let sv = findScroll(uiView) {
             if c.scroll !== sv { c.attach(sv) }
-            c.report(sv.contentOffset.y)
+            c.report(sv.contentOffset.y,
+                     sv.isDragging || sv.isDecelerating || sv.isTracking)
             c.reportDrag(sv.isDragging)
+            c.reportScrollState(sv.isDragging || sv.isDecelerating || sv.isTracking)
             return
         }
         guard attempt < 20 else { return }

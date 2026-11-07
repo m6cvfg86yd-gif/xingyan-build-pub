@@ -4,14 +4,55 @@ import SwiftUI
 
 enum LocalStore {
     static let root: URL = {
-        let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("Local", isDirectory: true)
-        for sub in ["Media/video", "Media/image", "Media/voice", "Media/file", "Chats"] {
-            try? FileManager.default.createDirectory(at: dir.appendingPathComponent(sub),
-                                                     withIntermediateDirectories: true)
+        let fm = FileManager.default
+        let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let parent = support.appendingPathComponent("Xingyan/PrivateData", isDirectory: true)
+        try? fm.createDirectory(at: parent, withIntermediateDirectories: true)
+        let dir = parent.appendingPathComponent("Local", isDirectory: true)
+        let legacy = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Local", isDirectory: true)
+        var storage = dir
+        if !fm.fileExists(atPath: dir.path), fm.fileExists(atPath: legacy.path) {
+            do {
+                try fm.moveItem(at: legacy, to: dir)
+            } catch {
+                storage = legacy
+            }
         }
-        return dir
+        for sub in ["Media/video", "Media/image", "Media/voice", "Media/file", "Chats"] {
+            try? fm.createDirectory(at: storage.appendingPathComponent(sub),
+                                    withIntermediateDirectories: true)
+        }
+        return storage
     }()
+
+    static func privateFile(_ name: String) -> URL? {
+        guard !name.isEmpty else { return nil }
+        let fm = FileManager.default
+        guard let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        else { return nil }
+        let dir = support.appendingPathComponent("Xingyan/PrivateData", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent(name)
+    }
+
+    static func migrateLegacyDocumentFile(_ name: String, to destination: URL) {
+        guard !FileManager.default.fileExists(atPath: destination.path),
+              let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        else { return }
+        let legacy = docs.appendingPathComponent(name)
+        guard FileManager.default.fileExists(atPath: legacy.path) else { return }
+        do {
+            try FileManager.default.moveItem(at: legacy, to: destination)
+        } catch {
+            do {
+                try FileManager.default.copyItem(at: legacy, to: destination)
+                try? FileManager.default.removeItem(at: legacy)
+            } catch {
+                return
+            }
+        }
+    }
 
     static func kindOf(_ path: String) -> String {
         let p = path.lowercased()

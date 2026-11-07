@@ -109,6 +109,7 @@ struct GroupInfoView: View {
             }
         }
         .background(C.pageBg.ignoresSafeArea())
+        .environment(\.chatInfoCardTone, .group)
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
@@ -645,7 +646,7 @@ struct GroupInfoView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(C.cardBg))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ChatInfoCardTint.group))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(C.hairline, lineWidth: 0.6))
         .shadow(color: Color.black.opacity(0.05), radius: 8, y: 2)
     }
@@ -873,6 +874,7 @@ struct GroupMembersPage: View {
             }
         }
         .background(C.pageBg.ignoresSafeArea())
+        .environment(\.chatInfoCardTone, .group)
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .navigationDestination(isPresented: Binding(
@@ -1256,6 +1258,7 @@ struct DirectChatInfoView: View {
             }
         }
         .background(C.pageBg.ignoresSafeArea())
+        .environment(\.chatInfoCardTone, .direct)
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
@@ -1432,7 +1435,7 @@ struct DirectChatInfoView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(C.cardBg)
+        .background(ChatInfoCardTint.direct)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .padding(.top, 14)
     }
@@ -1473,7 +1476,7 @@ struct DirectChatInfoView: View {
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
             .frame(height: 58)
-            .background(C.cardBg)
+            .background(ChatInfoCardTint.direct)
             .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
             .contentShape(Rectangle())
         }
@@ -1580,12 +1583,22 @@ struct GroupAddMembersView: View {
     @State private var keyword = ""
     @State private var picked: Set<String> = []
     @State private var busy = false
+    @State private var showAllCandidates = false
 
     private var candidates: [User] {
         let set = Set(existing)
         let base = app.contacts.filter { !set.contains($0.id) && $0.id != app.me?.id }
         guard !keyword.isEmpty else { return base }
         return base.filter { $0.name.contains(keyword) }
+    }
+
+    private var visibleCandidates: [User] {
+        if showAllCandidates || !keyword.isEmpty { return candidates }
+        return Array(candidates.prefix(8))
+    }
+
+    private var canExpandCandidates: Bool {
+        keyword.isEmpty && candidates.count > 8
     }
 
     var body: some View {
@@ -1613,7 +1626,7 @@ struct GroupAddMembersView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(candidates) { u in
+                        ForEach(visibleCandidates) { u in
                             Button {
                                 if picked.contains(u.id) { picked.remove(u.id) } else { picked.insert(u.id) }
                             } label: {
@@ -1632,6 +1645,30 @@ struct GroupAddMembersView: View {
                             }
                             .buttonStyle(.plain)
                             HairLine(inset: 68)
+                        }
+
+                        if canExpandCandidates {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showAllCandidates.toggle()
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Text(showAllCandidates
+                                         ? Tr("收起列表")
+                                         : Tr("展开全部") + "（\(candidates.count)）")
+                                        .font(pf(14, .medium))
+                                        .foregroundColor(OrbitTheme.gold)
+                                    Image(systemName: showAllCandidates ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(OrbitTheme.gold.opacity(0.86))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(C.cardBg)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }

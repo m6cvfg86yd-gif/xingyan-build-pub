@@ -57,9 +57,9 @@ final class MusicLibrary: ObservableObject {
     }
 
     private var file: URL? {
-        guard let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-        else { return nil }
-        return docs.appendingPathComponent("dd_music.json")
+        guard let target = LocalStore.privateFile("music-library.json") else { return nil }
+        LocalStore.migrateLegacyDocumentFile("dd_music.json", to: target)
+        return target
     }
 
     init() { load() }

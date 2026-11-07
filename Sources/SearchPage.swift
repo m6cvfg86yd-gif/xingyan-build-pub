@@ -163,6 +163,259 @@ struct SearchPage: View {
     }
 
     var body: some View {
+        nativeSearchBody
+    }
+
+    private var nativeSearchBody: some View {
+        NavigationStack {
+            List {
+                if key.isEmpty {
+                    if !history.isEmpty {
+                        Section {
+                            ForEach(history, id: \.self) { term in
+                                Button {
+                                    selectTerm(term)
+                                } label: {
+                                    Label(term, systemImage: "clock.arrow.circlepath")
+                                        .font(.body)
+                                        .foregroundStyle(C.label)
+                                }
+                            }
+                        } header: {
+                            HStack {
+                                Text(Tr("最近搜索"))
+                                Spacer()
+                                Button(Tr("清除")) {
+                                    SearchHistory.clear()
+                                    history = []
+                                }
+                                .font(.caption)
+                            }
+                        }
+                    }
+
+                    if !hot.isEmpty {
+                        Section(Tr("热门搜索")) {
+                            ForEach(hot, id: \.self) { term in
+                                Button {
+                                    selectTerm(term)
+                                } label: {
+                                    Label(Tr(term), systemImage: "magnifyingglass")
+                                        .font(.body)
+                                        .foregroundStyle(C.label)
+                                }
+                            }
+                        }
+                    }
+
+                    Section(Tr("快捷功能")) {
+                        ForEach(officialTools) { tool in
+                            nativeToolRow(tool)
+                        }
+                    }
+                } else {
+                    Section {
+                        Picker(Tr("搜索范围"), selection: $scope) {
+                            ForEach(scopes, id: \.0) { item in
+                                Text(Tr(item.1)).tag(item.0)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+
+                    if !matchedTools.isEmpty {
+                        Section(Tr("官方工具")) {
+                            ForEach(matchedTools) { tool in
+                                nativeToolRow(tool)
+                            }
+                        }
+                    }
+
+                    if !directChats.isEmpty {
+                        Section(Tr("聊天记录")) {
+                            ForEach(directChats) { chat in
+                                nativeChatRow(chat, isGroup: false)
+                            }
+                        }
+                    }
+
+                    if !groups.isEmpty {
+                        Section(Tr("群聊")) {
+                            ForEach(groups) { chat in
+                                nativeChatRow(chat, isGroup: true)
+                            }
+                        }
+                    }
+
+                    if !contacts.isEmpty {
+                        Section(Tr("联系人")) {
+                            ForEach(contacts) { user in
+                                nativeContactRow(user)
+                            }
+                        }
+                    }
+
+                    if resultCount == 0 {
+                        Section {
+                            Text(Tr("没有找到结果"))
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(Tr("搜索"))
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(
+                text: $q,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Tr("搜索人、消息与官方工具")
+            )
+            .compatibleSearchFocused($focused)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Tr("取消")) { dismiss() }
+                }
+            }
+            .overlay(alignment: .bottom) {
+                GeometryReader { g in
+                    if voiceBall, kbHeight > 1, !inputMethodChanging {
+                        VoiceOrb(level: dictation.listening ? 0.55 : 0.16,
+                                 diameter: 92,
+                                 listening: dictation.listening,
+                                 metalShader: false)
+                            .position(x: g.size.width / 2,
+                                      y: max(70, g.size.height - kbHeight - 62))
+                            .transition(.opacity.combined(with: .scale(scale: 0.86)))
+                            .onTapGesture {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                dictation.toggle { value in q = value }
+                            }
+                    }
+                }
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+                .allowsHitTesting(voiceBall && kbHeight > 1)
+                .animation(.easeOut(duration: 0.22), value: kbHeight)
+            }
+            .onAppear {
+                focused = true
+                history = SearchHistory.all
+            }
+            .task { await loadHot() }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notice in
+                guard let frame = notice.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+                let height = max(0, UIScreen.main.bounds.height - frame.minY)
+                if abs(height - kbHeight) > 0.5 {
+                    if voiceBall { beginInputMethodTransition() }
+                    withAnimation(.easeOut(duration: 0.22)) { kbHeight = height }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                if kbHeight != 0 {
+                    dictation.stop()
+                    withAnimation(.easeOut(duration: 0.22)) { kbHeight = 0 }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UITextInputMode.currentInputModeDidChangeNotification)) { _ in
+                beginInputMethodTransition()
+            }
+            .onDisappear { dictation.stop() }
+            .fullScreenCover(isPresented: $showAI) {
+                PluginsView().environmentObject(app)
+            }
+            .fullScreenCover(isPresented: $showBrowser) {
+                InAppBrowserView()
+            }
+            .fullScreenCover(isPresented: $showDrop) {
+                FaceToFaceFileSheet(rows: [],
+                                    avatar: app.me?.avatarPath ?? "",
+                                    name: app.me?.name ?? "")
+                    .environmentObject(app)
+            }
+        }
+    }
+
+    private func selectTerm(_ term: String) {
+        remember(term)
+        q = term
+    }
+
+    private func nativeToolRow(_ tool: OfficialTool) -> some View {
+        Button {
+            remember(key)
+            switch tool.id {
+            case "ai": showAI = true
+            case "browser": showBrowser = true
+            default: showDrop = true
+            }
+        } label: {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(tool.title).font(.body).foregroundStyle(C.label)
+                    Text(tool.subtitle).font(.caption).foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemName: tool.symbol).foregroundStyle(OrbitTheme.jade)
+            }
+        }
+    }
+
+    private func nativeChatRow(_ chat: Chat, isGroup: Bool) -> some View {
+        Button {
+            remember(key)
+            onOpenChat?(chat)
+            dismiss()
+        } label: {
+            HStack(spacing: 12) {
+                Avatar(path: chatAvatar(chat), size: 40, radius: 10)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 5) {
+                        Text(chatTitle(chat)).font(.body).foregroundStyle(C.label).lineLimit(1)
+                        if isAssistantChat(chat) {
+                            OfficialVerifiedV(size: 14)
+                                .fixedSize()
+                        }
+                    }
+                    if let preview = chat.lastMessage?.preview, !preview.isEmpty {
+                        Text(preview).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func nativeContactRow(_ user: User) -> some View {
+        Button {
+            remember(key)
+            onOpenUser?(user)
+            dismiss()
+        } label: {
+            HStack(spacing: 12) {
+                Avatar(path: user.avatarPath, size: 40, radius: 10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(user.name).font(.body).foregroundStyle(C.label)
+                    if let username = user.username, !username.isEmpty {
+                        Text("@" + username)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private var legacyBody: some View {
         ZStack(alignment: .bottom) {
         VStack(spacing: 0) {
             searchHeader
@@ -684,6 +937,25 @@ struct SearchPage: View {
             SearchSuggest.remote = words
             hot = SearchSuggest.shown
         }
+    }
+}
+
+private struct CompatibleSearchFocused: ViewModifier {
+    let focused: FocusState<Bool>.Binding
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.searchFocused(focused)
+        } else {
+            content
+        }
+    }
+}
+
+private extension View {
+    func compatibleSearchFocused(_ focused: FocusState<Bool>.Binding) -> some View {
+        modifier(CompatibleSearchFocused(focused: focused))
     }
 }
 
