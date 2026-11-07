@@ -685,7 +685,7 @@ struct NewsView: View {
     var body: some View {
         NewsFeedView(refreshToken: refreshToken)
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle((official?.name?.isEmpty == false) ? official!.name! : Tr("时刻新闻"))
+        .navigationTitle((official?.name.isEmpty == false) ? (official?.name ?? Tr("时刻新闻")) : Tr("时刻新闻"))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
