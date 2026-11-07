@@ -708,22 +708,26 @@ struct NewsView: View {
         .task {
             guard app.me?.ops == true else { return }
             let list = (try? await API.shared.officialAccounts()) ?? []
-            official = list.first {
-                $0.key.lowercased().contains("news") ||
-                $0.name == "星联世界" ||
-                $0.name == "时刻新闻"
-            }
+            official = newsOfficial(in: list)
         }
         .sheet(item: $editingOfficial) { item in
             OfficialEditSheet(item: item) {
                 let list = (try? await API.shared.officialAccounts()) ?? []
-                official = list.first {
-                    $0.key.lowercased().contains("news") ||
-                    $0.name == "星联世界" ||
-                    $0.name == "时刻新闻"
-                }
+                official = newsOfficial(in: list)
             }
         }
         .hidesTabBar()
+    }
+
+    private func newsOfficial(in list: [API.OfficialAccount]) -> API.OfficialAccount? {
+        for item in list {
+            if item.key.lowercased().contains("news") {
+                return item
+            }
+            if item.name == "星联世界" || item.name == "时刻新闻" {
+                return item
+            }
+        }
+        return nil
     }
 }

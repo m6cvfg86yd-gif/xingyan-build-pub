@@ -332,6 +332,29 @@ private struct QuickIconButtonStyle: ButtonStyle {
     }
 }
 
+private struct ThreeWaveMicGlyph: View {
+    let ink: Color
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 1.8) {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 14.5, weight: .semibold))
+
+            HStack(alignment: .center, spacing: 1.55) {
+                Capsule(style: .continuous)
+                    .frame(width: 1.65, height: 6)
+                Capsule(style: .continuous)
+                    .frame(width: 1.65, height: 11)
+                Capsule(style: .continuous)
+                    .frame(width: 1.65, height: 8)
+            }
+            .frame(height: 18, alignment: .center)
+        }
+        .foregroundStyle(ink)
+        .frame(width: 24, height: 22)
+    }
+}
+
 private struct StarWhisperLine: View {
     let text: String
     let ink: Color
@@ -3249,16 +3272,19 @@ struct ChatDetailView: View {
             }
             HStack(spacing: 6) {
 
-                Image(systemName: recorder.recording
-                      ? "waveform"
-                      : (voiceMode ? "keyboard" : "mic"))
-                    .font(.system(size: recorder.recording ? 15 : 18,
-                                  weight: .medium))
-                    .foregroundStyle(
-                        recorder.recording
-                            ? (recorder.willCancel ? C.red : C.green)
-                            : (voiceMode ? C.green : adaptiveMicInk)
-                    )
+                Group {
+                    if recorder.recording {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(recorder.willCancel ? C.red : C.green)
+                    } else if voiceMode {
+                        Image(systemName: "keyboard")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(C.green)
+                    } else {
+                        ThreeWaveMicGlyph(ink: adaptiveMicInk)
+                    }
+                }
                     .frame(width: 36, height: 36)
                     .scaleEffect(pressStart != nil ? 0.93 : 1)
                     .animation(.spring(response: 0.20, dampingFraction: 0.74),
