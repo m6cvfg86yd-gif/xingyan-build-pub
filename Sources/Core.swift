@@ -236,7 +236,7 @@ enum L {
     static var tabLabel: CGFloat { o("tabLabel", compactPhone ? 10 : 11) }
 
     static var rowH: CGFloat { o("chatRowH", 72) }
-    static var avatar: CGFloat { o("chatAvatar", v(44, 12.3, 48)) }
+    static var avatar: CGFloat { o("chatAvatar", v(50, 14, 54)) }
     static var rowPadL: CGFloat { o("chatPadL", 16) }
     static var rowPadR: CGFloat { o("chatPadR", 16) }
     static var rowGap: CGFloat { o("chatGap", 12) }
@@ -1131,7 +1131,7 @@ struct GroupAvatarMosaic: View {
     }
 
     private var shownCount: Int {
-        max(1, min(9, memberIds.count))
+        max(1, min(4, memberIds.count))
     }
 
     private var slots: [User?] {
@@ -1233,7 +1233,7 @@ struct GroupAvatarMosaic: View {
 
     /// 与服务端群头像同一套自适应拼图：铺满画布，不在末行留下空格。
     private func normalizedBoxes(_ count: Int) -> [CGRect] {
-        let n = max(1, min(9, count))
+        let n = max(1, min(4, count))
         let third = CGFloat(1) / 3
         switch n {
         case 1:
