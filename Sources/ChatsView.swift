@@ -434,7 +434,7 @@ struct SwipeChatRow: View {
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
-    private var rowBg: Color { cardStyle ? .clear : Color.dyn(0xFFFFFF, 0x171719) }
+    private var rowBg: Color { cardStyle ? .clear : Color.dyn(0xFFFFFF, 0x191919) }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -659,9 +659,9 @@ struct ChatsView: View {
     private var chatsCardInset: CGFloat { max(8, UIConfig.num("chatsOrbitInset", 12)) }
     private var chatsCardRadius: CGFloat { max(16, UIConfig.num("chatsOrbitRadius", 22)) }
     private var chatsPageFill: Color {
-        Color.dyn(0xFFFFFF, 0x111113)
+        Color.dyn(0xFFFFFF, 0x191919)
     }
-    private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x171719) }
+    private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x191919) }
 
     @State private var scrolled: CGFloat = 0
 
