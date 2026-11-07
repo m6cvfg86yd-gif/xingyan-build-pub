@@ -237,6 +237,11 @@ struct NativeTabBar: UIViewRepresentable {
         let appearance = UITabBarAppearance()
         appearance.configureWithDefaultBackground()
         bar.isOpaque = false
+        if scheme == .dark {
+            // 深色页面与系统默认深色玻璃差一个黑阶；只校准材质底色，保留原生模糊。
+            appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+            appearance.backgroundColor = UIColor(C.pageBg).withAlphaComponent(0.38)
+        }
         let normalTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.secondary),
             .font: pfUIFont(10.5, .medium)
