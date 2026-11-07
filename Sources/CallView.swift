@@ -108,7 +108,7 @@ struct CallView: View {
         let v = effectiveGlobalChatBackground(app.me?.chatBackground)
         if v.isEmpty || v == "auto" {
             let def = app.defaultChatBackground
-            return (def == "auto") ? "" : def
+            return effectiveDefaultChatBackground(def)
         }
         return v
     }

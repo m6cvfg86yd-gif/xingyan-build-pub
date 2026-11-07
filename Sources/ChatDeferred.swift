@@ -9,7 +9,7 @@ struct DeferredChatView: View {
 
     var body: some View {
         ZStack {
-            C.pageBg.ignoresSafeArea()
+            defaultChatCanvasColor().ignoresSafeArea()
             if ready {
                 ChatDetailView(chat: chat)
                     .transition(.opacity)
@@ -34,7 +34,7 @@ struct DeferredChatView: View {
 
     @ViewBuilder private var chatBackdrop: some View {
         ZStack {
-            C.pageBg
+            defaultChatCanvasColor()
             if !bgPath.isEmpty {
                 RemoteImage(path: bgPath)
                     .id(bgPath)
@@ -50,7 +50,7 @@ struct DeferredChatView: View {
         let v = effectiveGlobalChatBackground(app.me?.chatBackground)
         if v.isEmpty || v == "auto" {
             let def = app.defaultChatBackground
-            return def == "auto" ? "" : def
+            return effectiveDefaultChatBackground(def)
         }
         return v
     }

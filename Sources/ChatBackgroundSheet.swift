@@ -9,6 +9,15 @@ func normalizedChatBackground(_ path: String) -> String {
     }
 }
 
+func defaultChatCanvasColor() -> Color {
+    Color.dyn(0xEDEDED, 0x121212)
+}
+
+func effectiveDefaultChatBackground(_ path: String) -> String {
+    let normalized = normalizedChatBackground(path)
+    return normalized == "solid:white" ? "" : normalized
+}
+
 func serverChatBackgroundRef(_ path: String) -> String {
     switch normalizedChatBackground(path) {
     case "solid:white": return "/bg/bw1.jpg"
@@ -221,7 +230,7 @@ struct ChatBackgroundSheet: View {
             ? (inChat ? effectiveGlobalChatBackground(app.me?.chatBackground) : "auto")
             : current
         let path = currentPath == "auto"
-            ? normalizedChatBackground(app.defaultChatBackground)
+            ? effectiveDefaultChatBackground(app.defaultChatBackground)
             : normalizedChatBackground(currentPath)
         return ZStack {
             if let solid = chatBackgroundSolidColor(path) {
@@ -229,7 +238,7 @@ struct ChatBackgroundSheet: View {
             } else if !path.isEmpty {
                 RemoteImage(path: path, mode: .fill)
             } else {
-                C.pageBg
+                defaultChatCanvasColor()
             }
 
             VStack(spacing: 10) {

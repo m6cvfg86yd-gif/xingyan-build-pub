@@ -6,7 +6,7 @@ import QuickLook
 import CoreImage
 
 private enum ChatTheme {
-    static let page = Color.dyn(0xEDEDED, 0x0E1014)
+    static let page = defaultChatCanvasColor()
     static let panel = Color.dyn(0xF7F7F7, 0x181A1E)
     static var bubbleMine: Color {
         UIConfig.color("bubbleMineColor", 0x95EC69, 0x1E88C7)
@@ -1037,7 +1037,7 @@ struct ChatDetailView: View {
         if v.isEmpty || v == "auto" {
 
             let def = app.defaultChatBackground
-            return (def == "auto") ? "" : normalizedChatBackground(def)
+            return effectiveDefaultChatBackground(def)
         }
         return normalizedChatBackground(v)
     }
