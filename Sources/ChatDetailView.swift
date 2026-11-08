@@ -262,7 +262,7 @@ private struct ChatImmersiveEdgeMask: View {
 
             ZStack(alignment: alignment) {
                 Rectangle()
-                    .fill(tint ?? (dark ? Color.black : Color.white))
+                    .fill(tint ?? Color.dyn(0xEFEFEF, 0x121212))
 
                 if !path.isEmpty {
                     if let solid = chatBackgroundSolidColor(path) {
