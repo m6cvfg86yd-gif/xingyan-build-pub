@@ -2843,15 +2843,6 @@ struct ChatDetailView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 2)
         .padding(.vertical, 2)
-        .background {
-            ZStack {
-                Rectangle().fill(.ultraThinMaterial)
-                Rectangle()
-                    .fill(composerUsesLightInk
-                          ? Color.black.opacity(0.16)
-                          : Color.white.opacity(0.44))
-            }
-        }
     }
 
     private var quickChips: [QuickChip] {
