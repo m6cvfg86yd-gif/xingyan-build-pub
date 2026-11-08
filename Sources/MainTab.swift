@@ -70,16 +70,38 @@ struct MainTabView: View {
                         .frame(height: max(49, L.tabH - 6))
                         .background(alignment: .bottom) {
                             if tab == 0 {
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: C.tabBg.opacity(0), location: 0),
-                                        .init(color: C.tabBg.opacity(0.28), location: 0.28),
-                                        .init(color: C.tabBg.opacity(0.76), location: 0.68),
-                                        .init(color: C.tabBg.opacity(0.97), location: 1)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
+                                ZStack {
+                                    GlassBackground(
+                                        shape: Rectangle(),
+                                        opacity: 0.52,
+                                        edgeAlpha: 0,
+                                        shadow: false,
+                                        seed: 0.44,
+                                        native: true
+                                    )
+                                    .mask(
+                                        LinearGradient(
+                                            stops: [
+                                                .init(color: .clear, location: 0),
+                                                .init(color: .black.opacity(0.42), location: 0.30),
+                                                .init(color: .black, location: 1)
+                                            ],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+
+                                    LinearGradient(
+                                        stops: [
+                                            .init(color: C.tabBg.opacity(0), location: 0),
+                                            .init(color: C.tabBg.opacity(0.18), location: 0.30),
+                                            .init(color: C.tabBg.opacity(0.58), location: 0.70),
+                                            .init(color: C.tabBg.opacity(0.94), location: 1)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                }
                                 .frame(height: 112)
                                 .offset(y: 28)
                                 .ignoresSafeArea(edges: .bottom)
