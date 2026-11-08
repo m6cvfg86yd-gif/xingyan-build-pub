@@ -174,6 +174,45 @@ private struct OfficialRowAdminEditor: View {
     }
 }
 
+private struct XingyanPresenceDot: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var breathing = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.dyn(0xFFFFFF, 0x121212))
+                .frame(width: 18, height: 18)
+
+            Circle()
+                .fill(AngularGradient(
+                    colors: [
+                        Color(hex: 0x24C77F),
+                        Color(hex: 0x54DDA0),
+                        Color(hex: 0xE5BE62),
+                        Color(hex: 0x24C77F)
+                    ],
+                    center: .center
+                ))
+                .frame(width: 14, height: 14)
+
+            Image(systemName: "sparkle")
+                .font(.system(size: 5.5, weight: .bold))
+                .foregroundStyle(.white.opacity(0.94))
+        }
+        .frame(width: 18, height: 18)
+        .shadow(color: Color(hex: 0x24C77F).opacity(0.30), radius: 4, y: 1)
+        .scaleEffect(breathing ? 1.04 : 0.98)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
+                breathing = true
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 struct ChatRow: View {
     let chat: Chat
     @EnvironmentObject private var app: AppState
@@ -221,6 +260,17 @@ struct ChatRow: View {
         let raw = (chat.avatar ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !raw.isEmpty { return raw }
         return peer?.avatarPath ?? ""
+    }
+
+    private var isGroupAvatar: Bool {
+        chat.type == "group" || (chat.memberCount ?? 0) > 2
+    }
+
+    private var groupHasOnlineMember: Bool {
+        guard isGroupAvatar else { return false }
+        return (chat.memberIds ?? []).contains { id in
+            id != app.me?.id && app.contact(for: id)?.online == true
+        }
     }
 
     private func loadPeerIfNeeded() async {
@@ -360,10 +410,13 @@ struct ChatRow: View {
                        group: chat.type == "group" || (chat.memberCount ?? 0) > 2,
                        level: chat.qqLevel ?? 0)
             }
-        }
+            }
 
             .overlay(alignment: .bottomTrailing) {
-                if let icon = chat.moodIcon, !icon.isEmpty {
+                if groupHasOnlineMember {
+                    XingyanPresenceDot()
+                    .offset(x: 8, y: 8)
+                } else if let icon = chat.moodIcon, !icon.isEmpty {
                     Text(icon)
                         .font(pfStyled(size: 9))
                         .frame(width: 17, height: 17)
