@@ -892,9 +892,10 @@ struct ChatsView: View {
             Button {
                 showAccounts = true
             } label: {
-                Avatar(path: app.me?.avatarPath ?? "", size: 38, radius: 13)
+                Avatar(path: app.me?.avatarPath ?? "",
+                       size: max(44, L.avatar - 8), radius: 15)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        RoundedRectangle(cornerRadius: 15, style: .continuous)
                             .stroke(OrbitTheme.jade.opacity(0.42), lineWidth: 1)
                     )
                     .frame(width: L.avatar, alignment: .center)
