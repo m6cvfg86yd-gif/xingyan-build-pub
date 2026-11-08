@@ -49,9 +49,9 @@ struct OfficialVerifiedV: View {
 
     private let face = LinearGradient(
         colors: [
-            Color(hex: 0x13875A),
-            Color(hex: 0x08784D),
-            Color(hex: 0x075738)
+            Color(hex: 0x0D7C51),
+            Color(hex: 0x18A96A),
+            Color(hex: 0x2D9CB2)
         ],
         startPoint: .top,
         endPoint: .bottom
@@ -61,6 +61,7 @@ struct OfficialVerifiedV: View {
         colors: [
             Color.white.opacity(0.76),
             Color(hex: 0xA8DCC0).opacity(0.36),
+            Color(hex: 0xE4C36B).opacity(0.40),
             Color.black.opacity(0.24)
         ],
         startPoint: .topLeading,
@@ -84,7 +85,13 @@ struct OfficialVerifiedV: View {
 
             Text("V")
                 .font(.system(size: size * 0.59, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.white.opacity(0.96))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.white, Color(hex: 0xFFF3C8)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
                 .shadow(color: Color.black.opacity(0.22), radius: 0.5, x: 0, y: 0.45)
                 .offset(y: -0.1)
 
