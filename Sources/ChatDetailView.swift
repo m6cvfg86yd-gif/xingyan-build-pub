@@ -1433,7 +1433,7 @@ struct ChatDetailView: View {
                 .zIndex(2)
             }
             .background {
-                if !hidesChatNavigation {
+                if !hidesChatNavigation || !isGroup {
                     ChatImmersiveEdgeMask(path: backgroundPath,
                                           edge: .top,
                                           tint: wallpaperTopTint,
