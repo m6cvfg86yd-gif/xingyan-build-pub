@@ -701,13 +701,20 @@ struct WeatherOfficialView: View {
         }
         return ZStack {
             MallSkyBackground(look: current)
-            Color(uiColor: .systemGroupedBackground)
-                .opacity(scheme == .dark ? 0.28 : 0.40)
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(0.10)
+            LinearGradient(
+                stops: [
+                    .init(color: tint.opacity(scheme == .dark ? 0.24 : 0.14), location: 0),
+                    .init(color: .clear, location: 0.24),
+                    .init(color: .clear, location: 0.68),
+                    .init(color: Color.black.opacity(scheme == .dark ? 0.22 : 0.07),
+                          location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
         .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.9), value: current.cond)
     }
 
     private func accountHeader(_ current: MallWeatherLook) -> some View {
@@ -761,7 +768,15 @@ struct WeatherOfficialView: View {
                 Text(displayTemp)
                     .font(.system(size: 94, weight: .ultraLight, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(current.ink)
+                    .shadow(
+                        color: current.darkInk
+                            ? Color.white.opacity(0.24)
+                            : Color.black.opacity(0.24),
+                        radius: 2.2,
+                        x: 0,
+                        y: 1
+                    )
             }
             .buttonStyle(.plain)
             .accessibilityLabel(fahrenheit ? Tr("华氏温度") : Tr("摄氏温度"))
@@ -776,15 +791,15 @@ struct WeatherOfficialView: View {
                 Text(city.display)
             }
             .font(.headline)
-            .foregroundStyle(.primary)
+            .foregroundStyle(current.ink)
 
             Text(Date.now, format: .dateTime.month(.wide).day().weekday(.wide))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(current.inkSoft)
 
             Text(weather.failed ? Tr("下拉刷新") : current.dayPartName + " · " + Tr("实时天气"))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(current.inkSoft)
         }
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity)
