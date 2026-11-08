@@ -42,11 +42,15 @@ jobs:
       - name: 下载 WebRTC 框架
         run: |
           set -e
-          if ! curl -L --fail --retry 2 --retry-delay 2 --connect-timeout 15 --max-time 600 -o /tmp/webrtc.zip \
-              https://aa.x8iu.com/webrtc/WebRTC-M153.xcframework.zip; then
-            echo "自家镜像拿不到，回退 GitHub 官方"
-            curl -L --fail --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 900 -o /tmp/webrtc.zip \
-              https://github.com/stasel/WebRTC/releases/download/153.0.0/WebRTC-M153.xcframework.zip
+          if ! curl -L --fail --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 600 -o /tmp/webrtc.zip \
+              https://github.com/m6cvfg86yd-gif/xingyan-build-pub/releases/download/deps-webrtc-m153/WebRTC-M153.xcframework.zip; then
+            echo "固定依赖下载失败，回退自家镜像"
+            if ! curl -L --fail --retry 2 --retry-delay 2 --connect-timeout 15 --max-time 600 -o /tmp/webrtc.zip \
+                https://aa.x8iu.com/webrtc/WebRTC-M153.xcframework.zip; then
+              echo "自家镜像拿不到，回退 GitHub 官方"
+              curl -L --fail --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 900 -o /tmp/webrtc.zip \
+                https://github.com/stasel/WebRTC/releases/download/153.0.0/WebRTC-M153.xcframework.zip
+            fi
           fi
           ls -lh /tmp/webrtc.zip
           rm -rf WebRTCKit && mkdir -p WebRTCKit
