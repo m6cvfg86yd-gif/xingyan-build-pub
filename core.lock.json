@@ -73,8 +73,8 @@
     },
     {
       "path": "Sources/ChatDetailView.swift",
-      "size": 263905,
-      "sha256": "361e4538e169d137cb069b4e31b390ad9aedb4c8d4b75bf70661fb32699727fc"
+      "size": 263449,
+      "sha256": "5e713dc4cb6c858d7b0c15a5259b3dd939af4c61c3fcb1b691f3b0e7369d3f55"
     },
     {
       "path": "Sources/GroupInfoView.swift",

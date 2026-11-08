@@ -12,7 +12,7 @@ private enum ChatTheme {
         UIConfig.color("bubbleMineColor", 0x95EC69, 0x1E88C7)
     }
     static let bubbleOther = Color.dyn(0xFFFFFF, 0x25282D)
-    static let ink = Color.dyn(0x191919, 0xE9EBF0)
+    static let ink = Color.dyn(0x161823, 0xE9EBF0)
     static let mineInk = Color.dyn(0xFFFFFF, 0xE9EBF0)
     static let secondary = Color.dyn(0x999999, 0x7D8188)
     static let groupSenderNameOnLight = Color.dyn(0x07110C, 0x07110C)
@@ -92,7 +92,7 @@ func bubbleSeed(_ id: String) -> Double {
 
 struct BubbleShape: Shape {
     let mine: Bool
-    var radius: CGFloat = 6
+    var radius: CGFloat = 12
     var tail: Bool = true
 
     var pill: Bool = false
@@ -173,49 +173,37 @@ struct BubbleFill: View {
     var glass: Bool = true
     @Environment(\.colorScheme) private var scheme
     @Environment(\.bubbleUsesLightInk) private var wallpaperUsesLightInk
-    @Environment(\.bubbleWallpaperTint) private var wallpaperTint
+    private var usesDarkBackdrop: Bool { wallpaperUsesLightInk ?? (scheme == .dark) }
 
-    private var usesDarkBackdrop: Bool {
-        wallpaperUsesLightInk ?? (scheme == .dark)
-    }
-
-    private var tint: Color {
-        if mine {
-            return ChatTheme.bubbleMine.opacity(usesDarkBackdrop ? 0.28 : 0.15)
-        }
-        if let wallpaperTint {
-            return wallpaperTint.opacity(usesDarkBackdrop ? 0.20 : 0.12)
-        }
-        return usesDarkBackdrop
-            ? Color.black.opacity(0.10)
-            : Color.white.opacity(0.10)
-    }
     private var gloss: Color {
-
         return Color.white.opacity(UIConfig.num("bubbleGloss", 0))
     }
     private var shade: Color {
         Color.black.opacity(UIConfig.num("bubbleShade", 0))
     }
 
-    private var edge: LinearGradient {
-        let a = max(UIConfig.num("bubbleEdge", 0), usesDarkBackdrop ? 0.10 : 0.20)
-        return LinearGradient(colors: [Color.white.opacity(a),
-                                       Color.white.opacity(a * 0.42)],
-                              startPoint: .topLeading, endPoint: .bottomTrailing)
+    private var edgeAlpha: CGFloat { UIConfig.num("bubbleEdge", 0) }
+
+    private var mineFill: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.dyn(0x557AF7, 0x3567D8),
+                Color.dyn(0x5C78F7, 0x3D62D0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 
     var body: some View {
         ZStack {
-            BubbleShape(mine: mine, tail: tail, pill: pill)
-                .fill(.thinMaterial)
-
-            BubbleShape(mine: mine, tail: tail, pill: pill)
-                .fill(usesDarkBackdrop
-                      ? Color.black.opacity(0.48)
-                      : Color.white.opacity(0.82))
-
-            BubbleShape(mine: mine, tail: tail, pill: pill).fill(tint)
+            if mine {
+                BubbleShape(mine: mine, tail: tail, pill: pill)
+                    .fill(mineFill)
+            } else {
+                BubbleShape(mine: mine, tail: tail, pill: pill)
+                    .fill(ChatTheme.bubbleOther)
+            }
 
             if UIConfig.num("bubbleGloss", 0) > 0
                 || UIConfig.num("bubbleShade", 0) > 0 {
@@ -228,8 +216,10 @@ struct BubbleFill: View {
                     ], startPoint: .top, endPoint: .bottom))
             }
 
-            BubbleShape(mine: mine, tail: tail, pill: pill)
-                .stroke(edge, lineWidth: 0.9)
+            if edgeAlpha > 0 {
+                BubbleShape(mine: mine, tail: tail, pill: pill)
+                    .stroke(Color.white.opacity(edgeAlpha), lineWidth: 0.9)
+            }
 
             if UIConfig.num("bubbleIridescent", 0) > 0 {
                 BubbleShape(mine: mine, tail: tail, pill: pill)
