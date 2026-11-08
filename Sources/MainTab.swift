@@ -67,6 +67,22 @@ struct MainTabView: View {
                                  meDot: app.showDot("me", auto: false),
                                  avatarPath: tabAvatarPath)
                         .frame(height: max(49, L.tabH - 6))
+                        .background(alignment: .bottom) {
+                            LinearGradient(
+                                stops: [
+                                    .init(color: C.tabBg.opacity(0), location: 0),
+                                    .init(color: C.tabBg.opacity(0.28), location: 0.28),
+                                    .init(color: C.tabBg.opacity(0.76), location: 0.68),
+                                    .init(color: C.tabBg.opacity(0.97), location: 1)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .frame(height: 112)
+                            .offset(y: 28)
+                            .ignoresSafeArea(edges: .bottom)
+                            .allowsHitTesting(false)
+                        }
                         .transition(.move(edge: .bottom))
                 }
             }
