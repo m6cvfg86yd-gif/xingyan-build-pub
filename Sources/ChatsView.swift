@@ -277,53 +277,53 @@ struct ChatRow: View {
     }
 
     private var textColumn: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(displayTitle)
-                    .font(pfStyled(size: 17, weight: .semibold))
-                    .foregroundStyle(ChatListVisual.ink)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 5) {
+                    Text(displayTitle)
+                        .font(pfStyled(size: 17, weight: .semibold))
+                        .foregroundStyle(ChatListVisual.ink)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .layoutPriority(1)
+
+                    if chat.showsOfficialMark {
+                        OfficialVerifiedV()
+                            .fixedSize()
+                    }
+
+                    if let lv = chat.qqLevel, lv > 1, GrowthFlags.showInChats == true {
+                        QQLevelBadge(level: lv, size: L.v(13, 3.6, 15), maxIcons: 3)
+                            .fixedSize()
+                    }
+
+                    MemberBadge(tier: chat.memberTier,
+                                short: chat.memberShort,
+                                color: chat.memberColor,
+                                color2: chat.memberColor2,
+                                height: L.v(11.5, 3.2, 13))
+                        .fixedSize()
+                }
+
+                mentionPreview
+                    .font(pfStyled(size: 15, weight: .regular))
+                    .foregroundStyle(ChatListVisual.previewInk)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .layoutPriority(1)
-
-                if chat.showsOfficialMark {
-                    OfficialVerifiedV()
-                        .fixedSize()
-                }
-
-                if let lv = chat.qqLevel, lv > 1, GrowthFlags.showInChats == true {
-                    QQLevelBadge(level: lv, size: L.v(13, 3.6, 15), maxIcons: 3)
-                        .fixedSize()
-                }
-
-                MemberBadge(tier: chat.memberTier,
-                            short: chat.memberShort,
-                            color: chat.memberColor,
-                            color2: chat.memberColor2,
-                            height: L.v(11.5, 3.2, 13))
-                    .fixedSize()
-
-                Spacer(minLength: 6)
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
-                        .font(pfStyled(size: 13, weight: .regular))
-                        .foregroundStyle(ChatListVisual.timeInk)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-
-                    unreadUnderTime
-                }
-                .frame(minWidth: 54, alignment: .trailing)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            mentionPreview
-                .font(pfStyled(size: 15, weight: .regular))
-                .foregroundStyle(ChatListVisual.previewInk)
-                .lineLimit(1)
-                .truncationMode(.tail)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
+                    .font(pfStyled(size: 13, weight: .regular))
+                    .foregroundStyle(ChatListVisual.timeInk)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+
+                unreadUnderTime
+            }
+            .frame(minWidth: 54, alignment: .trailing)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var mentionPreview: Text {
