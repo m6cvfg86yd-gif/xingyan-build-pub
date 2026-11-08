@@ -253,26 +253,35 @@ struct BubbleFill: View {
 
 enum PanelKind { case none, emoji, plus, gift, mention }
 
-private enum ChatImmersiveEdge { case top, bottom }
-
-private struct ChatImmersiveEdgeMask: View {
-    let edge: ChatImmersiveEdge
+private struct ChatWallpaperScrim: View {
+    let topVisible: Bool
+    let bottomVisible: Bool
 
     var body: some View {
-        Rectangle()
-            .fill(.thickMaterial)
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0),
-                        .init(color: .black.opacity(0.97), location: 0.58),
-                        .init(color: .clear, location: 1)
-                    ],
-                    startPoint: edge == .top ? .top : .bottom,
-                    endPoint: edge == .top ? .bottom : .top
-                )
+        GeometryReader { geo in
+            let height = max(1, geo.size.height)
+            let topEnd = min(0.28, max(0.13, (L.safeTop + L.navH + 22) / height))
+            let bottomStart = min(0.82, max(0.56,
+                1 - (L.safeBottom + L.inputH + 74) / height))
+            let topColor = topVisible ? ChatTheme.page : Color.clear
+            let bottomColor = bottomVisible ? ChatTheme.page : Color.clear
+
+            LinearGradient(
+                stops: [
+                    .init(color: topColor, location: 0),
+                    .init(color: topColor.opacity(0.98), location: topEnd * 0.62),
+                    .init(color: .clear, location: topEnd),
+                    .init(color: .clear, location: bottomStart),
+                    .init(color: bottomColor.opacity(0.96),
+                          location: min(0.94, bottomStart + 0.07)),
+                    .init(color: bottomColor, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
             )
-            .allowsHitTesting(false)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 }
 
@@ -1263,6 +1272,12 @@ struct ChatDetailView: View {
                 )
                 .zIndex(1)
 
+            ChatWallpaperScrim(
+                topVisible: !hidesChatNavigation,
+                bottomVisible: !(panel == .emoji && emojiPanelExpanded)
+            )
+            .zIndex(2)
+
             if isStarWorld && newsMode {
                 NewsFeedView(compact: true)
                     .zIndex(12)
@@ -1414,13 +1429,6 @@ struct ChatDetailView: View {
                     }
                 }
                 .zIndex(2)
-            }
-            .background {
-                if !hidesChatNavigation {
-                    ChatImmersiveEdgeMask(edge: .top)
-                        .ignoresSafeArea(edges: .top)
-                        .transition(.opacity)
-                }
             }
             .animation(.easeOut(duration: 0.18), value: hidesChatNavigation)
 
@@ -3520,12 +3528,6 @@ struct ChatDetailView: View {
         }
         .onDisappear { dictation.stop() }
 
-        .background {
-            if !(panel == .emoji && emojiPanelExpanded) {
-                ChatImmersiveEdgeMask(edge: .bottom)
-                    .ignoresSafeArea(edges: .bottom)
-            }
-        }
     }
 
     @ViewBuilder
