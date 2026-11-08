@@ -3516,8 +3516,9 @@ struct ChatDetailView: View {
 
                 .background {
                     Group {
-                        if panel != .none,
-                           !(panel == .emoji && emojiPanelExpanded) {
+                        if panel == .emoji {
+                            ChatEmojiPanelMaterial()
+                        } else if panel != .none {
                             ChatPanelGlassBackground()
                         } else {
                             Color.clear

@@ -21,6 +21,21 @@ struct ChatPanelGlassBackground: View {
     }
 }
 
+struct ChatEmojiPanelMaterial: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            Rectangle().fill(
+                scheme == .dark
+                    ? Color.black.opacity(0.08)
+                    : Color.white.opacity(0.07)
+            )
+        }
+    }
+}
+
 let emojiAll: [String] = [
     "😄", "😖", "😍", "😳", "😎", "😭", "😚", "🤐",
     "😴", "😢", "😅", "😡", "😛", "😁", "😲", "😔",
@@ -210,7 +225,7 @@ struct EmojiPanel: View {
         min(46, max(40, (L.width - 20) / 7))
     }
     private var collapsedH: CGFloat {
-        let tabsH = L.v(42, 11.6, 46)
+        let tabsH: CGFloat = 40
         let deleteH = L.v(38, 10.4, 42)
         return tabsH + deleteH + emojiRowH * 5 + 10
     }
@@ -417,14 +432,16 @@ struct EmojiPanel: View {
         Button {
             withAnimation(.easeOut(duration: 0.16)) { tab = i }
         } label: {
-            Image(systemName: symbol)
-                .font(.system(size: L.v(16, 4.6, 18), weight: .medium))
-                .foregroundColor(tab == i ? C.green : C.subLabel)
-                .frame(width: L.v(34, 10, 38), height: 32)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(tab == i ? C.green.opacity(0.10) : Color.clear)
-            )
+            VStack(spacing: 2) {
+                Image(systemName: symbol)
+                    .font(.system(size: L.v(17, 4.9, 19), weight: .medium))
+                Capsule()
+                    .fill(tab == i ? C.label : Color.clear)
+                    .frame(width: 12, height: 2)
+            }
+            .foregroundColor(tab == i ? C.label : C.subLabel)
+            .frame(width: 52, height: 40)
+            .scaleEffect(tab == i ? 1.04 : 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -435,19 +452,22 @@ struct EmojiPanel: View {
         Button {
             withAnimation(.easeOut(duration: 0.16)) { tab = i }
         } label: {
-            Group {
-                if pack.isImage {
-                    StickerThumb(url: pack.icon)
-                } else {
-                    Text(pack.icon).font(pf(L.v(17, 4.8, 20)))
+            VStack(spacing: 2) {
+                Group {
+                    if pack.isImage {
+                        StickerThumb(url: pack.icon)
+                    } else {
+                        Text(pack.icon).font(pf(L.v(19, 5.4, 22)))
+                    }
                 }
+                .frame(width: 28, height: 28)
+
+                Capsule()
+                    .fill(tab == i ? C.label : Color.clear)
+                    .frame(width: 12, height: 2)
             }
-            .frame(width: L.v(28, 8.2, 31), height: 27)
-            .frame(width: L.v(34, 10, 38), height: 32)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(tab == i ? C.green.opacity(0.10) : Color.clear)
-            )
+            .frame(width: 52, height: 40)
+            .scaleEffect(tab == i ? 1.04 : 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -499,7 +519,7 @@ struct EmojiPanel: View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: L.v(2, 0.8, 4)) {
+                    HStack(spacing: 0) {
                         tabButton(0, Tr("最近"), "clock")
                         tabButton(1, Tr("表情"), "face.smiling")
                         tabButton(2, Tr("系统"), "globe.asia.australia")
@@ -512,7 +532,7 @@ struct EmojiPanel: View {
                             Image(systemName: "plus")
                                 .font(.system(size: L.v(16, 4.8, 18), weight: .semibold))
                                 .foregroundColor(C.subLabel)
-                                .frame(width: L.v(32, 9.6, 36), height: 32)
+                            .frame(width: 44, height: 40)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -522,13 +542,13 @@ struct EmojiPanel: View {
                             Image(systemName: "camera.fill")
                                 .font(.system(size: L.v(15.5, 4.6, 18), weight: .medium))
                                 .foregroundColor(C.green)
-                                .frame(width: L.v(32, 9.6, 36), height: 32)
+                            .frame(width: 44, height: 40)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(Tr("拍摄表情"))
                     }
-                    .padding(.horizontal, L.v(10, 3.2, 13))
+                    .padding(.horizontal, 8)
                 }
 
                 Button {
@@ -539,13 +559,13 @@ struct EmojiPanel: View {
                     Image(systemName: expanded ? "chevron.down" : "chevron.up")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(C.subLabel)
-                        .frame(width: 38, height: L.v(42, 11.6, 46))
+                        .frame(width: 38, height: 40)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(expanded ? Tr("收起") : Tr("展开"))
             }
-            .frame(height: L.v(42, 11.6, 46))
+            .frame(height: 40)
 
             TabView(selection: $tab) {
                 recentPage.tag(0)
