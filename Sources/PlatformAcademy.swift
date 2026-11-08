@@ -413,6 +413,83 @@ struct OfficialNoticeCenterView: View {
     }
 }
 
+private struct WeatherMotionIcon: View {
+    let symbol: String
+    let tint: Color
+    var size: CGFloat = 22
+    var halo: CGFloat = 30
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var active = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(tint.opacity(0.13))
+                .frame(width: halo, height: halo)
+                .scaleEffect(active ? 1.12 : 0.90)
+                .opacity(active ? 0.70 : 0.30)
+
+            Image(systemName: symbol)
+                .font(.system(size: size, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(tint)
+                .offset(y: active ? -1.6 : 1.6)
+                .rotationEffect(.degrees(active ? 2.8 : -2.8))
+        }
+        .frame(width: max(halo, size + 10), height: max(halo, size + 10))
+        .accessibilityHidden(true)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
+                active = true
+            }
+        }
+    }
+}
+
+private struct WeatherAnimatedBackdrop: View {
+    let tint: Color
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var drifting = false
+
+    var body: some View {
+        ZStack {
+            Color(uiColor: .systemGroupedBackground)
+
+            LinearGradient(
+                colors: [tint.opacity(0.22), tint.opacity(0.05), .clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            Circle()
+                .fill(tint.opacity(0.16))
+                .frame(width: 330, height: 330)
+                .blur(radius: 34)
+                .offset(x: drifting ? -86 : 78, y: drifting ? -96 : -48)
+
+            Circle()
+                .fill(Color.white.opacity(0.10))
+                .frame(width: 230, height: 230)
+                .blur(radius: 42)
+                .offset(x: drifting ? 110 : -72, y: drifting ? -18 : 48)
+
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(0.18)
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 6.4).repeatForever(autoreverses: true)) {
+                drifting = true
+            }
+        }
+    }
+}
+
 struct WeatherOfficialView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var weather = MallWeather.shared
@@ -425,6 +502,7 @@ struct WeatherOfficialView: View {
     @State private var showCityPicker = false
     @State private var forecast: WeatherForecastResponse?
     @State private var forecastLoading = false
+    @State private var appeared = false
     @AppStorage("weatherFahrenheit") private var fahrenheit = false
 
     private var look: MallWeatherLook {
@@ -502,6 +580,9 @@ struct WeatherOfficialView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 9)
+                    .animation(.easeOut(duration: 0.42), value: appeared)
                 }
                 .refreshable {
                     MallWeather.shared.refresh(force: true)
@@ -514,6 +595,7 @@ struct WeatherOfficialView: View {
         .hidesTabBar()
         .onAppear {
             MallWeather.shared.refresh()
+            appeared = true
         }
         .task(id: "\(city.lat),\(city.lon),\(city.name)") {
             await loadForecast()
@@ -531,18 +613,7 @@ struct WeatherOfficialView: View {
         case .dusk: tint = Color(hex: 0xFF9B5C)
         case .night: tint = Color(hex: 0x41548F)
         }
-        return ZStack {
-            Color(uiColor: .systemGroupedBackground)
-            LinearGradient(
-                colors: [tint.opacity(0.22), tint.opacity(0.05), .clear],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(0.18)
-        }
-        .ignoresSafeArea()
+        return WeatherAnimatedBackdrop(tint: tint)
     }
 
     private func accountHeader(_ current: MallWeatherLook) -> some View {
@@ -601,8 +672,10 @@ struct WeatherOfficialView: View {
             .accessibilityLabel(fahrenheit ? Tr("华氏温度") : Tr("摄氏温度"))
 
             HStack(spacing: 7) {
-                Image(systemName: current.icon)
-                    .symbolRenderingMode(.hierarchical)
+                WeatherMotionIcon(symbol: current.icon,
+                                  tint: current.accent,
+                                  size: 21,
+                                  halo: 28)
                 Text(weather.failed ? Tr("天气暂时拿不到") : current.conditionName)
                 Text("·")
                 Text(city.display)
