@@ -414,6 +414,18 @@ struct EmojiPanel: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
 
+                HStack(spacing: 8) {
+                    packActionButton(Tr("表情商店"), symbol: "plus") {
+                        onOpenStore?()
+                    }
+                    packActionButton(Tr("拍摄表情"), symbol: "camera.fill") {
+                        onCaptureSticker?()
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+
                 ForEach(installed.indices, id: \.self) { i in
                     let pack = installed[i]
                     packTitle(pack.icon.isEmpty ? "✨" : pack.icon, pack.name)
@@ -439,29 +451,29 @@ struct EmojiPanel: View {
                 packTitle("🖼", Tr("我们的表情"))
                 imageStickerRow
 
-                HStack(spacing: 14) {
-                    Button { onOpenStore?() } label: {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(C.hairline, lineWidth: 1)
-                                .frame(width: L.v(46, 13, 50), height: L.v(46, 13, 50))
-                            Image(systemName: "plus")
-                                .font(.system(size: L.v(20, 5.6, 23), weight: .light))
-                                .foregroundColor(C.subLabel)
-                        }
-                        .frame(height: panelH * 0.80 / 4)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, L.v(6, 2, 10))
-                .padding(.top, 6)
             }
             .padding(.top, L.v(2, 0.6, 4))
             .padding(.bottom, 6)
         }
+    }
+
+    private func packActionButton(_ title: String,
+                                  symbol: String,
+                                  action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol)
+                    .font(.system(size: 12.5, weight: .semibold))
+                Text(title)
+                    .font(pf(12.5, .medium))
+            }
+            .foregroundStyle(C.label)
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background(Capsule().fill(Color.dyn(0xF2F2F3, 0x2A2A2D)))
+            .overlay(Capsule().stroke(C.hairline.opacity(0.55), lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
     }
 
     private func packTitle(_ icon: String, _ name: String) -> some View {
@@ -533,17 +545,39 @@ struct EmojiPanel: View {
         Button {
             withAnimation(.easeOut(duration: 0.16)) { tab = i }
         } label: {
-            VStack(spacing: 2) {
-                Image(systemName: symbol)
-                    .font(.system(size: L.v(17, 4.9, 19), weight: .medium))
-                Capsule()
-                    .fill(tab == i ? C.label : Color.clear)
-                    .frame(width: 12, height: 2)
-            }
+            Image(systemName: symbol)
+                .font(.system(size: L.v(17, 4.9, 19), weight: .medium))
             .foregroundColor(tab == i ? C.label : C.subLabel)
-            .frame(width: 52, height: 40)
+            .frame(width: 42, height: 32)
+            .background {
+                if tab == i {
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .fill(C.label.opacity(0.07))
+                }
+            }
             .scaleEffect(tab == i ? 1.04 : 1)
             .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
+    private func glyphTabButton(_ i: Int, _ title: String, _ glyph: String) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.16)) { tab = i }
+        } label: {
+            Text(glyph)
+                .font(.system(size: 22))
+                .frame(width: 42, height: 32)
+                .background {
+                    if tab == i {
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(C.label.opacity(0.07))
+                    }
+                }
+                .scaleEffect(tab == i ? 1.06 : 0.94)
+                .opacity(tab == i ? 1 : 0.72)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -622,29 +656,9 @@ struct EmojiPanel: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 0) {
                         tabButton(0, Tr("搜索"), "magnifyingglass")
-                        tabButton(1, Tr("笑脸"), "face.smiling")
-                        tabButton(2, Tr("赞"), "hand.thumbsup.fill")
-                        tabButton(3, Tr("其他表情包"), "square.grid.2x2.fill")
-
-                        Button { onOpenStore?() } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: L.v(16, 4.8, 18), weight: .semibold))
-                                .foregroundColor(C.subLabel)
-                            .frame(width: 44, height: 40)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Tr("表情商店"))
-
-                        Button { onCaptureSticker?() } label: {
-                            Image(systemName: "camera.fill")
-                                .font(.system(size: L.v(15.5, 4.6, 18), weight: .medium))
-                                .foregroundColor(C.green)
-                            .frame(width: 44, height: 40)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Tr("拍摄表情"))
+                        glyphTabButton(1, Tr("笑脸"), "😊")
+                        glyphTabButton(2, Tr("赞"), "👍")
+                        glyphTabButton(3, Tr("其他表情包"), "🧩")
                     }
                     .padding(.horizontal, 8)
                 }
