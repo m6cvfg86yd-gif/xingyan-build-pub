@@ -4918,8 +4918,14 @@ private struct StarredPayload: Decodable {
         _ = try? await request("POST", "/api/stickers/remove", body: ["packId": packId])
     }
 
-    func addSingleSticker(_ sticker: String) async {
-        _ = try? await request("POST", "/api/stickers/add", body: ["sticker": sticker])
+    @discardableResult
+    func addSingleSticker(_ sticker: String) async -> Bool {
+        do {
+            _ = try await request("POST", "/api/stickers/add", body: ["sticker": sticker])
+            return true
+        } catch {
+            return false
+        }
     }
 
     func removeSingleSticker(_ sticker: String) async {

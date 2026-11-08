@@ -1,5 +1,9 @@
 import Foundation
 
+extension Notification.Name {
+    static let chrisStickersChanged = Notification.Name("chris.stickersChanged")
+}
+
 enum StickerLib {
     private static let key = "sticker.installed.builtin"
 

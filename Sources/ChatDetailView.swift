@@ -254,12 +254,11 @@ struct BubbleFill: View {
 enum PanelKind { case none, emoji, plus, gift, mention }
 
 private struct ChatImmersiveEdgeMask: View {
-    let tint: Color?
     let dark: Bool
 
     var body: some View {
         Rectangle()
-            .fill(tint ?? (dark ? Color.black : Color.white))
+            .fill(dark ? Color.black : Color.white)
         .allowsHitTesting(false)
     }
 }
@@ -1405,8 +1404,7 @@ struct ChatDetailView: View {
             }
             .background {
                 if !hidesChatNavigation {
-                    ChatImmersiveEdgeMask(tint: wallpaperTopTint,
-                                          dark: topBarUsesLightInk)
+                    ChatImmersiveEdgeMask(dark: topBarUsesLightInk)
                         .ignoresSafeArea(edges: .top)
                         .transition(.opacity)
                 }
@@ -1967,6 +1965,9 @@ struct ChatDetailView: View {
         .onChange(of: messages) { _ in
             rememberSenderAvatars(messages)
             schedulePersist()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .chrisStickersChanged)) { _ in
+            Task { await loadMyStickers() }
         }
         .onChange(of: realtime.connected) { connected in
             if connected { Task { await load(initial: false) } }
@@ -3511,8 +3512,7 @@ struct ChatDetailView: View {
 
         .background {
             if !(panel == .emoji && emojiPanelExpanded) {
-                ChatImmersiveEdgeMask(tint: wallpaperBottomTint,
-                                      dark: composerUsesLightInk)
+                ChatImmersiveEdgeMask(dark: composerUsesLightInk)
                     .ignoresSafeArea(edges: .bottom)
             }
         }

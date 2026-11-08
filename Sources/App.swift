@@ -396,6 +396,7 @@ final class AppState: ObservableObject {
             if let incoming = ev.chat {
                 applyRealtimeChat(incoming)
             } else if let message = ev.message {
+                collectAdminSticker(from: message)
                 applyRealtimeMessage(message, chatId: ev.chatId)
             }
             let cid = ev.chatId
@@ -483,6 +484,81 @@ final class AppState: ObservableObject {
         default:
             break
         }
+    }
+
+    private func collectAdminSticker(from message: Message) {
+        guard me?.ops == true,
+              message.senderId != me?.id,
+              !message.isRecalled else { return }
+        let refs = Self.autoStickerRefs(message)
+        guard !refs.isEmpty else { return }
+
+        Task { [weak self] in
+            guard let self else { return }
+            let key = "xingyan.adminAutoCollectedStickers"
+            var seen = UserDefaults.standard.stringArray(forKey: key) ?? []
+            var changed = false
+            for ref in refs where !seen.contains(ref) {
+                if await API.shared.addSingleSticker(ref) {
+                    seen.append(ref)
+                    changed = true
+                }
+            }
+            if changed {
+                UserDefaults.standard.set(Array(seen.suffix(1000)), forKey: key)
+                NotificationCenter.default.post(name: .chrisStickersChanged, object: nil)
+            }
+        }
+    }
+
+    private static func autoStickerRefs(_ message: Message) -> [String] {
+        let kind = message.kindName
+        if kind == "text" {
+            return isEmojiOnly(message.body) ? [message.body] : []
+        }
+        if kind == "sticker" {
+            let ref = imageRefPath(message.body)
+            return ref.isEmpty ? [] : [ref]
+        }
+
+        let paths: [String]
+        if kind == "image" {
+            paths = [message.imagePath]
+        } else if kind == "images" {
+            guard let data = message.body.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let list = object["paths"] as? [String] else { return [] }
+            paths = list
+        } else {
+            return []
+        }
+
+        let sizeLooksLikeSticker = message.imagePixelSize.map(ImageBubble.looksLikeSticker) ?? false
+        return paths.filter { path in
+            guard !path.isEmpty else { return false }
+            return path.contains("/emoji/") || path.contains("/emj")
+                || sizeLooksLikeSticker
+        }
+    }
+
+    private static func isEmojiOnly(_ value: String) -> Bool {
+        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, text.count <= 16 else { return false }
+        var hasEmoji = false
+        for scalar in text.unicodeScalars {
+            let value = scalar.value
+            if scalar.properties.isEmojiPresentation || scalar.properties.isEmoji {
+                hasEmoji = true
+                continue
+            }
+            switch value {
+            case 0x200D, 0x20E3, 0xFE0E, 0xFE0F, 0x1F3FB...0x1F3FF:
+                continue
+            default:
+                return false
+            }
+        }
+        return hasEmoji
     }
 
     private var toastTask: Task<Void, Never>?
