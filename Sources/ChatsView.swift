@@ -2,6 +2,22 @@ import SwiftUI
 import UIKit
 import Darwin
 
+private enum ChatListVisual {
+    static let rowHeight: CGFloat = 72
+    static let leading: CGFloat = 12
+    static let trailing: CGFloat = 16
+    static let avatarGap: CGFloat = 12
+    static let dividerLeading: CGFloat = 76
+
+    static let ink = Color.dyn(0x161823, 0xF4F4F6)
+    static let previewInk = Color.dyn(0x96979B, 0x9E9FA5)
+    static let timeInk = Color.dyn(0xC5C5C8, 0x74757B)
+    static let rule = Color.dyn(0xECECED, 0x29292D)
+    static let chipInk = Color.dyn(0x62636A, 0xA8A9AF)
+    static let selectedChipFill = Color.dyn(0x161823, 0xF1F1F3)
+    static let selectedChipInk = Color.dyn(0xFFFFFF, 0x17171A)
+}
+
 struct RowSwipeCatcher: UIViewRepresentable {
 
     var onTap: (CGPoint) -> Void
@@ -180,9 +196,11 @@ private struct PresenceNotchMask: Shape {
 
     func path(in rect: CGRect) -> Path {
         var path = Path(rect)
+        let centerX = rect.maxX - centerInset
+        let centerY = rect.maxY - centerInset
         let hole = CGRect(
-            x: rect.maxX - centerInset - holeDiameter / 2,
-            y: rect.maxY - centerInset - holeDiameter / 2,
+            x: centerX - holeDiameter / 2,
+            y: centerY - holeDiameter / 2,
             width: holeDiameter,
             height: holeDiameter
         )
@@ -239,17 +257,16 @@ struct ChatRow: View {
 
     var body: some View {
 
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: ChatListVisual.avatarGap) {
             avatarBlock
             textColumn
         }
-        .padding(.horizontal, 16)
-        .frame(minHeight: L.rowH)
+        .padding(.leading, ChatListVisual.leading)
+        .padding(.trailing, ChatListVisual.trailing)
+        .frame(height: ChatListVisual.rowHeight)
         .contentShape(Rectangle())
         .task { await loadPeerIfNeeded() }
     }
-
-    private var avatarTop: CGFloat { max(0, (L.rowH - L.avatar) / 2) }
 
     private var peerId: String? {
         guard chat.type != "group" else { return nil }
@@ -307,11 +324,11 @@ struct ChatRow: View {
     }
 
     private var textColumn: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 5) {
                 Text(displayTitle)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                    .font(pfStyled(size: 17, weight: .semibold))
+                    .foregroundStyle(ChatListVisual.ink)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .layoutPriority(1)
@@ -337,19 +354,19 @@ struct ChatRow: View {
 
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(pfStyled(size: 13, weight: .regular))
+                        .foregroundStyle(ChatListVisual.timeInk)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
 
                     unreadUnderTime
                 }
-                .frame(minWidth: 42, alignment: .trailing)
+                .frame(minWidth: 54, alignment: .trailing)
             }
 
             mentionPreview
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(pfStyled(size: 15, weight: .regular))
+                .foregroundStyle(ChatListVisual.previewInk)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
@@ -406,7 +423,7 @@ struct ChatRow: View {
         if chat.unreadCount > 0 {
             if (chat.muted == true || chat.flagged == true), chat.bot != "qqnews" {
                 Circle()
-                    .fill(OrbitTheme.tertiary)
+                    .fill(ChatListVisual.timeInk)
                     .frame(width: 8, height: 8)
                     .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.2))
             } else {
@@ -516,13 +533,13 @@ struct SwipeChatRow: View {
         ZStack(alignment: .trailing) {
 
             ChatRow(chat: chat, onTapAvatar: onTapAvatar)
-                .frame(width: rowWidth, height: L.rowH, alignment: .leading)
+                .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
                 .background(rowBg)
                 .overlay(alignment: .bottom) {
                     Rectangle()
-                        .fill(OrbitTheme.divider)
+                        .fill(ChatListVisual.rule)
                         .frame(height: 0.5)
-                        .padding(.leading, 76)
+                        .padding(.leading, ChatListVisual.dividerLeading)
                 }
                 .offset(x: offset)
                 .contentShape(Rectangle())
@@ -532,7 +549,7 @@ struct SwipeChatRow: View {
                 .allowsHitTesting(offset != 0)
                 .zIndex(2)
         }
-        .frame(width: rowWidth, height: L.rowH, alignment: .leading)
+        .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
 
         .background(rowBg)
         .clipped()
@@ -542,7 +559,8 @@ struct SwipeChatRow: View {
                 onTap: { p in
                     if offset != 0 {
                         close()
-                    } else if p.x < L.rowPadL + L.avatar + 10, let tap = onTapAvatar {
+                    } else if p.x < ChatListVisual.leading + L.avatar + 10,
+                              let tap = onTapAvatar {
                         tap()
                     } else {
                         onOpen()
@@ -581,7 +599,7 @@ struct SwipeChatRow: View {
                     settle(velocity: vx)
                 }
             )
-            .frame(width: max(0, rowWidth + offset), height: L.rowH)
+            .frame(width: max(0, rowWidth + offset), height: ChatListVisual.rowHeight)
         }
 
         .onReceive(NotificationCenter.default.publisher(for: .chrisRowSwipe)) { note in
@@ -633,8 +651,8 @@ struct SwipeChatRow: View {
                 }
             }
         }
-        .frame(height: L.rowH)
-        .frame(width: max(0, -offset), height: L.rowH, alignment: .trailing)
+        .frame(height: ChatListVisual.rowHeight)
+        .frame(width: max(0, -offset), height: ChatListVisual.rowHeight, alignment: .trailing)
         .clipped()
     }
 
@@ -667,7 +685,7 @@ struct SwipeChatRow: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.68)
                 .allowsTightening(true)
-                .frame(width: max(0, width), height: L.rowH)
+                .frame(width: max(0, width), height: ChatListVisual.rowHeight)
                 .background(bg)
                 .contentShape(Rectangle())
         }
@@ -890,7 +908,8 @@ struct ChatsView: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Text(Tr(item.rawValue))
-                                    .font(.subheadline.weight(chatFilter == item ? .semibold : .medium))
+                                    .font(pfStyled(size: 14,
+                                                   weight: chatFilter == item ? .semibold : .medium))
                                     .lineLimit(1)
                                 let count = unreadCounts[item, default: 0]
                                 if count > 0 {
@@ -908,12 +927,14 @@ struct ChatsView: View {
                                         .foregroundStyle(.white)
                                 }
                             }
-                            .foregroundStyle(chatFilter == item ? Color.white : Color.primary)
+                            .foregroundStyle(chatFilter == item
+                                             ? ChatListVisual.selectedChipInk
+                                             : ChatListVisual.chipInk)
                             .frame(width: itemWidth - 2, height: 31)
                             .background {
                                 if chatFilter == item {
                                     Capsule()
-                                        .fill(Color.accentColor)
+                                        .fill(ChatListVisual.selectedChipFill)
                                         .matchedGeometryEffect(id: "chatFilterSelection",
                                                                in: filterSelectionNS)
                                 }
@@ -981,13 +1002,13 @@ struct ChatsView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(app.me?.name ?? "星言")
-                    .font(pfStyled(size: 20, weight: .bold))
-                    .foregroundStyle(.primary)
+                    .font(pfStyled(size: 18, weight: .semibold))
+                    .foregroundStyle(ChatListVisual.ink)
                     .lineLimit(1)
                 Text(app.offline ? Tr("离线")
                      : (unreadTotal > 0 ? "\(unreadTotal) 条未读消息" : Tr("消息已读完")))
-                    .font(pfStyled(size: 10.5, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .font(pfStyled(size: 11.5, weight: .medium))
+                    .foregroundStyle(ChatListVisual.previewInk)
                     .lineLimit(1)
             }
 
@@ -1056,7 +1077,7 @@ struct ChatsView: View {
             }
             .clipShape(Capsule(style: .continuous))
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, ChatListVisual.leading)
         .frame(height: L.navH)
     }
 
@@ -1482,7 +1503,7 @@ struct ChatsView: View {
             Button {
                 showOfficialConversation = true
             } label: {
-                HStack(spacing: 12) {
+                HStack(spacing: ChatListVisual.avatarGap) {
                     if officialRowAvatar.isEmpty {
                         ZStack {
                             Circle()
@@ -1507,17 +1528,17 @@ struct ChatsView: View {
                                circle: true)
                     }
 
-                    VStack(alignment: .leading, spacing: 5) {
+                    VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 5) {
                             Text(officialRowName)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
+                                .font(pfStyled(size: 17, weight: .semibold))
+                                .foregroundStyle(ChatListVisual.ink)
                                 .lineLimit(1)
                             OfficialVerifiedV(size: 15)
                         }
                         Text(officialRowSubtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(pfStyled(size: 15, weight: .regular))
+                            .foregroundStyle(ChatListVisual.previewInk)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 8)
@@ -1529,15 +1550,16 @@ struct ChatsView: View {
                             .padding(.trailing, 2)
                     }
                 }
-                .padding(.horizontal, 16)
-                .frame(height: 74)
+                .padding(.leading, ChatListVisual.leading)
+                .padding(.trailing, ChatListVisual.trailing)
+                .frame(height: ChatListVisual.rowHeight)
                 .background(chatsPageFill)
                 .contentShape(Rectangle())
                 .overlay(alignment: .bottom) {
                     Rectangle()
-                        .fill(OrbitTheme.divider)
+                        .fill(ChatListVisual.rule)
                         .frame(height: 0.5)
-                        .padding(.leading, 78)
+                        .padding(.leading, ChatListVisual.dividerLeading)
                 }
             }
             .buttonStyle(.plain)
@@ -1589,7 +1611,7 @@ struct ChatsView: View {
             Button {
                 showWeatherConversation = true
             } label: {
-                HStack(spacing: 12) {
+                HStack(spacing: ChatListVisual.avatarGap) {
                     if weatherRowAvatar.isEmpty {
                         Image(systemName: "cloud.sun.fill")
                             .font(.system(size: L.avatar * 0.42, weight: .semibold))
@@ -1609,17 +1631,17 @@ struct ChatsView: View {
                                radius: 14, circle: true)
                     }
 
-                    VStack(alignment: .leading, spacing: 5) {
+                    VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 5) {
                             Text(weatherRowName)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
+                                .font(pfStyled(size: 17, weight: .semibold))
+                                .foregroundStyle(ChatListVisual.ink)
                                 .lineLimit(1)
                             OfficialVerifiedV(size: 15)
                         }
                         Text(weatherRowSubtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(pfStyled(size: 15, weight: .regular))
+                            .foregroundStyle(ChatListVisual.previewInk)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 8)
@@ -1630,15 +1652,16 @@ struct ChatsView: View {
                             .padding(.trailing, 2)
                     }
                 }
-                .padding(.horizontal, 16)
-                .frame(height: 74)
+                .padding(.leading, ChatListVisual.leading)
+                .padding(.trailing, ChatListVisual.trailing)
+                .frame(height: ChatListVisual.rowHeight)
                 .background(chatsPageFill)
                 .contentShape(Rectangle())
                 .overlay(alignment: .bottom) {
                     Rectangle()
-                        .fill(OrbitTheme.divider)
+                        .fill(ChatListVisual.rule)
                         .frame(height: 0.5)
-                        .padding(.leading, 78)
+                        .padding(.leading, ChatListVisual.dividerLeading)
                 }
             }
             .buttonStyle(.plain)
