@@ -1454,7 +1454,7 @@ struct ChatDetailView: View {
                    titleColor: adaptiveTopInk,
                    titleOutline: adaptiveTopOutline,
                    backColor: adaptiveTopInk,
-                   hideChromeExceptBack: hidesChatNavigation,
+                   hideChromeExceptBack: hidesChatNavigation && isGroup,
                    titleView: chatNavigationTitle,
                    leftExtra: selectMode ? nil : leftUnreadBadge,
                    backGlass: false,
