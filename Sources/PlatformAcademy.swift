@@ -248,10 +248,10 @@ struct OfficialNoticeCenterView: View {
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        in: Circle()
                     )
             } else {
-                Avatar(path: avatar, size: 56, radius: 14)
+                Avatar(path: avatar, size: 56, radius: 28, circle: true)
             }
 
             VStack(alignment: .leading, spacing: 5) {
@@ -627,10 +627,10 @@ struct WeatherOfficialView: View {
                     .background(
                         LinearGradient(colors: [Color(hex: 0x4C9DFF), Color(hex: 0x1558B8)],
                                        startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        in: Circle()
                     )
             } else {
-                Avatar(path: avatar, size: 50, radius: 13)
+                Avatar(path: avatar, size: 50, radius: 25, circle: true)
             }
 
             VStack(alignment: .leading, spacing: 4) {

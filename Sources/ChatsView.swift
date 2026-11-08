@@ -1405,7 +1405,7 @@ struct ChatsView: View {
                 HStack(spacing: 12) {
                     if officialRowAvatar.isEmpty {
                         ZStack {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            Circle()
                                 .fill(LinearGradient(
                                     colors: [Color(hex: 0x25B779), Color(hex: 0x0E6041)],
                                     startPoint: .topLeading,
@@ -1417,13 +1417,14 @@ struct ChatsView: View {
                         }
                         .frame(width: L.avatar, height: L.avatar)
                         .overlay {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            Circle()
                                 .stroke(Color.white.opacity(0.18), lineWidth: 0.7)
                         }
                     } else {
                         Avatar(path: officialRowAvatar,
                                size: L.avatar,
-                               radius: 14)
+                               radius: 14,
+                               circle: true)
                     }
 
                     VStack(alignment: .leading, spacing: 5) {
@@ -1521,10 +1522,11 @@ struct ChatsView: View {
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                in: Circle()
                             )
                     } else {
-                        Avatar(path: weatherRowAvatar, size: L.avatar, radius: 14)
+                        Avatar(path: weatherRowAvatar, size: L.avatar,
+                               radius: 14, circle: true)
                     }
 
                     VStack(alignment: .leading, spacing: 5) {

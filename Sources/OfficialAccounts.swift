@@ -193,9 +193,9 @@ struct OfficialAccountsView: View {
         Button { openAccountId = a.id; showAccount = true } label: {
             StarOrbitCard {
                 HStack(spacing: 13) {
-                    Avatar(path: a.avatarPath, size: 46, radius: 13, circle: false)
+                    Avatar(path: a.avatarPath, size: 46, radius: 23, circle: true)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            Circle()
                                 .stroke(OrbitTheme.divider, lineWidth: 0.6)
                         )
                     VStack(alignment: .leading, spacing: 5) {
@@ -325,9 +325,9 @@ struct OfficialAccountPage: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
-                Avatar(path: account?.avatarPath ?? "", size: 62, radius: 14, circle: false)
+                Avatar(path: account?.avatarPath ?? "", size: 62, radius: 31, circle: true)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        Circle()
                             .stroke(C.hairline, lineWidth: 0.5)
                     )
                 VStack(alignment: .leading, spacing: 6) {
@@ -496,7 +496,8 @@ struct ArticleView: View {
                             .padding(.horizontal, 20)
 
                         HStack(spacing: 8) {
-                            Avatar(path: account?.avatarPath ?? "", size: 26, radius: 7, circle: false)
+                            Avatar(path: account?.avatarPath ?? "", size: 26,
+                                   radius: 13, circle: true)
                             Text(account?.name ?? "").font(pf(13)).foregroundColor(C.link)
                             if !(a.author ?? "").isEmpty, a.author != account?.name {
                                 Text(a.author ?? "").font(pf(12.5)).foregroundColor(C.subLabel)
@@ -529,7 +530,7 @@ struct ArticleView: View {
 
             if let acc = account {
                 HStack(spacing: 12) {
-                    Avatar(path: acc.avatarPath, size: 34, radius: 9, circle: false)
+                    Avatar(path: acc.avatarPath, size: 34, radius: 17, circle: true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(acc.name).font(pf(14, .medium)).foregroundColor(C.label)
                         Text(acc.typeLabel).font(pf(11)).foregroundColor(C.subLabel)
@@ -669,7 +670,7 @@ struct OAArticleCard: View {
 
                     HStack(spacing: 6) {
                         Avatar(path: (o["accountAvatar"] as? String) ?? "",
-                               size: 15, radius: 4, circle: false)
+                               size: 15, radius: 7.5, circle: true)
                         Text((o["accountName"] as? String) ?? Tr("公众号"))
                             .lineLimit(1)
                         Spacer(minLength: 0)
