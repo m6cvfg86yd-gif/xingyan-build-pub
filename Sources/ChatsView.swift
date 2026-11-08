@@ -325,7 +325,7 @@ struct ChatRow: View {
 
     private var textColumn: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(displayTitle)
                     .font(pfStyled(size: 17, weight: .semibold))
                     .foregroundStyle(ChatListVisual.ink)
