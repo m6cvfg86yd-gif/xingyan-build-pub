@@ -253,34 +253,43 @@ struct BubbleFill: View {
 
 enum PanelKind { case none, emoji, plus, gift, mention }
 
-private struct ChatWallpaperScrim: View {
-    let topVisible: Bool
-    let bottomVisible: Bool
+private enum ChatImmersiveEdge { case top, bottom }
+
+private struct ChatImmersiveEdgeMask: View {
+    let edge: ChatImmersiveEdge
+    let tint: Color?
+    let scheme: ColorScheme
+    var lighten = false
+    var immersive = false
 
     var body: some View {
-        GeometryReader { geo in
-            let height = max(1, geo.size.height)
-            let topEnd = min(0.28, max(0.13, (L.safeTop + L.navH + 22) / height))
-            let bottomStart = min(0.82, max(0.56,
-                1 - (L.safeBottom + L.inputH + 74) / height))
-            let topColor = topVisible ? ChatTheme.page : Color.clear
-            let bottomColor = bottomVisible ? ChatTheme.page : Color.clear
-
-            LinearGradient(
-                stops: [
-                    .init(color: topColor, location: 0),
-                    .init(color: topColor.opacity(0.98), location: topEnd * 0.62),
-                    .init(color: .clear, location: topEnd),
-                    .init(color: .clear, location: bottomStart),
-                    .init(color: bottomColor.opacity(0.96),
-                          location: min(0.94, bottomStart + 0.07)),
-                    .init(color: bottomColor, location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
+        ZStack {
+            Group {
+                if immersive {
+                    Rectangle().fill(.thickMaterial)
+                } else {
+                    Rectangle().fill(ChatTheme.page)
+                }
+            }
+            .mask(
+                LinearGradient(
+                    colors: [Color.black, Color.black.opacity(0.76), Color.clear],
+                    startPoint: edge == .top ? .top : .bottom,
+                    endPoint: edge == .top ? .bottom : .top
+                )
             )
+
+            if let tint {
+                LinearGradient(
+                    colors: edge == .top
+                        ? [tint.opacity(scheme == .dark ? 0.30 : 0.18), tint.opacity(0.02)]
+                        : [tint.opacity(0.02), tint.opacity(scheme == .dark ? 0.32 : 0.20)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
         }
-        .ignoresSafeArea()
+        .opacity(lighten ? 0.62 : 1)
         .allowsHitTesting(false)
     }
 }
@@ -1272,12 +1281,6 @@ struct ChatDetailView: View {
                 )
                 .zIndex(1)
 
-            ChatWallpaperScrim(
-                topVisible: !hidesChatNavigation,
-                bottomVisible: !(panel == .emoji && emojiPanelExpanded)
-            )
-            .zIndex(2)
-
             if isStarWorld && newsMode {
                 NewsFeedView(compact: true)
                     .zIndex(12)
@@ -1429,6 +1432,16 @@ struct ChatDetailView: View {
                     }
                 }
                 .zIndex(2)
+            }
+            .background {
+                if !hidesChatNavigation {
+                    ChatImmersiveEdgeMask(edge: .top,
+                                          tint: wallpaperTopTint,
+                                          scheme: scheme,
+                                          immersive: false)
+                        .ignoresSafeArea(edges: .top)
+                        .transition(.opacity)
+                }
             }
             .animation(.easeOut(duration: 0.18), value: hidesChatNavigation)
 
@@ -3528,6 +3541,16 @@ struct ChatDetailView: View {
         }
         .onDisappear { dictation.stop() }
 
+        .background {
+            if !(panel == .emoji && emojiPanelExpanded) {
+                ChatImmersiveEdgeMask(edge: .bottom,
+                                      tint: wallpaperBottomTint,
+                                      scheme: scheme,
+                                      lighten: kbUp,
+                                      immersive: hidesChatNavigation)
+                    .ignoresSafeArea(edges: .bottom)
+            }
+        }
     }
 
     @ViewBuilder
