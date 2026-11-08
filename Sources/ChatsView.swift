@@ -993,7 +993,7 @@ struct ChatsView: View {
                         .font(pfStyled(size: 9.5, weight: .bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, unreadTotal > 9 ? 5 : 4)
-                        .frame(minWidth: 18, height: 18)
+                        .frame(minWidth: 18, minHeight: 18)
                         .background(Capsule().fill(Color(.systemRed)))
                 }
 
