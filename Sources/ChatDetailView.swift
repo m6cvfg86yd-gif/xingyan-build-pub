@@ -506,6 +506,7 @@ struct ChatDetailView: View {
 
     @State private var announcePage = ""
     @State private var showAnnouncePage = false
+    @State private var showChatFavorites = false
     @State private var showCall = false
 
     @State private var redialAsk: Message? = nil
@@ -924,6 +925,95 @@ struct ChatDetailView: View {
         if loadingAllGroupHistory { return Tr("正在同步全部消息…") }
         guard !peerTyping.isEmpty else { return navTitle }
         return isGroup ? "有人正在输入…" : "对方正在输入…"
+    }
+
+    private var chatNavigationStatus: String {
+        guard !selectMode else { return "" }
+        if !peerTyping.isEmpty {
+            return isGroup ? "有人正在输入…" : "对方正在输入…"
+        }
+        if isGroup {
+            let count = liveChat.memberCount ?? (liveChat.memberIds?.count ?? 0)
+            return count > 0 ? "\(count)人星友连接" : ""
+        }
+        if let peer = peerUserId, app.contact(for: peer)?.online == true {
+            return "在线"
+        }
+        return ""
+    }
+
+    private var chatNavigationTitle: AnyView {
+        let text = (selectMode || loadingAllGroupHistory) ? navTitleShown : navTitle
+        return AnyView(
+            VStack(spacing: 1) {
+                HStack(spacing: 5) {
+                    Text(text)
+                        .font(pf(17, .semibold))
+                        .foregroundColor(adaptiveTopInk)
+                        .lineLimit(1)
+                        .shadow(color: adaptiveTopOutline, radius: 0.8, x: 0.6, y: 0)
+                        .shadow(color: adaptiveTopOutline, radius: 0.8, x: -0.6, y: 0)
+                    if !selectMode && chat.showsOfficialMark {
+                        OfficialMark()
+                    }
+                }
+                if !chatNavigationStatus.isEmpty {
+                    Text(chatNavigationStatus)
+                        .font(pf(10.5, .medium))
+                        .foregroundColor(adaptiveTopInk.opacity(0.68))
+                        .lineLimit(1)
+                        .shadow(color: adaptiveTopOutline, radius: 0.6, x: 0.4, y: 0)
+                        .shadow(color: adaptiveTopOutline, radius: 0.6, x: -0.4, y: 0)
+                }
+            }
+        )
+    }
+
+    private var chatSectionBar: some View {
+        HStack(spacing: 0) {
+            chatSectionButton("聊天", active: !(isStarWorld && newsMode), enabled: true) {
+                if isStarWorld && newsMode {
+                    withAnimation(.easeInOut(duration: 0.18)) { newsMode = false }
+                }
+            }
+            chatSectionButton("世界", active: isStarWorld && newsMode, enabled: isStarWorld) {
+                guard isStarWorld else {
+                    app.show(Tr("当前会话暂无世界内容"))
+                    return
+                }
+                withAnimation(.easeInOut(duration: 0.18)) { newsMode = true }
+            }
+            chatSectionButton("公告",
+                              active: false,
+                              enabled: isGroup && !groupAnnouncement.isEmpty) {
+                announcePage = groupAnnouncement
+                showAnnouncePage = true
+            }
+            chatSectionButton("置顶", active: false, enabled: true) {
+                app.show(Tr("暂无置顶消息"))
+            }
+            chatSectionButton("收藏", active: false, enabled: true) {
+                showChatFavorites = true
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 36)
+    }
+
+    private func chatSectionButton(_ title: String,
+                                   active: Bool,
+                                   enabled: Bool,
+                                   action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(Tr(title))
+                .font(pf(13, active ? .semibold : .medium))
+                .foregroundColor(adaptiveTopInk.opacity(active ? 1 : (enabled ? 0.58 : 0.28)))
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 
     private var navBackAction: (() -> Void)? {
@@ -1359,24 +1449,16 @@ struct ChatDetailView: View {
 
             AnyView(VStack(spacing: 0) {
 
+            VStack(spacing: 0) {
             NavBar(title: navTitleShown, back: navBackAction,
                    titleColor: adaptiveTopInk,
                    titleOutline: adaptiveTopOutline,
+                   backColor: adaptiveTopInk,
                    hideChromeExceptBack: hidesChatNavigation,
-                   titleView: (!selectMode && peerTyping.isEmpty && chat.showsOfficialMark) ? AnyView(
-                       HStack(spacing: 6) {
-                           Text(navTitle)
-                               .font(pf(17, .semibold))
-                               .foregroundColor(adaptiveTopInk)
-                               .shadow(color: adaptiveTopOutline, radius: 0.8, x: 0.7, y: 0)
-                               .shadow(color: adaptiveTopOutline, radius: 0.8, x: -0.7, y: 0)
-                               .shadow(color: adaptiveTopOutline, radius: 0.8, x: 0, y: 0.7)
-                           OfficialMark()
-                       }
-                   ) : nil,
+                   titleView: chatNavigationTitle,
                    leftExtra: selectMode ? nil : leftUnreadBadge,
-                   backGlass: true,
-                   floating: true,
+                   backGlass: false,
+                   floating: false,
                    titleGlass: false,
                    rightGlass: false) {
                 HStack(spacing: 0) {
@@ -1391,18 +1473,8 @@ struct ChatDetailView: View {
                                 .frame(width: 52, height: 36)
                         }
                         .buttonStyle(.plain)
-                    } else if isStarWorld {
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.18)) { newsMode.toggle() }
-                        } label: {
-                            Text(newsMode ? Tr("对话") : Tr("新闻"))
-                                .font(pf(15.5))
-                                .foregroundColor(adaptiveTopInk)
-                                .frame(width: 52, height: 36)
-                        }
-                        .buttonStyle(.plain)
                     }
-                    if !selectMode && (!isStarWorld || !newsMode) {
+                    if !selectMode {
                         Button {
                             CrashCatcher.markStep("三点", isGroup
                                 ? "群聊三点点击 \(chat.id)"
@@ -1421,6 +1493,10 @@ struct ChatDetailView: View {
                     }
                 }
                 .zIndex(2)
+            }
+            if !selectMode && !hidesChatNavigation {
+                chatSectionBar
+            }
             }
             .background {
                 if !hidesChatNavigation || !isGroup {
@@ -1816,6 +1892,14 @@ struct ChatDetailView: View {
 
         .fullScreenCover(isPresented: $showAnnouncePage) {
             GroupAnnounceView(text: announcePage, groupName: isGroup ? chat.name : "")
+        }
+        .sheet(isPresented: $showChatFavorites) {
+            NavigationStack {
+                FavoritesView()
+                    .environmentObject(app)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .hidesTabBar()
         .sheet(isPresented: Binding(
@@ -2763,15 +2847,26 @@ struct ChatDetailView: View {
             } label: {
                 Text(unreadHere > 99 ? "99+" : "\(unreadHere)")
                     .font(pfStyled(size: 11.5, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(adaptiveTopInk)
                     .padding(.horizontal, 6)
-                    .frame(minWidth: 20, minHeight: 18)
-
+                    .frame(minWidth: 20, minHeight: 20)
                     .background(
-                        Capsule()
-                            .fill(C.red)
-                            .overlay(Capsule().stroke(Color.white.opacity(0.9), lineWidth: 1.2))
+                        ZStack {
+                            Capsule().fill(.ultraThinMaterial)
+                            Capsule().fill(
+                                topBarUsesLightInk
+                                    ? Color.black.opacity(0.20)
+                                    : Color.white.opacity(0.24)
+                            )
+                            Capsule().stroke(
+                                topBarUsesLightInk
+                                    ? Color.white.opacity(0.14)
+                                    : Color.black.opacity(0.07),
+                                lineWidth: 0.5
+                            )
+                        }
                     )
+                    .shadow(color: Color.black.opacity(0.10), radius: 4, y: 1)
             }
             .buttonStyle(.plain)
             .padding(.trailing, 2)

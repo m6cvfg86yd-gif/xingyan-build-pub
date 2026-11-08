@@ -775,6 +775,7 @@ struct NavBar<Right: View>: View {
     let onLongPressTitle: (() -> Void)?
     private let titleColor: Color?
     private let titleOutline: Color?
+    private let backColor: Color?
     private let hideChromeExceptBack: Bool
 
     let leftExtra: AnyView?
@@ -792,6 +793,7 @@ struct NavBar<Right: View>: View {
          onLongPressTitle: (() -> Void)? = nil,
          titleColor: Color? = nil,
          titleOutline: Color? = nil,
+         backColor: Color? = nil,
          hideChromeExceptBack: Bool = false,
          titleView: AnyView? = nil,
          leftExtra: AnyView? = nil,
@@ -807,6 +809,7 @@ struct NavBar<Right: View>: View {
         self.onLongPressTitle = onLongPressTitle
         self.titleColor = titleColor
         self.titleOutline = titleOutline
+        self.backColor = backColor
         self.hideChromeExceptBack = hideChromeExceptBack
         self.leftExtra = leftExtra
         self.backGlass = backGlass
@@ -860,7 +863,7 @@ struct NavBar<Right: View>: View {
                     Button(action: back) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(backColor ?? Color.accentColor)
                             .frame(width: 44, height: 44)
                             .background {
                                 if backGlass {
