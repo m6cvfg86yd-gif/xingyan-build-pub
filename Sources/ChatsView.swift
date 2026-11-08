@@ -192,61 +192,12 @@ private struct OfficialRowAdminEditor: View {
     }
 }
 
-private struct PresenceNotchMask: Shape {
-    let holeDiameter: CGFloat
-    let centerInset: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path(rect)
-        let centerX = rect.maxX - centerInset
-        let centerY = rect.maxY - centerInset
-        let hole = CGRect(
-            x: centerX - holeDiameter / 2,
-            y: centerY - holeDiameter / 2,
-            width: holeDiameter,
-            height: holeDiameter
-        )
-        path.addEllipse(in: hole)
-        return path
-    }
-}
-
 private struct XingyanPresenceDot: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var breathing = false
-
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color.dyn(0xFFFFFF, 0x121212))
-                .frame(width: 26, height: 26)
-
-            Circle()
-                .fill(AngularGradient(
-                    colors: [
-                        Color(hex: 0x24C77F),
-                        Color(hex: 0x54DDA0),
-                        Color(hex: 0xE5BE62),
-                        Color(hex: 0x24C77F)
-                    ],
-                    center: .center
-                ))
-                .frame(width: 22, height: 22)
-
-            Image(systemName: "sparkle")
-                .font(.system(size: 7.5, weight: .bold))
-                .foregroundStyle(.white.opacity(0.94))
-        }
-        .frame(width: 26, height: 26)
-        .shadow(color: Color(hex: 0x24C77F).opacity(0.30), radius: 4.5, y: 1)
-        .scaleEffect(breathing ? 1.04 : 0.98)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
-                breathing = true
-            }
-        }
-        .accessibilityHidden(true)
+        Circle()
+            .fill(Color(hex: 0x4FD229))
+            .frame(width: 16, height: 16)
+            .accessibilityHidden(true)
     }
 }
 
@@ -457,19 +408,10 @@ struct ChatRow: View {
                        level: chat.qqLevel ?? 0)
             }
             }
-            .mask {
-                if groupHasOnlineMember {
-                    PresenceNotchMask(holeDiameter: 30, centerInset: 6)
-                        .fill(Color.white, style: FillStyle(eoFill: true))
-                } else {
-                    Rectangle().fill(Color.white)
-                }
-            }
 
             .overlay(alignment: .bottomTrailing) {
                 if groupHasOnlineMember {
                     XingyanPresenceDot()
-                    .offset(x: 7, y: 7)
                 } else if let icon = chat.moodIcon, !icon.isEmpty {
                     Text(icon)
                         .font(pfStyled(size: 9))
