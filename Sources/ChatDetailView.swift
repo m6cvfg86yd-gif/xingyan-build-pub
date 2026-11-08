@@ -253,40 +253,16 @@ struct BubbleFill: View {
 
 enum PanelKind { case none, emoji, plus, gift, mention }
 
-private enum ChatImmersiveEdge { case top, bottom }
-
 private struct ChatImmersiveEdgeMask: View {
-    let edge: ChatImmersiveEdge
-    let tint: Color?
-    let scheme: ColorScheme
     var lighten = false
     var immersive = false
 
     var body: some View {
-        ZStack {
-            Group {
-                if immersive {
-                    Rectangle().fill(.thickMaterial)
-                } else {
-                    Rectangle().fill(ChatTheme.page)
-                }
-            }
-            .mask(
-                LinearGradient(
-                    colors: [Color.black, Color.black.opacity(0.76), Color.clear],
-                    startPoint: edge == .top ? .top : .bottom,
-                    endPoint: edge == .top ? .bottom : .top
-                )
-            )
-
-            if let tint {
-                LinearGradient(
-                    colors: edge == .top
-                        ? [tint.opacity(scheme == .dark ? 0.30 : 0.18), tint.opacity(0.02)]
-                        : [tint.opacity(0.02), tint.opacity(scheme == .dark ? 0.32 : 0.20)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+        Group {
+            if immersive {
+                Rectangle().fill(.thickMaterial)
+            } else {
+                Rectangle().fill(ChatTheme.page)
             }
         }
         .opacity(lighten ? 0.62 : 1)
@@ -1435,10 +1411,7 @@ struct ChatDetailView: View {
             }
             .background {
                 if !hidesChatNavigation {
-                    ChatImmersiveEdgeMask(edge: .top,
-                                          tint: wallpaperTopTint,
-                                          scheme: scheme,
-                                          immersive: false)
+                    ChatImmersiveEdgeMask(immersive: false)
                         .ignoresSafeArea(edges: .top)
                         .transition(.opacity)
                 }
@@ -3543,10 +3516,7 @@ struct ChatDetailView: View {
 
         .background {
             if !(panel == .emoji && emojiPanelExpanded) {
-                ChatImmersiveEdgeMask(edge: .bottom,
-                                      tint: wallpaperBottomTint,
-                                      scheme: scheme,
-                                      lighten: kbUp,
+                ChatImmersiveEdgeMask(lighten: kbUp,
                                       immersive: hidesChatNavigation)
                     .ignoresSafeArea(edges: .bottom)
             }
