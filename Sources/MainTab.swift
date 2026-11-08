@@ -1225,6 +1225,8 @@ struct GroupCard<Content: View>: View {
     }
 
     var body: some View {
+        let themedCard = tone != .standard
+        let radius: CGFloat = themedCard ? 16 : (scheme == .dark ? 14 : 0)
         if glass && scheme != .dark {
             VStack(spacing: 0) { content }
                 .background {
@@ -1245,16 +1247,17 @@ struct GroupCard<Content: View>: View {
         } else {
             VStack(spacing: 0) { content }
                 .background(bg ?? resolvedBackground)
-                .clipShape(RoundedRectangle(cornerRadius: scheme == .dark ? 14 : 0,
+                .clipShape(RoundedRectangle(cornerRadius: radius,
                                             style: .continuous))
                 .overlay {
-                    if scheme == .dark {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(Color.white.opacity(0.11), lineWidth: 0.7)
+                    if themedCard || scheme == .dark {
+                        RoundedRectangle(cornerRadius: radius, style: .continuous)
+                            .stroke(Color.primary.opacity(scheme == .dark ? 0.10 : 0.065),
+                                    lineWidth: 0.7)
                     }
                 }
-                .padding(.horizontal, scheme == .dark ? 12 : 0)
-                .padding(.bottom, scheme == .dark ? 8 : 0)
+                .padding(.horizontal, themedCard ? 0 : (scheme == .dark ? 12 : 0))
+                .padding(.bottom, themedCard ? 10 : (scheme == .dark ? 8 : 0))
         }
     }
 

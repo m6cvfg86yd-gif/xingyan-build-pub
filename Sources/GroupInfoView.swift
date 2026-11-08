@@ -229,10 +229,15 @@ struct GroupInfoView: View {
     private func chatAnnounceFromList() -> String { chat.announce ?? "" }
 
     private var announceEditor: some View {
-
-        GroupAnnounceEditor(text: $announceDraft, editable: isOwner,
-                            onClose: { closeEditors() },
-                            onPublish: { saveAnnounce() })
+        GroupAnnounceView(
+            text: announce,
+            groupName: chat.name,
+            editable: isOwner,
+            onSave: { value in
+                announceDraft = value
+                saveAnnounce()
+            }
+        )
     }
 
     private var renameEditor: some View {
@@ -494,16 +499,16 @@ struct GroupInfoView: View {
                     if (chat.avatar ?? "").isEmpty {
                         GroupAvatarMosaic(chatId: chat.id,
                                           memberIds: chat.memberIds ?? members.map(\.id),
-                                          size: 64, radius: 14)
+                                          size: 68, radius: 16)
                     } else {
-                        Avatar(path: chat.avatar ?? "", size: 64, radius: 14, group: true)
+                        Avatar(path: chat.avatar ?? "", size: 68, radius: 16, group: true)
                     }
                 }
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(Color.white.opacity(0.35), lineWidth: 0.8))
                 VStack(alignment: .leading, spacing: 6) {
                     Text(chat.name)
-                        .font(pf(17, .semibold))
+                        .font(pf(18, .semibold))
                         .foregroundColor(C.label)
                         .lineLimit(1)
                     Text(memberLine)
@@ -514,7 +519,7 @@ struct GroupInfoView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 15)
+            .padding(.vertical, 18)
         }
     }
 
@@ -646,8 +651,8 @@ struct GroupInfoView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(ChatInfoCardTint.group))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(C.hairline, lineWidth: 0.6))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(ChatInfoCardTint.group))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(C.hairline, lineWidth: 0.6))
         .shadow(color: Color.black.opacity(0.05), radius: 8, y: 2)
     }
 
@@ -1066,10 +1071,10 @@ struct GroupAnnounceEditor: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: Tr("群公告"), back: { onClose() }) {
+            NavBar(title: Tr("编辑群公告"), back: { onClose() }) {
                 if editable {
                     Button { onPublish() } label: {
-                        Text(Tr("发布"))
+                        Text(Tr("完成"))
                             .font(pf(14.5, .medium))
                             .foregroundColor(.white)
                             .padding(.horizontal, 15)
@@ -1125,7 +1130,7 @@ struct GroupAnnounceEditor: View {
             .background(C.cardBg)
 
             HStack(spacing: 8) {
-                Text(editable ? Tr("发布后群里会收到一条公告") : Tr("群公告只有群主能改"))
+                Text(editable ? Tr("完成并保存后，群里会收到公告") : Tr("群公告只有群主能改"))
                     .font(pf(12)).foregroundColor(C.subLabel)
                 Spacer(minLength: 0)
                 Text("\(text.count)/\(limit)")
@@ -1144,13 +1149,36 @@ struct GroupAnnounceEditor: View {
 struct GroupAnnounceView: View {
     let text: String
     var groupName: String = ""
+    var editable: Bool = false
+    var onSave: ((String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
+    @State private var editing = false
+    @State private var draft = ""
+
+    private var trimmed: String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: Tr("群公告"), back: { dismiss() })
+            NavBar(title: Tr("群公告"), back: { dismiss() }) {
+                if editable {
+                    Button {
+                        draft = text
+                        editing = true
+                    } label: {
+                        Text(Tr("编辑"))
+                            .font(pf(15, .medium))
+                            .foregroundColor(C.green)
+                            .padding(.horizontal, 14)
+                            .frame(height: 34)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(editing)
+                }
+            }
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 12) {
+                VStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 10) {
                             Image(systemName: "megaphone.fill")
@@ -1160,7 +1188,7 @@ struct GroupAnnounceView: View {
                                 .background(C.green.opacity(0.10))
                                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(Tr("群公告"))
+                                Text(trimmed.isEmpty ? Tr("暂无群公告") : Tr("群公告"))
                                     .font(pf(16.5, .semibold))
                                     .foregroundColor(C.label)
                                 if !groupName.isEmpty {
@@ -1177,20 +1205,41 @@ struct GroupAnnounceView: View {
 
                         HairLine(inset: 18)
 
-                        Text(text)
-                            .font(pf(16))
-                            .foregroundColor(C.label)
-                            .lineSpacing(6)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if trimmed.isEmpty {
+                            VStack(spacing: 9) {
+                                Image(systemName: "text.alignleft")
+                                    .font(.system(size: 25, weight: .light))
+                                    .foregroundColor(C.subLabel.opacity(0.62))
+                                Text(Tr("暂时没有群公告"))
+                                    .font(pf(15, .medium))
+                                    .foregroundColor(C.label)
+                                Text(editable ? Tr("点右上角“编辑”添加公告") : Tr("群主发布后会显示在这里"))
+                                    .font(pf(12.5))
+                                    .foregroundColor(C.subLabel)
+                            }
+                            .frame(maxWidth: .infinity)
                             .padding(.horizontal, 18)
-                            .padding(.vertical, 18)
+                            .padding(.vertical, 34)
+                        } else {
+                            Text(text)
+                                .font(pf(16))
+                                .foregroundColor(C.label)
+                                .lineSpacing(7)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 20)
+                        }
                     }
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(C.cardBg))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(C.cardBg))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(C.hairline.opacity(0.72), lineWidth: 0.6))
 
-                    Text(Tr("群公告仅群成员可见"))
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 9.5, weight: .semibold))
+                        Text(Tr("群公告仅群成员可见"))
+                    }
                         .font(pf(11.5))
                         .foregroundColor(C.subLabel)
                 }
@@ -1204,6 +1253,19 @@ struct GroupAnnounceView: View {
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
+        .fullScreenCover(isPresented: $editing) {
+            GroupAnnounceEditor(
+                text: $draft,
+                editable: true,
+                onClose: { editing = false },
+                onPublish: {
+                    let value = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !value.isEmpty else { return }
+                    onSave?(value)
+                    editing = false
+                }
+            )
+        }
     }
 }
 
@@ -1351,13 +1413,13 @@ struct DirectChatInfoView: View {
     private var peerCard: some View {
         GroupCard {
             HStack(spacing: 12) {
-                Avatar(path: peer?.avatarPath ?? "", size: 60, radius: 14, level: peer?.qqLevel ?? 0)
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                Avatar(path: peer?.avatarPath ?? "", size: 68, radius: 16, level: peer?.qqLevel ?? 0)
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(Color.white.opacity(0.35), lineWidth: 0.8))
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Text(peer?.name ?? chat.name)
-                            .font(pf(17, .semibold))
+                            .font(pf(18, .semibold))
                             .foregroundColor(C.label)
                             .lineLimit(1)
                         if let lv = peer?.qqLevel, lv > 0 {
@@ -1374,11 +1436,16 @@ struct DirectChatInfoView: View {
                     }
                 }
                 Spacer(minLength: 0)
+                if peer != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(C.subLabel.opacity(0.65))
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture { if peer != nil { showCard = true } }
             .padding(.horizontal, 16)
-            .padding(.vertical, 15)
+            .padding(.vertical, 18)
         }
     }
 
@@ -1702,12 +1769,12 @@ private struct ChatInfoSectionTitle: View {
 
     var body: some View {
         Text(text)
-            .font(pf(12.5))
+            .font(pf(13, .semibold))
             .foregroundColor(C.subLabel)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
-            .padding(.top, 14)
-            .padding(.bottom, 7)
+            .padding(.top, 20)
+            .padding(.bottom, 8)
     }
 }
 
@@ -1745,7 +1812,7 @@ private struct ChatInfoTextRow: View {
                 }
             }
             .padding(.horizontal, 16)
-            .frame(minHeight: 52)
+            .frame(minHeight: 56)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1777,7 +1844,7 @@ private struct ChatInfoToggleRow: View {
                 .tint(C.green)
         }
         .padding(.horizontal, 16)
-        .frame(minHeight: 52)
+        .frame(minHeight: 56)
     }
 }
 
