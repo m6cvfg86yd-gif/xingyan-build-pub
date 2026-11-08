@@ -42,7 +42,7 @@ jobs:
       - name: 下载 WebRTC 框架
         run: |
           set -e
-          if ! curl -L --fail --retry 2 --retry-delay 2 --connect-timeout 15 --max-time 180 -o /tmp/webrtc.zip \
+          if ! curl -L --fail --retry 2 --retry-delay 2 --connect-timeout 15 --max-time 600 -o /tmp/webrtc.zip \
               https://aa.x8iu.com/webrtc/WebRTC-M153.xcframework.zip; then
             echo "自家镜像拿不到，回退 GitHub 官方"
             curl -L --fail --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 900 -o /tmp/webrtc.zip \
