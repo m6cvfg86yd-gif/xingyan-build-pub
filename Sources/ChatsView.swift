@@ -1656,17 +1656,6 @@ struct ChatsView: View {
                     }
                     .id(chatFilter)
                     .coordinateSpace(name: "chatsScroll")
-                    .overlay(alignment: .topLeading) {
-                        ScrollOffsetProbe(
-                            onChange: { _, active in
-                                if active, scrolled > 8 {
-                                    setFilterHidden(true)
-                                }
-                            }
-                        )
-                        .frame(width: 1, height: 1)
-                        .allowsHitTesting(false)
-                    }
 
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 8)
@@ -1731,6 +1720,8 @@ struct ChatsView: View {
                         }
                         if s < 1 {
                             setFilterHidden(false)
+                        } else if s > 8 {
+                            setFilterHidden(true)
                         }
 
                         let p = heavyPull(max(0, -v))
