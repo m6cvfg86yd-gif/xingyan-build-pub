@@ -1962,6 +1962,11 @@ struct ChatsView: View {
 
                     Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .zIndex(20)
+                .transaction { transaction in
+                    transaction.animation = nil
+                }
 
                 VStack(spacing: 0) {
                     Color.clear
