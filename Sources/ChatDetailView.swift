@@ -3253,7 +3253,7 @@ struct ChatDetailView: View {
                         ThreeWaveMicGlyph(ink: adaptiveMicInk)
                     }
                 }
-                    .frame(width: 36, height: 36)
+                    .frame(width: 32, height: 40)
                     .scaleEffect(pressStart != nil ? 0.93 : 1)
                     .animation(.spring(response: 0.20, dampingFraction: 0.74),
                                value: pressStart)
@@ -3402,7 +3402,7 @@ struct ChatDetailView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 6)
                 .frame(height: composerInputHeight)
                 .background {
                     if recorder.recording {
@@ -3412,10 +3412,6 @@ struct ChatDetailView: View {
                                   : Color.dyn(0xF2F2F2, 0x242427))
                     }
                 }
-                .shadow(color: focused ? C.green.opacity(0.13) : Color.black.opacity(0.05),
-                        radius: focused ? 9 : 4,
-                        y: 2)
-
                 if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
 
                     HStack(spacing: 2) {
@@ -3427,7 +3423,7 @@ struct ChatDetailView: View {
                                 .font(.system(size: max(19, L.composerIcon - 3), weight: .medium))
                                 .symbolRenderingMode(.monochrome)
                                 .foregroundStyle(panel == .emoji ? C.green : adaptiveEmojiInk)
-                                .frame(width: L.composerIconBox, height: L.composerIconBox)
+                                .frame(width: 32, height: 40)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -3474,27 +3470,26 @@ struct ChatDetailView: View {
                     .transition(.scale(scale: 0.72).combined(with: .opacity))
                 }
             }
-            .padding(.leading, 10)
-            .padding(.trailing, 11)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 2)
             .background {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    Capsule(style: .continuous)
                         .fill(.thinMaterial)
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    Capsule(style: .continuous)
                         .fill(composerUsesLightInk
-                              ? Color.black.opacity(0.40)
-                              : Color.white.opacity(0.68))
+                              ? Color.black.opacity(0.20)
+                              : Color.white.opacity(0.12))
                 }
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                Capsule(style: .continuous)
                     .stroke(composerUsesLightInk
-                            ? Color.white.opacity(0.13)
-                            : Color.black.opacity(0.06),
-                            lineWidth: 0.6)
+                            ? Color.white.opacity(0.10)
+                            : Color.black.opacity(0.035),
+                            lineWidth: 0.5)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .animation(.spring(response: 0.24, dampingFraction: 0.82),
                        value: input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
