@@ -98,8 +98,6 @@ jobs:
           APP="Payload/CHRISChat.app"
           rm -rf Payload
           mkdir -p "$APP"
-          rm -rf "$APP/WorldAssets"
-          cp -R WorldAssets "$APP/WorldAssets"
           cp Info.plist "$APP/Info.plist"
           cp PrivacyInfo.xcprivacy "$APP/PrivacyInfo.xcprivacy"
           cp AppIcon60x60@2x.png "$APP/"
