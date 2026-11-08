@@ -374,6 +374,14 @@ struct ChatRow: View {
     }
 
     private var mentionPreview: Text {
+        if isGroupAvatar {
+            let count = chat.memberCount ?? chat.memberIds?.count ?? 0
+            if count > 0 {
+                return Text(Lang.isEnglish
+                            ? "\(count) Xingyan friends connected"
+                            : "\(count)人星友连接")
+            }
+        }
         let raw = (chat.lastMessage?.preview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let kind = chat.lastMessage?.kind ?? ""
         let preview = kind == "pat"
