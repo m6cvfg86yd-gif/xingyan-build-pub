@@ -756,7 +756,12 @@ struct ChatsView: View {
     @State private var chatFilter: ChatFilter = .all
     @State private var cachedSnapshot = ChatFilterSnapshot(list: [], unreadCounts: [:])
     @Namespace private var filterSelectionNS
-    private let chatFilterH: CGFloat = 46
+    private var isIPhoneAir: Bool { AppInfo.deviceId == "iPhone18,4" }
+    private var chatsContentMaxWidth: CGFloat { isIPhoneAir ? 402 : L.width }
+    private var chatsContentSideInset: CGFloat {
+        max(0, (L.width - chatsContentMaxWidth) / 2)
+    }
+    private var chatFilterH: CGFloat { isIPhoneAir ? 40 : 46 }
     private var chatFilterVisible: Bool { UIConfig.num("chatsOrbitFilter", 1) > 0 }
     private var chatFilterOffset: CGFloat { chatFilterVisible ? chatFilterH : 0 }
     private var chatsCardStyle: Bool { false }
@@ -1088,6 +1093,8 @@ struct ChatsView: View {
             .clipShape(Capsule(style: .continuous))
         }
         .padding(.horizontal, ChatListVisual.headerLeading)
+        .frame(maxWidth: chatsContentMaxWidth)
+        .frame(maxWidth: .infinity)
         .frame(height: L.navH)
     }
 
@@ -1715,7 +1722,7 @@ struct ChatsView: View {
                 onHide: { clear in hide(chat, clear: clear) },
                 onDelete: { remove(chat) },
                 cardStyle: chatsCardStyle,
-                horizontalInset: chatsCardStyle ? chatsCardInset : 0
+                horizontalInset: chatsCardStyle ? chatsCardInset : chatsContentSideInset
             )
         }
     }
@@ -1729,7 +1736,9 @@ struct ChatsView: View {
                     VStack(spacing: 0) {
                         Color.clear.frame(height: L.safeTop + L.navH + chatFilterOffset)
                         officialConversationRow
+                            .frame(width: chatsContentMaxWidth)
                         weatherConversationRow
+                            .frame(width: chatsContentMaxWidth)
                         emptyView
                         Spacer(minLength: 0)
                     }
@@ -1739,7 +1748,9 @@ struct ChatsView: View {
 
                             Color.clear.frame(height: L.safeTop + L.navH + chatFilterOffset)
                             officialConversationRow
+                                .frame(width: chatsContentMaxWidth)
                             weatherConversationRow
+                                .frame(width: chatsContentMaxWidth)
                             if snapshot.list.isEmpty {
                                 Text(Tr("这个分类暂时没有会话"))
                                     .font(pf(14))
@@ -1915,6 +1926,8 @@ struct ChatsView: View {
                         .allowsHitTesting(false)
                     if chatFilterVisible {
                         chatFilterBar(unreadCounts: snapshot.unreadCounts)
+                            .frame(maxWidth: chatsContentMaxWidth)
+                            .frame(maxWidth: .infinity)
                             .offset(y: filterHidden ? -chatFilterH : 0)
                             .opacity(filterHidden ? 0 : 1)
                             .allowsHitTesting(!filterHidden)
