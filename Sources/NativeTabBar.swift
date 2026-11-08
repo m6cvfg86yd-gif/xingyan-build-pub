@@ -235,13 +235,11 @@ struct NativeTabBar: UIViewRepresentable {
         bar.unselectedItemTintColor = UIColor(OrbitTheme.secondary)
 
         let appearance = UITabBarAppearance()
-        appearance.configureWithDefaultBackground()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = nil
+        appearance.backgroundColor = .clear
+        appearance.shadowColor = .clear
         bar.isOpaque = false
-        if scheme == .dark {
-            // 深色页面与系统默认深色玻璃差一个黑阶；只校准材质底色，保留原生模糊。
-            appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-            appearance.backgroundColor = UIColor(C.pageBg).withAlphaComponent(0.38)
-        }
         let normalTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.secondary),
             .font: pfUIFont(10.5, .medium)
@@ -269,7 +267,7 @@ struct NativeTabBar: UIViewRepresentable {
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.isTranslucent = true
-        (bar as? CompactDotTabBar)?.clearsNativeBackdrop = false
+        (bar as? CompactDotTabBar)?.clearsNativeBackdrop = true
     }
 
     private func refresh(_ bar: UITabBar) {
