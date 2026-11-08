@@ -1145,7 +1145,7 @@ struct ChatDetailView: View {
     }
 
     private var composerTextInk: Color {
-        composerUsesLightInk ? .white : Color(hex: 0x161616)
+        composerUsesLightInk ? .white : Color(hex: 0x111111)
     }
 
     private var adaptiveComposerStroke: Color {
@@ -3510,8 +3510,8 @@ struct ChatDetailView: View {
                         .fill(.thinMaterial)
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(composerUsesLightInk
-                              ? Color.black.opacity(0.26)
-                              : Color.white.opacity(0.52))
+                              ? Color.black.opacity(0.40)
+                              : Color.white.opacity(0.68))
                 }
             }
             .overlay {
