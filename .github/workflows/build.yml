@@ -190,6 +190,7 @@ jobs:
             Sources/*.swift \
             -framework SwiftUI -framework UIKit -framework Foundation \
             -framework LocalAuthentication -framework AVFoundation \
+            -framework SceneKit \
             -framework WebRTC \
             -framework TXLiteAVSDK_TRTC \
             -framework AudioToolbox -framework CoreTelephony -framework CoreMedia \
