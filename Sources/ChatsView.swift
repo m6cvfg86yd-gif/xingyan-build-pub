@@ -15,6 +15,7 @@ private enum ChatListVisual {
     static let previewInk = Color.dyn(0xB2B2B2, 0x9E9FA5)
     static let timeInk = Color.dyn(0xCCCCCC, 0x74757B)
     static let rule = Color.dyn(0xECECED, 0x29292D)
+    static let badgeRing = Color.dyn(0xFFFFFF, 0x121212)
     static let chipInk = Color.dyn(0x62636A, 0xA8A9AF)
     static let selectedChipFill = Color.dyn(0x161823, 0xF1F1F3)
     static let selectedChipInk = Color.dyn(0xFFFFFF, 0x17171A)
@@ -319,8 +320,6 @@ struct ChatRow: View {
                     .foregroundStyle(ChatListVisual.timeInk)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
-
-                unreadUnderTime
             }
             .frame(minWidth: 54, alignment: .trailing)
         }
@@ -380,16 +379,23 @@ struct ChatRow: View {
     }
 
     @ViewBuilder
-    private var unreadUnderTime: some View {
+    private var unreadAvatarBadge: some View {
         if chat.unreadCount > 0 {
             if (chat.muted == true || chat.flagged == true), chat.bot != "qqnews" {
                 Circle()
                     .fill(ChatListVisual.timeInk)
                     .frame(width: 8, height: 8)
-                    .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.2))
+                    .overlay(Circle().stroke(ChatListVisual.badgeRing, lineWidth: 1.5))
             } else {
-                OrbitUnreadBadge(count: chat.unreadCount)
-                    .scaleEffect(0.92)
+                Text(chat.unreadCount > 99 ? "99+" : "\(chat.unreadCount)")
+                    .font(pfStyled(size: 9.5, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .padding(.horizontal, chat.unreadCount > 9 ? 5 : 0)
+                    .frame(minWidth: 18, minHeight: 18)
+                    .background(Capsule().fill(Color(hex: 0xFA5151)))
+                    .overlay(Capsule().stroke(ChatListVisual.badgeRing, lineWidth: 1.5))
             }
         }
     }
@@ -420,6 +426,10 @@ struct ChatRow: View {
                         .overlay(Circle().stroke(C.hairline, lineWidth: 0.5))
                         .offset(x: 5, y: 5)
                 }
+            }
+            .overlay(alignment: .topTrailing) {
+                unreadAvatarBadge
+                    .offset(x: 5, y: -5)
             }
     }
 }
