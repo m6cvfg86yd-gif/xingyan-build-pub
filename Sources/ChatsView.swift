@@ -335,12 +335,16 @@ struct ChatRow: View {
 
                 Spacer(minLength: 6)
 
-                Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .frame(minWidth: 42, alignment: .trailing)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(TimeFmt.list(chat.lastMessage?.createdAt ?? chat.updatedAt))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+
+                    unreadUnderTime
+                }
+                .frame(minWidth: 42, alignment: .trailing)
             }
 
             mentionPreview
@@ -398,18 +402,16 @@ struct ChatRow: View {
     }
 
     @ViewBuilder
-    private var unreadOnAvatar: some View {
+    private var unreadUnderTime: some View {
         if chat.unreadCount > 0 {
-
             if (chat.muted == true || chat.flagged == true), chat.bot != "qqnews" {
                 Circle()
                     .fill(OrbitTheme.tertiary)
-                    .frame(width: 7, height: 7)
-                    .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.4))
-                    .offset(x: 2, y: -2)
+                    .frame(width: 8, height: 8)
+                    .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.2))
             } else {
                 OrbitUnreadBadge(count: chat.unreadCount)
-                    .offset(x: 4, y: -4)
+                    .scaleEffect(0.92)
             }
         }
     }
@@ -449,10 +451,6 @@ struct ChatRow: View {
                         .overlay(Circle().stroke(C.hairline, lineWidth: 0.5))
                         .offset(x: 5, y: 5)
                 }
-            }
-
-            .overlay(alignment: .topTrailing) {
-                unreadOnAvatar
             }
     }
 }
