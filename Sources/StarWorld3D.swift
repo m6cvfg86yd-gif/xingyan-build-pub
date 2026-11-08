@@ -412,7 +412,13 @@ private struct StarWorldSceneView: UIViewRepresentable {
 
     private func makeScene(root: SCNNode, profile: StarAvatarProfile) -> SCNScene {
         if map == .plaza {
+            if let scene = StarWorldUSDZScene.makePlaza(root: root, profile: profile) {
+                return scene
+            }
             return StarWorldPlazaScene.make(root: root, profile: profile)
+        }
+        if let scene = StarWorldUSDZScene.makeRoom(root: root, profile: profile) {
+            return scene
         }
 
         let scene = SCNScene()
