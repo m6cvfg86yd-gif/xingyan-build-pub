@@ -2846,27 +2846,20 @@ struct ChatDetailView: View {
                 scrollTick += 1
             } label: {
                 Text(unreadHere > 99 ? "99+" : "\(unreadHere)")
-                    .font(pfStyled(size: 11.5, weight: .semibold))
-                    .foregroundColor(adaptiveTopInk)
+                    .font(pfStyled(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                    .monospacedDigit()
                     .padding(.horizontal, 6)
                     .frame(minWidth: 20, minHeight: 20)
                     .background(
-                        ZStack {
-                            Capsule().fill(.ultraThinMaterial)
-                            Capsule().fill(
-                                topBarUsesLightInk
-                                    ? Color.black.opacity(0.20)
-                                    : Color.white.opacity(0.24)
-                            )
-                            Capsule().stroke(
-                                topBarUsesLightInk
-                                    ? Color.white.opacity(0.14)
-                                    : Color.black.opacity(0.07),
-                                lineWidth: 0.5
-                            )
-                        }
+                        Capsule(style: .continuous)
+                            .fill(Color(hex: 0x07C160))
                     )
-                    .shadow(color: Color.black.opacity(0.10), radius: 4, y: 1)
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(Color.white.opacity(0.10), lineWidth: 0.5)
+                    )
+                    .shadow(color: Color.black.opacity(0.08), radius: 3, y: 1)
             }
             .buttonStyle(.plain)
             .padding(.trailing, 2)
