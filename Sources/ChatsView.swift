@@ -704,7 +704,8 @@ struct ChatsView: View {
         max(0, (L.width - chatsContentMaxWidth) / 2)
     }
     private var chatFilterH: CGFloat { isIPhoneAir ? 40 : 46 }
-    private var chatFilterVisible: Bool { UIConfig.num("chatsOrbitFilter", 1) > 0 }
+    private var chatsHeaderH: CGFloat { isIPhoneAir ? 56 : L.navH }
+    private var chatFilterVisible: Bool { UIConfig.num("chatsOrbitFilter", 0) > 0 }
     private var chatFilterOffset: CGFloat { chatFilterVisible ? chatFilterH : 0 }
     private var chatsCardStyle: Bool { false }
     private var chatsCardInset: CGFloat { max(8, UIConfig.num("chatsOrbitInset", 12)) }
@@ -757,6 +758,7 @@ struct ChatsView: View {
     @State private var openRow: String?
 
     @State private var showSearch = false
+    @State private var showChatFilterSheet = false
     @State private var showOfficialConversation = false
     @State private var showOfficialAdminEditor = false
     @State private var showOfficialIconPicker = false
@@ -853,6 +855,45 @@ struct ChatsView: View {
         chooseFilter(all[next])
     }
 
+    private var chatFilterSheet: some View {
+        NavigationStack {
+            List {
+                ForEach(ChatFilter.allCases) { item in
+                    Button {
+                        chooseFilter(item)
+                        showChatFilterSheet = false
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: item.symbol)
+                                .font(.system(size: 16, weight: .medium))
+                                .frame(width: 24)
+                            Text(Tr(item.rawValue))
+                                .font(.body)
+                            Spacer(minLength: 8)
+                            if chatFilter == item {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+                        .foregroundStyle(C.label)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .navigationTitle(Tr("筛选会话"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Tr("关闭")) { showChatFilterSheet = false }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
+
     private func chatFilterBar(unreadCounts: [ChatFilter: Int]) -> some View {
         GeometryReader { geo in
             let count = max(1, ChatFilter.allCases.count)
@@ -942,31 +983,51 @@ struct ChatsView: View {
     private var unreadTotal: Int { app.chats.reduce(0) { $0 + ($1.unread ?? 0) } }
 
     private var chatTopHeader: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Button {
                 showAccounts = true
             } label: {
                 Avatar(path: app.me?.avatarPath ?? "",
-                       size: max(44, L.avatar - 8), radius: 15)
+                       size: 40, radius: 13)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 15, style: .continuous)
-                            .stroke(OrbitTheme.jade.opacity(0.42), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            .stroke(ChatListVisual.rule, lineWidth: 0.5)
                     )
-                    .frame(width: L.avatar, alignment: .center)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("切换账号"))
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(app.me?.name ?? "星言")
-                    .font(pfStyled(size: 18, weight: .semibold))
+            HStack(spacing: 7) {
+                Text(C.tabText0)
+                    .font(pfStyled(size: 20, weight: .semibold))
                     .foregroundStyle(ChatListVisual.ink)
                     .lineLimit(1)
-                Text(app.offline ? Tr("离线")
-                     : (unreadTotal > 0 ? "\(unreadTotal) 条未读消息" : Tr("消息已读完")))
-                    .font(pfStyled(size: 11.5, weight: .medium))
-                    .foregroundStyle(ChatListVisual.previewInk)
-                    .lineLimit(1)
+
+                if unreadTotal > 0 {
+                    Text(unreadTotal > 99 ? "99+" : "\(unreadTotal)")
+                        .font(pfStyled(size: 9.5, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, unreadTotal > 9 ? 5 : 4)
+                        .frame(minWidth: 18, height: 18)
+                        .background(Capsule().fill(Color(.systemRed)))
+                } else if app.offline {
+                    Text(Tr("离线"))
+                        .font(pfStyled(size: 10.5, weight: .medium))
+                        .foregroundStyle(ChatListVisual.previewInk)
+                        .padding(.horizontal, 7)
+                        .frame(height: 18)
+                        .background(Capsule().fill(ChatListVisual.rule.opacity(0.7)))
+                }
+
+                if chatFilter != .all {
+                    Text(Tr(chatFilter.rawValue))
+                        .font(pfStyled(size: 10.5, weight: .semibold))
+                        .foregroundStyle(ChatListVisual.previewInk)
+                        .padding(.horizontal, 7)
+                        .frame(height: 18)
+                        .background(Capsule().fill(ChatListVisual.rule.opacity(0.7)))
+                }
             }
 
             Spacer(minLength: 6)
@@ -990,22 +1051,18 @@ struct ChatsView: View {
                 .buttonStyle(.plain)
             }
 
-            HStack(spacing: 0) {
+            HStack(spacing: 8) {
                 Button {
                     showSearch = true
                 } label: {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color.primary)
-                        .frame(width: 41, height: 38)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(ChatListVisual.ink)
+                        .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(NavPlusPressStyle())
                 .accessibilityLabel(Tr("搜索"))
-
-                Rectangle()
-                    .fill(Color.primary.opacity(0.20))
-                    .frame(width: 0.5, height: 16)
 
                 Button {
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
@@ -1013,31 +1070,19 @@ struct ChatsView: View {
                     }
                 } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 16.5, weight: .semibold))
-                        .foregroundStyle(Color.primary)
-                        .frame(width: 41, height: 38)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(ChatListVisual.ink)
+                        .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(NavPlusPressStyle())
                 .accessibilityLabel(Tr("更多"))
             }
-            .frame(height: 38)
-            .background {
-                GlassBackground(
-                    shape: Capsule(style: .continuous),
-                    opacity: 0.84,
-                    edgeAlpha: 0.72,
-                    shadow: true,
-                    seed: 0.62,
-                    native: true
-                )
-            }
-            .clipShape(Capsule(style: .continuous))
         }
-        .padding(.horizontal, ChatListVisual.headerLeading)
+        .padding(.horizontal, 16)
         .frame(maxWidth: chatsContentMaxWidth)
         .frame(maxWidth: .infinity)
-        .frame(height: L.navH)
+        .frame(height: chatsHeaderH)
     }
 
     private var pullDots: some View {
@@ -1072,7 +1117,7 @@ struct ChatsView: View {
         }
     }
 
-    private var floorInset: CGFloat { floorUp ? 0 : L.safeTop + L.navH }
+    private var floorInset: CGFloat { floorUp ? 0 : L.safeTop + chatsHeaderH }
 
     private var floorBottomHNow: CGFloat {
         let v = UIConfig.num("floorBottomH", 0)
@@ -1676,7 +1721,7 @@ struct ChatsView: View {
             ZStack(alignment: .top) {
                 if app.chats.isEmpty {
                     VStack(spacing: 0) {
-                        Color.clear.frame(height: L.safeTop + L.navH + chatFilterOffset)
+                        Color.clear.frame(height: L.safeTop + chatsHeaderH + chatFilterOffset)
                         officialConversationRow
                             .frame(width: chatsContentMaxWidth)
                         weatherConversationRow
@@ -1688,7 +1733,7 @@ struct ChatsView: View {
                     ScrollView {
                         LazyVStack(spacing: 0) {
 
-                            Color.clear.frame(height: L.safeTop + L.navH + chatFilterOffset)
+                            Color.clear.frame(height: L.safeTop + chatsHeaderH + chatFilterOffset)
                             officialConversationRow
                                 .frame(width: chatsContentMaxWidth)
                             weatherConversationRow
@@ -1832,7 +1877,7 @@ struct ChatsView: View {
 
                         .background {
                             MallSkyBackground(look: MallWeatherLook.current(mallWeather))
-                                .padding(.top, -(L.safeTop + L.navH))
+                                .padding(.top, -(L.safeTop + chatsHeaderH))
                                 .ignoresSafeArea()
                         }
                         .allowsHitTesting(floorOn && (pullDown > floorPull * 0.6 || floorUp))
@@ -1850,7 +1895,7 @@ struct ChatsView: View {
                         ZStack {
                             if UIConfig.num("navBarSwallowTouch", 1) > 0 {
                                 Color.clear
-                                    .frame(height: L.navH)
+                                    .frame(height: chatsHeaderH)
                                     .contentShape(Rectangle())
                             }
                             chatsNavGlass(scrolled)
@@ -1864,7 +1909,7 @@ struct ChatsView: View {
 
                 VStack(spacing: 0) {
                     Color.clear
-                        .frame(height: L.safeTop + L.navH)
+                        .frame(height: L.safeTop + chatsHeaderH)
                         .allowsHitTesting(false)
                     if chatFilterVisible {
                         chatFilterBar(unreadCounts: snapshot.unreadCounts)
@@ -1887,6 +1932,9 @@ struct ChatsView: View {
             .fullScreenCover(isPresented: $showSearch) {
                 SearchPage(onOpenChat: { c in path.append(c) })
                     .environmentObject(app)
+            }
+            .sheet(isPresented: $showChatFilterSheet) {
+                chatFilterSheet
             }
             .background(chatsPageFill.ignoresSafeArea(edges: .top))
             .toolbar(.hidden, for: .navigationBar)
@@ -1945,6 +1993,10 @@ struct ChatsView: View {
         }
 
         .navPlusOverlay($plusMenu, items: [
+            NavPlusItem(title: Tr("筛选会话"), symbol: "line.3.horizontal.decrease.circle",
+                        colors: [Color(hex: 0x8A8F98), Color(hex: 0x5F6670)]) {
+                showChatFilterSheet = true
+            },
             NavPlusItem(title: Tr("发起群聊"), symbol: "person.2.fill",
                         colors: [C.green, C.green.opacity(0.78)]) { path.append("newGroup") },
             NavPlusItem(title: Tr("添加朋友"), symbol: "person.badge.plus",
