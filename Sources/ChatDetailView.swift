@@ -5414,40 +5414,29 @@ struct MessageRow: View {
     private var bubbleFill: Color { mine ? ChatTheme.bubbleMine : ChatTheme.bubbleOther }
 
     private var bubblePrimaryInk: Color {
-        senderNameUsesLightInk
-            ? Color.white.opacity(0.98)
-            : Color(hex: 0x101315)
+        mine ? Color.white.opacity(0.98) : ChatTheme.ink
     }
 
     private var bubbleSecondaryInk: Color {
-        senderNameUsesLightInk
-            ? Color.white.opacity(0.84)
-            : Color(hex: 0x4B5055)
+        mine ? Color.white.opacity(0.84) : ChatTheme.secondary
     }
 
     private var bubbleMentionInk: Color {
-        senderNameUsesLightInk
-            ? Color(hex: 0xFFB4AB)
-            : Color(hex: 0xA82020)
+        mine ? Color(hex: 0xFFD5D0) : ChatTheme.mentionMe
     }
 
     private var bubbleLinkInk: Color {
-        senderNameUsesLightInk
-            ? Color(hex: 0xA9D9FF)
-            : Color(hex: 0x0D5AA8)
+        mine ? Color(hex: 0xDCE7FF) : ChatTheme.link
     }
 
     private var quoteSurface: Color {
-        if senderNameUsesLightInk {
-            return Color.black.opacity(mine ? 0.34 : 0.30)
-        }
-        return mine
-            ? Color(hex: 0xE7F4DE).opacity(0.78)
-            : Color(hex: 0xF0F1F3).opacity(0.80)
+        mine
+            ? Color.white.opacity(0.14)
+            : Color.dyn(0xF0F1F3, 0x34383E).opacity(0.88)
     }
 
     private var quoteBorder: Color {
-        senderNameUsesLightInk
+        mine
             ? Color.white.opacity(0.18)
             : Color.black.opacity(0.075)
     }
