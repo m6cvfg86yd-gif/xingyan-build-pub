@@ -210,10 +210,9 @@ struct EmojiPanel: View {
         min(46, max(40, (L.width - 20) / 7))
     }
     private var collapsedH: CGFloat {
-        let handleH: CGFloat = 24
         let tabsH = L.v(42, 11.6, 46)
         let deleteH = L.v(38, 10.4, 42)
-        return handleH + tabsH + deleteH + emojiRowH * 5 + 10
+        return tabsH + deleteH + emojiRowH * 5 + 10
     }
     private var expandedH: CGFloat {
         min(max(panelH * 2.15, 390), L.height * 0.68)
@@ -498,70 +497,53 @@ struct EmojiPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Spacer()
+            HStack(spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: L.v(2, 0.8, 4)) {
+                        tabButton(0, Tr("最近"), "clock")
+                        tabButton(1, Tr("表情"), "face.smiling")
+                        tabButton(2, Tr("系统"), "globe.asia.australia")
+                        ForEach(installed.indices, id: \.self) { i in
+                            packTabButton(3 + i, installed[i])
+                        }
+                        tabButton(mineTab, Tr("我的"), "star")
+
+                        Button { onOpenStore?() } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: L.v(16, 4.8, 18), weight: .semibold))
+                                .foregroundColor(C.subLabel)
+                                .frame(width: L.v(32, 9.6, 36), height: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("表情商店"))
+
+                        Button { onCaptureSticker?() } label: {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: L.v(15.5, 4.6, 18), weight: .medium))
+                                .foregroundColor(C.green)
+                                .frame(width: L.v(32, 9.6, 36), height: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("拍摄表情"))
+                    }
+                    .padding(.horizontal, L.v(10, 3.2, 13))
+                }
+
                 Button {
                     withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
                         expanded.toggle()
                     }
                 } label: {
-                    HStack(spacing: 6) {
-                        Capsule()
-                            .fill(C.subLabel.opacity(0.38))
-                            .frame(width: 34, height: 4)
-                        Image(systemName: expanded ? "chevron.down" : "chevron.up")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(C.subLabel)
-                    }
-                    .frame(height: 24)
-                    .contentShape(Rectangle())
+                    Image(systemName: expanded ? "chevron.down" : "chevron.up")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(C.subLabel)
+                        .frame(width: 38, height: L.v(42, 11.6, 46))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(expanded ? Tr("收起") : Tr("展开"))
-                Spacer()
-            }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 12)
-                    .onEnded { value in
-                        guard abs(value.translation.height) > 22 else { return }
-                        withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
-                            expanded = value.translation.height < 0
-                        }
-                    }
-            )
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: L.v(2, 0.8, 4)) {
-                    tabButton(0, Tr("最近"), "clock")
-                    tabButton(1, Tr("表情"), "face.smiling")
-                    tabButton(2, Tr("系统"), "globe.asia.australia")
-                    ForEach(installed.indices, id: \.self) { i in
-                        packTabButton(3 + i, installed[i])
-                    }
-                    tabButton(mineTab, Tr("我的"), "star")
-
-                    Button { onOpenStore?() } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: L.v(16, 4.8, 18), weight: .semibold))
-                            .foregroundColor(C.subLabel)
-                            .frame(width: L.v(32, 9.6, 36), height: 32)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Tr("表情商店"))
-
-                    Button { onCaptureSticker?() } label: {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: L.v(15.5, 4.6, 18), weight: .medium))
-                            .foregroundColor(C.green)
-                            .frame(width: L.v(32, 9.6, 36), height: 32)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Tr("拍摄表情"))
-                }
-                .padding(.horizontal, L.v(10, 3.2, 13))
             }
             .frame(height: L.v(42, 11.6, 46))
 
