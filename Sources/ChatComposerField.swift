@@ -101,6 +101,7 @@ struct ChatComposerTextField: UIViewRepresentable {
     let bridge: ChatComposerBridge
     let font: UIFont
     let tintColor: UIColor
+    let textColor: UIColor
     let minHeight: CGFloat
     let maxHeight: CGFloat
     let onHeightChange: (CGFloat) -> Void
@@ -122,7 +123,7 @@ struct ChatComposerTextField: UIViewRepresentable {
         view.textContainer.widthTracksTextView = true
         view.font = font
         view.tintColor = tintColor
-        view.textColor = .label
+        view.textColor = textColor
         view.setContentHuggingPriority(.defaultLow, for: .horizontal)
         view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         bridge.attach(view) { value in
@@ -146,6 +147,7 @@ struct ChatComposerTextField: UIViewRepresentable {
         }
         view.font = font
         view.tintColor = tintColor
+        view.textColor = textColor
 
         if view.text != text {
             let selected = view.selectedRange

@@ -1144,6 +1144,10 @@ struct ChatDetailView: View {
             : Color.white.opacity(0.82)
     }
 
+    private var composerTextInk: Color {
+        composerUsesLightInk ? .white : Color(hex: 0x161616)
+    }
+
     private var adaptiveComposerStroke: Color {
         composerUsesLightInk
             ? Color.white.opacity(0.16)
@@ -3331,7 +3335,7 @@ struct ChatDetailView: View {
                                  ? (recorder.willCancel ? Tr("松开手指，取消发送") : Tr("松开 发送"))
                                  : Tr("按住 说话"))
                                 .font(pf(15.5))
-                                .foregroundColor(recorder.willCancel ? C.red : C.label)
+                                .foregroundColor(recorder.willCancel ? C.red : composerTextInk)
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
                         .contentShape(Rectangle())
@@ -3382,7 +3386,7 @@ struct ChatDetailView: View {
                                 .foregroundColor(recorder.willCancel ? C.red : C.green)
                             Text(recorder.willCancel ? Tr("松开手指，取消发送") : Tr("松开 发送"))
                                 .font(pf(15.5))
-                                .foregroundColor(recorder.willCancel ? C.red : C.label)
+                                .foregroundColor(recorder.willCancel ? C.red : composerTextInk)
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
                     } else {
@@ -3392,6 +3396,7 @@ struct ChatDetailView: View {
                                               bridge: composerBridge,
                                               font: chatComposerUIFont(),
                                               tintColor: UIColor(hex: 0x2F7FD8),
+                                              textColor: UIColor(composerTextInk),
                                               minHeight: L.inputH,
                                               maxHeight: composerMaxHeight,
                                               onHeightChange: { height in
@@ -3505,8 +3510,8 @@ struct ChatDetailView: View {
                         .fill(.thinMaterial)
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(composerUsesLightInk
-                              ? Color.black.opacity(0.16)
-                              : Color.white.opacity(0.38))
+                              ? Color.black.opacity(0.26)
+                              : Color.white.opacity(0.52))
                 }
             }
             .overlay {
