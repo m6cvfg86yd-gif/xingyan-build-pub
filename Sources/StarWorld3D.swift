@@ -115,7 +115,7 @@ struct StarWorldExperienceView: View {
                             .foregroundStyle(.white.opacity(0.60))
                     }
                     Spacer()
-                    worldGlassButton("info.circle")
+                    worldGlassButton("info.circle") { }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 6)
@@ -292,8 +292,8 @@ private struct StarWorldSceneView: UIViewRepresentable {
             let bar = SCNNode(geometry: SCNBox(width: 0.035, height: 1.76, length: 0.035, chamferRadius: 0))
             bar.position = SCNVector3(x, 0.80, -3.95)
             bar.geometry?.materials = [material(UIColor(red: 0.36, green: 0.47, blue: 0.50, alpha: 1),
-                                                metalness: 0.55,
-                                                roughness: 0.28)]
+                                                roughness: 0.28,
+                                                metalness: 0.55)]
             root.addChildNode(bar)
         }
 
@@ -307,8 +307,8 @@ private struct StarWorldSceneView: UIViewRepresentable {
             let leg = SCNNode(geometry: SCNCylinder(radius: 0.055, height: 0.72))
             leg.position = SCNVector3(x, -0.92, -2.55)
             leg.geometry?.materials = [material(UIColor(red: 0.20, green: 0.20, blue: 0.18, alpha: 1),
-                                                metalness: 0.28,
-                                                roughness: 0.42)]
+                                                roughness: 0.42,
+                                                metalness: 0.28)]
             root.addChildNode(leg)
         }
 
