@@ -199,7 +199,7 @@ private struct XingyanPresenceDot: View {
         ZStack {
             Circle()
                 .fill(Color.dyn(0xFFFFFF, 0x121212))
-                .frame(width: 22, height: 22)
+                .frame(width: 26, height: 26)
 
             Circle()
                 .fill(AngularGradient(
@@ -211,13 +211,13 @@ private struct XingyanPresenceDot: View {
                     ],
                     center: .center
                 ))
-                .frame(width: 18, height: 18)
+                .frame(width: 22, height: 22)
 
             Image(systemName: "sparkle")
-                .font(.system(size: 6.5, weight: .bold))
+                .font(.system(size: 7.5, weight: .bold))
                 .foregroundStyle(.white.opacity(0.94))
         }
-        .frame(width: 22, height: 22)
+        .frame(width: 26, height: 26)
         .shadow(color: Color(hex: 0x24C77F).opacity(0.30), radius: 4.5, y: 1)
         .scaleEffect(breathing ? 1.04 : 0.98)
         .onAppear {
@@ -430,7 +430,7 @@ struct ChatRow: View {
             }
             .mask {
                 if groupHasOnlineMember {
-                    PresenceNotchMask(holeDiameter: 25, centerInset: 6)
+                    PresenceNotchMask(holeDiameter: 30, centerInset: 6)
                         .fill(Color.white, style: FillStyle(eoFill: true))
                 } else {
                     Rectangle().fill(Color.white)
@@ -440,7 +440,7 @@ struct ChatRow: View {
             .overlay(alignment: .bottomTrailing) {
                 if groupHasOnlineMember {
                     XingyanPresenceDot()
-                    .offset(x: 5, y: 5)
+                    .offset(x: 7, y: 7)
                 } else if let icon = chat.moodIcon, !icon.isEmpty {
                     Text(icon)
                         .font(pfStyled(size: 9))
