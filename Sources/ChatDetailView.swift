@@ -257,50 +257,22 @@ private enum ChatImmersiveEdge { case top, bottom }
 
 private struct ChatImmersiveEdgeMask: View {
     let edge: ChatImmersiveEdge
-    let tint: Color?
-    let scheme: ColorScheme
-    var lighten = false
-    var immersive = false
 
     var body: some View {
-        ZStack {
-            Group {
-                if immersive {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                } else {
-                    Rectangle()
-                        .fill(Color.dyn(0xF7F7F7, 0x18181A))
-                }
-            }
+        Rectangle()
+            .fill(ChatTheme.page)
             .mask(
                 LinearGradient(
-                    colors: [Color.black, Color.black.opacity(0.72), Color.clear],
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black.opacity(0.97), location: 0.58),
+                        .init(color: .clear, location: 1)
+                    ],
                     startPoint: edge == .top ? .top : .bottom,
                     endPoint: edge == .top ? .bottom : .top
                 )
             )
-
-            if let tint {
-                LinearGradient(
-                    colors: edge == .top
-                        ? [tint.opacity(scheme == .dark ? 0.52 : 0.30), tint.opacity(0.04)]
-                        : [tint.opacity(0.04), tint.opacity(scheme == .dark ? 0.54 : 0.32)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-
-            LinearGradient(
-                colors: edge == .top
-                    ? [Color.black.opacity(scheme == .dark ? 0.20 : 0.015), Color.clear]
-                    : [Color.clear, Color.black.opacity(scheme == .dark ? 0.22 : 0.015)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
-        .opacity(lighten ? 0.56 : 1)
-        .allowsHitTesting(false)
+            .allowsHitTesting(false)
     }
 }
 
@@ -1444,12 +1416,13 @@ struct ChatDetailView: View {
                 .zIndex(2)
             }
             .background {
-                ChatImmersiveEdgeMask(edge: .top,
-                                      tint: wallpaperTopTint,
-                                      scheme: scheme,
-                                      immersive: hidesChatNavigation)
-                    .ignoresSafeArea(edges: .top)
+                if !hidesChatNavigation {
+                    ChatImmersiveEdgeMask(edge: .top)
+                        .ignoresSafeArea(edges: .top)
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeOut(duration: 0.18), value: hidesChatNavigation)
 
             if !isGroup && peerBanned {
                 HStack(spacing: 9) {
@@ -2420,17 +2393,8 @@ struct ChatDetailView: View {
                                 mode: .fill,
                                 maxSide: chatWallpaperDecodeSide())
                         .id(backgroundPath)
-                }
-                if scheme == .dark, chatBackgroundSolidColor(backgroundPath) == nil {
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.black.opacity(0.56), location: 0),
-                            .init(color: Color.black.opacity(0.66), location: 0.56),
-                            .init(color: Color.black.opacity(0.76), location: 1)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
                 }
             }
         }
@@ -3558,11 +3522,7 @@ struct ChatDetailView: View {
 
         .background {
             if !(panel == .emoji && emojiPanelExpanded) {
-                ChatImmersiveEdgeMask(edge: .bottom,
-                                      tint: wallpaperBottomTint,
-                                      scheme: scheme,
-                                      lighten: kbUp,
-                                      immersive: hidesChatNavigation)
+                ChatImmersiveEdgeMask(edge: .bottom)
                     .ignoresSafeArea(edges: .bottom)
             }
         }
