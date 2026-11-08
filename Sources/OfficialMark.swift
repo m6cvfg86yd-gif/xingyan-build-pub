@@ -47,11 +47,22 @@ struct OfficialMark: View {
 struct OfficialVerifiedV: View {
     var size: CGFloat = 17
 
-    private let gradient = LinearGradient(
+    private let face = LinearGradient(
         colors: [
-            Color(hex: 0x20C96B),
-            Color(hex: 0xA7D96A),
-            Color(hex: 0xD9B95F)
+            Color(hex: 0x07583C),
+            Color(hex: 0x16A862),
+            Color(hex: 0x38C978)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    private let bevel = LinearGradient(
+        colors: [
+            Color.white.opacity(0.92),
+            Color(hex: 0xB9F1CC).opacity(0.78),
+            Color(hex: 0xE5C36D).opacity(0.62),
+            Color.black.opacity(0.20)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -60,29 +71,50 @@ struct OfficialVerifiedV: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color.dyn(0xF7FFF9, 0x101A15).opacity(0.96))
-
-            Text("V")
-                .font(.system(size: size * 0.61, weight: .black, design: .rounded))
-                .foregroundStyle(gradient)
-                .offset(y: -0.15)
+                .fill(Color.black.opacity(0.14))
+                .offset(y: size * 0.055)
 
             Circle()
-                .strokeBorder(gradient, lineWidth: 0.9)
+                .fill(face)
 
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [Color.white.opacity(0.30), Color.clear],
+                        colors: [Color.white.opacity(0.25), Color.clear],
                         center: .topLeading,
                         startRadius: 0,
-                        endRadius: size * 0.75
+                        endRadius: size * 0.92
                     )
                 )
-                .allowsHitTesting(false)
+
+            Ellipse()
+                .fill(Color.white.opacity(0.20))
+                .frame(width: size * 0.56, height: size * 0.23)
+                .blur(radius: 0.55)
+                .offset(x: -size * 0.06, y: -size * 0.27)
+
+            Text("V")
+                .font(.system(size: size * 0.62, weight: .black, design: .rounded))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.white, Color(hex: 0xD8FFE7)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: Color.black.opacity(0.30), radius: 0.7, x: 0, y: 0.55)
+                .offset(y: -0.2)
+
+            Circle()
+                .strokeBorder(bevel, lineWidth: max(0.8, size * 0.075))
+
+            Circle()
+                .strokeBorder(Color.black.opacity(0.20), lineWidth: 0.45)
+                .padding(size * 0.10)
         }
         .frame(width: size, height: size)
-        .shadow(color: OrbitTheme.jade.opacity(0.20), radius: 2.5, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(0.16), radius: 2.2, x: 0, y: 1.2)
+        .shadow(color: OrbitTheme.jade.opacity(0.18), radius: 3.4, x: 0, y: 1)
         .accessibilityLabel(Tr("官方账号"))
     }
 }
