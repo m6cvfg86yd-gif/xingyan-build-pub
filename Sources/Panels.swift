@@ -214,13 +214,14 @@ struct EmojiPanel: View {
     @State private var tab = 1
 
     @State private var recent: [String] = EmojiPanel.loadRecent()
+    @State private var emojiSearch = ""
+    @FocusState private var searchFocused: Bool
 
     @State private var installed: [PanelPack] = []
 
     @ObservedObject private var catalog = StickerCatalog.shared
     @State private var expanded = false
 
-    private var mineTab: Int { 3 + installed.count }
     private var emojiRowH: CGFloat {
         min(46, max(40, (L.width - 20) / 7))
     }
@@ -302,6 +303,96 @@ struct EmojiPanel: View {
         }
     }
 
+    private var searchableGlyphs: [String] {
+        var seen = Set<String>()
+        var list: [String] = []
+        for glyph in ClassicEmojiSet.all.map({ $0.glyph }) + EmojiThemes.all.flatMap({ $0.list }) {
+            if seen.insert(glyph).inserted { list.append(glyph) }
+        }
+        return list
+    }
+
+    private var searchResults: [String] {
+        let key = emojiSearch.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !key.isEmpty else { return [] }
+        let codeGlyphs = ClassicEmojiSet.all
+            .filter { $0.code.lowercased().contains(key) }
+            .map { $0.glyph }
+        var seen = Set<String>()
+        return (codeGlyphs + searchableGlyphs.filter { $0.contains(emojiSearch) })
+            .filter { seen.insert($0).inserted }
+    }
+
+    private var likeGlyphs: [String] {
+        let wanted = ["赞", "强", "给力", "加油", "鼓掌", "比心", "ok",
+                      "胜利", "棒", "爱心", "抱拳", "庆祝", "666"]
+        var seen = Set<String>()
+        let fromClassic = ClassicEmojiSet.all
+            .filter { item in
+                let code = item.code.lowercased()
+                return wanted.contains { code.contains($0) }
+            }
+            .map { $0.glyph }
+        let extras = ["👍", "❤️", "💪", "👏", "🙏", "🤝", "✌️", "👌",
+                      "🫶", "💯", "🎉", "🔥", "⭐️", "🫡"]
+        return (fromClassic + extras).filter { seen.insert($0).inserted }
+    }
+
+    private var emojiSearchPage: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 7) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(C.subLabel)
+                TextField(Tr("搜索表情"), text: $emojiSearch)
+                    .font(pf(14))
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                if !emojiSearch.isEmpty {
+                    Button {
+                        emojiSearch = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(C.subLabel)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 34)
+            .background(Capsule().fill(Color.dyn(0xF2F2F3, 0x2B2B2E)))
+            .padding(.horizontal, 10)
+            .padding(.top, 6)
+
+            if emojiSearch.isEmpty {
+                if recent.isEmpty {
+                    VStack(spacing: 7) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 22, weight: .light))
+                            .foregroundStyle(C.subLabel)
+                        Text(Tr("搜索表情和表情包"))
+                            .font(pf(12.5))
+                            .foregroundStyle(C.subLabel)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        packTitle("🕘", Tr("最近使用"))
+                        emojiRow(recent)
+                    }
+                }
+            } else if searchResults.isEmpty {
+                Text(Tr("没有找到表情"))
+                    .font(pf(13))
+                    .foregroundStyle(C.subLabel)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                emojiGrid(searchResults)
+            }
+        }
+    }
+
     @ViewBuilder
     private var recentPage: some View {
         if recent.isEmpty {
@@ -322,6 +413,16 @@ struct EmojiPanel: View {
     private var minePage: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
+
+                ForEach(installed.indices, id: \.self) { i in
+                    let pack = installed[i]
+                    packTitle(pack.icon.isEmpty ? "✨" : pack.icon, pack.name)
+                    if pack.isImage {
+                        stickerRow(pack.stickers)
+                    } else {
+                        emojiRow(pack.stickers)
+                    }
+                }
 
                 if let packs = mine?.packList, !packs.isEmpty {
                     ForEach(packs.indices, id: \.self) { i in
@@ -520,13 +621,10 @@ struct EmojiPanel: View {
             HStack(spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 0) {
-                        tabButton(0, Tr("最近"), "clock")
-                        tabButton(1, Tr("表情"), "face.smiling")
-                        tabButton(2, Tr("系统"), "globe.asia.australia")
-                        ForEach(installed.indices, id: \.self) { i in
-                            packTabButton(3 + i, installed[i])
-                        }
-                        tabButton(mineTab, Tr("我的"), "star")
+                        tabButton(0, Tr("搜索"), "magnifyingglass")
+                        tabButton(1, Tr("笑脸"), "face.smiling")
+                        tabButton(2, Tr("赞"), "hand.thumbsup.fill")
+                        tabButton(3, Tr("其他表情包"), "square.grid.2x2.fill")
 
                         Button { onOpenStore?() } label: {
                             Image(systemName: "plus")
@@ -568,19 +666,15 @@ struct EmojiPanel: View {
             .frame(height: 40)
 
             TabView(selection: $tab) {
-                recentPage.tag(0)
+                emojiSearchPage.tag(0)
                 classicPage.tag(1)
-                systemPage.tag(2)
-
-                ForEach(installed.indices, id: \.self) { i in
-                    packPage(installed[i]).tag(3 + i)
-                }
-                minePage.tag(mineTab)
+                emojiGrid(likeGlyphs).tag(2)
+                minePage.tag(3)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onAppear {
                 installed = buildInstalled()
-                if tab > mineTab { tab = 1 }
+                if tab < 0 || tab > 3 { tab = 1 }
             }
             .task {
                 await StickerCatalog.shared.loadIfNeeded()
@@ -588,7 +682,7 @@ struct EmojiPanel: View {
             }
             .onChange(of: catalog.packs) { _ in
                 installed = buildInstalled()
-                if tab > mineTab { tab = 1 }
+                if tab < 0 || tab > 3 { tab = 1 }
             }
             .onChange(of: expanded) { value in
                 onExpandedChange?(value)
