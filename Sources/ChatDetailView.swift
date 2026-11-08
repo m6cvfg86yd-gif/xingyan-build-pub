@@ -255,23 +255,11 @@ enum PanelKind { case none, emoji, plus, gift, mention }
 
 private struct ChatImmersiveEdgeMask: View {
     let tint: Color?
-    var lighten = false
-    var immersive = false
+    let dark: Bool
 
     var body: some View {
-        Group {
-            if immersive {
-                Rectangle().fill(.thickMaterial)
-            } else {
-                Rectangle().fill(Color.dyn(0xFFFFFF, 0x121212))
-            }
-
-            if let tint {
-                Rectangle()
-                    .fill(tint.opacity(0.28))
-            }
-        }
-        .opacity(lighten ? 0.62 : 1)
+        Rectangle()
+            .fill(tint ?? (dark ? Color.black : Color.white))
         .allowsHitTesting(false)
     }
 }
@@ -1418,7 +1406,7 @@ struct ChatDetailView: View {
             .background {
                 if !hidesChatNavigation {
                     ChatImmersiveEdgeMask(tint: wallpaperTopTint,
-                                          immersive: false)
+                                          dark: topBarUsesLightInk)
                         .ignoresSafeArea(edges: .top)
                         .transition(.opacity)
                 }
@@ -3524,8 +3512,7 @@ struct ChatDetailView: View {
         .background {
             if !(panel == .emoji && emojiPanelExpanded) {
                 ChatImmersiveEdgeMask(tint: wallpaperBottomTint,
-                                      lighten: kbUp,
-                                      immersive: hidesChatNavigation)
+                                      dark: composerUsesLightInk)
                     .ignoresSafeArea(edges: .bottom)
             }
         }
