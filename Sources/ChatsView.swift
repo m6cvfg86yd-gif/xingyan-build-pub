@@ -174,6 +174,23 @@ private struct OfficialRowAdminEditor: View {
     }
 }
 
+private struct PresenceNotchMask: Shape {
+    let holeDiameter: CGFloat
+    let centerInset: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path(rect)
+        let hole = CGRect(
+            x: rect.maxX - centerInset - holeDiameter / 2,
+            y: rect.maxY - centerInset - holeDiameter / 2,
+            width: holeDiameter,
+            height: holeDiameter
+        )
+        path.addEllipse(in: hole)
+        return path
+    }
+}
+
 private struct XingyanPresenceDot: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false
@@ -182,7 +199,7 @@ private struct XingyanPresenceDot: View {
         ZStack {
             Circle()
                 .fill(Color.dyn(0xFFFFFF, 0x121212))
-                .frame(width: 18, height: 18)
+                .frame(width: 22, height: 22)
 
             Circle()
                 .fill(AngularGradient(
@@ -194,14 +211,14 @@ private struct XingyanPresenceDot: View {
                     ],
                     center: .center
                 ))
-                .frame(width: 14, height: 14)
+                .frame(width: 18, height: 18)
 
             Image(systemName: "sparkle")
-                .font(.system(size: 5.5, weight: .bold))
+                .font(.system(size: 6.5, weight: .bold))
                 .foregroundStyle(.white.opacity(0.94))
         }
-        .frame(width: 18, height: 18)
-        .shadow(color: Color(hex: 0x24C77F).opacity(0.30), radius: 4, y: 1)
+        .frame(width: 22, height: 22)
+        .shadow(color: Color(hex: 0x24C77F).opacity(0.30), radius: 4.5, y: 1)
         .scaleEffect(breathing ? 1.04 : 0.98)
         .onAppear {
             guard !reduceMotion else { return }
@@ -411,11 +428,19 @@ struct ChatRow: View {
                        level: chat.qqLevel ?? 0)
             }
             }
+            .mask {
+                if groupHasOnlineMember {
+                    PresenceNotchMask(holeDiameter: 25, centerInset: 6)
+                        .fill(Color.white, style: FillStyle(eoFill: true))
+                } else {
+                    Rectangle().fill(Color.white)
+                }
+            }
 
             .overlay(alignment: .bottomTrailing) {
                 if groupHasOnlineMember {
                     XingyanPresenceDot()
-                    .offset(x: 8, y: 8)
+                    .offset(x: 5, y: 5)
                 } else if let icon = chat.moodIcon, !icon.isEmpty {
                     Text(icon)
                         .font(pfStyled(size: 9))
