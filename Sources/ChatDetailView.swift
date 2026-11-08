@@ -260,7 +260,7 @@ private struct ChatImmersiveEdgeMask: View {
 
     var body: some View {
         Rectangle()
-            .fill(ChatTheme.page)
+            .fill(.thickMaterial)
             .mask(
                 LinearGradient(
                     stops: [
