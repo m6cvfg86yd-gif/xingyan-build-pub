@@ -73,11 +73,11 @@ struct MainTabView: View {
                                 ZStack {
                                     GlassBackground(
                                         shape: Rectangle(),
-                                        opacity: 0.52,
+                                        opacity: 0.68,
                                         edgeAlpha: 0,
                                         shadow: false,
                                         seed: 0.44,
-                                        native: true
+                                        native: false
                                     )
                                     .mask(
                                         LinearGradient(
