@@ -17,7 +17,6 @@ struct DiscoverView: View {
     @State private var lastRouteOpenAt = Date.distantPast
 
     @State private var showScan = false
-    @State private var showStarWorld3D = false
     @ObservedObject private var realtime = Realtime.shared
 
     private var latestThumb: String {
@@ -151,13 +150,6 @@ struct DiscoverView: View {
                         Color.clear.frame(height: L.navH)
 
                         VStack(spacing: 18) {
-                            Button {
-                                showStarWorld3D = true
-                            } label: {
-                                StarWorld3DEntryCard()
-                            }
-                            .buttonStyle(World3DEntryPressStyle())
-
                             if let hero = worldHeroItem {
                                 worldFeatureCard(hero)
                             }
@@ -261,10 +253,6 @@ struct DiscoverView: View {
         }
         .fullScreenCover(isPresented: $showScan) {
             ScannerView { text in handleScanned(text, app: app) }
-        }
-        .fullScreenCover(isPresented: $showStarWorld3D) {
-            StarWorldExperienceView()
-                .environmentObject(app)
         }
     }
 
