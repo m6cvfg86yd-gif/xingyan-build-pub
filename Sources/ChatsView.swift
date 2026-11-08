@@ -4,8 +4,10 @@ import Darwin
 
 private enum ChatListVisual {
     static let rowHeight: CGFloat = 72
-    static let leading: CGFloat = 12
+    static let rowLeading: CGFloat = 16
+    static let headerLeading: CGFloat = 12
     static let trailing: CGFloat = 16
+    static let avatarSize: CGFloat = 56
     static let avatarGap: CGFloat = 12
     static let dividerLeading: CGFloat = 76
 
@@ -261,7 +263,7 @@ struct ChatRow: View {
             avatarBlock
             textColumn
         }
-        .padding(.leading, ChatListVisual.leading)
+        .padding(.leading, ChatListVisual.rowLeading)
         .padding(.trailing, ChatListVisual.trailing)
         .frame(height: ChatListVisual.rowHeight)
         .contentShape(Rectangle())
@@ -448,9 +450,9 @@ struct ChatRow: View {
                 || (chat.avatar ?? "").contains("/uploads/group-") {
                 GroupAvatarMosaic(chatId: chat.id,
                                   memberIds: chat.memberIds ?? [],
-                                  size: L.avatar, radius: 16)
+                                  size: ChatListVisual.avatarSize, radius: 16)
             } else {
-                Avatar(path: displayAvatar, size: L.avatar, radius: 16,
+                Avatar(path: displayAvatar, size: ChatListVisual.avatarSize, radius: 16,
                        group: chat.type == "group" || (chat.memberCount ?? 0) > 2,
                        level: chat.qqLevel ?? 0)
             }
@@ -508,15 +510,15 @@ struct SwipeChatRow: View {
     @State private var mode: Mode = .none
     @State private var dragging = false
 
-    private var btnW: CGFloat { UIConfig.num("swipeBtnW", 80) }
+    private var btnW: CGFloat { UIConfig.num("swipeBtnW", 88) }
     private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
     private var fullW: CGFloat { btnW * 3 }
 
-    private var blueBg: Color { UIConfig.color("swipeBlue", 0x2E7CF6, 0x0A84FF) }
+    private var blueBg: Color { UIConfig.color("swipeGray", 0x84858A, 0x5C5D63) }
 
-    private var yellowBg: Color { UIConfig.color("swipeYellow", 0xE0A22B, 0xD9932A) }
+    private var yellowBg: Color { UIConfig.color("swipeOrange", 0xFF851D, 0xC26A1A) }
 
-    private var redBg: Color { UIConfig.color("swipeRed", 0xFA5151, 0xFA5151) }
+    private var redBg: Color { UIConfig.color("swipeDelete", 0xFE4F3E, 0xD94637) }
 
     @State private var crossedOpen = false
 
@@ -567,7 +569,7 @@ struct SwipeChatRow: View {
                 onTap: { p in
                     if offset != 0 {
                         close()
-                    } else if p.x < ChatListVisual.leading + L.avatar + 10,
+                    } else if p.x < ChatListVisual.rowLeading + ChatListVisual.avatarSize + 10,
                               let tap = onTapAvatar {
                         tap()
                     } else {
@@ -1085,7 +1087,7 @@ struct ChatsView: View {
             }
             .clipShape(Capsule(style: .continuous))
         }
-        .padding(.horizontal, ChatListVisual.leading)
+        .padding(.horizontal, ChatListVisual.headerLeading)
         .frame(height: L.navH)
     }
 
@@ -1521,17 +1523,18 @@ struct ChatsView: View {
                                     endPoint: .bottomTrailing
                                 ))
                             Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: L.avatar * 0.42, weight: .semibold))
+                                .font(.system(size: ChatListVisual.avatarSize * 0.42, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.96))
                         }
-                        .frame(width: L.avatar, height: L.avatar)
+                        .frame(width: ChatListVisual.avatarSize,
+                               height: ChatListVisual.avatarSize)
                         .overlay {
                             Circle()
                                 .stroke(Color.white.opacity(0.18), lineWidth: 0.7)
                         }
                     } else {
                         Avatar(path: officialRowAvatar,
-                               size: L.avatar,
+                               size: ChatListVisual.avatarSize,
                                radius: 14,
                                circle: true)
                     }
@@ -1558,7 +1561,7 @@ struct ChatsView: View {
                             .padding(.trailing, 2)
                     }
                 }
-                .padding(.leading, ChatListVisual.leading)
+                .padding(.leading, ChatListVisual.rowLeading)
                 .padding(.trailing, ChatListVisual.trailing)
                 .frame(height: ChatListVisual.rowHeight)
                 .background(chatsPageFill)
@@ -1622,10 +1625,11 @@ struct ChatsView: View {
                 HStack(spacing: ChatListVisual.avatarGap) {
                     if weatherRowAvatar.isEmpty {
                         Image(systemName: "cloud.sun.fill")
-                            .font(.system(size: L.avatar * 0.42, weight: .semibold))
+                            .font(.system(size: ChatListVisual.avatarSize * 0.42, weight: .semibold))
                             .symbolRenderingMode(.palette)
                             .foregroundStyle(.white, Color(hex: 0xFFD35C))
-                            .frame(width: L.avatar, height: L.avatar)
+                            .frame(width: ChatListVisual.avatarSize,
+                                   height: ChatListVisual.avatarSize)
                             .background(
                                 LinearGradient(
                                     colors: [Color(hex: 0x4C9DFF), Color(hex: 0x1558B8)],
@@ -1635,7 +1639,7 @@ struct ChatsView: View {
                                 in: Circle()
                             )
                     } else {
-                        Avatar(path: weatherRowAvatar, size: L.avatar,
+                        Avatar(path: weatherRowAvatar, size: ChatListVisual.avatarSize,
                                radius: 14, circle: true)
                     }
 
@@ -1660,7 +1664,7 @@ struct ChatsView: View {
                             .padding(.trailing, 2)
                     }
                 }
-                .padding(.leading, ChatListVisual.leading)
+                .padding(.leading, ChatListVisual.rowLeading)
                 .padding(.trailing, ChatListVisual.trailing)
                 .frame(height: ChatListVisual.rowHeight)
                 .background(chatsPageFill)
