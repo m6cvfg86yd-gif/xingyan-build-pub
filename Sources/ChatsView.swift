@@ -1782,6 +1782,11 @@ struct ChatsView: View {
 
                             Color.clear.frame(height: L.safeTop + chatsHeaderH
                                               + chatsSearchH + chatFilterOffset)
+                            officialConversationRow
+                                .frame(width: chatsContentMaxWidth)
+                            weatherConversationRow
+                                .frame(width: chatsContentMaxWidth)
+
                             if snapshot.list.isEmpty {
                                 Text(Tr("这个分类暂时没有会话"))
                                     .font(pf(14))
@@ -1802,11 +1807,6 @@ struct ChatsView: View {
                             } else {
                                 chatListRows(snapshot.list)
                             }
-                            officialConversationRow
-                                .frame(width: chatsContentMaxWidth)
-                            weatherConversationRow
-                                .frame(width: chatsContentMaxWidth)
-
                             Color.clear.frame(height: L.tabH + L.safeBottom + 10)
                         }
 
