@@ -1127,15 +1127,11 @@ struct ChatDetailView: View {
     }
 
     private var adaptiveEmojiInk: Color {
-        composerUsesLightInk
-            ? Color(hex: 0xF4D078)
-            : Color(hex: 0x9A6513)
+        composerUsesLightInk ? .white : Color(hex: 0x111111)
     }
 
     private var adaptivePlusInk: Color {
-        composerUsesLightInk
-            ? Color(hex: 0xA8C8FF)
-            : Color(hex: 0x3568C4)
+        composerUsesLightInk ? .white : Color(hex: 0x111111)
     }
 
     private var adaptiveComposerSurface: Color {
