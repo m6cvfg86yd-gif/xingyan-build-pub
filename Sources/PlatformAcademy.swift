@@ -490,6 +490,91 @@ private struct WeatherAnimatedBackdrop: View {
     }
 }
 
+private struct WeatherRainImpactOverlay: View {
+    let active: Bool
+    let seed: Double
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        if active && !reduceMotion {
+            TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+                Canvas { context, size in
+                    guard size.width > 20 else { return }
+                    let time = timeline.date.timeIntervalSinceReferenceDate
+                    for index in 0..<5 {
+                        let indexValue = Double(index)
+                        let raw = sin((indexValue + seed * 17) * 12.9898) * 43758.5453
+                        let fraction = abs(raw.truncatingRemainder(dividingBy: 1))
+                        let x = 8 + CGFloat(fraction) * max(1, size.width - 16)
+                        let cycle = 1.8 + Double(index % 3) * 0.42
+                        let phase = (time / cycle + seed + indexValue * 0.19)
+                            .truncatingRemainder(dividingBy: 1)
+
+                        if phase < 0.24 {
+                            let fall = phase / 0.24
+                            let drop = CGRect(
+                                x: x - 0.9,
+                                y: -4 + fall * 8,
+                                width: 1.8,
+                                height: 4.5
+                            )
+                            context.fill(
+                                Path(ellipseIn: drop),
+                                with: .color(Color.white.opacity(0.88))
+                            )
+                        } else if phase < 0.50 {
+                            let splash = (phase - 0.24) / 0.26
+                            let alpha = 1 - splash
+                            let spread = CGFloat(2.5 + splash * 4.5)
+                            for direction in [-1.0, 0.0, 1.0] {
+                                var path = Path()
+                                path.move(to: CGPoint(x: x, y: 4))
+                                path.addQuadCurve(
+                                    to: CGPoint(
+                                        x: x + CGFloat(direction) * spread,
+                                        y: 4 - CGFloat(direction == 0 ? 4.8 : 3.4)
+                                    ),
+                                    control: CGPoint(
+                                        x: x + CGFloat(direction) * spread * 0.55,
+                                        y: 0.5 - splash * 1.2
+                                    )
+                                )
+                                context.stroke(
+                                    path,
+                                    with: .color(Color.white.opacity(alpha * 0.72)),
+                                    style: StrokeStyle(lineWidth: 0.8, lineCap: .round)
+                                )
+                            }
+                            let ripple = CGRect(
+                                x: x - spread,
+                                y: 2.8,
+                                width: spread * 2,
+                                height: 2.4
+                            )
+                            context.stroke(
+                                Path(ellipseIn: ripple),
+                                with: .color(Color.white.opacity(alpha * 0.34)),
+                                lineWidth: 0.55
+                            )
+                        }
+                    }
+                }
+            }
+            .frame(height: 19)
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+private extension View {
+    func weatherRainImpacts(_ active: Bool, seed: Double) -> some View {
+        overlay(alignment: .top) {
+            WeatherRainImpactOverlay(active: active, seed: seed)
+        }
+    }
+}
+
 struct WeatherOfficialView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
@@ -665,6 +750,7 @@ struct WeatherOfficialView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
         }
+        .weatherRainImpacts(current.isWet, seed: 0.11)
     }
 
     private func temperatureHero(_ current: MallWeatherLook) -> some View {
@@ -711,6 +797,7 @@ struct WeatherOfficialView: View {
             metric("clock.fill", Tr("更新"),
                    weather.updatedAt.map { timeText($0) } ?? "—", current)
         }
+        .weatherRainImpacts(current.isWet, seed: 0.29)
     }
 
     private func metric(_ symbol: String, _ title: String,
@@ -769,6 +856,7 @@ struct WeatherOfficialView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
         }
+        .weatherRainImpacts(current.isWet, seed: 0.81)
     }
 
     private func hourlyForecast(_ data: WeatherForecastResponse,
@@ -813,6 +901,7 @@ struct WeatherOfficialView: View {
                 .stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
         }
         .foregroundStyle(.primary)
+        .weatherRainImpacts(current.isWet, seed: 0.43)
     }
 
     private func dailyForecast(_ data: WeatherForecastResponse,
@@ -861,6 +950,7 @@ struct WeatherOfficialView: View {
                 .stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
         }
         .foregroundStyle(.primary)
+        .weatherRainImpacts(current.isWet, seed: 0.67)
     }
 
     private func loadForecast() async {
