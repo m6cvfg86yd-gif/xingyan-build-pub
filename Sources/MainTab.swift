@@ -1154,8 +1154,8 @@ enum ChatInfoCardTone {
 }
 
 enum ChatInfoCardTint {
-    static let group = Color.dyn(0xFFFFFF, 0x14231D)
-    static let direct = Color.dyn(0xFFFFFF, 0x181A24)
+    static var group: Color { C.cardBg }
+    static var direct: Color { C.cardBg }
 }
 
 private struct ChatInfoCardToneKey: EnvironmentKey {
