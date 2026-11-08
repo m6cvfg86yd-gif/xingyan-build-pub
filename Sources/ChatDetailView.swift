@@ -263,7 +263,7 @@ private struct ChatImmersiveEdgeMask: View {
             if immersive {
                 Rectangle().fill(.thickMaterial)
             } else {
-                Rectangle().fill(ChatTheme.page)
+                Rectangle().fill(Color.dyn(0xFFFFFF, 0x121212))
             }
 
             if let tint {
