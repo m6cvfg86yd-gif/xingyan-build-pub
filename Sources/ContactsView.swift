@@ -81,6 +81,7 @@ struct ContactsView: View {
     @State private var starIds: [String] = []
 
     private var listHeadH: CGFloat { max(0, L.navH - 7) }
+    private var contactsCanvas: Color { Color.dyn(0xF5F4F0, 0x080A09) }
 
 private var funcs: [(String, String, Color, String)] {
     [
@@ -159,7 +160,7 @@ private var funcs: [(String, String, Color, String)] {
 
                     contactsTopHeader
 
-                    .background { TopGlassBar(scrolled: navScrolled, fallback: OrbitTheme.canvas, always: true) }
+                    .background { TopGlassBar(scrolled: navScrolled, fallback: contactsCanvas, always: true) }
 
                 }
                 .zIndex(1)
@@ -218,7 +219,7 @@ private var funcs: [(String, String, Color, String)] {
                                         }
                                         .padding(.leading, 14)
                                         .frame(height: max(30, L.ctHeadH))
-                                        .background(OrbitTheme.canvas)
+                                        .background(contactsCanvas)
                                         .id("letter-\(section.letter)")
                                     }
                                 }
@@ -239,13 +240,13 @@ private var funcs: [(String, String, Color, String)] {
                                             .padding(.vertical, 20)
                                     }
                                 }
-                                .background(OrbitTheme.canvas)
+                                .background(contactsCanvas)
 
                                 Color.clear
                                     .frame(height: L.tabH + L.safeBottom + 12)
                             }
                         }
-                        .background(OrbitTheme.canvas)
+                        .background(contactsCanvas)
                         .topScrollTracking($navScrolled, space: "contactsScroll")
                         .refreshable { await app.loadContacts() }
 
@@ -276,9 +277,9 @@ private var funcs: [(String, String, Color, String)] {
 
                 .padding(.top, -listHeadH)
             }
-            .background(OrbitTheme.canvas.ignoresSafeArea(edges: .bottom))
+            .background(contactsCanvas.ignoresSafeArea(edges: .bottom))
 
-            .background(OrbitTheme.canvas.ignoresSafeArea(edges: .top))
+            .background(contactsCanvas.ignoresSafeArea(edges: .top))
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: User.self) { user in
                 ContactCardView(user: user,
