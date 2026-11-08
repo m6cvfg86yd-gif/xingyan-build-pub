@@ -168,6 +168,7 @@ struct NativeTabBar: UIViewRepresentable {
     let momentsDot: Bool
     let meDot: Bool
     let avatarPath: String
+    let hidesNativeBackdrop: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(selection: $selection)
@@ -235,10 +236,18 @@ struct NativeTabBar: UIViewRepresentable {
         bar.unselectedItemTintColor = UIColor(OrbitTheme.secondary)
 
         let appearance = UITabBarAppearance()
-        appearance.configureWithTransparentBackground()
-        appearance.backgroundEffect = nil
-        appearance.backgroundColor = .clear
-        appearance.shadowColor = .clear
+        if hidesNativeBackdrop {
+            appearance.configureWithTransparentBackground()
+            appearance.backgroundEffect = nil
+            appearance.backgroundColor = .clear
+            appearance.shadowColor = .clear
+        } else {
+            appearance.configureWithDefaultBackground()
+            if scheme == .dark {
+                appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+                appearance.backgroundColor = UIColor(C.pageBg).withAlphaComponent(0.38)
+            }
+        }
         bar.isOpaque = false
         let normalTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.secondary),
@@ -267,7 +276,7 @@ struct NativeTabBar: UIViewRepresentable {
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.isTranslucent = true
-        (bar as? CompactDotTabBar)?.clearsNativeBackdrop = true
+        (bar as? CompactDotTabBar)?.clearsNativeBackdrop = hidesNativeBackdrop
     }
 
     private func refresh(_ bar: UITabBar) {
