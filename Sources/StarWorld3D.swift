@@ -283,8 +283,8 @@ private struct StarWorldSceneView: UIViewRepresentable {
             )
             guard !hits.isEmpty else { return }
 
-            if let travel = hits.compactMap({ interactionNode(for: $0.node, prefix: "travel.") }).first,
-               let destination = travel.name == "travel.plaza" ? StarWorldMap.plaza : .room {
+            if let travel = hits.compactMap({ interactionNode(for: $0.node, prefix: "travel.") }).first {
+                let destination: StarWorldMap = travel.name == "travel.plaza" ? .plaza : .room
                 walkToTravelDoor(travel, destination: destination)
                 return
             }
@@ -297,21 +297,21 @@ private struct StarWorldSceneView: UIViewRepresentable {
             guard let player = scene.rootNode.childNode(withName: playerName, recursively: true) else {
                 return
             }
-            let point = floorHit.worldCoordinates
+            let targetPoint = floorHit.worldCoordinates
             let origin = player.presentation.worldPosition
-            let dx = point.x - origin.x
-            let dz = point.z - origin.z
+            let dx = CGFloat(targetPoint.x - origin.x)
+            let dz = CGFloat(targetPoint.z - origin.z)
             let distance = sqrt(dx * dx + dz * dz)
             guard distance > 0.2 else { return }
             let duration = min(3.2, max(0.26, TimeInterval(distance / 13.0)))
             player.removeAllActions()
             player.look(
-                at: SCNVector3(point.x, origin.y, point.z),
+                at: SCNVector3(targetPoint.x, origin.y, targetPoint.z),
                 up: SCNVector3(0, 1, 0),
                 localFront: SCNVector3(0, 0, 1)
             )
             player.runAction(
-                .move(to: SCNVector3(point.x, origin.y, point.z), duration: duration)
+                .move(to: SCNVector3(targetPoint.x, origin.y, targetPoint.z), duration: duration)
             )
         }
 
@@ -394,7 +394,7 @@ private struct StarWorldSceneView: UIViewRepresentable {
             context.coordinator.root.eulerAngles.y = Float(yaw)
             SCNTransaction.commit()
         } else {
-            context.coordinator.root.eulerAngles = .zero
+            context.coordinator.root.eulerAngles = SCNVector3(0, 0, 0)
             guard let camera = view.scene?.rootNode.childNode(
                 withName: "world.camera",
                 recursively: true
@@ -756,7 +756,7 @@ private struct StarWorldSceneView: UIViewRepresentable {
 
         let head = addSphere(to: headGroup,
                              radius: 0.33,
-                             position: .zero,
+                             position: SCNVector3(0, 0, 0),
                              scale: SCNVector3(
                                 Float(0.91 * (0.82 + profile.jawWidth * 0.18)),
                                 1.08,
@@ -825,7 +825,7 @@ private struct StarWorldSceneView: UIViewRepresentable {
                                       position: SCNVector3(0.12 * x, 0.23, 0.255),
                                       scale: SCNVector3(0.68, 1, 0.42),
                                       material: hairLight)
-                part.eulerAngles.z = -0.32 * x
+                part.eulerAngles.z = Float(-0.32 * x)
             }
         case .bob, .shoulder:
             let length: CGFloat = profile.hairStyle == .bob ? 0.43 : 0.64

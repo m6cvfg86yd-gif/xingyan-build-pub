@@ -78,10 +78,10 @@ enum StarWorldPlazaScene {
         rim.intensity = 760
         rim.attenuationStartDistance = 18
         rim.attenuationEndDistance = 86
-        let rimNode = SCNNode()
-        rimNode.light = rim
-        rimNode.position = SCNVector3(-34, 12, -12)
-        root.addChildNode(rimNode)
+        let rimLightNode = SCNNode()
+        rimLightNode.light = rim
+        rimLightNode.position = SCNVector3(-34, 12, -12)
+        root.addChildNode(rimLightNode)
 
         func physicalMaterial(
             _ color: UIColor,
@@ -145,11 +145,11 @@ enum StarWorldPlazaScene {
         let rimRing = SCNTorus(ringRadius: 149.2, pipeRadius: 0.34)
         rimRing.ringSegmentCount = 192
         rimRing.pipeSegmentCount = 12
-        let rimNode = SCNNode(geometry: rimRing)
-        rimNode.position.y = 0.12
-        rimNode.eulerAngles.x = .pi / 2
-        rimNode.geometry?.materials = [bronze]
-        root.addChildNode(rimNode)
+        let plazaRimNode = SCNNode(geometry: rimRing)
+        plazaRimNode.position.y = 0.12
+        plazaRimNode.eulerAngles.x = .pi / 2
+        plazaRimNode.geometry?.materials = [bronze]
+        root.addChildNode(plazaRimNode)
 
         let innerRing = SCNTorus(ringRadius: 92, pipeRadius: 0.18)
         innerRing.ringSegmentCount = 160
@@ -274,7 +274,7 @@ enum StarWorldPlazaScene {
         canopy.position = SCNVector3(0, 8.2, -1.8)
         canopy.scale = SCNVector3(1.0, 0.18, 0.72)
         canopy.geometry?.materials = [canvas]
-        canopy.geometry?.isDoubleSided = true
+        canvas.isDoubleSided = true
         stage.addChildNode(canopy)
 
         let light = SCNLight()
