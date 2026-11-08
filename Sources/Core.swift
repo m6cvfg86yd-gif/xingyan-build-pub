@@ -237,7 +237,7 @@ enum L {
 
     static var rowH: CGFloat { o("chatRowH", 72) }
     static var avatar: CGFloat {
-        let larger = v(50, 14, 54)
+        let larger = v(56, 15.5, 60)
         return max(o("chatAvatar", larger), larger)
     }
     static var rowPadL: CGFloat { o("chatPadL", 16) }

@@ -2040,17 +2040,26 @@ struct ChatsView: View {
     }
 
     private func saveAccountIcon(_ image: UIImage, key: String, success: String) async {
+        let inlineIcon = image.resizedJPEG(maxSide: 384, quality: 0.82).map {
+            "data:image/jpeg;base64," + $0.base64EncodedString()
+        }
+
         do {
             let path = try await API.shared.upload(image: image)
-            let saved = await API.shared.opsSetUIKey(key, path)
-            if saved {
+            if await API.shared.opsSetUIKey(key, path) {
                 await app.refreshUI(force: true)
                 app.show(success)
-            } else {
-                app.show(Tr("头像保存失败"))
+                return
             }
         } catch {
-            app.show((error as? APIError)?.errorDescription ?? Tr("头像保存失败"))
+            // 上传链路失败时继续尝试内嵌头像，避免官方头像无法保存。
+        }
+
+        if let inlineIcon, await API.shared.opsSetUIKey(key, inlineIcon) {
+            await app.refreshUI(force: true)
+            app.show(success)
+        } else {
+            app.show(Tr("头像保存失败，请确认当前账号有管理权限"))
         }
     }
 
