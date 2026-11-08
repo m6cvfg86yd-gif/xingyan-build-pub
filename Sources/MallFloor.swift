@@ -369,15 +369,49 @@ struct MallSkyBackground: View {
                     .position(x: w * (0.42 + d1), y: h * 0.64)
             }
         }
-        .blur(radius: 6)
     }
 
     private func cloud(ink: Color, w: CGFloat, h: CGFloat) -> some View {
         ZStack {
-            Capsule().fill(ink).frame(width: w, height: h)
-            Circle().fill(ink).frame(width: h * 1.35, height: h * 1.35).offset(x: -w * 0.16, y: -h * 0.28)
-            Circle().fill(ink).frame(width: h * 1.05, height: h * 1.05).offset(x: w * 0.14, y: -h * 0.18)
+            Ellipse()
+                .fill(Color.black.opacity(0.10))
+                .frame(width: w * 0.88, height: h * 0.48)
+                .offset(y: h * 0.38)
+
+            Capsule()
+                .fill(ink)
+                .frame(width: w, height: h * 0.78)
+                .offset(y: h * 0.18)
+
+            Circle()
+                .fill(ink)
+                .frame(width: h * 1.55, height: h * 1.55)
+                .offset(x: -w * 0.27, y: -h * 0.16)
+            Circle()
+                .fill(ink)
+                .frame(width: h * 1.72, height: h * 1.72)
+                .offset(x: -w * 0.07, y: -h * 0.44)
+            Circle()
+                .fill(ink)
+                .frame(width: h * 1.28, height: h * 1.28)
+                .offset(x: w * 0.16, y: -h * 0.34)
+            Circle()
+                .fill(ink)
+                .frame(width: h * 0.92, height: h * 0.92)
+                .offset(x: w * 0.32, y: -h * 0.08)
+            Circle()
+                .fill(ink)
+                .frame(width: h * 0.76, height: h * 0.76)
+                .offset(x: -w * 0.39, y: h * 0.06)
+
+            Ellipse()
+                .fill(Color.white.opacity(0.16))
+                .frame(width: w * 0.50, height: h * 0.34)
+                .blur(radius: 5)
+                .offset(x: -w * 0.10, y: -h * 0.48)
         }
+        .compositingGroup()
+        .blur(radius: 2.8)
     }
 
     @ViewBuilder private func fog(w: CGFloat, h: CGFloat, t: Double) -> some View {

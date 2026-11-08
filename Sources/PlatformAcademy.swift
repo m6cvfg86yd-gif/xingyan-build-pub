@@ -492,6 +492,7 @@ private struct WeatherAnimatedBackdrop: View {
 
 struct WeatherOfficialView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
     @ObservedObject private var weather = MallWeather.shared
     @ObservedObject private var city = DDCity.shared
 
@@ -613,7 +614,15 @@ struct WeatherOfficialView: View {
         case .dusk: tint = Color(hex: 0xFF9B5C)
         case .night: tint = Color(hex: 0x41548F)
         }
-        return WeatherAnimatedBackdrop(tint: tint)
+        return ZStack {
+            MallSkyBackground(look: current)
+            Color(uiColor: .systemGroupedBackground)
+                .opacity(scheme == .dark ? 0.28 : 0.40)
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(0.10)
+        }
+        .ignoresSafeArea()
     }
 
     private func accountHeader(_ current: MallWeatherLook) -> some View {
