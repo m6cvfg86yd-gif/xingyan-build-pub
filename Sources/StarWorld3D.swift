@@ -27,10 +27,10 @@ struct StarWorld3DEntryCard: View {
                         .font(pfStyled(size: 9, weight: .bold))
                         .tracking(1.8)
                         .foregroundStyle(.white.opacity(0.62))
-                    Text(Tr("星言房间"))
+                    Text(Tr("星言世界"))
                         .font(pfStyled(size: 23, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                    Text(Tr("一个房间，一个玩家"))
+                    Text(Tr("从房间走进海边广场"))
                         .font(pfStyled(size: 12.5, weight: .medium))
                         .foregroundStyle(.white.opacity(0.72))
                 }
@@ -74,6 +74,8 @@ struct StarWorldExperienceView: View {
     @State private var entered = false
     @State private var avatarProfile = StarAvatarProfile.fallback
     @State private var showAvatarStudio = false
+    @State private var activeMap: StarWorldMap = .room
+    @State private var loadingMap: StarWorldMap? = .room
 
     var body: some View {
         ZStack {
@@ -99,8 +101,14 @@ struct StarWorldExperienceView: View {
             )
             .ignoresSafeArea()
 
-            StarWorldSceneView(yaw: $yaw, pitch: $pitch, profile: avatarProfile)
-                .id(avatarProfile)
+            StarWorldSceneView(
+                yaw: $yaw,
+                pitch: $pitch,
+                profile: avatarProfile,
+                map: activeMap,
+                onTravel: beginTravel
+            )
+                .id("\(activeMap.rawValue)-\(avatarProfile.hashValue)")
                 .ignoresSafeArea()
                 .opacity(entered ? 1 : 0)
                 .scaleEffect(entered ? 1 : 0.92)
@@ -111,10 +119,10 @@ struct StarWorldExperienceView: View {
                     worldGlassButton("chevron.left") { dismiss() }
                     Spacer()
                     VStack(spacing: 1) {
-                        Text(Tr("星言房间"))
+                        Text(Tr(activeMap.title))
                             .font(pfStyled(size: 17, weight: .semibold))
                             .foregroundStyle(.white)
-                        Text(Tr("我的房间 · 1位玩家"))
+                        Text(Tr(activeMap.subtitle))
                             .font(pfStyled(size: 10.5, weight: .medium))
                             .foregroundStyle(.white.opacity(0.60))
                     }
@@ -126,11 +134,25 @@ struct StarWorldExperienceView: View {
 
                 Spacer()
 
+                Text(activeMap == .room
+                     ? Tr("点击房门 · 前往海边广场")
+                     : Tr("点击星言房间门 · 返回房间"))
+                    .font(pfStyled(size: 10.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.70))
+                    .padding(.horizontal, 13)
+                    .frame(height: 31)
+                    .background(Capsule().fill(.ultraThinMaterial))
+                    .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.7))
+                    .padding(.bottom, 11)
+
                 HStack(spacing: 28) {
                     worldAction("person.crop.circle", Tr("形象")) {
                         showAvatarStudio = true
                     }
-                    worldAction("sofa.fill", Tr("房间")) { }
+                    worldAction(
+                        activeMap == .room ? "sofa.fill" : "figure.walk",
+                        activeMap == .room ? Tr("房间") : Tr("广场")
+                    ) { }
                     worldAction("tshirt.fill", Tr("换装")) { }
                     worldAction("globe.asia.australia.fill", Tr("世界")) { }
                 }
@@ -143,6 +165,12 @@ struct StarWorldExperienceView: View {
                 }
                 .padding(.horizontal, 28)
                 .padding(.bottom, max(18, L.safeBottom))
+            }
+
+            if let loadingMap {
+                StarWorldLoadingOverlay(destination: loadingMap)
+                    .transition(.opacity)
+                    .zIndex(80)
             }
         }
         .gesture(
@@ -157,8 +185,13 @@ struct StarWorldExperienceView: View {
                 }
         )
         .onAppear {
-            entered = true
             avatarProfile = StarAvatarProfileStore.load(userID: app.me?.id ?? "local")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.05) {
+                withAnimation(.easeOut(duration: 0.55)) {
+                    entered = true
+                    loadingMap = nil
+                }
+            }
         }
         .sheet(isPresented: $showAvatarStudio) {
             StarAvatarPhotoStudioView(
@@ -168,6 +201,29 @@ struct StarWorldExperienceView: View {
             .environmentObject(app)
         }
         .statusBarHidden(true)
+    }
+
+    private func beginTravel(to destination: StarWorldMap) {
+        guard destination != activeMap, loadingMap == nil else { return }
+        withAnimation(.easeOut(duration: 0.18)) {
+            entered = false
+        }
+        withAnimation(.easeIn(duration: 0.24)) {
+            loadingMap = destination
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.38) {
+            activeMap = destination
+            yaw = destination == .room ? -0.20 : 0
+            pitch = destination == .room ? 0.10 : 0.12
+            startYaw = yaw
+            startPitch = pitch
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.72) {
+                withAnimation(.easeOut(duration: 0.58)) {
+                    entered = true
+                    loadingMap = nil
+                }
+            }
+        }
     }
 
     private func worldGlassButton(_ symbol: String, action: @escaping () -> Void) -> some View {
@@ -203,9 +259,107 @@ private struct StarWorldSceneView: UIViewRepresentable {
     @Binding var yaw: CGFloat
     @Binding var pitch: CGFloat
     let profile: StarAvatarProfile
+    let map: StarWorldMap
+    let onTravel: (StarWorldMap) -> Void
 
-    final class Coordinator {
+    final class Coordinator: NSObject {
         let root = SCNNode()
+        weak var sceneView: SCNView?
+        var map: StarWorldMap = .room
+        var onTravel: ((StarWorldMap) -> Void)?
+        var isTraveling = false
+
+        @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
+            guard !isTraveling,
+                  let view = sceneView,
+                  let scene = view.scene else { return }
+            let point = recognizer.location(in: view)
+            let hits = view.hitTest(
+                point,
+                options: [
+                    .searchMode: SCNHitTestSearchMode.all.rawValue,
+                    .ignoreHiddenNodes: true
+                ]
+            )
+            guard !hits.isEmpty else { return }
+
+            if let travel = hits.compactMap({ interactionNode(for: $0.node, prefix: "travel.") }).first,
+               let destination = travel.name == "travel.plaza" ? StarWorldMap.plaza : .room {
+                walkToTravelDoor(travel, destination: destination)
+                return
+            }
+
+            let floorName = map == .room ? "room.floor" : "plaza.ground"
+            guard let floorHit = hits.first(where: {
+                interactionNode(for: $0.node, exact: floorName) != nil
+            }) else { return }
+            let playerName = map == .room ? "player.room" : "world.player"
+            guard let player = scene.rootNode.childNode(withName: playerName, recursively: true) else {
+                return
+            }
+            let point = floorHit.worldCoordinates
+            let origin = player.presentation.worldPosition
+            let dx = point.x - origin.x
+            let dz = point.z - origin.z
+            let distance = sqrt(dx * dx + dz * dz)
+            guard distance > 0.2 else { return }
+            let duration = min(3.2, max(0.26, TimeInterval(distance / 13.0)))
+            player.removeAllActions()
+            player.look(
+                at: SCNVector3(point.x, origin.y, point.z),
+                up: SCNVector3(0, 1, 0),
+                localFront: SCNVector3(0, 0, 1)
+            )
+            player.runAction(
+                .move(to: SCNVector3(point.x, origin.y, point.z), duration: duration)
+            )
+        }
+
+        private func walkToTravelDoor(_ door: SCNNode, destination: StarWorldMap) {
+            guard let scene = sceneView?.scene else { return }
+            let playerName = map == .room ? "player.room" : "world.player"
+            guard let player = scene.rootNode.childNode(withName: playerName, recursively: true) else {
+                onTravel?(destination)
+                return
+            }
+            isTraveling = true
+            let target = door.presentation.worldPosition
+            let origin = player.presentation.worldPosition
+            let dx = target.x - origin.x
+            let dz = target.z - origin.z
+            let distance = sqrt(dx * dx + dz * dz)
+            let approach = SCNVector3(
+                origin.x + dx * max(0, 1 - 1.7 / max(distance, 0.001)),
+                origin.y,
+                origin.z + dz * max(0, 1 - 1.7 / max(distance, 0.001))
+            )
+            player.removeAllActions()
+            player.look(at: approach, up: SCNVector3(0, 1, 0), localFront: SCNVector3(0, 0, 1))
+            player.runAction(.sequence([
+                .move(to: approach, duration: 0.72),
+                .run { [weak self] _ in
+                    DispatchQueue.main.async {
+                        self?.onTravel?(destination)
+                    }
+                }
+            ]))
+        }
+
+        private func interactionNode(
+            for node: SCNNode?,
+            prefix: String? = nil,
+            exact: String? = nil
+        ) -> SCNNode? {
+            var cursor = node
+            while let current = cursor {
+                if let name = current.name {
+                    if let prefix, name.hasPrefix(prefix) { return current }
+                    if let exact, name == exact { return current }
+                }
+                cursor = current.parent
+            }
+            return nil
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -217,19 +371,50 @@ private struct StarWorldSceneView: UIViewRepresentable {
         view.antialiasingMode = .multisampling4X
         view.preferredFramesPerSecond = 60
         view.rendersContinuously = true
+        context.coordinator.sceneView = view
+        context.coordinator.map = map
+        context.coordinator.onTravel = onTravel
         view.scene = makeScene(root: context.coordinator.root, profile: profile)
+        let tap = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleTap(_:))
+        )
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
         return view
     }
 
     func updateUIView(_ view: SCNView, context: Context) {
-        SCNTransaction.begin()
-        SCNTransaction.animationDuration = 0.12
-        context.coordinator.root.eulerAngles.x = Float(pitch)
-        context.coordinator.root.eulerAngles.y = Float(yaw)
-        SCNTransaction.commit()
+        context.coordinator.map = map
+        context.coordinator.onTravel = onTravel
+        if map == .room {
+            SCNTransaction.begin()
+            SCNTransaction.animationDuration = 0.12
+            context.coordinator.root.eulerAngles.x = Float(pitch)
+            context.coordinator.root.eulerAngles.y = Float(yaw)
+            SCNTransaction.commit()
+        } else {
+            context.coordinator.root.eulerAngles = .zero
+            guard let camera = view.scene?.rootNode.childNode(
+                withName: "world.camera",
+                recursively: true
+            ) else { return }
+            let angle = Float(yaw)
+            let elevation = Float(pitch)
+            camera.position = SCNVector3(
+                sin(angle) * 11.0,
+                5.1 + elevation * 5.0,
+                cos(angle) * 11.0
+            )
+            camera.eulerAngles = SCNVector3(-0.34 + elevation * 0.30, angle, 0)
+        }
     }
 
     private func makeScene(root: SCNNode, profile: StarAvatarProfile) -> SCNScene {
+        if map == .plaza {
+            return StarWorldPlazaScene.make(root: root, profile: profile)
+        }
+
         let scene = SCNScene()
         scene.background.contents = UIColor.clear
         scene.rootNode.addChildNode(root)
@@ -307,6 +492,7 @@ private struct StarWorldSceneView: UIViewRepresentable {
         }
 
         let floor = SCNNode(geometry: SCNBox(width: 8.2, height: 0.12, length: 8.2, chamferRadius: 0.02))
+        floor.name = "room.floor"
         floor.position = SCNVector3(0, -1.28, -0.4)
         floor.geometry?.materials = [material(UIColor(red: 0.055, green: 0.12, blue: 0.13, alpha: 1),
                                              roughness: 0.46)]
@@ -316,6 +502,15 @@ private struct StarWorldSceneView: UIViewRepresentable {
         backWall.position = SCNVector3(0, 0.9, -4.05)
         backWall.geometry?.materials = [material(UIColor(red: 0.055, green: 0.10, blue: 0.14, alpha: 1))]
         root.addChildNode(backWall)
+
+        let plazaDoor = starWorldTravelDoor(
+            title: "海边广场",
+            nodeName: "travel.plaza",
+            width: 1.42,
+            height: 2.42
+        )
+        plazaDoor.position = SCNVector3(2.35, -0.06, -3.98)
+        root.addChildNode(plazaDoor)
 
         let leftWall = SCNNode(geometry: SCNBox(width: 0.08, height: 4.4, length: 8.2, chamferRadius: 0.02))
         leftWall.position = SCNVector3(-4.05, 0.9, -0.4)
@@ -379,6 +574,7 @@ private struct StarWorldSceneView: UIViewRepresentable {
         }
 
         let player = SCNNode()
+        player.name = "player.room"
         player.position = SCNVector3(0, -1.28, -0.25)
         root.addChildNode(player)
 
