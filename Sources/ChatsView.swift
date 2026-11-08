@@ -240,7 +240,7 @@ struct ChatRow: View {
     }
 
     private var textColumn: some View {
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .center, spacing: 5) {
                 Text(displayTitle)
                     .font(.headline)
