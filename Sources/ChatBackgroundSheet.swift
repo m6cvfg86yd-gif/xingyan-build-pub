@@ -204,11 +204,7 @@ struct ChatBackgroundSheet: View {
     }
 
     var body: some View {
-        if modal {
-            immersiveBody
-        } else {
-            standardBody
-        }
+        standardBody
     }
 
     private var standardBody: some View {
