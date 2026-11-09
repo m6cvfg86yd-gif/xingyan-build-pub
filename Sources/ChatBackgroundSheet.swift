@@ -1,6 +1,37 @@
 import SwiftUI
 import UIKit
 
+enum ChatBackgroundEffect: String, CaseIterable, Identifiable {
+    case auto
+    case original
+    case blackBlur
+    case whiteBlur
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .auto: return "自动"
+        case .original: return "原景"
+        case .blackBlur: return "黑模糊"
+        case .whiteBlur: return "白模糊"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .auto: return "circle.lefthalf.filled"
+        case .original: return "photo"
+        case .blackBlur: return "moon.fill"
+        case .whiteBlur: return "sun.max.fill"
+        }
+    }
+
+    func resolved(for scheme: ColorScheme) -> ChatBackgroundEffect {
+        self == .auto ? (scheme == .dark ? .blackBlur : .whiteBlur) : self
+    }
+}
+
 func normalizedChatBackground(_ path: String) -> String {
     switch path.trimmingCharacters(in: .whitespacesAndNewlines) {
     case "/bg/bw1.jpg", "solid:white": return "solid:white"
@@ -47,8 +78,12 @@ final class ChatBgStore: ObservableObject {
     @Published private(set) var version = 0
 
     private let globalKey = "chris.chatBg.global"
+    private let globalEffectKey = "chris.chatBgFx.global"
 
     private func key(_ chatId: String) -> String { "chris.chatBg." + chatId }
+    private func effectKey(_ chatId: String) -> String {
+        chatId.isEmpty ? globalEffectKey : "chris.chatBgFx." + chatId
+    }
 
     func get(_ chatId: String) -> String {
         guard !chatId.isEmpty else { return "" }
@@ -79,12 +114,32 @@ final class ChatBgStore: ObservableObject {
         version += 1
     }
 
+    func effect(chatId: String = "") -> ChatBackgroundEffect {
+        let local = UserDefaults.standard.string(forKey: effectKey(chatId)) ?? ""
+        if let value = ChatBackgroundEffect(rawValue: local) { return value }
+        if !chatId.isEmpty {
+            let global = UserDefaults.standard.string(forKey: globalEffectKey) ?? ""
+            if let value = ChatBackgroundEffect(rawValue: global) { return value }
+        }
+        return .original
+    }
+
+    func setEffect(_ effect: ChatBackgroundEffect, chatId: String = "") {
+        UserDefaults.standard.set(effect.rawValue, forKey: effectKey(chatId))
+        version += 1
+    }
+
     func clearAll() {
         let prefix = "chris.chatBg."
         for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
             UserDefaults.standard.removeObject(forKey: key)
         }
+        for key in UserDefaults.standard.dictionaryRepresentation().keys
+            where key.hasPrefix("chris.chatBgFx.") {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
         UserDefaults.standard.removeObject(forKey: globalKey)
+        UserDefaults.standard.removeObject(forKey: globalEffectKey)
         version += 1
     }
 }
@@ -131,6 +186,10 @@ struct ChatBackgroundSheet: View {
         }
         let value = effectiveGlobalChatBackground(app.me?.chatBackground)
         return value.isEmpty ? "auto" : value
+    }
+
+    private var selectedEffect: ChatBackgroundEffect {
+        store.effect(chatId: inChat ? chatId : "")
     }
 
     var body: some View {
@@ -193,6 +252,56 @@ struct ChatBackgroundSheet: View {
                     } footer: {
                         Text(Tr("默认壁纸由星言统一维护，相册壁纸会保留完整全景。"))
                     }
+                }
+
+                Section {
+                    HStack(spacing: 7) {
+                        ForEach(ChatBackgroundEffect.allCases) { item in
+                            Button {
+                                withAnimation(.easeOut(duration: 0.18)) {
+                                    store.setEffect(item,
+                                                    chatId: inChat ? chatId : "")
+                                }
+                                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                            } label: {
+                                VStack(spacing: 7) {
+                                    Image(systemName: item.symbol)
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text(Tr(item.title))
+                                        .font(pfStyled(size: 11.5,
+                                                       weight: selectedEffect == item
+                                                           ? .semibold : .medium))
+                                        .lineLimit(1)
+                                }
+                                .foregroundStyle(selectedEffect == item
+                                                 ? Color.accentColor : Color.secondary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 66)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 12,
+                                                     style: .continuous)
+                                        .fill(selectedEffect == item
+                                              ? Color.accentColor.opacity(0.11)
+                                              : Color.secondary.opacity(0.055))
+                                }
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 12,
+                                                     style: .continuous)
+                                        .stroke(selectedEffect == item
+                                                ? Color.accentColor.opacity(0.65)
+                                                : Color.secondary.opacity(0.12),
+                                                lineWidth: selectedEffect == item ? 1.2 : 0.7)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 5)
+                } header: {
+                    Text(Tr("显示效果"))
+                } footer: {
+                    Text(Tr("自动跟随深浅模式；黑模糊和白模糊保留壁纸颜色，不会遮挡聊天文字。"))
                 }
 
                 Section {
@@ -296,13 +405,27 @@ struct ChatBackgroundSheet: View {
         let path = currentPath == "auto"
             ? effectiveDefaultChatBackground(app.defaultChatBackground)
             : normalizedChatBackground(currentPath)
+        let effect = selectedEffect.resolved(for: scheme)
         return ZStack {
             if let solid = chatBackgroundSolidColor(path) {
                 solid
             } else if !path.isEmpty {
                 RemoteImage(path: path, mode: .fill)
+                    .scaleEffect(effect == .original ? 1 : 1.045)
+                    .blur(radius: effect == .blackBlur
+                          ? 23 : (effect == .whiteBlur ? 19 : 0))
+                    .saturation(effect == .original ? 1 : 0.86)
+                    .contrast(effect == .blackBlur ? 1.04 : 1)
+                    .brightness(effect == .blackBlur
+                                ? -0.035 : (effect == .whiteBlur ? 0.045 : 0))
             } else {
                 defaultChatCanvasColor()
+            }
+
+            if effect == .blackBlur {
+                Color(hex: 0x090A09).opacity(0.23)
+            } else if effect == .whiteBlur {
+                Color.white.opacity(0.16)
             }
 
             VStack(spacing: 10) {

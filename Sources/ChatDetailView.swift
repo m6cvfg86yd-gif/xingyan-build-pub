@@ -253,6 +253,7 @@ private struct ChatImmersiveEdgeMask: View {
     let edge: ChatWallpaperEdge
     let tint: Color?
     let dark: Bool
+    let effect: ChatBackgroundEffect
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -260,8 +261,11 @@ private struct ChatImmersiveEdgeMask: View {
             let width = max(1, proxy.size.width)
             let height = max(1, proxy.size.height)
             let alignment: Alignment = edge == .top ? .top : .bottom
-            let base = tint ?? (dark ? Color(hex: 0x111312)
-                                      : Color(hex: 0xF3F5F2))
+            let resolved = effect.resolved(for: scheme)
+            let effectiveDark = resolved == .blackBlur
+                || (resolved != .whiteBlur && dark)
+            let base = tint ?? (effectiveDark ? Color(hex: 0x111312)
+                                              : Color(hex: 0xF3F5F2))
             let direction: (UnitPoint, UnitPoint) = edge == .top
                 ? (.top, .bottom)
                 : (.bottom, .top)
@@ -280,22 +284,22 @@ private struct ChatImmersiveEdgeMask: View {
                             .id(path + (edge == .top ? ":mask-top" : ":mask-bottom"))
                             .frame(width: width, height: L.height)
                             .scaleEffect(1.08)
-                            .blur(radius: dark ? 24 : 18, opaque: true)
-                            .saturation(dark ? 0.82 : 0.92)
-                            .contrast(dark ? 1.035 : 1.01)
-                            .brightness(dark ? -0.035 : 0.012)
-                            .opacity(dark ? 0.84 : 0.76)
+                            .blur(radius: effectiveDark ? 24 : 18, opaque: true)
+                            .saturation(effectiveDark ? 0.82 : 0.92)
+                            .contrast(effectiveDark ? 1.035 : 1.01)
+                            .brightness(effectiveDark ? -0.04 : 0.035)
+                            .opacity(effectiveDark ? 0.84 : 0.76)
                     }
                 }
 
                 Rectangle()
-                    .fill(base.opacity(dark ? 0.22 : 0.16))
+                    .fill(base.opacity(effectiveDark ? 0.22 : 0.16))
 
                 LinearGradient(
                     colors: [
-                        Color.white.opacity(dark ? 0.025 : 0.055),
+                        Color.white.opacity(effectiveDark ? 0.025 : 0.055),
                         Color.clear,
-                        Color.black.opacity(dark ? 0.028 : 0.008)
+                        Color.black.opacity(effectiveDark ? 0.028 : 0.008)
                     ],
                     startPoint: direction.0,
                     endPoint: direction.1
@@ -304,7 +308,7 @@ private struct ChatImmersiveEdgeMask: View {
                 LinearGradient(
                     colors: [
                         Color.clear,
-                        base.opacity(scheme == .dark ? 0.18 : 0.08)
+                        base.opacity(effectiveDark ? 0.18 : 0.08)
                     ],
                     startPoint: direction.0,
                     endPoint: direction.1
@@ -1145,7 +1149,20 @@ struct ChatDetailView: View {
         return normalizedChatBackground(v)
     }
 
+    private var backgroundEffect: ChatBackgroundEffect {
+        ChatBgStore.shared.effect(chatId: chat.id)
+    }
+
+    private var resolvedBackgroundEffect: ChatBackgroundEffect {
+        backgroundEffect.resolved(for: scheme)
+    }
+
     private var senderNameUsesLightInk: Bool {
+        switch resolvedBackgroundEffect {
+        case .blackBlur: return true
+        case .whiteBlur: return false
+        case .original, .auto: break
+        }
         let path = normalizedChatBackground(backgroundPath)
         switch path {
         case "solid:white":
@@ -1166,6 +1183,11 @@ struct ChatDetailView: View {
     }
 
     private var composerUsesLightInk: Bool {
+        switch resolvedBackgroundEffect {
+        case .blackBlur: return true
+        case .whiteBlur: return false
+        case .original, .auto: break
+        }
         let path = normalizedChatBackground(backgroundPath)
         switch path {
         case "solid:white":
@@ -1180,6 +1202,11 @@ struct ChatDetailView: View {
     }
 
     private var topBarUsesLightInk: Bool {
+        switch resolvedBackgroundEffect {
+        case .blackBlur: return true
+        case .whiteBlur: return false
+        case .original, .auto: break
+        }
         let path = normalizedChatBackground(backgroundPath)
         switch path {
         case "solid:white":
@@ -1537,7 +1564,8 @@ struct ChatDetailView: View {
                     ChatImmersiveEdgeMask(path: backgroundPath,
                                           edge: .top,
                                           tint: wallpaperTopTint,
-                                          dark: topBarUsesLightInk)
+                                          dark: topBarUsesLightInk,
+                                          effect: backgroundEffect)
                         .ignoresSafeArea(edges: .top)
                         .transition(.opacity)
                 }
@@ -2520,15 +2548,52 @@ struct ChatDetailView: View {
                 if let solid = chatBackgroundSolidColor(backgroundPath) {
                     solid
                 } else {
-                    RemoteImage(path: backgroundPath,
-                                mode: .fill,
-                                maxSide: chatWallpaperDecodeSide())
-                        .id(backgroundPath)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                    wallpaperAtmosphere
+                    if resolvedBackgroundEffect == .original {
+                        RemoteImage(path: backgroundPath,
+                                    mode: .fill,
+                                    maxSide: chatWallpaperDecodeSide())
+                            .id(backgroundPath)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
+                    } else {
+                        ChatWallpaperEffectImage(path: backgroundPath,
+                                                 effect: resolvedBackgroundEffect)
+                            .id(backgroundPath + "#" + resolvedBackgroundEffect.rawValue)
+                    }
+                    wallpaperEffectOverlay
+                    if resolvedBackgroundEffect == .original {
+                        wallpaperAtmosphere
+                    }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var wallpaperEffectOverlay: some View {
+        switch resolvedBackgroundEffect {
+        case .blackBlur:
+            ZStack {
+                Color(hex: 0x090A09).opacity(0.23)
+                LinearGradient(
+                    colors: [Color.white.opacity(0.012), Color.clear],
+                    startPoint: .top,
+                    endPoint: .center
+                )
+            }
+            .ignoresSafeArea()
+        case .whiteBlur:
+            ZStack {
+                Color.white.opacity(0.16)
+                LinearGradient(
+                    colors: [Color.white.opacity(0.07), Color.clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .ignoresSafeArea()
+        case .auto, .original:
+            Color.clear
         }
     }
 
@@ -3666,7 +3731,8 @@ struct ChatDetailView: View {
                 ChatImmersiveEdgeMask(path: backgroundPath,
                                       edge: .bottom,
                                       tint: wallpaperBottomTint,
-                                      dark: composerUsesLightInk)
+                                      dark: composerUsesLightInk,
+                                      effect: backgroundEffect)
                     .ignoresSafeArea(edges: .bottom)
             }
         }
