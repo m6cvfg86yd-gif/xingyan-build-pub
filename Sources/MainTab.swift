@@ -84,12 +84,7 @@ struct MainTabView: View {
                     .frame(height: max(49, L.tabH - 6))
                     .background(alignment: .bottom) {
                         if tab == 0 {
-                            ZStack {
-                                Rectangle()
-                                    .fill(.ultraThinMaterial)
-                                    .opacity(0.82)
-                                C.chatsPageBg.opacity(0.18)
-                            }
+                            C.chatsPageBg
                             .frame(height: 104)
                             .offset(y: 24)
                             .ignoresSafeArea(edges: .bottom)

@@ -719,7 +719,7 @@ struct ChatsView: View {
     private var chatsCardInset: CGFloat { max(8, UIConfig.num("chatsOrbitInset", 12)) }
     private var chatsCardRadius: CGFloat { max(16, UIConfig.num("chatsOrbitRadius", 22)) }
     private var chatsPageFill: Color {
-        Color.dyn(0xFFFFFF, 0x121212)
+        C.chatsPageBg
     }
     private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x121212) }
 
@@ -1512,13 +1512,7 @@ struct ChatsView: View {
     }
 
     @ViewBuilder private func chatsNavGlass(_ scrolled: CGFloat) -> some View {
-        ZStack {
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(0.82)
-            chatsPageFill
-                .opacity(0.18)
-        }
+        chatsPageFill
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
     }
