@@ -13,7 +13,7 @@ final class ChatWallpaperEffectRenderer {
 
     private init() {
         cache.countLimit = 24
-        cache.totalCostLimit = 96 * 1024 * 1024
+        cache.totalCostLimit = 128 * 1024 * 1024
     }
 
     func image(path: String,
@@ -22,7 +22,7 @@ final class ChatWallpaperEffectRenderer {
         guard effect != .original, effect != .auto,
               target.width > 1, target.height > 1 else { return nil }
         let nativeWidth = target.width * UIScreen.main.scale
-        let width = max(960, min(1440, nativeWidth))
+        let width = max(960, min(2048, nativeWidth))
         let height = max(1, width * target.height / target.width)
         let key = [
             path,
@@ -34,7 +34,10 @@ final class ChatWallpaperEffectRenderer {
         if let hit = cache.object(forKey: key) { return hit }
         guard let data = await sourceData(path),
               let source = await Task.detached(priority: .userInitiated, operation: {
-                  RemoteImage.downsampled(data, maxSide: 2200)
+                  RemoteImage.downsampled(
+                      data,
+                      maxSide: max(2400, chatWallpaperDecodeSide())
+                  )
               }).value else { return nil }
         guard !Task.isCancelled else { return nil }
 
@@ -197,7 +200,7 @@ struct ChatMaterialGrainOverlay: View {
         if let texture = ChatMaterialGrain.texture {
             Image(uiImage: texture)
                 .resizable(resizingMode: .tile)
-                .opacity(scheme == .dark ? 0.20 : 0.14)
+                .opacity(scheme == .dark ? 0.10 : 0.07)
                 .blendMode(.overlay)
                 .allowsHitTesting(false)
         }
