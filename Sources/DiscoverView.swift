@@ -2,80 +2,34 @@ import SwiftUI
 import UniformTypeIdentifiers
 import CoreLocation
 
-private struct WorldModuleGlass<Content: View>: View {
-    let accent: Color
-    let radius: CGFloat
-    let inset: CGFloat
-    let contentRadius: CGFloat
+private struct WorldGroupCard<Content: View>: View {
     let content: Content
     @Environment(\.colorScheme) private var scheme
 
-    init(accent: Color,
-         radius: CGFloat,
-         inset: CGFloat = 6,
-         contentRadius: CGFloat = 14,
-         @ViewBuilder content: () -> Content) {
-        self.accent = accent
-        self.radius = radius
-        self.inset = inset
-        self.contentRadius = contentRadius
+    init(@ViewBuilder content: () -> Content) {
         self.content = content()
     }
 
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: radius, style: .continuous)
-    }
-
-    private var tint: Color {
-        accent.opacity(scheme == .dark ? 0.16 : 0.09)
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
     }
 
     var body: some View {
-        ZStack {
-            material
-            content
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: contentRadius,
-                                            style: .continuous))
-                .padding(inset)
-        }
-        .clipShape(shape)
-        .overlay {
-            shape.stroke(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(scheme == .dark ? 0.16 : 0.48),
-                        Color.white.opacity(0.035),
-                        Color.black.opacity(scheme == .dark ? 0.22 : 0.055)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: 0.8
-            )
-        }
-        .shadow(color: Color.black.opacity(scheme == .dark ? 0.24 : 0.09),
-                radius: 14, y: 7)
-    }
-
-    @ViewBuilder
-    private var material: some View {
-        #if compiler(>=6.2)
-        if #available(iOS 26.0, *) {
-            Color.clear
-                .glassEffect(.regular.tint(tint), in: shape)
-        } else {
-            fallbackMaterial
-        }
-        #else
-        fallbackMaterial
-        #endif
-    }
-
-    private var fallbackMaterial: some View {
-        shape
-            .fill(.regularMaterial)
-            .overlay { shape.fill(tint) }
+        content
+            .padding(8)
+            .background {
+                shape.fill(Color.dyn(0xFFFFFF, 0x191A19))
+            }
+            .overlay {
+                shape.stroke(
+                    scheme == .dark
+                        ? Color.white.opacity(0.075)
+                        : Color.black.opacity(0.055),
+                    lineWidth: 0.7
+                )
+            }
+            .shadow(color: Color.black.opacity(scheme == .dark ? 0.18 : 0.055),
+                    radius: 10, y: 5)
     }
 }
 
@@ -279,9 +233,11 @@ struct DiscoverView: View {
                                 VStack(spacing: 10) {
                                     WorldSectionHeading(title: group.title,
                                                         count: group.items.count)
-                                    LazyVGrid(columns: worldColumns, spacing: 12) {
-                                        ForEach(group.items) { item in
-                                            worldEntryCard(item)
+                                    WorldGroupCard {
+                                        LazyVGrid(columns: worldColumns, spacing: 10) {
+                                            ForEach(group.items) { item in
+                                                worldEntryCard(item)
+                                            }
                                         }
                                     }
                                 }
@@ -554,11 +510,7 @@ struct DiscoverView: View {
         Button {
             open(item)
         } label: {
-            WorldModuleGlass(accent: OrbitTheme.jade,
-                             radius: 26,
-                             inset: 7,
-                             contentRadius: 19) {
-                ZStack(alignment: .bottomLeading) {
+            ZStack(alignment: .bottomLeading) {
                 if latestThumb.isEmpty {
                     LinearGradient(
                         colors: [Color(hex: 0x10271F), Color(hex: 0x275F4E), Color(hex: 0x0F1B17)],
@@ -682,10 +634,15 @@ struct DiscoverView: View {
                     .padding(.top, 14)
                 }
                     .padding(18)
-                }
-                .frame(height: 218)
-                .contentShape(Rectangle())
             }
+            .frame(height: 232)
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(Color.white.opacity(0.13), lineWidth: 0.8)
+            }
+            .shadow(color: Color(hex: 0x14231D).opacity(0.20), radius: 18, y: 10)
+            .contentShape(Rectangle())
         }
         .buttonStyle(MenuPressStyle())
         .accessibilityElement(children: .combine)
@@ -697,11 +654,7 @@ struct DiscoverView: View {
         return Button {
             open(item)
         } label: {
-            WorldModuleGlass(accent: accent,
-                             radius: 19,
-                             inset: 6,
-                             contentRadius: 13) {
-                ZStack(alignment: .bottomLeading) {
+            ZStack(alignment: .bottomLeading) {
                 if artwork.isEmpty {
                     LinearGradient(
                         colors: [
@@ -766,10 +719,15 @@ struct DiscoverView: View {
                     }
                 }
                     .padding(14)
-                }
-                .frame(height: 136)
-                .contentShape(Rectangle())
             }
+            .frame(maxWidth: .infinity, minHeight: 148, maxHeight: 148)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 0.7)
+            }
+            .shadow(color: accent.opacity(0.10), radius: 10, y: 5)
+            .contentShape(Rectangle())
         }
         .buttonStyle(MenuPressStyle())
         .accessibilityElement(children: .combine)
@@ -779,11 +737,7 @@ struct DiscoverView: View {
         Button {
             open(item)
         } label: {
-            WorldModuleGlass(accent: Color(hex: 0xD72A20),
-                             radius: 20,
-                             inset: 6,
-                             contentRadius: 14) {
-                ZStack(alignment: .leading) {
+            ZStack(alignment: .leading) {
                 LinearGradient(
                     colors: [Color(hex: 0xA51612), Color(hex: 0xD72A20)],
                     startPoint: .topLeading,
@@ -839,10 +793,10 @@ struct DiscoverView: View {
                         .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 0.7))
                 }
                     .padding(.horizontal, 16)
-                }
-                .frame(height: 84)
-                .contentShape(Rectangle())
             }
+            .frame(height: 96)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(MenuPressStyle())
         .accessibilityElement(children: .combine)
