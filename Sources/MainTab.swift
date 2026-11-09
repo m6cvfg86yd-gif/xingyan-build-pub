@@ -85,36 +85,10 @@ struct MainTabView: View {
                     .background(alignment: .bottom) {
                         if tab == 0 {
                             ZStack {
-                                GlassBackground(
-                                    shape: Rectangle(),
-                                    opacity: 0.52,
-                                    edgeAlpha: 0,
-                                    shadow: false,
-                                    seed: 0.44,
-                                    native: false
-                                )
-                                .mask(
-                                    LinearGradient(
-                                        stops: [
-                                            .init(color: .clear, location: 0),
-                                            .init(color: .black.opacity(0.40), location: 0.30),
-                                            .init(color: .black, location: 1)
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: C.chatsPageBg.opacity(0), location: 0),
-                                        .init(color: C.chatsPageBg.opacity(0.14), location: 0.30),
-                                        .init(color: C.chatsPageBg.opacity(0.50), location: 0.70),
-                                        .init(color: C.chatsPageBg.opacity(0.90), location: 1)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
+                                Rectangle()
+                                    .fill(.ultraThinMaterial)
+                                    .opacity(0.82)
+                                C.chatsPageBg.opacity(0.18)
                             }
                             .frame(height: 104)
                             .offset(y: 24)
