@@ -65,6 +65,17 @@ func chatBackgroundSolidColor(_ path: String) -> Color? {
     }
 }
 
+func renderedChatBackgroundSolidColor(_ path: String, dark: Bool) -> Color? {
+    switch normalizedChatBackground(path) {
+    case "solid:white":
+        return dark ? Color(hex: 0x101110) : .white
+    case "solid:black":
+        return .black
+    default:
+        return nil
+    }
+}
+
 func effectiveGlobalChatBackground(_ serverValue: String?) -> String {
     let local = ChatBgStore.shared.global()
     if !local.isEmpty { return normalizedChatBackground(local) }
@@ -217,7 +228,10 @@ struct ChatBackgroundSheet: View {
                         } label: {
                             HStack(spacing: 13) {
                                 Group {
-                                    if let solid = chatBackgroundSolidColor(defaultWallpaperPath) {
+                                    if let solid = renderedChatBackgroundSolidColor(
+                                        defaultWallpaperPath,
+                                        dark: scheme == .dark
+                                    ) {
                                         solid
                                     } else if !defaultWallpaperPath.isEmpty {
                                         RemoteImage(path: defaultWallpaperPath,
@@ -440,7 +454,10 @@ struct ChatBackgroundSheet: View {
              ? Color(hex: 0x080908)
              : Color(hex: 0xEFF1EE))
 
-            if let solid = chatBackgroundSolidColor(immersivePath) {
+            if let solid = renderedChatBackgroundSolidColor(
+                immersivePath,
+                dark: scheme == .dark
+            ) {
                 solid
             } else if !immersivePath.isEmpty {
                 RemoteImage(path: immersivePath,
@@ -556,7 +573,10 @@ struct ChatBackgroundSheet: View {
             : normalizedChatBackground(currentPath)
         let effect = selectedEffect.resolved(for: scheme)
         return ZStack {
-            if let solid = chatBackgroundSolidColor(path) {
+            if let solid = renderedChatBackgroundSolidColor(
+                path,
+                dark: scheme == .dark
+            ) {
                 solid
             } else if !path.isEmpty {
                 RemoteImage(path: path, mode: .fill)

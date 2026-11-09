@@ -276,7 +276,10 @@ private struct ChatImmersiveEdgeMask: View {
                     .fill(base)
 
                 if !path.isEmpty {
-                    if let solid = chatBackgroundSolidColor(path) {
+                    if let solid = renderedChatBackgroundSolidColor(
+                        path,
+                        dark: effectiveDark
+                    ) {
                         solid
                     } else if blurred {
                         ChatWallpaperEffectImage(
@@ -1014,7 +1017,7 @@ struct ChatDetailView: View {
                 if !chatNavigationStatus.isEmpty {
                     Text(chatNavigationStatus)
                         .font(pf(10.5, .medium))
-                        .foregroundColor(adaptiveTopInk.opacity(0.68))
+                        .foregroundColor(adaptiveTopInk.opacity(topBarUsesLightInk ? 0.84 : 0.78))
                         .lineLimit(1)
                         .shadow(color: adaptiveTopOutline, radius: 0.6, x: 0.4, y: 0)
                         .shadow(color: adaptiveTopOutline, radius: 0.6, x: -0.4, y: 0)
@@ -1061,7 +1064,9 @@ struct ChatDetailView: View {
         Button(action: action) {
             Text(Tr(title))
                 .font(pf(13, active ? .semibold : .medium))
-                .foregroundColor(adaptiveTopInk.opacity(active ? 1 : (enabled ? 0.58 : 0.28)))
+                .foregroundColor(adaptiveTopInk.opacity(active ? 1 : (enabled ? 0.72 : 0.32)))
+                .shadow(color: adaptiveTopOutline, radius: 0.55, x: 0.35, y: 0)
+                .shadow(color: adaptiveTopOutline, radius: 0.55, x: -0.35, y: 0)
                 .frame(maxWidth: .infinity)
                 .frame(height: 36)
                 .contentShape(Rectangle())
@@ -1232,8 +1237,18 @@ struct ChatDetailView: View {
         default:
             break
         }
-        if let backgroundTopLuminance { return backgroundTopLuminance < 0.46 }
+        if let backgroundTopLuminance {
+            return Self.prefersLightTopInk(for: backgroundTopLuminance)
+        }
         return senderNameUsesLightInk
+    }
+
+    private static func prefersLightTopInk(for luminance: Double) -> Bool {
+        let lightInkLuminance = 0.86
+        let darkInkLuminance = 0.018
+        let lightContrast = (lightInkLuminance + 0.05) / (luminance + 0.05)
+        let darkContrast = (luminance + 0.05) / (darkInkLuminance + 0.05)
+        return lightContrast > darkContrast
     }
 
     private var adaptiveTopInk: Color {
@@ -1244,8 +1259,8 @@ struct ChatDetailView: View {
 
     private var adaptiveTopOutline: Color {
         topBarUsesLightInk
-            ? Color.black.opacity(0.62)
-            : Color.white.opacity(0.68)
+            ? Color.black.opacity(0.82)
+            : Color.white.opacity(0.86)
     }
 
     private var adaptiveSystemSecondaryInk: Color {
@@ -2561,7 +2576,10 @@ struct ChatDetailView: View {
         ZStack {
             ChatTheme.page
             if !backgroundPath.isEmpty {
-                if let solid = chatBackgroundSolidColor(backgroundPath) {
+                if let solid = renderedChatBackgroundSolidColor(
+                    backgroundPath,
+                    dark: scheme == .dark
+                ) {
                     solid
                 } else {
                     if resolvedBackgroundEffect == .original {
