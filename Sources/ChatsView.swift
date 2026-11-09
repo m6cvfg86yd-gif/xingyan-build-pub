@@ -321,7 +321,12 @@ struct ChatRow: View {
                 HStack(spacing: 5) {
                     Text(displayTitle)
                         .font(pfStyled(size: 17, weight: .semibold))
-                        .foregroundStyle(ChatListVisual.ink)
+                        .foregroundStyle(chat.showsOfficialMark
+                                         ? AnyShapeStyle(OfficialAccountVisual.name)
+                                         : AnyShapeStyle(ChatListVisual.ink))
+                        .shadow(color: chat.showsOfficialMark
+                                ? OfficialAccountVisual.glow : .clear,
+                                radius: 3)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .layoutPriority(1)
@@ -1608,20 +1613,31 @@ struct ChatsView: View {
                                height: ChatListVisual.avatarSize)
                         .overlay {
                             Circle()
-                                .stroke(Color.white.opacity(0.18), lineWidth: 0.7)
+                                .stroke(OfficialAccountVisual.edge, lineWidth: 1.0)
+                                .shadow(color: OfficialAccountVisual.glow,
+                                        radius: 4)
                         }
                     } else {
                         Avatar(path: officialRowAvatar,
                                size: ChatListVisual.avatarSize,
                                radius: 14,
                                circle: true)
+                            .overlay {
+                                Circle()
+                                    .stroke(OfficialAccountVisual.edge,
+                                            lineWidth: 0.9)
+                                    .shadow(color: OfficialAccountVisual.glow,
+                                            radius: 4)
+                            }
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 5) {
                             Text(officialRowName)
                                 .font(pfStyled(size: 17, weight: .semibold))
-                                .foregroundStyle(ChatListVisual.ink)
+                                .foregroundStyle(OfficialAccountVisual.name)
+                                .shadow(color: OfficialAccountVisual.glow,
+                                        radius: 3)
                                 .lineLimit(1)
                             OfficialVerifiedV(size: 15)
                         }

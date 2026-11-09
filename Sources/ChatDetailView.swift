@@ -987,7 +987,12 @@ struct ChatDetailView: View {
                 HStack(spacing: 5) {
                     Text(text)
                         .font(pf(17, .semibold))
-                        .foregroundColor(adaptiveTopInk)
+                        .foregroundStyle(chat.showsOfficialMark
+                                         ? AnyShapeStyle(OfficialAccountVisual.name)
+                                         : AnyShapeStyle(adaptiveTopInk))
+                        .shadow(color: chat.showsOfficialMark
+                                ? OfficialAccountVisual.glow : .clear,
+                                radius: 3)
                         .lineLimit(1)
                         .shadow(color: adaptiveTopOutline, radius: 0.8, x: 0.6, y: 0)
                         .shadow(color: adaptiveTopOutline, radius: 0.8, x: -0.6, y: 0)

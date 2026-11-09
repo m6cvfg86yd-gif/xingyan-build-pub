@@ -1,5 +1,31 @@
 import SwiftUI
 
+enum OfficialAccountVisual {
+    static let name = LinearGradient(
+        colors: [
+            Color(hex: 0x087A50),
+            Color(hex: 0x16B773),
+            Color(hex: 0x2B9FB1),
+            Color(hex: 0xD1AE58)
+        ],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+
+    static let edge = LinearGradient(
+        colors: [
+            Color.white.opacity(0.82),
+            Color(hex: 0x35D797).opacity(0.72),
+            Color(hex: 0xE1C46D).opacity(0.76),
+            Color.black.opacity(0.18)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    static let glow = Color(hex: 0x22C987).opacity(0.24)
+}
+
 /// 官方账号名称后的玻璃胶囊标识。
 struct OfficialMark: View {
     @Environment(\.colorScheme) private var scheme
