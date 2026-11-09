@@ -27,6 +27,12 @@ struct SearchPage: View {
     @State private var showAI = false
     @State private var showBrowser = false
     @State private var showDrop = false
+    @State private var remote: SearchAllData?
+    @State private var searchingRemote = false
+    @State private var searchTask: Task<Void, Never>?
+    @State private var pickedUser: User?
+    @State private var showMoments = false
+    @State private var showChannels = false
 
     private struct OfficialTool: Identifiable {
         let id: String
@@ -53,11 +59,11 @@ struct SearchPage: View {
 
     private let scopes: [(String, String, String)] = [
         ("all", "全部", "magnifyingglass"),
-        ("chat", "聊天记录", "bubble.left.and.bubble.right"),
-        ("user", "联系人", "person.crop.circle"),
-        ("group", "群聊", "person.2"),
+        ("messages", "聊天记录", "bubble.left.and.bubble.right"),
+        ("people", "联系人", "person.crop.circle"),
+        ("groups", "群聊", "person.2"),
         ("moments", "朋友圈", "photo.on.rectangle.angled"),
-        ("feed", "视频号", "play.rectangle")
+        ("videos", "视频号", "play.rectangle")
     ]
 
     private var key: String { q.trimmingCharacters(in: .whitespaces) }
@@ -87,10 +93,16 @@ struct SearchPage: View {
         }
         return ""
     }
-    private var groups: [Chat] { scope == "all" || scope == "group" ? chats.filter { $0.type == "group" } : [] }
-    private var directChats: [Chat] { scope == "group" ? [] : chats.filter { $0.type != "group" } }
+    private var groups: [Chat] {
+        guard scope == "all" || scope == "groups" else { return [] }
+        return chats.filter { $0.type == "group" || ($0.memberCount ?? 0) > 2 }
+    }
+    private var directChats: [Chat] {
+        guard scope == "all" || scope == "messages" else { return [] }
+        return chats.filter { $0.type != "group" && ($0.memberCount ?? 0) <= 2 }
+    }
     private var matchedTools: [OfficialTool] {
-        guard !key.isEmpty else { return [] }
+        guard !key.isEmpty, scope == "all" else { return [] }
         let needle = key.lowercased()
         return officialTools.filter {
             $0.title.lowercased().contains(needle)
@@ -99,9 +111,29 @@ struct SearchPage: View {
         }
     }
     private var contacts: [User] {
-        if key.isEmpty || scope == "chat" || scope == "group" { return [] }
+        if key.isEmpty || !(scope == "all" || scope == "people") { return [] }
         let needle = key.lowercased()
         return app.contacts.filter { userMatches($0, needle: needle) }
+    }
+    private var remoteMessages: [SearchAllData.ChatHit] {
+        remote?.messages ?? []
+    }
+    private var remotePeople: [SearchAllData.Person] {
+        let known = Set(app.contacts.map(\.id))
+        return (remote?.people ?? []).filter { !known.contains($0.id) }
+    }
+    private var remoteGroups: [SearchAllData.Group] {
+        let known = Set(app.chats.filter { $0.type == "group" }.map(\.id))
+        return (remote?.groups ?? []).filter { !known.contains($0.id) }
+    }
+    private var remoteMoments: [SearchAllData.Post] {
+        remote?.moments ?? []
+    }
+    private var remoteVideos: [SearchAllData.Video] {
+        remote?.videos ?? []
+    }
+    private var hasResults: Bool {
+        resultCount > 0
     }
 
     private func chatMatches(_ chat: Chat, needle: String) -> Bool {
@@ -223,6 +255,18 @@ struct SearchPage: View {
                         .pickerStyle(.menu)
                     }
 
+                    if searchingRemote {
+                        Section {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                Text(Tr("正在搜索全部聊天记录"))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
                     if !matchedTools.isEmpty {
                         Section(Tr("官方工具")) {
                             ForEach(matchedTools) { tool in
@@ -232,7 +276,7 @@ struct SearchPage: View {
                     }
 
                     if !directChats.isEmpty {
-                        Section(Tr("聊天记录")) {
+                        Section(Tr("会话")) {
                             ForEach(directChats) { chat in
                                 nativeChatRow(chat, isGroup: false)
                             }
@@ -255,7 +299,47 @@ struct SearchPage: View {
                         }
                     }
 
-                    if resultCount == 0 {
+                    if !remoteMessages.isEmpty {
+                        Section(Tr("消息命中")) {
+                            ForEach(remoteMessages) { hit in
+                                nativeMessageRow(hit)
+                            }
+                        }
+                    }
+
+                    if !remotePeople.isEmpty {
+                        Section(Tr("更多联系人")) {
+                            ForEach(remotePeople) { person in
+                                nativeRemotePersonRow(person)
+                            }
+                        }
+                    }
+
+                    if !remoteGroups.isEmpty {
+                        Section(Tr("更多群聊")) {
+                            ForEach(remoteGroups) { group in
+                                nativeRemoteGroupRow(group)
+                            }
+                        }
+                    }
+
+                    if !remoteMoments.isEmpty {
+                        Section(Tr("朋友圈")) {
+                            ForEach(remoteMoments) { post in
+                                nativeMomentRow(post)
+                            }
+                        }
+                    }
+
+                    if !remoteVideos.isEmpty {
+                        Section(Tr("视频号")) {
+                            ForEach(remoteVideos) { video in
+                                nativeVideoRow(video)
+                            }
+                        }
+                    }
+
+                    if !searchingRemote && !hasResults {
                         Section {
                             Text(Tr("没有找到结果"))
                                 .font(.body)
@@ -304,6 +388,8 @@ struct SearchPage: View {
                 focused = true
                 history = SearchHistory.all
             }
+            .onChange(of: q) { _ in scheduleRemoteSearch() }
+            .onChange(of: scope) { _ in scheduleRemoteSearch() }
             .task { await loadHot() }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notice in
                 guard let frame = notice.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
@@ -322,7 +408,33 @@ struct SearchPage: View {
             .onReceive(NotificationCenter.default.publisher(for: UITextInputMode.currentInputModeDidChangeNotification)) { _ in
                 beginInputMethodTransition()
             }
-            .onDisappear { dictation.stop() }
+            .onDisappear {
+                searchTask?.cancel()
+                dictation.stop()
+            }
+            .sheet(item: $pickedUser) { user in
+                NavigationView {
+                    ContactCardView(
+                        user: user,
+                        onOpenChat: { chat in
+                            pickedUser = nil
+                            onOpenChat?(chat)
+                            dismiss()
+                        },
+                        onOpenMoments: { _ in
+                            pickedUser = nil
+                            showMoments = true
+                        }
+                    )
+                    .environmentObject(app)
+                }
+            }
+            .fullScreenCover(isPresented: $showMoments) {
+                MomentsView().environmentObject(app)
+            }
+            .fullScreenCover(isPresented: $showChannels) {
+                ChannelsView().environmentObject(app)
+            }
             .fullScreenCover(isPresented: $showAI) {
                 PluginsView().environmentObject(app)
             }
@@ -411,6 +523,178 @@ struct SearchPage: View {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func nativeMessageRow(_ hit: SearchAllData.ChatHit) -> some View {
+        let localChat = app.chats.first(where: { $0.id == hit.chatId })
+        let title = {
+            if let value = hit.chatTitle, !value.isEmpty { return value }
+            if let chat = localChat { return chatTitle(chat) }
+            return Tr("聊天")
+        }()
+        let avatar = localChat.map { chatAvatar($0) } ?? ""
+        return Button {
+            remember(key)
+            openChat(id: hit.chatId)
+        } label: {
+            HStack(spacing: 12) {
+                Avatar(path: avatar, size: 40, radius: (hit.isGroup ?? false) ? 12 : 10)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(title)
+                            .font(.body)
+                            .foregroundStyle(C.label)
+                            .lineLimit(1)
+                        if hit.isGroup == true {
+                            Text(Tr("群"))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        Text(compactSearchTime(hit.at))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Text(hit.text ?? "")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+        }
+    }
+
+    private func nativeRemotePersonRow(_ person: SearchAllData.Person) -> some View {
+        Button {
+            remember(key)
+            pickedUser = User(id: person.id)
+        } label: {
+            HStack(spacing: 12) {
+                Avatar(path: person.avatar ?? "", size: 40, radius: 10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(person.name ?? Tr("联系人"))
+                        .font(.body)
+                        .foregroundStyle(C.label)
+                    if let username = person.username, !username.isEmpty {
+                        Text("@" + username)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func nativeRemoteGroupRow(_ group: SearchAllData.Group) -> some View {
+        Button {
+            remember(key)
+            openChat(id: group.id)
+        } label: {
+            HStack(spacing: 12) {
+                Avatar(path: group.avatar ?? "", size: 40, radius: 12)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(group.name ?? Tr("群聊"))
+                        .font(.body)
+                        .foregroundStyle(C.label)
+                        .lineLimit(1)
+                    Text("\((group.members ?? 0)) " + Tr("人"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func nativeMomentRow(_ post: SearchAllData.Post) -> some View {
+        Button {
+            remember(key)
+            showMoments = true
+        } label: {
+            HStack(spacing: 12) {
+                Avatar(path: post.images?.first ?? "", size: 40, radius: 10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(post.author ?? Tr("朋友圈"))
+                        .font(.body)
+                        .foregroundStyle(C.label)
+                    Text(post.content ?? "")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private func nativeVideoRow(_ video: SearchAllData.Video) -> some View {
+        Button {
+            remember(key)
+            showChannels = true
+        } label: {
+            HStack(spacing: 12) {
+                Avatar(path: video.cover ?? "", size: 40, radius: 10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(video.title ?? Tr("视频号"))
+                        .font(.body)
+                        .foregroundStyle(C.label)
+                        .lineLimit(1)
+                    Text(video.author ?? "")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private func compactSearchTime(_ value: String?) -> String {
+        guard let value, value.count >= 10 else { return "" }
+        if value.count >= 16 {
+            let day = value.prefix(10)
+            let clock = value.dropFirst(11).prefix(5)
+            return "\(day) \(clock)"
+        }
+        return String(value.prefix(10))
+    }
+
+    private func openChat(id: String) {
+        guard let chat = app.chats.first(where: { $0.id == id }) else {
+            app.show(Tr("这个会话不在你的列表里"))
+            return
+        }
+        onOpenChat?(chat)
+        dismiss()
+    }
+
+    private func scheduleRemoteSearch() {
+        searchTask?.cancel()
+        let value = key
+        guard !value.isEmpty else {
+            remote = nil
+            searchingRemote = false
+            return
+        }
+        let selectedScope = scope
+        remote = nil
+        searchingRemote = true
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 260_000_000)
+            if Task.isCancelled { return }
+            let result = try? await API.shared.searchAll(value, scope: selectedScope)
+            if Task.isCancelled { return }
+            await MainActor.run {
+                remote = result
+                searchingRemote = false
             }
         }
     }
@@ -606,7 +890,15 @@ struct SearchPage: View {
     }
 
     private var resultCount: Int {
-        matchedTools.count + directChats.count + groups.count + contacts.count
+        matchedTools.count
+            + directChats.count
+            + groups.count
+            + contacts.count
+            + remoteMessages.count
+            + remotePeople.count
+            + remoteGroups.count
+            + remoteMoments.count
+            + remoteVideos.count
     }
 
     private var idleHint: some View {
