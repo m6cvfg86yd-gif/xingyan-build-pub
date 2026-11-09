@@ -1945,13 +1945,10 @@ struct ChatsView: View {
                     chatTopHeader
 
                     .background {
-                        ZStack {
-                            if UIConfig.num("navBarSwallowTouch", 1) > 0 {
-                                Color.clear
-                                    .frame(height: chatsHeaderH)
-                                    .contentShape(Rectangle())
-                            }
-                            chatsNavGlass(scrolled)
+                        if UIConfig.num("navBarSwallowTouch", 1) > 0 {
+                            Color.clear
+                                .frame(height: chatsHeaderH)
+                                .contentShape(Rectangle())
                         }
                     }
 
@@ -1966,6 +1963,10 @@ struct ChatsView: View {
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(alignment: .top) {
+                    chatsNavGlass(scrolled)
+                        .frame(height: L.safeTop + chatsHeaderH + chatsSearchH)
+                }
                 .zIndex(20)
                 .animation(.easeOut(duration: 0.16), value: min(chatsHeaderH, max(0, scrolled)))
 
