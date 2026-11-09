@@ -59,56 +59,70 @@ struct MainTabView: View {
 
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !app.tabBarHidden {
-                    NativeTabBar(selection: $tab,
-                                 uiVersion: app.uiVersion,
-                                 badge: app.showDot("chats", auto: unreadTotal > 0) ? unreadTotal : 0,
-                                 contactsDot: app.showDot("contacts", auto: app.friendRequests > 0),
-                                 momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
-                                 meDot: app.showDot("me", auto: false),
-                                 avatarPath: tabAvatarPath,
-                                 hidesNativeBackdrop: tab == 0)
-                        .frame(height: max(49, L.tabH - 6))
-                        .background(alignment: .bottom) {
-                            if tab == 0 {
-                                ZStack {
-                                    GlassBackground(
-                                        shape: Rectangle(),
-                                        opacity: 0.68,
-                                        edgeAlpha: 0,
-                                        shadow: false,
-                                        seed: 0.44,
-                                        native: false
-                                    )
-                                    .mask(
-                                        LinearGradient(
-                                            stops: [
-                                                .init(color: .clear, location: 0),
-                                                .init(color: .black.opacity(0.42), location: 0.30),
-                                                .init(color: .black, location: 1)
-                                            ],
-                                            startPoint: .top,
-                                            endPoint: .bottom
-                                        )
-                                    )
-
+                    Group {
+                        if tab == 0 {
+                            TabBar(
+                                selection: $tab,
+                                badge: app.showDot("chats", auto: unreadTotal > 0) ? unreadTotal : 0,
+                                contactsDot: app.showDot("contacts", auto: app.friendRequests > 0),
+                                momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
+                                meDot: app.showDot("me", auto: false)
+                            )
+                        } else {
+                            NativeTabBar(
+                                selection: $tab,
+                                uiVersion: app.uiVersion,
+                                badge: app.showDot("chats", auto: unreadTotal > 0) ? unreadTotal : 0,
+                                contactsDot: app.showDot("contacts", auto: app.friendRequests > 0),
+                                momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
+                                meDot: app.showDot("me", auto: false),
+                                avatarPath: tabAvatarPath,
+                                hidesNativeBackdrop: false
+                            )
+                        }
+                    }
+                    .frame(height: max(49, L.tabH - 6))
+                    .background(alignment: .bottom) {
+                        if tab == 0 {
+                            ZStack {
+                                GlassBackground(
+                                    shape: Rectangle(),
+                                    opacity: 0.52,
+                                    edgeAlpha: 0,
+                                    shadow: false,
+                                    seed: 0.44,
+                                    native: false
+                                )
+                                .mask(
                                     LinearGradient(
                                         stops: [
-                                            .init(color: C.tabBg.opacity(0), location: 0),
-                                            .init(color: C.tabBg.opacity(0.18), location: 0.30),
-                                            .init(color: C.tabBg.opacity(0.58), location: 0.70),
-                                            .init(color: C.tabBg.opacity(0.94), location: 1)
+                                            .init(color: .clear, location: 0),
+                                            .init(color: .black.opacity(0.40), location: 0.30),
+                                            .init(color: .black, location: 1)
                                         ],
                                         startPoint: .top,
                                         endPoint: .bottom
                                     )
-                                }
-                                .frame(height: 112)
-                                .offset(y: 28)
-                                .ignoresSafeArea(edges: .bottom)
-                                .allowsHitTesting(false)
+                                )
+
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: C.tabBg.opacity(0), location: 0),
+                                        .init(color: C.tabBg.opacity(0.14), location: 0.30),
+                                        .init(color: C.tabBg.opacity(0.50), location: 0.70),
+                                        .init(color: C.tabBg.opacity(0.90), location: 1)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
                             }
+                            .frame(height: 104)
+                            .offset(y: 24)
+                            .ignoresSafeArea(edges: .bottom)
+                            .allowsHitTesting(false)
                         }
-                        .transition(.move(edge: .bottom))
+                    }
+                    .transition(.move(edge: .bottom))
                 }
             }
 
@@ -497,51 +511,7 @@ struct TabBar: View {
     }
 
     private var tabMaskLayer: some View {
-
-        if scheme == .dark {
-            return AnyView(ZStack {
-                Rectangle().fill(.ultraThinMaterial)
-                    .opacity(0.84)
-                LinearGradient(
-                    colors: [Color(hex: 0xD8EEE5).opacity(0.28),
-                             Color(hex: 0x83B29F).opacity(0.18)],
-                    startPoint: .top, endPoint: .bottom
-                )
-                OrbitTheme.jade.opacity(0.07)
-            })
-        }
-        let fill = UIConfig.colorIfSet("tabBarColor")
-            ?? UIConfig.colorIfSet("tabBg")
-            ?? C.tabBg
-
-        let glassOn = UIConfig.num("tabGlass", 1) > 0
-        if glassOn {
-            return AnyView(ZStack {
-
-                let blurA = UIConfig.num("tabBarBlur", 0.9)
-                if blurA > 0 {
-                    Rectangle()
-                        .fill(.bar)
-                        .opacity(max(0, min(1, blurA)))
-                }
-                GlassBackground(shape: Rectangle(),
-                                opacity: UIConfig.num("tabBarGlass", 0.9),
-
-                                edgeAlpha: UIConfig.num("tabEdgeAlpha", 0.5),
-                                shadow: false,
-                                seed: 0.55,
-                                native: true)
-
-                fill.opacity(UIConfig.num("tabBarOpaque", 0.10))
-            })
-        }
-        let glass = UIConfig.num("tabGlass", 1) > 0 ? UIConfig.num("tabGlassAlpha", 0.5) : 0
-        return AnyView(ZStack {
-            fill
-                .opacity(UIConfig.num("tabBarOpaque", 0.32))
-            Rectangle().fill(.bar)
-                .opacity(glass)
-        })
+        Color.clear
     }
 
     private var dropH: CGFloat { max(0, UIConfig.num("tabBarDrop", 0)) }

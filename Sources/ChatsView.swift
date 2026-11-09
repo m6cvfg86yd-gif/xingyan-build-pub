@@ -1952,8 +1952,7 @@ struct ChatsView: View {
                         }
                     }
 
-                    .offset(y: -min(chatsHeaderH, max(0, scrolled)))
-                    .opacity((1 - min(1, max(0, scrolled) / chatsHeaderH)) * navFadeForFloor)
+                    .opacity(navFadeForFloor)
                     .allowsHitTesting(!floorUp)
 
                     chatsSearchBar
@@ -1968,7 +1967,6 @@ struct ChatsView: View {
                         .frame(height: L.safeTop + chatsHeaderH + chatsSearchH)
                 }
                 .zIndex(20)
-                .animation(.easeOut(duration: 0.16), value: min(chatsHeaderH, max(0, scrolled)))
 
                 VStack(spacing: 0) {
                     Color.clear
