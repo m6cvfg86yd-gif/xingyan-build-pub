@@ -75,10 +75,10 @@ function Add-GlassFinish {
     }
 
     $pathShape = New-RoundedPath `
-        -Rect ([System.Drawing.RectangleF]::new(30, 30, 964, 964)) `
-        -Radius 218
+        -Rect ([System.Drawing.RectangleF]::new(4, 4, 1016, 1016)) `
+        -Radius 224
 
-    $highlightAlpha = if ($Mode -eq "dark") { 78 } else { 58 }
+    $highlightAlpha = if ($Mode -eq "dark") { 72 } else { 54 }
     $highlight = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
         [System.Drawing.PointF]::new(110, 0),
         [System.Drawing.PointF]::new(820, 920),
@@ -101,24 +101,19 @@ function Add-GlassFinish {
 
     $edge = [System.Drawing.Pen]::new(
         [System.Drawing.Color]::FromArgb(
-            $(if ($Mode -eq "dark") { 94 } else { 72 }),
+            $(if ($Mode -eq "dark") { 82 } else { 64 }),
             255, 255, 255),
-        5.0)
+        3.2)
     $edge.Alignment = [System.Drawing.Drawing2D.PenAlignment]::Inset
     $graphics.DrawPath($edge, $pathShape)
     $edge.Dispose()
-
-    $inner = [System.Drawing.Pen]::new(
-        [System.Drawing.Color]::FromArgb(25, 3, 24, 17), 3.0)
-    $graphics.DrawPath($inner, $pathShape)
-    $inner.Dispose()
 
     $random = [System.Random]::new(20261110)
     $noise = [System.Drawing.SolidBrush]::new(
         [System.Drawing.Color]::FromArgb(15, 255, 255, 255))
     for ($i = 0; $i -lt 3600; $i++) {
-        $x = $random.Next(38, 986)
-        $y = $random.Next(38, 986)
+        $x = $random.Next(8, 1016)
+        $y = $random.Next(8, 1016)
         $graphics.FillRectangle($noise, $x, $y, 1, 1)
     }
     $noise.Dispose()

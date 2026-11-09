@@ -193,6 +193,14 @@ struct ChatBackgroundSheet: View {
     }
 
     var body: some View {
+        if modal {
+            immersiveBody
+        } else {
+            standardBody
+        }
+    }
+
+    private var standardBody: some View {
         List {
                 Section {
                     backgroundPreview
@@ -396,6 +404,226 @@ struct ChatBackgroundSheet: View {
                 PhotoPicker { image in upload(image) }
             }
         .tint(.accentColor)
+    }
+
+    private var immersivePath: String {
+        let currentPath = current == "auto"
+            ? (inChat ? effectiveGlobalChatBackground(app.me?.chatBackground) : "auto")
+            : current
+        return currentPath == "auto"
+            ? effectiveDefaultChatBackground(app.defaultChatBackground)
+            : normalizedChatBackground(currentPath)
+    }
+
+    private var immersiveBody: some View {
+        ZStack(alignment: .bottom) {
+            immersiveBackdrop
+                .ignoresSafeArea()
+
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.03),
+                    Color.clear,
+                    Color.black.opacity(0.58)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            immersiveControls
+                .padding(.horizontal, 14)
+                .padding(.bottom, max(12, L.safeBottom + 4))
+
+            VStack {
+                HStack(spacing: 10) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background {
+                                GlassBackground(
+                                    shape: Circle(),
+                                    opacity: 0.92,
+                                    edgeAlpha: 0.42,
+                                    native: true,
+                                    tint: Color.black.opacity(0.16)
+                                )
+                            }
+                    }
+                    .buttonStyle(.plain)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(Tr("聊天背景"))
+                            .font(pfStyled(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Text(Tr("实时预览 · 沉浸式延展"))
+                            .font(pfStyled(size: 10.5, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.68))
+                    }
+                    Spacer(minLength: 0)
+
+                    if busy {
+                        ProgressView()
+                            .tint(.white)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, L.safeTop + 8)
+                Spacer(minLength: 0)
+            }
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .preferredColorScheme(scheme)
+        .sheet(isPresented: $picking) {
+            PhotoPicker { image in upload(image) }
+        }
+    }
+
+    private var immersiveBackdrop: some View {
+        let effect = selectedEffect.resolved(for: scheme)
+        return ZStack {
+            (effect == .blackBlur
+             ? Color(hex: 0x080908)
+             : Color(hex: 0xEFF1EE))
+
+            if let solid = chatBackgroundSolidColor(immersivePath) {
+                solid
+            } else if !immersivePath.isEmpty {
+                RemoteImage(path: immersivePath,
+                            mode: .fill,
+                            maxSide: chatWallpaperDecodeSide())
+                    .id("immersive-" + immersivePath)
+                    .scaleEffect(effect == .original ? 1 : 1.045)
+                    .blur(radius: effect == .blackBlur
+                          ? 23 : (effect == .whiteBlur ? 19 : 0))
+                    .saturation(effect == .original ? 1 : 0.86)
+                    .contrast(effect == .blackBlur ? 1.04 : 1)
+                    .brightness(effect == .blackBlur
+                                ? -0.035 : (effect == .whiteBlur ? 0.045 : 0))
+            }
+
+            if effect == .blackBlur {
+                Color(hex: 0x090A09).opacity(0.24)
+            } else if effect == .whiteBlur {
+                Color.white.opacity(0.16)
+            }
+        }
+        .animation(.easeOut(duration: 0.22), value: effect)
+    }
+
+    private var immersiveControls: some View {
+        VStack(spacing: 14) {
+            HStack {
+                Text(Tr("显示效果"))
+                    .font(pfStyled(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(Tr(selectedEffect.title))
+                    .font(pfStyled(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 7) {
+                ForEach(ChatBackgroundEffect.allCases) { item in
+                    Button {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            store.setEffect(item,
+                                            chatId: inChat ? chatId : "")
+                        }
+                        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    } label: {
+                        VStack(spacing: 5) {
+                            Image(systemName: item.symbol)
+                                .font(.system(size: 15, weight: .semibold))
+                            Text(Tr(item.title))
+                                .font(pfStyled(size: 10.5,
+                                               weight: selectedEffect == item
+                                                   ? .semibold : .medium))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(selectedEffect == item
+                                         ? Color.accentColor : Color.secondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 55)
+                        .background {
+                            RoundedRectangle(cornerRadius: 11,
+                                             style: .continuous)
+                                .fill(selectedEffect == item
+                                      ? Color.accentColor.opacity(0.12)
+                                      : Color.secondary.opacity(0.055))
+                        }
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 11,
+                                             style: .continuous)
+                                .stroke(selectedEffect == item
+                                        ? Color.accentColor.opacity(0.58)
+                                        : Color.secondary.opacity(0.10),
+                                        lineWidth: selectedEffect == item ? 1.1 : 0.65)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            HStack(spacing: 9) {
+                immersiveAction("photo.on.rectangle", Tr("默认壁纸")) {
+                    pick(defaultWallpaperPath.isEmpty ? "auto" : defaultWallpaperPath)
+                }
+                immersiveAction("photo.badge.plus", Tr("从相册")) {
+                    picking = true
+                }
+                immersiveAction("arrow.triangle.2.circlepath", Tr("自动背景")) {
+                    pick("auto")
+                }
+            }
+            .disabled(busy)
+
+            Text(Tr("背景会连续延展到顶部和底部，模糊层只处理壁纸，不会透出聊天文字。"))
+                .font(pfStyled(size: 10.5))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .background {
+            GlassBackground(
+                shape: RoundedRectangle(cornerRadius: 24, style: .continuous),
+                opacity: scheme == .dark ? 0.90 : 0.84,
+                edgeAlpha: 0.44,
+                shadow: true,
+                seed: 0.63,
+                native: true
+            )
+        }
+    }
+
+    private func immersiveAction(_ symbol: String,
+                                 _ title: String,
+                                 action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(title)
+                    .font(pfStyled(size: 11.5, weight: .medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .background {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(Color.primary.opacity(0.055))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .stroke(Color.primary.opacity(0.075), lineWidth: 0.6)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var backgroundPreview: some View {

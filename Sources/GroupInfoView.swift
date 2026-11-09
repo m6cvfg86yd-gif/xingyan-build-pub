@@ -150,7 +150,7 @@ struct GroupInfoView: View {
             }
         }
         .navigationDestination(isPresented: $showSearch) { ChatSearchView(chat: chat) }
-        .sheet(isPresented: $showGroupBg) {
+        .fullScreenCover(isPresented: $showGroupBg) {
             NavigationStack {
                 ChatBackgroundSheet(chatId: chat.id, modal: true)
                     .environmentObject(app)
@@ -1377,7 +1377,7 @@ struct DirectChatInfoView: View {
                 DeleteAccountView().environmentObject(app)
             }
         }
-        .sheet(isPresented: $showChatBg) {
+        .fullScreenCover(isPresented: $showChatBg) {
             NavigationStack {
                 ChatBackgroundSheet(chatId: chat.id, modal: true)
                     .environmentObject(app)
