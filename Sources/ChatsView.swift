@@ -532,7 +532,7 @@ struct SwipeChatRow: View {
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
-    private var rowBg: Color { .clear }
+    private var rowBg: Color { cardStyle ? .clear : Color.dyn(0xFFFFFF, 0x121212) }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -763,19 +763,8 @@ struct ChatsView: View {
     private var chatsCardRadius: CGFloat { max(16, UIConfig.num("chatsOrbitRadius", 22)) }
     private var chatsPageFill: Color {
         Color.dyn(0xFFFFFF, 0x121212)
-            .opacity(scheme == .dark ? 0.16 : 0.10)
     }
-    private var chatsCardFill: Color {
-        Color.dyn(0xFFFFFF, 0x121212)
-            .opacity(scheme == .dark ? 0.20 : 0.14)
-    }
-    private var chatsWallpaperPath: String {
-        let global = effectiveGlobalChatBackground(app.me?.chatBackground)
-        if global.isEmpty || global == "auto" {
-            return effectiveDefaultChatBackground(app.defaultChatBackground)
-        }
-        return normalizedChatBackground(global)
-    }
+    private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x121212) }
 
     @State private var scrolled: CGFloat = 0
     @State private var filterHidden = false
@@ -1830,9 +1819,6 @@ struct ChatsView: View {
         return NavigationStack(path: $path) {
 
             ZStack(alignment: .top) {
-                conversationBackdrop
-                    .ignoresSafeArea()
-
                 if app.chats.isEmpty {
                     VStack(spacing: 0) {
                         Color.clear.frame(height: L.safeTop + chatsHeaderH
@@ -2229,23 +2215,6 @@ struct ChatsView: View {
             }
         }
 
-    }
-
-    private var conversationBackdrop: some View {
-        ZStack {
-            Color.dyn(0xFFFFFF, 0x121212)
-            if !chatsWallpaperPath.isEmpty {
-                if let solid = chatBackgroundSolidColor(chatsWallpaperPath) {
-                    solid
-                } else {
-                    ChatWallpaperEffectImage(
-                        path: chatsWallpaperPath,
-                        effect: scheme == .dark ? .blackBlur : .whiteBlur
-                    )
-                }
-            }
-            chatsPageFill
-        }
     }
 
     private func saveAccountIcon(_ image: UIImage, key: String, success: String) async {
