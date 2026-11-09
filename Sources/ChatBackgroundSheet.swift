@@ -457,9 +457,9 @@ struct ChatBackgroundSheet: View {
             }
 
             if effect == .blackBlur {
-                Color(hex: 0x090A09).opacity(0.24)
+                Color(hex: 0x090A09).opacity(0.075)
             } else if effect == .whiteBlur {
-                Color.white.opacity(0.16)
+                Color.white.opacity(0.055)
             }
         }
         .animation(.easeOut(duration: 0.22), value: effect)
@@ -572,9 +572,9 @@ struct ChatBackgroundSheet: View {
             }
 
             if effect == .blackBlur {
-                Color(hex: 0x090A09).opacity(0.23)
+                Color(hex: 0x090A09).opacity(0.075)
             } else if effect == .whiteBlur {
-                Color.white.opacity(0.16)
+                Color.white.opacity(0.055)
             }
 
             VStack(spacing: 10) {

@@ -278,36 +278,28 @@ private struct ChatImmersiveEdgeMask: View {
                 if !path.isEmpty {
                     if let solid = chatBackgroundSolidColor(path) {
                         solid
+                    } else if blurred {
+                        ChatWallpaperEffectImage(
+                            path: path,
+                            effect: resolved,
+                            renderSize: CGSize(width: width, height: L.height),
+                            displayAlignment: alignment
+                        )
+                        .id(path + (edge == .top
+                                    ? ":mask-top-blur"
+                                    : ":mask-bottom-blur"))
                     } else {
                         RemoteImage(path: path,
                                     mode: .fill,
-                                    maxSide: blurred
-                                        ? 1600
-                                        : chatWallpaperDecodeSide())
+                                    maxSide: chatWallpaperDecodeSide())
                             .id(path + (edge == .top ? ":mask-top" : ":mask-bottom"))
                             .frame(width: width, height: L.height)
-                            .scaleEffect(blurred ? 1.08 : 1)
-                            .blur(radius: blurred
-                                  ? (effectiveDark ? 24 : 18)
-                                  : 0, opaque: true)
-                            .saturation(blurred
-                                        ? (effectiveDark ? 0.82 : 0.92)
-                                        : 1)
-                            .contrast(blurred
-                                      ? (effectiveDark ? 1.035 : 1.01)
-                                      : 1)
-                            .brightness(blurred
-                                        ? (effectiveDark ? -0.04 : 0.035)
-                                        : 0)
-                            .opacity(blurred
-                                     ? (effectiveDark ? 0.84 : 0.76)
-                                     : 1)
                     }
                 }
 
                 Rectangle()
                     .fill(base.opacity(blurred
-                                       ? (effectiveDark ? 0.22 : 0.16)
+                                       ? (effectiveDark ? 0.065 : 0.045)
                                        : (effectiveDark ? 0.045 : 0.025)))
 
                 LinearGradient(
@@ -324,7 +316,7 @@ private struct ChatImmersiveEdgeMask: View {
                     colors: [
                         Color.clear,
                         base.opacity(blurred
-                                     ? (effectiveDark ? 0.18 : 0.08)
+                                     ? (effectiveDark ? 0.075 : 0.035)
                                      : (effectiveDark ? 0.055 : 0.025))
                     ],
                     startPoint: direction.0,
@@ -2596,9 +2588,9 @@ struct ChatDetailView: View {
         switch resolvedBackgroundEffect {
         case .blackBlur:
             ZStack {
-                Color(hex: 0x090A09).opacity(0.23)
+                Color(hex: 0x090A09).opacity(0.075)
                 LinearGradient(
-                    colors: [Color.white.opacity(0.012), Color.clear],
+                    colors: [Color.white.opacity(0.008), Color.clear],
                     startPoint: .top,
                     endPoint: .center
                 )
@@ -2606,9 +2598,9 @@ struct ChatDetailView: View {
             .ignoresSafeArea()
         case .whiteBlur:
             ZStack {
-                Color.white.opacity(0.16)
+                Color.white.opacity(0.055)
                 LinearGradient(
-                    colors: [Color.white.opacity(0.07), Color.clear],
+                    colors: [Color.white.opacity(0.03), Color.clear],
                     startPoint: .top,
                     endPoint: .bottom
                 )

@@ -101,9 +101,15 @@ final class ChatWallpaperEffectRenderer {
         let toned = blurred.applyingFilter("CIColorControls", parameters: [
             kCIInputSaturationKey: black ? 0.82 : 0.88,
             kCIInputContrastKey: black ? 1.045 : 1.015,
-            kCIInputBrightnessKey: black ? -0.025 : 0.035
+            kCIInputBrightnessKey: black ? -0.01 : 0.022
         ])
-        guard let cg = context.createCGImage(toned, from: input.extent) else {
+        let exposed = toned.applyingFilter("CIExposureAdjust", parameters: [
+            kCIInputEVKey: black ? -0.28 : 0.16
+        ])
+        let vibrant = exposed.applyingFilter("CIVibrance", parameters: [
+            "inputAmount": black ? -0.06 : 0.035
+        ])
+        guard let cg = context.createCGImage(vibrant, from: input.extent) else {
             return nil
         }
         return UIImage(cgImage: cg)
@@ -113,32 +119,38 @@ final class ChatWallpaperEffectRenderer {
 struct ChatWallpaperEffectImage: View {
     let path: String
     let effect: ChatBackgroundEffect
+    var renderSize: CGSize? = nil
+    var displayAlignment: Alignment = .center
     @Environment(\.colorScheme) private var scheme
     @State private var image: UIImage?
 
     var body: some View {
         GeometryReader { proxy in
             let resolved = effect.resolved(for: scheme)
-            let widthBucket = max(1, Int((proxy.size.width / 80).rounded()))
-            ZStack {
+            let target = renderSize ?? proxy.size
+            let widthBucket = max(1, Int((target.width / 80).rounded()))
+            ZStack(alignment: displayAlignment) {
                 (resolved == .blackBlur
                  ? Color(hex: 0x101110)
                  : Color(hex: 0xF3F4F1))
+                    .frame(width: target.width, height: target.height)
                 if let image {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: proxy.size.width,
-                               height: proxy.size.height)
-                        .clipped()
+                        .frame(width: target.width, height: target.height)
                         .transition(.opacity)
                 }
             }
+            .frame(width: proxy.size.width,
+                   height: proxy.size.height,
+                   alignment: displayAlignment)
+            .clipped()
             .task(id: "\(path)#\(resolved.rawValue)#\(widthBucket)") {
                 image = await ChatWallpaperEffectRenderer.shared.image(
                     path: path,
                     effect: resolved,
-                    target: proxy.size
+                    target: target
                 )
             }
             .animation(.easeOut(duration: 0.24), value: image != nil)
