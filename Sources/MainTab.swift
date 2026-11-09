@@ -9,6 +9,7 @@ struct MainTabView: View {
     @AppStorage("xingyan.topGreenGlow") private var topGreenGlow = true
 
     @ObservedObject private var lang = LangStore.shared
+    @Environment(\.colorScheme) private var scheme
 
     @ObservedObject private var musicSheet = MusicSheet.shared
     @ObservedObject private var musicDock = MusicDockState.shared
@@ -101,7 +102,7 @@ struct MainTabView: View {
 
         .background(C.pageBg.ignoresSafeArea())
         .overlay(alignment: .top) {
-            if topGreenGlow {
+            if topGreenGlow, scheme != .dark {
                 StarStatusRail(tab: tab)
                     .zIndex(100)
             }
