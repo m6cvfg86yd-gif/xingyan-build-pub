@@ -253,16 +253,22 @@ private struct ChatImmersiveEdgeMask: View {
     let edge: ChatWallpaperEdge
     let tint: Color?
     let dark: Bool
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         GeometryReader { proxy in
             let width = max(1, proxy.size.width)
             let height = max(1, proxy.size.height)
             let alignment: Alignment = edge == .top ? .top : .bottom
+            let base = tint ?? (dark ? Color(hex: 0x111312)
+                                      : Color(hex: 0xF3F5F2))
+            let direction: (UnitPoint, UnitPoint) = edge == .top
+                ? (.top, .bottom)
+                : (.bottom, .top)
 
             ZStack(alignment: alignment) {
                 Rectangle()
-                    .fill(tint ?? Color.dyn(0xEFEFEF, 0x121212))
+                    .fill(base)
 
                 if !path.isEmpty {
                     if let solid = chatBackgroundSolidColor(path) {
@@ -270,11 +276,39 @@ private struct ChatImmersiveEdgeMask: View {
                     } else {
                         RemoteImage(path: path,
                                     mode: .fill,
-                                    maxSide: chatWallpaperDecodeSide())
+                                    maxSide: 1200)
                             .id(path + (edge == .top ? ":mask-top" : ":mask-bottom"))
                             .frame(width: width, height: L.height)
+                            .scaleEffect(1.08)
+                            .blur(radius: dark ? 24 : 18, opaque: true)
+                            .saturation(dark ? 0.82 : 0.92)
+                            .contrast(dark ? 1.035 : 1.01)
+                            .brightness(dark ? -0.035 : 0.012)
+                            .opacity(dark ? 0.84 : 0.76)
                     }
                 }
+
+                Rectangle()
+                    .fill(base.opacity(dark ? 0.22 : 0.16))
+
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(dark ? 0.025 : 0.055),
+                        Color.clear,
+                        Color.black.opacity(dark ? 0.028 : 0.008)
+                    ],
+                    startPoint: direction.0,
+                    endPoint: direction.1
+                )
+
+                LinearGradient(
+                    colors: [
+                        Color.clear,
+                        base.opacity(scheme == .dark ? 0.18 : 0.08)
+                    ],
+                    startPoint: direction.0,
+                    endPoint: direction.1
+                )
             }
             .frame(width: width, height: height, alignment: alignment)
             .clipped()
@@ -2492,9 +2526,19 @@ struct ChatDetailView: View {
                         .id(backgroundPath)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
+                    wallpaperAtmosphere
                 }
             }
         }
+    }
+
+    private var wallpaperAtmosphere: Color {
+        if scheme == .dark {
+            let bright = (backgroundLuminance ?? 0.35) > 0.66
+            return Color.black.opacity(bright ? 0.18 : 0.11)
+        }
+        let darkImage = (backgroundLuminance ?? 0.62) < 0.38
+        return Color.white.opacity(darkImage ? 0.055 : 0.018)
     }
 
     private func backfillVoiceText() {
