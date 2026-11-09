@@ -13,7 +13,7 @@ final class ChatWallpaperEffectRenderer {
 
     private init() {
         cache.countLimit = 24
-        cache.totalCostLimit = 64 * 1024 * 1024
+        cache.totalCostLimit = 96 * 1024 * 1024
     }
 
     func image(path: String,
@@ -22,7 +22,7 @@ final class ChatWallpaperEffectRenderer {
         guard effect != .original, effect != .auto,
               target.width > 1, target.height > 1 else { return nil }
         let nativeWidth = target.width * UIScreen.main.scale
-        let width = max(720, min(1080, nativeWidth))
+        let width = max(960, min(1440, nativeWidth))
         let height = max(1, width * target.height / target.width)
         let key = [
             path,
@@ -34,7 +34,7 @@ final class ChatWallpaperEffectRenderer {
         if let hit = cache.object(forKey: key) { return hit }
         guard let data = await sourceData(path),
               let source = await Task.detached(priority: .userInitiated, operation: {
-                  RemoteImage.downsampled(data, maxSide: 1800)
+                  RemoteImage.downsampled(data, maxSide: 2200)
               }).value else { return nil }
         guard !Task.isCancelled else { return nil }
 
@@ -141,6 +141,7 @@ struct ChatWallpaperEffectImage: View {
                         .frame(width: target.width, height: target.height)
                         .transition(.opacity)
                 }
+                ChatMaterialGrainOverlay()
             }
             .frame(width: proxy.size.width,
                    height: proxy.size.height,
@@ -154,6 +155,51 @@ struct ChatWallpaperEffectImage: View {
                 )
             }
             .animation(.easeOut(duration: 0.24), value: image != nil)
+        }
+    }
+}
+
+private enum ChatMaterialGrain {
+    static let texture: UIImage? = {
+        let side = 128
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        return UIGraphicsImageRenderer(
+            size: CGSize(width: side, height: side),
+            format: format
+        ).image { context in
+            var state: UInt64 = 0x9E3779B97F4A7C15
+            func next() -> UInt64 {
+                state ^= state << 13
+                state ^= state >> 7
+                state ^= state << 17
+                return state
+            }
+            for y in 0..<side {
+                for x in 0..<side {
+                    let value = Double(next() & 0xFF) / 255
+                    let tone = 0.34 + value * 0.32
+                    context.cgContext.setFillColor(
+                        UIColor(white: tone, alpha: 0.085).cgColor
+                    )
+                    context.cgContext.fill(CGRect(x: x, y: y, width: 1, height: 1))
+                }
+            }
+        }
+    }()
+}
+
+struct ChatMaterialGrainOverlay: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        if let texture = ChatMaterialGrain.texture {
+            Image(uiImage: texture)
+                .resizable(resizingMode: .tile)
+                .opacity(scheme == .dark ? 0.20 : 0.14)
+                .blendMode(.overlay)
+                .allowsHitTesting(false)
         }
     }
 }

@@ -322,6 +322,8 @@ private struct ChatImmersiveEdgeMask: View {
                     startPoint: direction.0,
                     endPoint: direction.1
                 )
+
+                ChatMaterialGrainOverlay()
             }
             .frame(width: width, height: height, alignment: alignment)
             .clipped()
