@@ -189,7 +189,7 @@ struct ChatBackgroundSheet: View {
     }
 
     private var selectedEffect: ChatBackgroundEffect {
-        store.effect(chatId: inChat ? chatId : "")
+        scheme == .dark ? .blackBlur : .original
     }
 
     var body: some View {
@@ -260,56 +260,6 @@ struct ChatBackgroundSheet: View {
                     } footer: {
                         Text(Tr("默认壁纸由星言统一维护，相册壁纸会保留完整全景。"))
                     }
-                }
-
-                Section {
-                    HStack(spacing: 7) {
-                        ForEach(ChatBackgroundEffect.allCases) { item in
-                            Button {
-                                withAnimation(.easeOut(duration: 0.18)) {
-                                    store.setEffect(item,
-                                                    chatId: inChat ? chatId : "")
-                                }
-                                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                            } label: {
-                                VStack(spacing: 7) {
-                                    Image(systemName: item.symbol)
-                                        .font(.system(size: 16, weight: .semibold))
-                                    Text(Tr(item.title))
-                                        .font(pfStyled(size: 11.5,
-                                                       weight: selectedEffect == item
-                                                           ? .semibold : .medium))
-                                        .lineLimit(1)
-                                }
-                                .foregroundStyle(selectedEffect == item
-                                                 ? Color.accentColor : Color.secondary)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 66)
-                                .background {
-                                    RoundedRectangle(cornerRadius: 12,
-                                                     style: .continuous)
-                                        .fill(selectedEffect == item
-                                              ? Color.accentColor.opacity(0.11)
-                                              : Color.secondary.opacity(0.055))
-                                }
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 12,
-                                                     style: .continuous)
-                                        .stroke(selectedEffect == item
-                                                ? Color.accentColor.opacity(0.65)
-                                                : Color.secondary.opacity(0.12),
-                                                lineWidth: selectedEffect == item ? 1.2 : 0.7)
-                                }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 5)
-                } header: {
-                    Text(Tr("显示效果"))
-                } footer: {
-                    Text(Tr("自动跟随深浅模式；黑模糊和白模糊保留壁纸颜色，不会遮挡聊天文字。"))
                 }
 
                 Section {
@@ -518,56 +468,27 @@ struct ChatBackgroundSheet: View {
     private var immersiveControls: some View {
         VStack(spacing: 14) {
             HStack {
-                Text(Tr("显示效果"))
+                Text(Tr("背景显示"))
                     .font(pfStyled(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
                 Spacer()
-                Text(Tr(selectedEffect.title))
+                Text(Tr("跟随系统"))
                     .font(pfStyled(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 7) {
-                ForEach(ChatBackgroundEffect.allCases) { item in
-                    Button {
-                        withAnimation(.easeOut(duration: 0.18)) {
-                            store.setEffect(item,
-                                            chatId: inChat ? chatId : "")
-                        }
-                        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                    } label: {
-                        VStack(spacing: 5) {
-                            Image(systemName: item.symbol)
-                                .font(.system(size: 15, weight: .semibold))
-                            Text(Tr(item.title))
-                                .font(pfStyled(size: 10.5,
-                                               weight: selectedEffect == item
-                                                   ? .semibold : .medium))
-                                .lineLimit(1)
-                        }
-                        .foregroundStyle(selectedEffect == item
-                                         ? Color.accentColor : Color.secondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 55)
-                        .background {
-                            RoundedRectangle(cornerRadius: 11,
-                                             style: .continuous)
-                                .fill(selectedEffect == item
-                                      ? Color.accentColor.opacity(0.12)
-                                      : Color.secondary.opacity(0.055))
-                        }
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 11,
-                                             style: .continuous)
-                                .stroke(selectedEffect == item
-                                        ? Color.accentColor.opacity(0.58)
-                                        : Color.secondary.opacity(0.10),
-                                        lineWidth: selectedEffect == item ? 1.1 : 0.65)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
+            HStack(spacing: 8) {
+                Image(systemName: scheme == .dark
+                      ? "moon.fill" : "sun.max.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.jade)
+                Text(Tr(scheme == .dark
+                        ? "深色模式自动使用黑模糊"
+                        : "浅色模式保持全景上下连贯"))
+                    .font(pfStyled(size: 11.5, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 9) {
                 immersiveAction("photo.on.rectangle", Tr("默认壁纸")) {
@@ -582,7 +503,7 @@ struct ChatBackgroundSheet: View {
             }
             .disabled(busy)
 
-            Text(Tr("背景会连续延展到顶部和底部，模糊层只处理壁纸，不会透出聊天文字。"))
+            Text(Tr("浅色保持完整全景；深色使用同图黑模糊，遮罩只处理壁纸，不会透出聊天文字。"))
                 .font(pfStyled(size: 10.5))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)

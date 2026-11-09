@@ -1172,7 +1172,7 @@ struct ChatDetailView: View {
     }
 
     private var backgroundEffect: ChatBackgroundEffect {
-        ChatBgStore.shared.effect(chatId: chat.id)
+        scheme == .dark ? .blackBlur : .original
     }
 
     private var resolvedBackgroundEffect: ChatBackgroundEffect {
