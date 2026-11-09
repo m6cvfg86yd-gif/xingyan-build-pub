@@ -143,7 +143,7 @@ private struct ConversationScrollFeel: UIViewRepresentable {
                 if let scroll = view as? UIScrollView {
                     guard context.coordinator.scrollView !== scroll else { return }
                     context.coordinator.scrollView = scroll
-                    scroll.directionalLockEnabled = true
+                    scroll.isDirectionalLockEnabled = true
                     scroll.alwaysBounceVertical = true
                     scroll.bounces = true
                     scroll.delaysContentTouches = false
