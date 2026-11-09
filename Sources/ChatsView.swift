@@ -122,6 +122,44 @@ struct RowSwipeCatcher: UIViewRepresentable {
     }
 }
 
+private struct ConversationScrollFeel: UIViewRepresentable {
+    final class Coordinator {
+        weak var scrollView: UIScrollView?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            var current: UIView? = uiView
+            while let view = current {
+                if let scroll = view as? UIScrollView {
+                    guard context.coordinator.scrollView !== scroll else { return }
+                    context.coordinator.scrollView = scroll
+                    scroll.directionalLockEnabled = true
+                    scroll.alwaysBounceVertical = true
+                    scroll.bounces = true
+                    scroll.delaysContentTouches = false
+                    scroll.canCancelContentTouches = true
+                    scroll.decelerationRate = .normal
+                    scroll.keyboardDismissMode = .interactive
+                    scroll.showsVerticalScrollIndicator = false
+                    scroll.scrollsToTop = true
+                    return
+                }
+                current = view.superview
+            }
+        }
+    }
+}
+
 private struct OfficialRowAdminEditor: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
@@ -1777,7 +1815,7 @@ struct ChatsView: View {
                         Spacer(minLength: 0)
                     }
                 } else {
-                    ScrollView {
+                    ScrollView(.vertical, showsIndicators: false) {
                         LazyVStack(spacing: 0) {
 
                             Color.clear.frame(height: L.safeTop + chatsHeaderH
@@ -1817,6 +1855,7 @@ struct ChatsView: View {
                                     value: -g.frame(in: .named("chatsScroll")).minY)
                             }
                         )
+                        .background(ConversationScrollFeel())
                     }
                     .id(chatFilter)
                     .coordinateSpace(name: "chatsScroll")
@@ -1876,12 +1915,17 @@ struct ChatsView: View {
                     )
                     .onPreferenceChange(ChatsScrollKey.self) { v in
                         let s = max(0, v)
+                        let wasNearTop = scrolled <= 8
 
-                        if s > 8 { NotificationCenter.default.post(name: .chrisRowSwipe, object: nil) }
-
-                        if s > scrolled || s < 1 {
-                            if abs(s - scrolled) > 0.5 { scrolled = s }
+                        if s > 8, wasNearTop {
+                            NotificationCenter.default.post(name: .chrisRowSwipe, object: nil)
                         }
+
+                        // 只记录“顶部/已经离开顶部”两个状态，避免滚动时每帧
+                        // 触发 SwiftUI 重算。滑行动量仍由原生 UIScrollView 负责。
+                        if s < 1 { scrolled = 0 }
+                        else if s > 8 { scrolled = 9 }
+
                         if s < 1 {
                             setFilterHidden(false)
                         } else if s > 8 {
