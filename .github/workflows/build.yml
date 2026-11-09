@@ -104,6 +104,9 @@ jobs:
           cp AppIcon60x60@3x.png "$APP/"
           cp splash.jpg "$APP/"
           cp moments-cover.jpg "$APP/"
+          if [ -f Sources/xingyan_message.wav ]; then
+            cp Sources/xingyan_message.wav "$APP/xingyan_message.wav"
+          fi
           cp levelicons/*.png "$APP/"
           mkdir -p Assets.xcassets/AppIcon.appiconset
           sips -s format jpeg -s formatOptions 100 server/public/icon-1024.png \
