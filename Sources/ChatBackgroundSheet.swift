@@ -68,7 +68,7 @@ func chatBackgroundSolidColor(_ path: String) -> Color? {
 func renderedChatBackgroundSolidColor(_ path: String, dark: Bool) -> Color? {
     switch normalizedChatBackground(path) {
     case "solid:white":
-        return dark ? Color(hex: 0x101110) : .white
+        return dark ? Color(hex: 0x101110) : Color(hex: 0xF2F3EF)
     case "solid:black":
         return .black
     default:
