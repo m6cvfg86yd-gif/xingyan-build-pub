@@ -13,7 +13,7 @@ final class ChatWallpaperEffectRenderer {
 
     private init() {
         cache.countLimit = 24
-        cache.totalCostLimit = 36 * 1024 * 1024
+        cache.totalCostLimit = 64 * 1024 * 1024
     }
 
     func image(path: String,
@@ -21,7 +21,8 @@ final class ChatWallpaperEffectRenderer {
                target: CGSize) async -> UIImage? {
         guard effect != .original, effect != .auto,
               target.width > 1, target.height > 1 else { return nil }
-        let width = max(280, min(620, target.width))
+        let nativeWidth = target.width * UIScreen.main.scale
+        let width = max(720, min(1080, nativeWidth))
         let height = max(1, width * target.height / target.width)
         let key = [
             path,
@@ -33,7 +34,7 @@ final class ChatWallpaperEffectRenderer {
         if let hit = cache.object(forKey: key) { return hit }
         guard let data = await sourceData(path),
               let source = await Task.detached(priority: .userInitiated, operation: {
-                  RemoteImage.downsampled(data, maxSide: 900)
+                  RemoteImage.downsampled(data, maxSide: 1800)
               }).value else { return nil }
         guard !Task.isCancelled else { return nil }
 
@@ -88,7 +89,7 @@ final class ChatWallpaperEffectRenderer {
         }
         guard let input = CIImage(image: cropped) else { return nil }
 
-        let radius = max(10, min(24, target.width * 0.036))
+        let radius = max(18, min(40, target.width * 0.028))
         let blurred = input
             .clampedToExtent()
             .applyingFilter("CIGaussianBlur", parameters: [

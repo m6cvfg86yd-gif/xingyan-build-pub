@@ -282,7 +282,7 @@ private struct ChatImmersiveEdgeMask: View {
                         RemoteImage(path: path,
                                     mode: .fill,
                                     maxSide: blurred
-                                        ? 1200
+                                        ? 1600
                                         : chatWallpaperDecodeSide())
                             .id(path + (edge == .top ? ":mask-top" : ":mask-bottom"))
                             .frame(width: width, height: L.height)
