@@ -107,10 +107,10 @@ struct MainTabView: View {
 
                                 LinearGradient(
                                     stops: [
-                                        .init(color: C.tabBg.opacity(0), location: 0),
-                                        .init(color: C.tabBg.opacity(0.14), location: 0.30),
-                                        .init(color: C.tabBg.opacity(0.50), location: 0.70),
-                                        .init(color: C.tabBg.opacity(0.90), location: 1)
+                                        .init(color: C.chatsPageBg.opacity(0), location: 0),
+                                        .init(color: C.chatsPageBg.opacity(0.14), location: 0.30),
+                                        .init(color: C.chatsPageBg.opacity(0.50), location: 0.70),
+                                        .init(color: C.chatsPageBg.opacity(0.90), location: 1)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
