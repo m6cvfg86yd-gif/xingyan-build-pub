@@ -1912,6 +1912,7 @@ struct RootView: View {
             .onChange(of: geo.size.width) { w in L.width = w }
         }
         .font(pf(17))
+        .modifier(ThemedScrollIndicators())
         .task { await app.boot() }
         .task {
             // 后台改图标等界面配置时实时事件可能被弱网丢掉；前台定时校准一次。
