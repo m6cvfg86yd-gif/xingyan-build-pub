@@ -1978,7 +1978,7 @@ struct LaunchView: View {
         ZStack {
             StarLaunchBackdrop()
             VStack(spacing: 14) {
-                StarLaunchMark(size: 74, orbiting: false, breathing: false)
+                StarLaunchMark(size: 74, breathing: false)
                 Text(Tr("正在连接…"))
                     .font(pfStyled(size: 12.5, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.66))
