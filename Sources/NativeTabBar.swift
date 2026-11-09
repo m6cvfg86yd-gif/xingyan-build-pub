@@ -37,24 +37,13 @@ private final class CompactDotTabBar: UITabBar {
     }
 
     private func updateNativeBackdropVisibility() {
-        /* iOS 26/27 的背板类型名不稳定，还会嵌套在 Platter 或
-           UIVisualEffectView 内。递归隐藏背景层，但跳过所有交互按钮。 */
-        func hideBackdrops(in view: UIView) {
-            for child in view.subviews {
-                let typeName = String(describing: type(of: child))
-                if typeName.contains("TabBarButton") { continue }
-                let isBackdrop = child is UIVisualEffectView
-                    || typeName.contains("Background")
-                    || typeName.contains("Platter")
-                    || typeName.contains("Material")
-                if isBackdrop {
-                    child.isHidden = clearsNativeBackdrop
-                } else {
-                    hideBackdrops(in: child)
-                }
-            }
+        /* iOS 26/27 会保留一层原生 TabBar 背板。深色只隐藏这层，
+           不覆盖图标内容；外层 TabGlassBackdrop 继续负责玻璃效果。 */
+        for child in subviews {
+            let typeName = String(describing: type(of: child))
+            guard typeName.contains("BarBackground") else { continue }
+            child.isHidden = clearsNativeBackdrop
         }
-        hideBackdrops(in: self)
     }
 }
 
@@ -179,7 +168,6 @@ struct NativeTabBar: UIViewRepresentable {
     let momentsDot: Bool
     let meDot: Bool
     let avatarPath: String
-    let hidesNativeBackdrop: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(selection: $selection)
@@ -247,19 +235,13 @@ struct NativeTabBar: UIViewRepresentable {
         bar.unselectedItemTintColor = UIColor(OrbitTheme.secondary)
 
         let appearance = UITabBarAppearance()
-        if hidesNativeBackdrop {
-            appearance.configureWithTransparentBackground()
-            appearance.backgroundEffect = nil
-            appearance.backgroundColor = .clear
-            appearance.shadowColor = .clear
-        } else {
-            appearance.configureWithDefaultBackground()
-            if scheme == .dark {
-                appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-                appearance.backgroundColor = UIColor(C.pageBg).withAlphaComponent(0.38)
-            }
-        }
+        appearance.configureWithDefaultBackground()
         bar.isOpaque = false
+        if scheme == .dark {
+            // 深色页面与系统默认深色玻璃差一个黑阶；只校准材质底色，保留原生模糊。
+            appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+            appearance.backgroundColor = UIColor(C.pageBg).withAlphaComponent(0.38)
+        }
         let normalTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.secondary),
             .font: pfUIFont(10.5, .medium)
@@ -287,13 +269,7 @@ struct NativeTabBar: UIViewRepresentable {
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.isTranslucent = true
-        if hidesNativeBackdrop {
-            bar.backgroundImage = UIImage()
-            bar.shadowImage = UIImage()
-            bar.backgroundColor = .clear
-            bar.barTintColor = .clear
-        }
-        (bar as? CompactDotTabBar)?.clearsNativeBackdrop = hidesNativeBackdrop
+        (bar as? CompactDotTabBar)?.clearsNativeBackdrop = false
     }
 
     private func refresh(_ bar: UITabBar) {

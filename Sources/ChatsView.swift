@@ -719,7 +719,7 @@ struct ChatsView: View {
     private var chatsCardInset: CGFloat { max(8, UIConfig.num("chatsOrbitInset", 12)) }
     private var chatsCardRadius: CGFloat { max(16, UIConfig.num("chatsOrbitRadius", 22)) }
     private var chatsPageFill: Color {
-        C.chatsPageBg
+        Color.dyn(0xFFFFFF, 0x121212)
     }
     private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x121212) }
 
@@ -1117,7 +1117,7 @@ struct ChatsView: View {
             .frame(height: 36)
             .background {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.dyn(0xEFEFEF, 0x1C1C1E))
+                    .fill(Color.dyn(0xEFEFEF, 0x29292C))
             }
             .contentShape(Rectangle())
         }
@@ -1512,7 +1512,16 @@ struct ChatsView: View {
     }
 
     @ViewBuilder private func chatsNavGlass(_ scrolled: CGFloat) -> some View {
-        chatsPageFill
+        let blur = UIConfig.num("chatsNavGlassAlpha", 1)
+        ZStack {
+            if scheme == .dark {
+                chatsPageFill
+            } else {
+                Rectangle().fill(.bar)
+                    .opacity(max(0, min(1, blur)))
+                chatsPageFill.opacity(0.90)
+            }
+        }
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
     }
@@ -1773,11 +1782,6 @@ struct ChatsView: View {
 
                             Color.clear.frame(height: L.safeTop + chatsHeaderH
                                               + chatsSearchH + chatFilterOffset)
-                            officialConversationRow
-                                .frame(width: chatsContentMaxWidth)
-                            weatherConversationRow
-                                .frame(width: chatsContentMaxWidth)
-
                             if snapshot.list.isEmpty {
                                 Text(Tr("这个分类暂时没有会话"))
                                     .font(pf(14))
@@ -1798,6 +1802,11 @@ struct ChatsView: View {
                             } else {
                                 chatListRows(snapshot.list)
                             }
+                            officialConversationRow
+                                .frame(width: chatsContentMaxWidth)
+                            weatherConversationRow
+                                .frame(width: chatsContentMaxWidth)
+
                             Color.clear.frame(height: L.tabH + L.safeBottom + 10)
                         }
 
@@ -1931,10 +1940,13 @@ struct ChatsView: View {
                     chatTopHeader
 
                     .background {
-                        if UIConfig.num("navBarSwallowTouch", 1) > 0 {
-                            Color.clear
-                                .frame(height: chatsHeaderH)
-                                .contentShape(Rectangle())
+                        ZStack {
+                            if UIConfig.num("navBarSwallowTouch", 1) > 0 {
+                                Color.clear
+                                    .frame(height: chatsHeaderH)
+                                    .contentShape(Rectangle())
+                            }
+                            chatsNavGlass(scrolled)
                         }
                     }
 
@@ -1947,12 +1959,6 @@ struct ChatsView: View {
 
                     Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .background(alignment: .top) {
-                    chatsNavGlass(scrolled)
-                        .frame(height: L.safeTop + chatsHeaderH + chatsSearchH)
-                }
-                .zIndex(20)
 
                 VStack(spacing: 0) {
                     Color.clear
