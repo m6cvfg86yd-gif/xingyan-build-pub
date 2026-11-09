@@ -37,13 +37,24 @@ private final class CompactDotTabBar: UITabBar {
     }
 
     private func updateNativeBackdropVisibility() {
-        /* iOS 26/27 会保留一层原生 TabBar 背板。深色只隐藏这层，
-           不覆盖图标内容；外层 TabGlassBackdrop 继续负责玻璃效果。 */
-        for child in subviews {
-            let typeName = String(describing: type(of: child))
-            guard typeName.contains("BarBackground") else { continue }
-            child.isHidden = clearsNativeBackdrop
+        /* iOS 26/27 的背板类型名不稳定，还会嵌套在 Platter 或
+           UIVisualEffectView 内。递归隐藏背景层，但跳过所有交互按钮。 */
+        func hideBackdrops(in view: UIView) {
+            for child in view.subviews {
+                let typeName = String(describing: type(of: child))
+                if typeName.contains("TabBarButton") { continue }
+                let isBackdrop = child is UIVisualEffectView
+                    || typeName.contains("Background")
+                    || typeName.contains("Platter")
+                    || typeName.contains("Material")
+                if isBackdrop {
+                    child.isHidden = clearsNativeBackdrop
+                } else {
+                    hideBackdrops(in: child)
+                }
+            }
         }
+        hideBackdrops(in: self)
     }
 }
 
@@ -276,6 +287,12 @@ struct NativeTabBar: UIViewRepresentable {
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.isTranslucent = true
+        if hidesNativeBackdrop {
+            bar.backgroundImage = UIImage()
+            bar.shadowImage = UIImage()
+            bar.backgroundColor = .clear
+            bar.barTintColor = .clear
+        }
         (bar as? CompactDotTabBar)?.clearsNativeBackdrop = hidesNativeBackdrop
     }
 
