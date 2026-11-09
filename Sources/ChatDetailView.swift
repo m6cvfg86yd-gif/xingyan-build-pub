@@ -1008,8 +1008,6 @@ struct ChatDetailView: View {
                                 ? OfficialAccountVisual.glow : .clear,
                                 radius: 3)
                         .lineLimit(1)
-                        .shadow(color: adaptiveTopOutline, radius: 0.8, x: 0.6, y: 0)
-                        .shadow(color: adaptiveTopOutline, radius: 0.8, x: -0.6, y: 0)
                     if !selectMode && chat.showsOfficialMark {
                         OfficialMark()
                     }
@@ -1019,8 +1017,6 @@ struct ChatDetailView: View {
                         .font(pf(10.5, .medium))
                         .foregroundColor(adaptiveTopInk.opacity(topBarUsesLightInk ? 0.84 : 0.78))
                         .lineLimit(1)
-                        .shadow(color: adaptiveTopOutline, radius: 0.6, x: 0.4, y: 0)
-                        .shadow(color: adaptiveTopOutline, radius: 0.6, x: -0.4, y: 0)
                 }
             }
         )
@@ -1065,8 +1061,6 @@ struct ChatDetailView: View {
             Text(Tr(title))
                 .font(pf(13, active ? .semibold : .medium))
                 .foregroundColor(adaptiveTopInk.opacity(active ? 1 : (enabled ? 0.72 : 0.32)))
-                .shadow(color: adaptiveTopOutline, radius: 0.55, x: 0.35, y: 0)
-                .shadow(color: adaptiveTopOutline, radius: 0.55, x: -0.35, y: 0)
                 .frame(maxWidth: .infinity)
                 .frame(height: 36)
                 .contentShape(Rectangle())
@@ -1252,9 +1246,7 @@ struct ChatDetailView: View {
     }
 
     private var adaptiveTopInk: Color {
-        topBarUsesLightInk
-            ? Color.white.opacity(0.94)
-            : Color(hex: 0x20242A)
+        topBarUsesLightInk ? .white : .black
     }
 
     private var adaptiveTopOutline: Color {
@@ -1544,7 +1536,7 @@ struct ChatDetailView: View {
             VStack(spacing: 0) {
             NavBar(title: navTitleShown, back: navBackAction,
                    titleColor: adaptiveTopInk,
-                   titleOutline: adaptiveTopOutline,
+                   titleOutline: .clear,
                    backColor: adaptiveTopInk,
                    hideChromeExceptBack: hidesChatNavigation && isGroup,
                    titleView: chatNavigationTitle,
