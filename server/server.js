@@ -6654,7 +6654,7 @@ async function pushToUser(userId, opts) {
     const payload = {
       aps: Object.assign({
         alert: { title: String(opts.title || '').slice(0, 60), body: String(opts.body || '').slice(0, 160) },
-        sound: opts.sound === false ? undefined : 'default',
+        sound: opts.sound === false ? undefined : (opts.soundName || 'default'),
         'thread-id': opts.chatId || opts.kind || 'chris',
         'mutable-content': 0
       }, { badge: badge }),
@@ -6757,6 +6757,7 @@ function pushForMessage(sender, chat, message) {
     pushToUser(id, {
       kind: 'message', title, body, chatId: chat.id, fromId: sender.id,
       sound: n.sound !== false,
+      soundName: 'xingyan_message.wav',
       /* 同一个会话的推送折叠成一条（微信：同一个聊天连着来消息只留最新那条） */
       collapse: chat.id
     }).catch(() => { });

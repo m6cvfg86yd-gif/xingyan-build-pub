@@ -5,6 +5,8 @@ import AudioToolbox
 
 enum LocalNotify {
     static var settings = NotifySettings()
+    private static var messageSoundID: SystemSoundID = 0
+    private static let messageSoundName = "xingyan_message.wav"
 
     static func prepare() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
@@ -60,21 +62,50 @@ enum LocalNotify {
         return start < end ? (cur >= start && cur < end) : (cur >= start || cur < end)
     }
 
-    static func incoming(title: String, body: String, chatId: String = "", msgId: String = "", badge: Int = 0) {
+    static func incoming(title: String,
+                         body: String,
+                         chatId: String = "",
+                         msgId: String = "",
+                         badge: Int = 0,
+                         count: Int = 1,
+                         isGroup: Bool = false,
+                         sender: String = "") {
         guard settings.on else { return }
         guard !mutedNow() else { return }
-        if settings.sound { AudioServicesPlaySystemSound(1007) }
+        if settings.sound { playMessageSound() }
         if settings.vibrate { AudioServicesPlaySystemSound(kSystemSoundID_Vibrate) }
+        let iconBadge = max(1, min(999, badge))
+        DispatchQueue.main.async {
+            UIApplication.shared.applicationIconBadgeNumber = iconBadge
+        }
         // 微信在前台只更新会话与角标，不连续弹三条系统横幅。
         guard UIApplication.shared.applicationState != .active else { return }
+        let mergedCount = max(1, min(999, count))
+        let shownTitle = mergedCount > 1
+            ? title + " · \(mergedCount) " + Tr("条新消息")
+            : title
+        let cleanBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let senderPrefix = sender + "："
+        let shownBody = isGroup && !sender.isEmpty
+            && !cleanBody.hasPrefix(senderPrefix)
+            ? senderPrefix + cleanBody
+            : cleanBody
         let c = UNMutableNotificationContent()
-        c.title = title
-        c.body = settings.showDetail ? body : "你收到一条新消息"
-        if settings.sound { c.sound = .default }
+        c.title = shownTitle
+        c.body = settings.showDetail ? shownBody : Tr("你收到一条新消息")
+        if settings.sound {
+            c.sound = UNNotificationSound(
+                named: UNNotificationSoundName(messageSoundName)
+            )
+        }
 
-        c.badge = NSNumber(value: max(0, min(999, badge)))
+        c.badge = NSNumber(value: iconBadge)
+        c.summaryArgument = sender.isEmpty ? title : sender
+        c.summaryArgumentCount = mergedCount
 
-        if !chatId.isEmpty { c.userInfo = ["chatId": chatId] }
+        if !chatId.isEmpty {
+            c.userInfo = ["chatId": chatId, "messageId": msgId]
+        }
 
         if !chatId.isEmpty { c.threadIdentifier = chatId }
         let id: String
@@ -83,6 +114,19 @@ enum LocalNotify {
         else { id = UUID().uuidString }
         let req = UNNotificationRequest(identifier: id, content: c, trigger: nil)
         UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
+    }
+
+    private static func playMessageSound() {
+        if messageSoundID == 0,
+           let url = Bundle.main.url(forResource: "xingyan_message",
+                                     withExtension: "wav") {
+            AudioServicesCreateSystemSoundID(url as CFURL, &messageSoundID)
+        }
+        if messageSoundID != 0 {
+            AudioServicesPlaySystemSound(messageSoundID)
+        } else {
+            AudioServicesPlaySystemSound(1007)
+        }
     }
 
     private static var lastNotified: [String: String] = [:]

@@ -409,11 +409,17 @@ final class AppState: ObservableObject {
                     let mid = c.lastMessage?.id ?? ""
                     guard LocalNotify.shouldNotify(chatId: c.id, msgId: mid,
                                                    at: c.lastMessage?.createdAt) else { return }
+                    let isGroup = c.type == "group" || (c.memberCount ?? 0) > 2
+                    let sender = (c.lastMessage?.senderName ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
                     LocalNotify.incoming(title: c.name,
                                          body: c.lastMessage?.preview ?? "你收到一条新消息",
                                          chatId: c.id,
                                          msgId: mid,
-                                         badge: unreadForIcon)
+                                         badge: unreadForIcon,
+                                         count: max(1, c.unreadCount),
+                                         isGroup: isGroup,
+                                         sender: sender)
                 } else {
                     LocalNotify.incoming(title: "新消息", body: "你收到一条新消息", badge: unreadForIcon)
                 }
