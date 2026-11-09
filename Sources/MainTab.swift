@@ -679,26 +679,26 @@ struct TabBar: View {
                 let seg = barWidth / CGFloat(items.count)
                 let w = max(0, seg - UIConfig.num("tabSliderInset", 7))
                 let cx = slideX ?? dragX ?? (seg * (CGFloat(selection) + 0.5))
-                ZStack {
-                    GlassBackground(shape: Capsule(style: .continuous),
-                                    opacity: UIConfig.num("tabSliderAlpha", 0.72),
-                                    edgeAlpha: 0.78,
-                                    shadow: false,
-                                    seed: 0.22,
-                                    native: true)
-                    Capsule(style: .continuous)
-                        .fill(scheme == .dark ? OrbitTheme.jade.opacity(0.10)
-                                              : Color.white.opacity(0.20))
-                }
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                OrbitTheme.jade.opacity(scheme == .dark ? 0.18 : 0.13),
+                                OrbitTheme.gold.opacity(scheme == .dark ? 0.08 : 0.06)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .overlay(
 
                         Capsule(style: .continuous)
                             .stroke(LinearGradient(colors: [scheme == .dark
-                                                            ? OrbitTheme.jade.opacity(0.48)
-                                                            : Color.white.opacity(0.70),
-                                                            Color.white.opacity(0.12)],
+                                                            ? OrbitTheme.jade.opacity(0.34)
+                                                            : OrbitTheme.jade.opacity(0.22),
+                                                            Color.clear],
                                                    startPoint: .top, endPoint: .bottom),
-                                    lineWidth: 0.9)
+                                    lineWidth: 0.7)
                     )
                     .frame(width: w, height: max(0, L.tabH - UIConfig.num("tabSliderVInset", 10)))
                     .scaleEffect(slideX != nil ? 1.035 : 1)
