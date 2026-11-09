@@ -121,7 +121,7 @@ final class ChatBgStore: ObservableObject {
             let global = UserDefaults.standard.string(forKey: globalEffectKey) ?? ""
             if let value = ChatBackgroundEffect(rawValue: global) { return value }
         }
-        return .original
+        return .auto
     }
 
     func setEffect(_ effect: ChatBackgroundEffect, chatId: String = "") {
