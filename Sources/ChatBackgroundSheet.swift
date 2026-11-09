@@ -113,6 +113,16 @@ struct ChatBackgroundSheet: View {
     private var inChat: Bool { !chatId.isEmpty }
     @ObservedObject private var store = ChatBgStore.shared
 
+    private var defaultWallpaperPath: String {
+        effectiveDefaultChatBackground(app.defaultChatBackground)
+    }
+
+    private var usingDefaultWallpaper: Bool {
+        guard !defaultWallpaperPath.isEmpty else { return current == "auto" }
+        return normalizedChatBackground(current)
+            == normalizedChatBackground(defaultWallpaperPath)
+    }
+
     private var current: String {
         if inChat {
             let synced = app.me?.chatBackgrounds?[chatId] ?? ""
@@ -129,6 +139,60 @@ struct ChatBackgroundSheet: View {
                     backgroundPreview
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
+                }
+
+                if inChat {
+                    Section {
+                        Button {
+                            pick(defaultWallpaperPath.isEmpty
+                                 ? "auto"
+                                 : defaultWallpaperPath)
+                        } label: {
+                            HStack(spacing: 13) {
+                                Group {
+                                    if let solid = chatBackgroundSolidColor(defaultWallpaperPath) {
+                                        solid
+                                    } else if !defaultWallpaperPath.isEmpty {
+                                        RemoteImage(path: defaultWallpaperPath,
+                                                    mode: .fill,
+                                                    maxSide: 480)
+                                    } else {
+                                        defaultChatCanvasColor()
+                                    }
+                                }
+                                .frame(width: 54, height: 72)
+                                .clipShape(RoundedRectangle(cornerRadius: 10,
+                                                            style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(Color.secondary.opacity(0.16),
+                                                lineWidth: 0.7)
+                                }
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(Tr("默认壁纸"))
+                                        .font(pfStyled(size: 16, weight: .medium))
+                                        .foregroundStyle(.primary)
+                                    Text(Tr("使用星言提供的默认聊天壁纸"))
+                                        .font(pfStyled(size: 11.5))
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer(minLength: 8)
+
+                                if usingDefaultWallpaper {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 19, weight: .semibold))
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(busy)
+                    } footer: {
+                        Text(Tr("默认壁纸由星言统一维护，相册壁纸会保留完整全景。"))
+                    }
                 }
 
                 Section {
