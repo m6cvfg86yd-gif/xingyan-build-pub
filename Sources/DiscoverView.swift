@@ -79,6 +79,40 @@ private struct WorldModuleGlass<Content: View>: View {
     }
 }
 
+private struct WorldSectionHeading: View {
+    let title: String
+    let count: Int
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(title)
+                .font(pfStyled(size: 13, weight: .semibold))
+                .foregroundStyle(OrbitTheme.secondary)
+                .tracking(0.15)
+                .accessibilityAddTraits(.isHeader)
+
+            Spacer(minLength: 0)
+
+            Text("\(count)")
+                .font(pfStyled(size: 9.5, weight: .semibold))
+                .foregroundStyle(OrbitTheme.tertiary)
+                .frame(minWidth: 19, minHeight: 18)
+                .background {
+                    Capsule()
+                        .fill(OrbitTheme.field.opacity(scheme == .dark ? 0.62 : 0.78))
+                }
+        }
+        .padding(.horizontal, 2)
+    }
+}
+
+private struct WorldEntryGroup: Identifiable {
+    let id: String
+    let title: String
+    let items: [DiscoverItem]
+}
+
 struct DiscoverView: View {
 
     @State private var navScrolled: CGFloat = 0
@@ -226,22 +260,27 @@ struct DiscoverView: View {
 
                         Color.clear.frame(height: L.navH)
 
-                        VStack(spacing: 18) {
+                        VStack(spacing: 22) {
                             if let hero = worldHeroItem {
-                                worldFeatureCard(hero)
+                                VStack(spacing: 10) {
+                                    WorldSectionHeading(title: Tr("此刻"), count: 1)
+                                    worldFeatureCard(hero)
+                                }
                             }
 
                             if let shop = worldShopItem {
-                                worldShopCard(shop)
+                                VStack(spacing: 10) {
+                                    WorldSectionHeading(title: Tr("精选服务"), count: 1)
+                                    worldShopCard(shop)
+                                }
                             }
 
-                            if !worldGridItems.isEmpty {
-                                VStack(spacing: 12) {
-                                    OrbitSectionLabel(text: Tr("探索"), count: worldGridItems.count)
-                                        .padding(.horizontal, 2)
-
+                            ForEach(worldEntryGroups) { group in
+                                VStack(spacing: 10) {
+                                    WorldSectionHeading(title: group.title,
+                                                        count: group.items.count)
                                     LazyVGrid(columns: worldColumns, spacing: 12) {
-                                        ForEach(worldGridItems) { item in
+                                        ForEach(group.items) { item in
                                             worldEntryCard(item)
                                         }
                                     }
@@ -426,6 +465,37 @@ struct DiscoverView: View {
             GridItem(.flexible(), spacing: 12),
             GridItem(.flexible(), spacing: 12)
         ]
+    }
+
+    private var worldEntryGroups: [WorldEntryGroup] {
+        let rules: [(id: String, title: String, actions: Set<String>)] = [
+            ("content", Tr("内容与现场"),
+             ["channels", "live", "music", "games"]),
+            ("discover", Tr("发现"),
+             ["nearby", "bottle", "shake", "look", "search"]),
+            ("tools", Tr("工具与效率"),
+             ["scan", "miniapps"])
+        ]
+        var used: Set<String> = []
+        var groups: [WorldEntryGroup] = []
+        for rule in rules {
+            let entries = worldGridItems.filter {
+                rule.actions.contains($0.action ?? "")
+            }
+            if !entries.isEmpty {
+                used.formUnion(entries.map(\.id))
+                groups.append(WorldEntryGroup(id: rule.id,
+                                              title: rule.title,
+                                              items: entries))
+            }
+        }
+        let remaining = worldGridItems.filter { !used.contains($0.id) }
+        if !remaining.isEmpty {
+            groups.append(WorldEntryGroup(id: "more",
+                                          title: Tr("更多"),
+                                          items: remaining))
+        }
+        return groups
     }
 
     private func worldSubtitle(_ item: DiscoverItem) -> String {
