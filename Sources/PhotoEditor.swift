@@ -61,6 +61,96 @@ struct PhotoEditSettings {
     }
 }
 
+private enum PhotoEditorMode: String, CaseIterable, Identifiable {
+    case filters
+    case beauty
+    case adjust
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .filters: return Tr("滤镜")
+        case .beauty: return Tr("美颜")
+        case .adjust: return Tr("调整")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .filters: return "camera.filters"
+        case .beauty: return "face.smiling"
+        case .adjust: return "slider.horizontal.3"
+        }
+    }
+}
+
+private enum PhotoBeautyTool: String, CaseIterable, Identifiable {
+    case smooth
+    case slimFace
+    case enlargeEyes
+    case smallerHead
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .smooth: return Tr("磨皮")
+        case .slimFace: return Tr("瘦脸")
+        case .enlargeEyes: return Tr("大眼")
+        case .smallerHead: return Tr("小头")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .smooth: return "sparkles"
+        case .slimFace: return "person.crop.circle"
+        case .enlargeEyes: return "eye"
+        case .smallerHead: return "person.crop.square"
+        }
+    }
+}
+
+private enum PhotoAdjustTool: String, CaseIterable, Identifiable {
+    case brightness
+    case contrast
+    case saturation
+    case sharpen
+    case vignette
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .brightness: return Tr("亮度")
+        case .contrast: return Tr("对比度")
+        case .saturation: return Tr("饱和度")
+        case .sharpen: return Tr("锐化")
+        case .vignette: return Tr("暗角")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .brightness: return "sun.max"
+        case .contrast: return "circle.lefthalf.filled"
+        case .saturation: return "drop"
+        case .sharpen: return "wand.and.rays"
+        case .vignette: return "camera.aperture"
+        }
+    }
+
+    var range: ClosedRange<Double> {
+        switch self {
+        case .brightness: return -0.2...0.2
+        case .contrast: return -0.2...0.4
+        case .saturation: return -0.3...0.5
+        case .sharpen, .vignette: return 0...1
+        }
+    }
+}
+
 struct PhotoEditorView: View {
     let image: UIImage
     let onDone: (UIImage) -> Void
@@ -73,7 +163,11 @@ struct PhotoEditorView: View {
     @State private var rendering = false
     @State private var exporting = false
     @State private var errorText = ""
-    @State private var editSection = 0
+    @State private var mode: PhotoEditorMode = .beauty
+    @State private var beautyTool: PhotoBeautyTool = .smooth
+    @State private var adjustTool: PhotoAdjustTool = .brightness
+    @State private var presetThumbs: [String: UIImage] = [:]
+    @State private var showOriginal = false
     @State private var settings = PhotoEditSettings()
 
     init(image: UIImage, onDone: @escaping (UIImage) -> Void) {
@@ -92,7 +186,7 @@ struct PhotoEditorView: View {
 
             ZStack {
                 Color.black
-                Image(uiImage: preview)
+                Image(uiImage: showOriginal ? image : preview)
                     .resizable()
                     .scaledToFit()
                     .padding(.horizontal, 8)
@@ -107,6 +201,21 @@ struct PhotoEditorView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    showOriginal.toggle()
+                } label: {
+                    Label(showOriginal ? Tr("返回效果") : Tr("对比原图"),
+                          systemImage: showOriginal ? "wand.and.stars" : "eye")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 11)
+                        .frame(height: 32)
+                        .background(.ultraThinMaterial, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(12)
+            }
 
             controls
         }
@@ -133,6 +242,7 @@ struct PhotoEditorView: View {
             preview = output ?? image
             rendering = false
         }
+        .task { await buildPresetThumbs() }
         .alert(Tr("处理失败，再试一次"), isPresented: Binding(
             get: { !errorText.isEmpty },
             set: { if !$0 { errorText = "" } }
@@ -143,15 +253,21 @@ struct PhotoEditorView: View {
 
     private var header: some View {
         HStack {
-            Button(Tr("取消")) { dismiss() }
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white.opacity(0.88))
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(width: 38, height: 38)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Tr("取消"))
 
             Spacer()
 
             Text(Tr("编辑照片"))
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
+                .font(.system(size: 15.5, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.94))
 
             Spacer()
 
@@ -159,51 +275,33 @@ struct PhotoEditorView: View {
                 export()
             } label: {
                 Text(exporting ? Tr("照片处理中…") : Tr("完成"))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 14)
-                    .frame(height: 34)
-                    .background(.white, in: Capsule())
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 15)
+                    .frame(height: 36)
+                    .background(C.green, in: Capsule())
             }
             .buttonStyle(.plain)
             .disabled(rendering || exporting)
         }
-        .padding(.horizontal, 16)
-        .frame(height: 54)
-        .background(.ultraThinMaterial)
+        .padding(.horizontal, 14)
+        .frame(height: 58)
+        .background(Color.black.opacity(0.94))
     }
 
     private var controls: some View {
-        VStack(spacing: 10) {
-            if editSection == 0 {
-                if preset != .original {
-                    sliderRow(Tr("滤镜强度"), value: $amount, range: 0...1)
-                }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(PhotoEditPreset.allCases) { item in
-                            presetButton(item)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                }
-            } else if editSection == 1 {
-                sliderRow(Tr("磨皮"), value: $settings.smooth, range: 0...1)
-                sliderRow(Tr("瘦脸"), value: $settings.slimFace, range: 0...1)
-                sliderRow(Tr("大眼"), value: $settings.enlargeEyes, range: 0...1)
-                sliderRow(Tr("小头"), value: $settings.smallerHead, range: 0...1)
-            } else {
-                sliderRow(Tr("亮度"), value: $settings.brightness, range: -0.2...0.2)
-                sliderRow(Tr("对比度"), value: $settings.contrast, range: -0.2...0.4)
-                sliderRow(Tr("饱和度"), value: $settings.saturation, range: -0.3...0.5)
-                sliderRow(Tr("锐化"), value: $settings.sharpen, range: 0...1)
-                sliderRow(Tr("暗角"), value: $settings.vignette, range: 0...1)
-            }
+        VStack(spacing: 0) {
+            modePanel
+                .frame(height: 148, alignment: .top)
 
-            HStack(spacing: 4) {
-                toolButton(0, Tr("滤镜"), "camera.filters")
-                toolButton(1, Tr("美颜"), "face.smiling")
-                toolButton(2, Tr("调整"), "slider.horizontal.3")
+            Rectangle()
+                .fill(Color.white.opacity(0.07))
+                .frame(height: 0.5)
+
+            HStack(spacing: 0) {
+                ForEach(PhotoEditorMode.allCases) { item in
+                    modeButton(item)
+                }
                 roundToolButton(Tr("旋转"), "rotate.right") {
                     quarterTurns = (quarterTurns + 1) % 4
                 }
@@ -211,68 +309,153 @@ struct PhotoEditorView: View {
                     reset()
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 12)
+            .padding(.top, 9)
+            .padding(.bottom, 12)
         }
-        .padding(.top, 9)
-        .padding(.bottom, 16)
-        .background(.ultraThinMaterial)
+        .background(Color(hex: 0x080809))
     }
 
-    private func toolButton(_ index: Int, _ title: String, _ symbol: String) -> some View {
-        Button {
-            withAnimation(.easeOut(duration: 0.16)) {
-                editSection = index
+    @ViewBuilder
+    private var modePanel: some View {
+        switch mode {
+        case .filters:
+            VStack(spacing: 7) {
+                if preset != .original {
+                    focusedSlider(Tr("滤镜强度"), symbol: "camera.filters",
+                                  value: $amount, range: 0...1)
+                } else {
+                    Spacer().frame(height: 43)
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 9) {
+                        ForEach(PhotoEditPreset.allCases) { item in
+                            filterCard(item)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                }
             }
-        } label: {
-            VStack(spacing: 4) {
-                Image(systemName: symbol)
-                    .font(.system(size: 19, weight: .medium))
-                    .frame(height: 22)
-                Text(title)
-                    .font(.system(size: 11.5, weight: editSection == index ? .semibold : .medium))
+            .padding(.top, 8)
+        case .beauty:
+            VStack(spacing: 7) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(PhotoBeautyTool.allCases) { tool in
+                            subToolButton(tool.title, symbol: tool.symbol,
+                                          selected: beautyTool == tool) {
+                                beautyTool = tool
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                }
+                focusedSlider(beautyTool.title, symbol: beautyTool.symbol,
+                              value: beautyBinding, range: 0...1)
             }
-            .foregroundStyle(editSection == index ? Color.black : Color.white.opacity(0.82))
-            .frame(maxWidth: .infinity)
-            .frame(height: 48)
-            .background {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(editSection == index ? Color.white : Color.white.opacity(0.06))
+            .padding(.top, 8)
+        case .adjust:
+            VStack(spacing: 7) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(PhotoAdjustTool.allCases) { tool in
+                            subToolButton(tool.title, symbol: tool.symbol,
+                                          selected: adjustTool == tool) {
+                                adjustTool = tool
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                }
+                focusedSlider(adjustTool.title, symbol: adjustTool.symbol,
+                              value: adjustBinding, range: adjustTool.range)
             }
+            .padding(.top, 8)
         }
-        .buttonStyle(.plain)
     }
 
     private func roundToolButton(_ title: String, _ symbol: String,
                                  action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Image(systemName: symbol)
-                    .font(.system(size: 18, weight: .medium))
-                    .frame(height: 22)
+                    .font(.system(size: 17, weight: .medium))
                 Text(title)
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(.system(size: 9.5, weight: .medium))
             }
-            .foregroundStyle(.white.opacity(0.82))
-            .frame(width: 48, height: 48)
+            .foregroundStyle(.white.opacity(0.62))
+            .frame(maxWidth: .infinity)
+            .frame(height: 47)
         }
         .buttonStyle(.plain)
     }
 
-    private func sliderRow(_ title: String, value: Binding<Double>,
-                           range: ClosedRange<Double>) -> some View {
-        HStack(spacing: 10) {
-            Text(title)
-                .font(.system(size: 12.5, weight: .medium))
-                .foregroundStyle(.white.opacity(0.74))
-                .frame(width: 52, alignment: .leading)
-            Slider(value: value, in: range)
-                .tint(.white)
-            Text(String(format: "%.0f", normalizedPercent(value.wrappedValue, range: range)))
-                .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.58))
-                .frame(width: 30, alignment: .trailing)
+    private func modeButton(_ item: PhotoEditorMode) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.16)) { mode = item }
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: item.symbol)
+                    .font(.system(size: 18, weight: .medium))
+                Text(item.title)
+                    .font(.system(size: 9.5, weight: mode == item ? .semibold : .medium))
+            }
+            .foregroundStyle(mode == item ? C.green : Color.white.opacity(0.62))
+            .frame(maxWidth: .infinity)
+            .frame(height: 47)
         }
-        .padding(.horizontal, 16)
+        .buttonStyle(.plain)
+    }
+
+    private func subToolButton(_ title: String, symbol: String,
+                               selected: Bool,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol)
+                    .font(.system(size: 12.5, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 12, weight: selected ? .semibold : .medium))
+            }
+            .foregroundStyle(selected ? Color.white : Color.white.opacity(0.62))
+            .padding(.horizontal, 11)
+            .frame(height: 32)
+            .background {
+                Capsule()
+                    .fill(selected ? C.green.opacity(0.30) : Color.white.opacity(0.06))
+            }
+            .overlay {
+                Capsule()
+                    .stroke(selected ? C.green.opacity(0.55) : Color.white.opacity(0.06),
+                            lineWidth: 0.6)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func focusedSlider(_ title: String, symbol: String,
+                               value: Binding<Double>,
+                               range: ClosedRange<Double>) -> some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(C.green)
+                Text(title)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.72))
+                Spacer(minLength: 0)
+                Text(String(format: "%.0f", normalizedPercent(value.wrappedValue, range: range)))
+                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.56))
+            }
+            .padding(.horizontal, 18)
+
+            Slider(value: value, in: range)
+                .tint(C.green)
+                .padding(.horizontal, 16)
+        }
+        .frame(height: 42)
     }
 
     private func normalizedPercent(_ value: Double, range: ClosedRange<Double>) -> Double {
@@ -280,28 +463,85 @@ struct PhotoEditorView: View {
         return (value - range.lowerBound) / (range.upperBound - range.lowerBound) * 100
     }
 
-    private func presetButton(_ item: PhotoEditPreset) -> some View {
+    private func filterCard(_ item: PhotoEditPreset) -> some View {
         let selected = preset == item
+        let thumb = presetThumbs[item.id]
         return Button {
             preset = item
             if item == .original { amount = 0.65 }
         } label: {
             VStack(spacing: 5) {
-                Image(systemName: item.symbol)
-                    .font(.system(size: 18, weight: .medium))
-                    .frame(height: 20)
+                ZStack {
+                    Image(uiImage: thumb ?? image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 62, height: 62)
+                        .clipped()
+                    if thumb == nil && item != .original {
+                        Color.black.opacity(0.24)
+                        Image(systemName: item.symbol)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.88))
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(selected ? C.green : Color.white.opacity(0.10),
+                                lineWidth: selected ? 2 : 0.7)
+                }
                 Text(item.title)
-                    .font(.system(size: 11.5, weight: selected ? .semibold : .medium))
+                    .font(.system(size: 10.5, weight: selected ? .semibold : .medium))
+                    .foregroundStyle(selected ? C.green : Color.white.opacity(0.76))
                     .lineLimit(1)
             }
-            .foregroundStyle(selected ? Color.black : Color.white.opacity(0.86))
-            .frame(width: 64, height: 52)
-            .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(selected ? Color.white : Color.white.opacity(0.07))
-            }
+            .frame(width: 68)
         }
         .buttonStyle(.plain)
+    }
+
+    private var beautyBinding: Binding<Double> {
+        Binding(
+            get: {
+                switch beautyTool {
+                case .smooth: return settings.smooth
+                case .slimFace: return settings.slimFace
+                case .enlargeEyes: return settings.enlargeEyes
+                case .smallerHead: return settings.smallerHead
+                }
+            },
+            set: { value in
+                switch beautyTool {
+                case .smooth: settings.smooth = value
+                case .slimFace: settings.slimFace = value
+                case .enlargeEyes: settings.enlargeEyes = value
+                case .smallerHead: settings.smallerHead = value
+                }
+            }
+        )
+    }
+
+    private var adjustBinding: Binding<Double> {
+        Binding(
+            get: {
+                switch adjustTool {
+                case .brightness: return settings.brightness
+                case .contrast: return settings.contrast
+                case .saturation: return settings.saturation
+                case .sharpen: return settings.sharpen
+                case .vignette: return settings.vignette
+                }
+            },
+            set: { value in
+                switch adjustTool {
+                case .brightness: settings.brightness = value
+                case .contrast: settings.contrast = value
+                case .saturation: settings.saturation = value
+                case .sharpen: settings.sharpen = value
+                case .vignette: settings.vignette = value
+                }
+            }
+        )
     }
 
     private func reset() {
@@ -309,7 +549,29 @@ struct PhotoEditorView: View {
         amount = 0.65
         quarterTurns = 0
         settings = .neutral
-        editSection = 0
+        mode = .beauty
+        beautyTool = .smooth
+        adjustTool = .brightness
+        showOriginal = false
+    }
+
+    private func buildPresetThumbs() async {
+        for item in PhotoEditPreset.allCases where item != .original {
+            if Task.isCancelled { return }
+            if presetThumbs[item.id] != nil { continue }
+            let output = await Task.detached(priority: .utility) {
+                PhotoEditRenderer.render(
+                    image,
+                    preset: item,
+                    amount: 0.65,
+                    quarterTurns: 0,
+                    settings: .neutral,
+                    maxSide: 180
+                )
+            }.value
+            if Task.isCancelled { return }
+            if let output { presetThumbs[item.id] = output }
+        }
     }
 
     private func export() {
