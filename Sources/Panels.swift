@@ -225,7 +225,7 @@ struct EmojiPanel: View {
     private var packTabs: [PanelPack] {
         var seen = Set<String>()
         var list: [PanelPack] = []
-        for pack in installed where pack.isImage && seen.insert(pack.id).inserted {
+        for pack in installed where seen.insert(pack.id).inserted {
             list.append(pack)
         }
         for pack in mine?.packList ?? [] {

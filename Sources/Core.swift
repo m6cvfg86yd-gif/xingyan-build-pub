@@ -2514,6 +2514,7 @@ struct PhotoPager: View {
     var onClose: () -> Void
 
     @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
     @State private var index = 0
     @State private var saved = false
     @State private var showForward = false
@@ -2558,6 +2559,17 @@ struct PhotoPager: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            .onTapGesture {
+                if showActions {
+                    toggleChrome()
+                } else {
+                    closePager()
+                }
+            }
+            .onLongPressGesture {
+                if let cb = onLongPress { cb(); return }
+                save(index)
+            }
 
             VStack(spacing: 0) {
 
@@ -2581,19 +2593,6 @@ struct PhotoPager: View {
             .allowsHitTesting(!showActions || chromeVisible)
             .animation(.easeInOut(duration: 0.2), value: chromeVisible)
         }
-        .contentShape(Rectangle())
-
-        .onTapGesture {
-            if showActions {
-                toggleChrome()
-            } else {
-                onClose()
-            }
-        }
-        .onLongPressGesture {
-            if let cb = onLongPress { cb(); return }
-            save(index)
-        }
         .onAppear {
             index = min(max(0, startIndex), max(0, paths.count - 1))
             revealChrome()
@@ -2613,7 +2612,7 @@ struct PhotoPager: View {
 
     private var topBar: some View {
         HStack {
-            Button { onClose() } label: {
+            Button { closePager() } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
@@ -2625,6 +2624,11 @@ struct PhotoPager: View {
         }
         .padding(.horizontal, 12)
         .padding(.top, 10)
+    }
+
+    private func closePager() {
+        onClose()
+        dismiss()
     }
 
     private var actionBar: some View {
