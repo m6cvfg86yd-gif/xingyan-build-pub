@@ -181,26 +181,28 @@ struct PhotoEditorView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        ZStack {
+            Color.black
 
-            ZStack {
-                Color.black
-                Image(uiImage: showOriginal ? image : preview)
-                    .resizable()
-                    .scaledToFit()
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 12)
+            Image(uiImage: showOriginal ? image : preview)
+                .resizable()
+                .scaledToFit()
+                .padding(.horizontal, 4)
 
-                if rendering || exporting {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
-                        .padding(12)
-                        .background(.ultraThinMaterial, in: Circle())
-                }
+            if rendering || exporting {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.white)
+                    .padding(12)
+                    .background(.ultraThinMaterial, in: Circle())
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            VStack(spacing: 0) {
+                header
+                Spacer(minLength: 0)
+                controls
+            }
+
             .overlay(alignment: .topTrailing) {
                 Button {
                     showOriginal.toggle()
@@ -214,12 +216,11 @@ struct PhotoEditorView: View {
                         .background(.ultraThinMaterial, in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .padding(12)
+                .padding(.top, L.safeTop + 64)
+                .padding(.trailing, 12)
             }
-
-            controls
         }
-        .background(Color.black.ignoresSafeArea())
+        .ignoresSafeArea()
         .preferredColorScheme(.dark)
         .task(id: renderKey) {
             if preset == .original, quarterTurns == 0 {
@@ -285,8 +286,15 @@ struct PhotoEditorView: View {
             .disabled(rendering || exporting)
         }
         .padding(.horizontal, 14)
-        .frame(height: 58)
-        .background(Color.black.opacity(0.94))
+        .padding(.top, L.safeTop)
+        .frame(height: 58 + L.safeTop)
+        .background {
+            LinearGradient(
+                colors: [Color.black.opacity(0.78), Color.black.opacity(0.20), Color.clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
     }
 
     private var controls: some View {
@@ -311,9 +319,19 @@ struct PhotoEditorView: View {
             }
             .padding(.horizontal, 12)
             .padding(.top, 9)
-            .padding(.bottom, 12)
+            .padding(.bottom, max(12, L.safeBottom))
         }
-        .background(Color(hex: 0x080809))
+        .background {
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.30),
+                    Color.black.opacity(0.88),
+                    Color(hex: 0x080809)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
     }
 
     @ViewBuilder
