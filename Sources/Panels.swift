@@ -773,7 +773,7 @@ struct PlusPanel: View {
     }
 
     private var recentRailExtra: CGFloat {
-        (onRecentImage != nil && !recentPhotos.assets.isEmpty) ? 87 : 0
+        (onRecentImage != nil && !recentPhotos.assets.isEmpty) ? 90 : 0
     }
 
     var body: some View {

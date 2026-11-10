@@ -112,7 +112,7 @@ struct RecentPhotoRail: View {
     var onPick: (UIImage) -> Void
 
     @State private var loadingId = ""
-    private let tile: CGFloat = 58
+    private let tile: CGFloat = 48
 
     var body: some View {
         if !store.assets.isEmpty {
@@ -126,7 +126,7 @@ struct RecentPhotoRail: View {
                 .padding(.horizontal, 14)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 7) {
+                    LazyHStack(spacing: 6) {
                         ForEach(store.assets, id: \.localIdentifier) { asset in
                             Button {
                                 guard loadingId.isEmpty else { return }
