@@ -216,13 +216,20 @@ enum L {
 
     static func o(_ key: String, _ def: CGFloat) -> CGFloat { UIConfig.num(key, def) }
 
-    static var safeTop: CGFloat {
-        (UIApplication.shared.connectedScenes.first as? UIWindowScene)?
-            .windows.first?.safeAreaInsets.top ?? 20
-    }
-    static var safeBottom: CGFloat {
-        max(0, (UIApplication.shared.connectedScenes.first as? UIWindowScene)?
-            .windows.first?.safeAreaInsets.bottom ?? 0)
+    /*
+     SwiftUI 在构造 body 时会频繁读取 L.safeTop / L.safeBottom。
+     不能在这里现场访问 UIWindow.safeAreaInsets：iOS 27 为了计算状态栏
+     会反过来求 SwiftUI 的子控制器 preference，造成 NavigationStack
+     body 重入，最终线程栈溢出。由 RootView 的 GeometryReader 负责更新。
+    */
+    static var safeTop: CGFloat = 20
+    static var safeBottom: CGFloat = 0
+
+    static func updateSafeArea(top: CGFloat, bottom: CGFloat) {
+        let nextTop = max(0, top)
+        let nextBottom = max(0, bottom)
+        if abs(safeTop - nextTop) > 0.1 { safeTop = nextTop }
+        if abs(safeBottom - nextBottom) > 0.1 { safeBottom = nextBottom }
     }
 
     static var navH: CGFloat {

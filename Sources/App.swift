@@ -1908,8 +1908,18 @@ struct RootView: View {
             .id(app.authVersion)
 
             .background(C.pageBg.ignoresSafeArea())
-            .onAppear { L.width = geo.size.width }
+            .onAppear {
+                L.width = geo.size.width
+                L.updateSafeArea(top: geo.safeAreaInsets.top,
+                                 bottom: geo.safeAreaInsets.bottom)
+            }
             .onChange(of: geo.size.width) { w in L.width = w }
+            .onChange(of: geo.safeAreaInsets.top) { top in
+                L.updateSafeArea(top: top, bottom: L.safeBottom)
+            }
+            .onChange(of: geo.safeAreaInsets.bottom) { bottom in
+                L.updateSafeArea(top: L.safeTop, bottom: bottom)
+            }
         }
         .font(pf(17))
         .modifier(ThemedScrollIndicators())
