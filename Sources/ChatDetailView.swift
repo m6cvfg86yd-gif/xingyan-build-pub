@@ -3567,87 +3567,53 @@ struct ChatDetailView: View {
     }
 
     private var draftImagesBar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "photo.stack.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(C.green)
-                Text("\(draftImages.count) " + Tr("张照片"))
-                    .font(pf(13, .semibold))
-                    .foregroundColor(composerUsesLightInk ? .white : C.label)
-                Text(Tr("按选择顺序发送"))
-                    .font(pf(11.5))
-                    .foregroundColor(composerUsesLightInk ? Color.white.opacity(0.64) : C.subLabel)
-                Spacer(minLength: 0)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 7) {
+                ForEach(draftImages.indices, id: \.self) { index in
+                    ZStack(alignment: .topLeading) {
+                        Image(uiImage: draftImages[index])
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 68, height: 68)
+                            .clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                        Text("\(index + 1)")
+                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(width: 18, height: 18)
+                            .background(Circle().fill(Color.black.opacity(0.54)))
+                            .padding(4)
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        Button {
+                            guard draftImages.indices.contains(index) else { return }
+                            withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
+                                draftImages.remove(at: index)
+                            }
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8.5, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: 18, height: 18)
+                                .background(Circle().fill(Color.black.opacity(0.62)))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(3)
+                        .accessibilityLabel(Tr("移除这张照片"))
+                    }
+                }
+
                 Button { showPhoto = true } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 21, weight: .medium))
                         .foregroundColor(composerUsesLightInk ? .white : C.label)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Circle())
+                        .frame(width: 46, height: 68)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Tr("继续添加照片"))
             }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(draftImages.indices, id: \.self) { index in
-                        ZStack(alignment: .topLeading) {
-                            Image(uiImage: draftImages[index])
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 72, height: 72)
-                                .clipped()
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                            Text("\(index + 1)")
-                                .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(width: 20, height: 20)
-                                .background(Circle().fill(Color.black.opacity(0.56)))
-                                .padding(5)
-                        }
-                        .overlay(alignment: .topTrailing) {
-                            Button {
-                                guard draftImages.indices.contains(index) else { return }
-                                withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
-                                    draftImages.remove(at: index)
-                                }
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 9, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 20, height: 20)
-                                    .background(Circle().fill(Color.black.opacity(0.62)))
-                            }
-                            .buttonStyle(.plain)
-                            .padding(4)
-                            .accessibilityLabel(Tr("移除这张照片"))
-                        }
-                    }
-
-                    Button { showPhoto = true } label: {
-                        VStack(spacing: 5) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 19, weight: .medium))
-                            Text(Tr("添加"))
-                                .font(pf(10.5, .medium))
-                        }
-                        .foregroundColor(composerUsesLightInk ? .white : C.label)
-                        .frame(width: 72, height: 72)
-                        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .padding(10)
-        .background {
-            GlassBackground(
-                shape: RoundedRectangle(cornerRadius: 18, style: .continuous),
-                shadow: true
-            )
         }
         .padding(.horizontal, 12)
         .padding(.top, 6)
