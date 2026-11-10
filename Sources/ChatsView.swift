@@ -1629,9 +1629,9 @@ struct ChatsView: View {
         let reveal = max(0, min(1, scrolled / 9))
         ZStack {
             chatsPageFill
+                .opacity(1 - reveal)
             if reveal > 0.01 {
-                Rectangle().fill(.bar)
-                    .opacity(max(0, min(1, blur)) * reveal)
+                NativeChromeMaterial(opacity: max(0, min(1, blur)) * reveal)
             }
         }
         .ignoresSafeArea(edges: .top)
