@@ -1953,42 +1953,19 @@ enum TimeFmt {
         return f
     }()
     private static let fBill = make("yyyy年M月d日 H:mm:ss")
-    private static let fUSListClock: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US")
-        f.calendar = Calendar(identifier: .gregorian)
-        f.timeZone = TimeZone.current
-        f.dateFormat = "h:mm a"
-        return f
-    }()
-    private static let fUSListWeekday: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US")
-        f.calendar = Calendar(identifier: .gregorian)
-        f.timeZone = TimeZone.current
-        f.dateFormat = "EEEE"
-        return f
-    }()
-    private static let fUSListDate: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US")
-        f.calendar = Calendar(identifier: .gregorian)
-        f.timeZone = TimeZone.current
-        f.dateStyle = .short
-        f.timeStyle = .none
-        return f
-    }()
 
-    static func listUS(_ s: String?) -> String {
+    static func listApple(_ s: String?) -> String {
         guard let d = date(s) else { return "" }
         let cal = Calendar.current
-        if cal.isDateInToday(d) { return fUSListClock.string(from: d) }
-        if cal.isDateInYesterday(d) { return "Yesterday" }
+        if cal.isDateInToday(d) { return fClock.string(from: d) }
+        if cal.isDateInYesterday(d) {
+            return fSystemRelative.localizedString(for: d, relativeTo: Date())
+        }
         let days = cal.dateComponents([.day],
                                       from: cal.startOfDay(for: d),
                                       to: cal.startOfDay(for: Date())).day ?? 99
-        if days < 7 { return fUSListWeekday.string(from: d) }
-        return fUSListDate.string(from: d)
+        if days < 7 { return fSystemWeekday.string(from: d) }
+        return fSystemShortDate.string(from: d)
     }
 
     static func list(_ s: String?) -> String {
