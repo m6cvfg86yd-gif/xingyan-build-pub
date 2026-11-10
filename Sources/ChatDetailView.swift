@@ -1373,7 +1373,7 @@ struct ChatDetailView: View {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    var body: some View {
+    private var chatDetailMain: some View {
         ZStack {
             chatBackdrop
                 .ignoresSafeArea()
@@ -1697,6 +1697,10 @@ struct ChatDetailView: View {
             }
             .zIndex(30)
         }
+    }
+
+    private var chatDetailPanels: some View {
+        chatDetailMain
         .sheet(isPresented: $showForward) {
             ForwardPickerView(items: forwardItems) { }
                 .environmentObject(app)
@@ -1844,6 +1848,10 @@ struct ChatDetailView: View {
                     .zIndex(30)
             }
         }
+    }
+
+    private var chatDetailCovers: some View {
+        chatDetailPanels
         .fullScreenCover(item: $openRedPacket) { info in
             RedPacketOpenView(info: info, myId: myId) { id in
                 redPacketDetail = id
@@ -1997,6 +2005,10 @@ struct ChatDetailView: View {
                               })
                 .environmentObject(app)
         }
+    }
+
+    var body: some View {
+        chatDetailCovers
         .task(id: chat.id) {
             HitchWatch.shared.start("聊天页")
             app.markChatReadLocally(chat.id)
