@@ -918,7 +918,7 @@ final class ImageStore {
 
 func cacheUploadedImage(_ image: UIImage, path: String, maxSide: CGFloat = 640) async {
     guard !path.isEmpty else { return }
-    let preparedPair = await Task.detached(priority: .userInitiated) {
+    let preparedPair = await Task.detached(priority: .userInitiated) { () -> (Data, UIImage)? in
         guard let data = image.resizedJPEG(maxSide: maxSide, quality: 0.88),
               let prepared = RemoteImage.downsampled(data, maxSide: maxSide) else {
             return nil
