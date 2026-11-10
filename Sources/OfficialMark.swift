@@ -3,10 +3,9 @@ import SwiftUI
 enum OfficialAccountVisual {
     static let name = LinearGradient(
         colors: [
-            Color(hex: 0x087A50),
-            Color(hex: 0x16B773),
-            Color(hex: 0x2B9FB1),
-            Color(hex: 0xD1AE58)
+            Color(hex: 0x25D366),
+            Color(hex: 0x128C7E),
+            Color(hex: 0x075E54)
         ],
         startPoint: .leading,
         endPoint: .trailing
@@ -15,15 +14,15 @@ enum OfficialAccountVisual {
     static let edge = LinearGradient(
         colors: [
             Color.white.opacity(0.82),
-            Color(hex: 0x35D797).opacity(0.72),
-            Color(hex: 0xE1C46D).opacity(0.76),
+            Color(hex: 0x25D366).opacity(0.76),
+            Color(hex: 0x128C7E).opacity(0.62),
             Color.black.opacity(0.18)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    static let glow = Color(hex: 0x22C987).opacity(0.24)
+    static let glow = Color(hex: 0x25D366).opacity(0.22)
 }
 
 /// 官方账号名称后的玻璃胶囊标识。
@@ -54,7 +53,7 @@ struct OfficialMark: View {
                         LinearGradient(
                             colors: [
                                 Color.white.opacity(scheme == .dark ? 0.22 : 0.82),
-                                C.green.opacity(scheme == .dark ? 0.22 : 0.30),
+                                Color(hex: 0x25D366).opacity(scheme == .dark ? 0.30 : 0.42),
                                 Color.white.opacity(scheme == .dark ? 0.12 : 0.58)
                             ],
                             startPoint: .topLeading,
@@ -75,9 +74,8 @@ struct OfficialVerifiedV: View {
 
     private let face = LinearGradient(
         colors: [
-            Color(hex: 0x0D7C51),
-            Color(hex: 0x18A96A),
-            Color(hex: 0x2D9CB2)
+            Color(hex: 0x25D366),
+            Color(hex: 0x128C7E)
         ],
         startPoint: .top,
         endPoint: .bottom
@@ -86,8 +84,8 @@ struct OfficialVerifiedV: View {
     private let bevel = LinearGradient(
         colors: [
             Color.white.opacity(0.76),
-            Color(hex: 0xA8DCC0).opacity(0.36),
-            Color(hex: 0xE4C36B).opacity(0.40),
+            Color(hex: 0x9BE8B8).opacity(0.42),
+            Color(hex: 0x25D366).opacity(0.30),
             Color.black.opacity(0.24)
         ],
         startPoint: .topLeading,
@@ -112,11 +110,7 @@ struct OfficialVerifiedV: View {
             Text("V")
                 .font(.system(size: size * 0.59, weight: .bold, design: .rounded))
                 .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.white, Color(hex: 0xFFF3C8)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+                    Color.white
                 )
                 .shadow(color: Color.black.opacity(0.22), radius: 0.5, x: 0, y: 0.45)
                 .offset(y: -0.1)
