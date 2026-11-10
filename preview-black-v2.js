@@ -8,6 +8,7 @@
       messages: [
         { type: "incoming", sender: "林澈", avatar: "林", tone: "blue", text: "新的深色版本已经打包好了。" },
         { type: "outgoing", text: "收到，我正在电脑上检查。" },
+        { type: "incoming", sender: "林澈", avatar: "林", tone: "blue", text: "文件也放进去了，第三页是新版预览。" },
         { type: "file", name: "Star-chat-设计稿.pdf", size: "12.8 MB", progress: 76 },
       ],
     },

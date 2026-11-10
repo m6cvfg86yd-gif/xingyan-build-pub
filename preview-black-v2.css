@@ -28,7 +28,12 @@ button { -webkit-tap-highlight-color: transparent; }
 .rail-action svg { width: 18px; height: 18px; }
 .rail-action.active svg path:first-child { fill: rgba(255,255,255,.1); }
 .preview-rail > span { flex: 1; }
-.rail-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: white; background: linear-gradient(145deg, #3a3a3f, #1d1d20); border: 1px solid rgba(255,255,255,.12); font-size: 12px; }
+.rail-utility { position: relative; width: 38px; min-height: 38px; border: 0; display: grid; place-items: center; border-radius: 10px; color: #77777e; background: transparent; cursor: pointer; }
+.rail-utility:hover { color: #d8d8dd; background: rgba(255,255,255,.055); }
+.rail-utility svg { width: 16px; height: 16px; }
+.rail-utility small { margin-top: -3px; color: #696970; font-size: 6.5px; }
+.rail-avatar { position: relative; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: white; background: linear-gradient(145deg, #3a3a3f, #1d1d20); border: 1px solid rgba(255,255,255,.12); font-size: 12px; }
+.rail-avatar > span { position: absolute; right: 0; bottom: 0; width: 9px; height: 9px; border: 2px solid #070707; border-radius: 50%; background: #34c759; }
 
 .preview-list { padding: 0 12px; border-right: 1px solid var(--line); background: #090909; }
 .preview-list > header { height: 74px; display: flex; align-items: center; justify-content: space-between; }
@@ -42,9 +47,10 @@ button { -webkit-tap-highlight-color: transparent; }
 .preview-filters button { border: 0; display: grid; place-items: center; border-radius: 6px; color: #77777d; background: transparent; cursor: pointer; transition: color .2s, background .2s; }
 .preview-filters button svg { width: 15px; height: 15px; }
 .preview-filters button[aria-pressed="true"] { color: white; background: #2563eb; }
-.preview-chat-row { width: 100%; height: 76px; border: 0; display: flex; align-items: center; gap: 11px; padding: 0 9px; border-radius: 10px; color: var(--white); background: transparent; text-align: left; cursor: pointer; transition: background .2s; }
+.preview-chat-row { position: relative; width: 100%; height: 76px; border: 0; display: flex; align-items: center; gap: 11px; padding: 0 9px 0 13px; border-radius: 10px; color: var(--white); background: transparent; text-align: left; cursor: pointer; transition: background .2s; }
 .preview-chat-row:hover { background: rgba(255,255,255,.045); }
 .preview-chat-row.active { background: #111214; }
+.preview-chat-row.active::before { content: ""; position: absolute; left: 3px; top: 20px; width: 3px; height: 36px; border-radius: 2px; background: #2563eb; }
 .preview-avatar { width: 41px; height: 41px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; color: white; font-size: 10px; font-weight: 650; }
 .preview-avatar.blue { background: #245e99; }
 .preview-avatar.green { background: #217452; }
@@ -54,6 +60,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .preview-chat-row b { font-size: 12px; font-weight: 570; }
 .preview-chat-row small { margin-top: 5px; overflow: hidden; color: #77777e; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
 .preview-chat-row time { color: #737379; font-size: 8.5px; }
+.preview-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
+.preview-meta time { color: #737379; font-size: 8px; }
+.preview-meta em { width: 17px; height: 17px; display: grid; place-items: center; border-radius: 50%; color: white; background: #007aff; font-size: 7.5px; font-style: normal; font-weight: 650; }
 
 .preview-chat { min-width: 0; display: flex; flex-direction: column; background: #000; }
 .preview-chat-head { min-height: 74px; padding: 0 24px; display: flex; align-items: center; gap: 11px; border-bottom: 1px solid var(--line); }
@@ -66,7 +75,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .preview-chat-head nav button { width: 32px; height: 32px; border: 0; display: grid; place-items: center; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; transition: color .18s, background .18s; }
 .preview-chat-head nav button:hover { color: var(--white); background: rgba(255,255,255,.06); }
 .preview-chat-head nav svg { width: 16px; height: 16px; }
-.preview-messages { position: relative; flex: 1; padding: 28px 56px; display: flex; flex-direction: column; align-items: flex-start; gap: 13px; overflow: hidden; background: #000; }
+.preview-messages { position: relative; flex: 1; padding: 28px 56px 18px; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 13px; overflow: hidden; background: #000; }
 .preview-message-list { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 13px; }
 .preview-day { align-self: center; margin-bottom: 8px; color: var(--white); font-size: 9.5px; }
 .preview-message { display: flex; align-items: flex-start; gap: 10px; max-width: 70%; }
