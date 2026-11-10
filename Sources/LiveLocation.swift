@@ -75,62 +75,170 @@ struct SendLocationView: View {
     @State private var suppressCenter = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            NavBar(title: Tr("发送位置"), back: { dismiss() }) {
-                Button {
-                    send()
-                } label: {
-                    Text(Tr("发送"))
-                        .font(pf(17, .semibold))
-                        .foregroundColor(places.isEmpty ? C.subLabel : C.green)
-                        .frame(height: L.navH)
-                        .padding(.trailing, 16)
-                }
-                .buttonStyle(.plain)
-                .disabled(places.isEmpty)
-            }
-
-            searchBar
-
+        ZStack {
             Map(coordinateRegion: $region, showsUserLocation: true,
                 annotationItems: places.enumerated().map { IndexedPlace(index: $0.offset, name: $0.element.0,
                                                                        lat: $0.element.2, lng: $0.element.3) }) { p in
                 MapMarker(coordinate: CLLocationCoordinate2D(latitude: p.lat, longitude: p.lng),
                           tint: p.index == picked ? C.green : .red)
             }
-            .frame(height: 220)
-
+            .ignoresSafeArea()
             .onChange(of: region.center.latitude) { _ in centerMoved() }
             .onChange(of: region.center.longitude) { _ in centerMoved() }
 
-            if loading {
-                HStack { Spacer(); ProgressView(Tr("正在定位…")); Spacer() }
-                    .frame(height: 70)
-            } else if denied {
-                Button {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "location.slash").foregroundColor(C.subLabel)
-                        Text(Tr("定位没开：点这里去设置里打开「位置」"))
-                            .font(pf(14.5)).foregroundColor(C.link)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(height: 56)
-                    .background(C.cardBg)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            } else if searching {
-                HStack { Spacer(); ProgressView(Tr("正在找这个地方…")); Spacer() }
-                    .frame(height: 70)
+            VStack(spacing: 9) {
+                topControls
+                searchBar
+                Spacer(minLength: 0)
             }
+            .padding(.top, 8)
+
+            VStack(spacing: 9) {
+                Spacer(minLength: 0)
+                HStack {
+                    Spacer(minLength: 0)
+                    Button(action: recenter) {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(C.green)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .background { NativeGlassCircleBackground() }
+                    .accessibilityLabel(Tr("回到当前位置"))
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, locationPanelHeight + 12)
+
+                mapStatus
+                locationPanel
+            }
+        }
+        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
+        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .toolbar(.hidden, for: .navigationBar)
+        .swipeBack { dismiss() }
+        .hidesTabBar()
+        .task { await locate() }
+    }
+
+    private var locationPanelHeight: CGFloat {
+        min(330, max(238, L.height * 0.34))
+    }
+
+    private var topControls: some View {
+        HStack(spacing: 10) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(C.label)
+                    .frame(width: 42, height: 42)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .background { NativeGlassCircleBackground() }
+            .accessibilityLabel(Tr("返回"))
+
+            Spacer(minLength: 0)
+
+            Text(Tr("发送位置"))
+                .font(pf(15, .semibold))
+                .foregroundColor(C.label)
+                .padding(.horizontal, 14)
+                .frame(height: 36)
+                .background {
+                    GlassBackground(shape: Capsule(style: .continuous), shadow: true)
+                }
+
+            Spacer(minLength: 0)
+
+            Button(action: send) {
+                Text(Tr("发送"))
+                    .font(pf(14, .semibold))
+                    .foregroundColor(places.isEmpty ? C.subLabel : .white)
+                    .padding(.horizontal, 15)
+                    .frame(height: 42)
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .background {
+                GlassBackground(
+                    shape: Capsule(style: .continuous),
+                    shadow: true,
+                    tint: places.isEmpty ? nil : C.green.opacity(0.88)
+                )
+            }
+            .disabled(places.isEmpty)
+            .accessibilityLabel(Tr("发送位置"))
+        }
+        .padding(.horizontal, 14)
+    }
+
+    @ViewBuilder
+    private var mapStatus: some View {
+        if loading {
+            statusPill(Tr("正在定位…"), symbol: "location")
+        } else if denied {
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                statusPill(Tr("定位没开：点这里去设置里打开「位置」"), symbol: "location.slash")
+            }
+            .buttonStyle(.plain)
+        } else if searching {
+            statusPill(Tr("正在找这个地方…"), symbol: "magnifyingglass")
+        }
+    }
+
+    private func statusPill(_ title: String, symbol: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+            Text(title)
+                .font(pf(12.5, .medium))
+                .lineLimit(1)
+        }
+        .foregroundColor(C.label)
+        .padding(.horizontal, 12)
+        .frame(height: 34)
+        .background {
+            GlassBackground(shape: Capsule(style: .continuous), shadow: true)
+        }
+    }
+
+    private var locationPanel: some View {
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.26))
+                .frame(width: 34, height: 4)
+                .padding(.top, 8)
+                .padding(.bottom, 7)
+
+            HStack(spacing: 8) {
+                Image(systemName: trimmed.isEmpty ? "mappin.and.ellipse" : "magnifyingglass")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(C.green)
+                Text(trimmed.isEmpty ? Tr("附近地点") : Tr("搜索结果"))
+                    .font(pf(15, .semibold))
+                    .foregroundColor(C.label)
+                Spacer(minLength: 0)
+                Text("\(places.count)")
+                    .font(pf(11.5, .medium))
+                    .foregroundColor(C.subLabel)
+                    .padding(.horizontal, 8)
+                    .frame(height: 22)
+                    .background(Capsule().fill(C.label.opacity(0.06)))
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+
+            HairLine()
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
+                LazyVStack(spacing: 0) {
                     if places.isEmpty {
                         VStack(spacing: 10) {
                             Image(systemName: "mappin.slash")
@@ -147,18 +255,21 @@ struct SendLocationView: View {
                     } else {
                         ForEach(places.indices, id: \.self) { i in
                             placeRow(i)
-                            HairLine(inset: 16)
+                            HairLine(inset: 48)
                         }
                     }
                 }
             }
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
-        .hidesTabBar()
-        .task { await locate() }
+        .frame(height: locationPanelHeight)
+        .background {
+            GlassBackground(
+                shape: RoundedRectangle(cornerRadius: 26, style: .continuous),
+                shadow: true
+            )
+        }
+        .padding(.horizontal, 10)
+        .padding(.bottom, 7)
     }
 
     private struct IndexedPlace: Identifiable {
@@ -178,6 +289,7 @@ struct SendLocationView: View {
                 .foregroundColor(C.searchIcon)
             TextField(Tr("搜索地点：大厦 / 小区 / 商铺名"), text: $query)
                 .font(pf(15))
+                .foregroundColor(C.label)
                 .submitLabel(.search)
                 .onSubmit { searchNow() }
                 .onChange(of: query) { _ in queryChanged() }
@@ -191,13 +303,11 @@ struct SendLocationView: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: 40)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(C.searchBg))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .stroke(C.hairline, lineWidth: 0.6))
+        .frame(height: 42)
+        .background {
+            GlassBackground(shape: Capsule(style: .continuous), shadow: true)
+        }
         .padding(.horizontal, 14)
-        .padding(.top, 4)
-        .padding(.bottom, 10)
     }
 
     private func placeRow(_ i: Int) -> some View {
@@ -228,8 +338,8 @@ struct SendLocationView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .frame(height: 56)
-            .background(C.cardBg)
+            .frame(height: 58)
+            .background(i == picked ? C.green.opacity(0.10) : Color.clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -367,6 +477,23 @@ struct SendLocationView: View {
         picked = 0
         loading = false
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { suppressCenter = false }
+    }
+
+    private func recenter() {
+        guard myLat != 0, myLng != 0 else {
+            Task { await locate() }
+            return
+        }
+        suppressCenter = true
+        withAnimation(.easeOut(duration: 0.22)) {
+            region.center = CLLocationCoordinate2D(latitude: myLat, longitude: myLng)
+            region.span = MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008)
+        }
+        if !homePlaces.isEmpty {
+            places = homePlaces
+            picked = 0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { suppressCenter = false }
     }
 
     private func send() {
