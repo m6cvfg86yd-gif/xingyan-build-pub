@@ -43,7 +43,7 @@ body::before {
     radial-gradient(ellipse 33% 25% at 81% 44%, rgba(255, 255, 255, .075), transparent 72%),
     radial-gradient(ellipse 40% 30% at 17% 72%, rgba(255, 255, 255, .05), transparent 72%),
     linear-gradient(127deg, transparent 18%, rgba(255, 255, 255, .055) 40%, rgba(255, 255, 255, .035) 56%, transparent 78%);
-  filter: blur(58px) saturate(128%);
+  filter: blur(58px) grayscale(1) contrast(1.08);
   transform: scale(1.04);
   animation: nebula-drift 26s ease-in-out infinite alternate;
 }
@@ -67,6 +67,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   height: 100%;
   pointer-events: none;
   opacity: 1;
+  filter: grayscale(1) contrast(1.08) brightness(1.06);
   mix-blend-mode: screen;
 }
 
@@ -566,9 +567,9 @@ footer nav a { color: #75757c; font-size: 10px; }
   50% { opacity: 1; transform: scale(1.04); }
 }
 @keyframes nebula-drift {
-  0% { transform: translate3d(-1.5%, -1%, 0) scale(1.035); filter: blur(56px) saturate(120%); }
-  50% { transform: translate3d(1.6%, .8%, 0) scale(1.065); filter: blur(64px) saturate(136%); }
-  100% { transform: translate3d(-.5%, 1.8%, 0) scale(1.045); filter: blur(60px) saturate(126%); }
+  0% { transform: translate3d(-1.5%, -1%, 0) scale(1.035); filter: blur(56px) grayscale(1) contrast(1.08); }
+  50% { transform: translate3d(1.6%, .8%, 0) scale(1.065); filter: blur(64px) grayscale(1) contrast(1.12); }
+  100% { transform: translate3d(-.5%, 1.8%, 0) scale(1.045); filter: blur(60px) grayscale(1) contrast(1.09); }
 }
 
 @media (max-width: 1000px) {
