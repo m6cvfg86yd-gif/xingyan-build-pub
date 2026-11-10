@@ -3147,7 +3147,7 @@ struct ChatDetailView: View {
                     .frame(minWidth: 20, minHeight: 20)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(Color(hex: 0x07C160))
+                            .fill(Color(.systemBlue))
                     )
                     .overlay(
                         Capsule(style: .continuous)

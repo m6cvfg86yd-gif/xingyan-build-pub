@@ -1083,10 +1083,10 @@ struct ChatsView: View {
     private var navTitle: String {
 
         if app.offline {
-            return Lang.isEnglish ? "\(C.tabText0) (No Connection)" : "\(C.tabText0)（未连接）"
+            return Lang.isEnglish ? "Star chat (No Connection)" : "Star chat（未连接）"
         }
 
-        return unreadTotal > 0 ? "\(C.tabText0)(\(unreadTotal))" : C.tabText0
+        return unreadTotal > 0 ? "Star chat(\(unreadTotal))" : "Star chat"
     }
 
     private var unreadTotal: Int { app.chats.reduce(0) { $0 + ($1.unread ?? 0) } }
@@ -1094,9 +1094,9 @@ struct ChatsView: View {
     private var chatTopHeader: some View {
         ZStack {
             HStack(spacing: 7) {
-                Text(C.tabText0)
+                Text("Star chat")
                     .font(pfStyled(size: 22, weight: .semibold))
-                    .foregroundStyle(ChatListVisual.ink)
+                    .foregroundStyle(Color(.systemBlue))
                     .lineLimit(1)
 
                 if unreadTotal > 0 {
@@ -1107,22 +1107,12 @@ struct ChatsView: View {
                         .padding(.horizontal, unreadTotal > 9 ? 5 : 0)
                         .frame(minWidth: 18, minHeight: 18)
                         .background {
-                            Capsule().fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color(hex: 0x16795A),
-                                        Color(hex: 0x2DC98A),
-                                        Color(hex: 0xBDA15C)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            Capsule().fill(Color(.systemBlue))
                         }
                         .overlay {
                             Capsule().stroke(Color.white.opacity(0.20), lineWidth: 0.5)
                         }
-                        .shadow(color: Color(hex: 0x24C77F).opacity(0.18),
+                        .shadow(color: Color(.systemBlue).opacity(0.20),
                                 radius: 4, y: 1)
                 }
 
