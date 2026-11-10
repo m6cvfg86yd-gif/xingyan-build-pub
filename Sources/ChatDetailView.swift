@@ -3528,6 +3528,11 @@ struct ChatDetailView: View {
         (voiceMode || recorder.recording) ? L.inputH : max(L.inputH, inputBoxHeight)
     }
 
+    private var composerNeedsLightLift: Bool {
+        !composerUsesLightInk
+            && backgroundPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var composerFieldRadius: CGFloat {
         min(19.5, composerInputHeight / 2)
     }
@@ -3835,21 +3840,31 @@ struct ChatDetailView: View {
             .padding(.horizontal, 2)
             .background {
                 ZStack {
-                    Capsule(style: .continuous)
-                        .fill(.thinMaterial)
-                    Capsule(style: .continuous)
-                        .fill(composerUsesLightInk
-                              ? Color.black.opacity(0.20)
-                              : Color.white.opacity(0.12))
+                    if composerNeedsLightLift {
+                        Capsule(style: .continuous)
+                            .fill(Color(hex: 0xF1F1F2))
+                    } else {
+                        Capsule(style: .continuous)
+                            .fill(.thinMaterial)
+                        Capsule(style: .continuous)
+                            .fill(composerUsesLightInk
+                                  ? Color.black.opacity(0.20)
+                                  : Color.white.opacity(0.12))
+                    }
                 }
             }
             .overlay {
                 Capsule(style: .continuous)
-                    .stroke(composerUsesLightInk
-                            ? Color.white.opacity(0.10)
-                            : Color.black.opacity(0.035),
-                            lineWidth: 0.5)
+                    .stroke(composerNeedsLightLift
+                            ? Color.black.opacity(0.12)
+                            : (composerUsesLightInk
+                               ? Color.white.opacity(0.10)
+                               : Color.black.opacity(0.035)),
+                            lineWidth: composerNeedsLightLift ? 0.8 : 0.5)
             }
+            .shadow(color: composerNeedsLightLift
+                    ? Color.black.opacity(0.08) : Color.clear,
+                    radius: 3, y: 1)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .animation(.spring(response: 0.24, dampingFraction: 0.82),
