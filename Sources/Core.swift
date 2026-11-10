@@ -797,6 +797,20 @@ final class ScrollGate {
         }
     }
 
+    func setScrolling(_ scrolling: Bool) {
+        release?.cancel()
+        release = nil
+        if scrolling {
+            busy = true
+            return
+        }
+        release = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            if Task.isCancelled { return }
+            busy = false
+        }
+    }
+
     func waitUntilIdle() async {
         var waited = 0
         while busy && waited < 5 {

@@ -2432,11 +2432,12 @@ struct ChatDetailView: View {
                         }
                     }, onScrollStateChange: { scrolling in
                         if scrolling {
-                            ScrollGate.shared.touch()
+                            ScrollGate.shared.setScrolling(true)
                             followOwnSendUntil = Date.distantPast
                             navRevealTask?.cancel()
                             hideNavigationWhileScrolling()
                         } else {
+                            ScrollGate.shared.setScrolling(false)
                             revealNavigationAfterScrolling()
                         }
                     }, onSizeChange: {

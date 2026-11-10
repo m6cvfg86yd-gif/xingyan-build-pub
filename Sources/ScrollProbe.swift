@@ -127,15 +127,31 @@ struct ScrollOffsetProbe: UIViewRepresentable {
         var obsBounds: NSKeyValueObservation?
         var obsSize: NSKeyValueObservation?
         var scroll: UIScrollView?
+        var lastScrollState: Bool?
+        var lastDragState: Bool?
         var report: (CGFloat, Bool) -> Void = { _, _ in }
         var reportDrag: (Bool) -> Void = { _ in }
         var reportScrollState: (Bool) -> Void = { _ in }
         var reportBounds: () -> Void = { }
         var reportSize: () -> Void = { }
 
+        func publishScrollState(_ active: Bool) {
+            guard lastScrollState != active else { return }
+            lastScrollState = active
+            reportScrollState(active)
+        }
+
+        func publishDragState(_ dragging: Bool) {
+            guard lastDragState != dragging else { return }
+            lastDragState = dragging
+            reportDrag(dragging)
+        }
+
         func attach(_ sv: UIScrollView) {
             scroll = sv
             ChatScrollHandle.shared.scroll = sv
+            lastScrollState = nil
+            lastDragState = nil
 
             sv.alwaysBounceVertical = true
             obsOffset = sv.observe(\.contentOffset, options: [.new]) { [weak self] s, _ in
@@ -143,18 +159,18 @@ struct ScrollOffsetProbe: UIViewRepresentable {
                 if active {
                     ChatScrollHandle.shared.noteUserMotion()
                 }
-                self?.reportScrollState(active)
+                self?.publishScrollState(active)
                 self?.report(s.contentOffset.y, active)
             }
             obsDrag = sv.observe(\.isDragging, options: [.new]) { [weak self] s, _ in
                 if s.isDragging { ChatScrollHandle.shared.noteUserMotion() }
-                self?.reportDrag(s.isDragging)
+                self?.publishDragState(s.isDragging)
             }
             obsDecelerating = sv.observe(\.isDecelerating, options: [.new]) { [weak self] s, _ in
-                self?.reportScrollState(s.isDragging || s.isDecelerating || s.isTracking)
+                self?.publishScrollState(s.isDragging || s.isDecelerating || s.isTracking)
             }
             obsTracking = sv.observe(\.isTracking, options: [.new]) { [weak self] s, _ in
-                self?.reportScrollState(s.isDragging || s.isDecelerating || s.isTracking)
+                self?.publishScrollState(s.isDragging || s.isDecelerating || s.isTracking)
             }
 
             obsBounds = sv.observe(\.bounds, options: [.new]) { [weak self] _, _ in
@@ -200,8 +216,8 @@ struct ScrollOffsetProbe: UIViewRepresentable {
             if c.scroll !== sv { c.attach(sv) }
             c.report(sv.contentOffset.y,
                      sv.isDragging || sv.isDecelerating || sv.isTracking)
-            c.reportDrag(sv.isDragging)
-            c.reportScrollState(sv.isDragging || sv.isDecelerating || sv.isTracking)
+            c.publishDragState(sv.isDragging)
+            c.publishScrollState(sv.isDragging || sv.isDecelerating || sv.isTracking)
             return
         }
         guard attempt < 20 else { return }
