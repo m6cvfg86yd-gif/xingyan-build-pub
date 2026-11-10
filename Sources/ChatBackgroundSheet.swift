@@ -701,8 +701,21 @@ struct ChatBackgroundSheet: View {
     }
 
     private func upload(_ image: UIImage) {
+        let localPath = "local-bg-" + UUID().uuidString
+        primeBackgroundCache(path: localPath, image: image)
+        if inChat {
+            applyChatBackground(localPath)
+        } else {
+            ChatBgStore.shared.setGlobal(localPath)
+            if var me = app.me {
+                me.chatBackground = localPath
+                app.me = me
+                app.rememberLastUser()
+            }
+        }
+
+        busy = true
         Task {
-            busy = true
             if let url = try? await API.shared.uploadOriginal(image: image) {
                 primeBackgroundCache(path: url, image: image)
                 if inChat {
@@ -711,7 +724,8 @@ struct ChatBackgroundSheet: View {
                         applySyncedChatBackgrounds(saved)
                         app.show(Tr("这个聊天的背景换好了"))
                     } else {
-                        app.show(Tr("图片上传失败，换一张再试"))
+                        applyChatBackground(localPath)
+                        app.show(Tr("已在本机换好，联网后自动同步"))
                     }
                 } else {
                     ChatBgStore.shared.setGlobal(url)
@@ -730,7 +744,7 @@ struct ChatBackgroundSheet: View {
                     }
                 }
             } else {
-                app.show(Tr("图片上传失败，换一张再试"))
+                app.show(Tr("已在本机换好，联网后自动同步"))
             }
             busy = false
         }
@@ -760,8 +774,10 @@ struct ChatBackgroundSheet: View {
         guard chatBackgroundSolidColor(path) == nil else { return }
         if let image = image {
             ImageStore.shared.put(path, image)
-            if let data = image.jpegData(compressionQuality: 0.86) {
-                Task.detached(priority: .userInitiated) { ImageStore.shared.diskWrite(path, data) }
+            Task.detached(priority: .utility) {
+                if let data = image.jpegData(compressionQuality: 0.86) {
+                    ImageStore.shared.diskWrite(path, data)
+                }
             }
             return
         }
@@ -770,10 +786,12 @@ struct ChatBackgroundSheet: View {
             ImageStore.shared.put(path, cached)
             return
         }
-        if let data = ImageStore.shared.diskRead(cacheKey),
-           let image = RemoteImage.downsampled(data, maxSide: chatWallpaperDecodeSide()) {
-            ImageStore.shared.put(path, image)
-            Task.detached(priority: .userInitiated) { ImageStore.shared.diskWrite(path, data) }
+        Task.detached(priority: .utility) {
+            if let data = ImageStore.shared.diskRead(cacheKey),
+               let image = RemoteImage.downsampled(data, maxSide: chatWallpaperDecodeSide()) {
+                ImageStore.shared.put(path, image)
+                ImageStore.shared.diskWrite(path, data)
+            }
         }
     }
 }
