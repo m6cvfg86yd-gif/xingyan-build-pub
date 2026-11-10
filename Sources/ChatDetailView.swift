@@ -1730,15 +1730,12 @@ struct ChatDetailView: View {
             chatTopNavigation
             }
             .background {
-                if !hidesChatNavigation || !isGroup {
-                    ChatImmersiveEdgeMask(path: backgroundPath,
-                                          edge: .top,
-                                          tint: wallpaperTopTint,
-                                          dark: topBarUsesLightInk,
-                                          effect: backgroundEffect)
-                        .ignoresSafeArea(edges: .top)
-                        .transition(.opacity)
-                }
+                ChatImmersiveEdgeMask(path: backgroundPath,
+                                      edge: .top,
+                                      tint: wallpaperTopTint,
+                                      dark: topBarUsesLightInk,
+                                      effect: backgroundEffect)
+                    .ignoresSafeArea(edges: .top)
             }
             .animation(.easeOut(duration: 0.18), value: hidesChatNavigation)
 
