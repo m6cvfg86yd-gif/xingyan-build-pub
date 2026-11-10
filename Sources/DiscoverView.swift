@@ -186,6 +186,7 @@ private struct XingyanMallMark: View {
 struct DiscoverView: View {
 
     @State private var navScrolled: CGFloat = 0
+    @Environment(\.colorScheme) private var scheme
     @ObservedObject private var lang = LangStore.shared
     @ObservedObject private var musicLibrary = MusicLibrary.shared
     @ObservedObject private var musicPlayer = MusicPlayer.shared

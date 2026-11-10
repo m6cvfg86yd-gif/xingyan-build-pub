@@ -1265,9 +1265,6 @@ struct SearchPage: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 5) {
                         Text(chatTitle(chat)).font(.body).foregroundStyle(C.label).lineLimit(1)
-                        if isAssistantChat(chat) {
-                                .fixedSize()
-                        }
                     }
                     if let preview = chat.lastMessage?.preview, !preview.isEmpty {
                         Text(preview).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
