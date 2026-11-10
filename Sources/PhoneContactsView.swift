@@ -279,7 +279,7 @@ struct PhoneContactsView: View {
             } else {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(C.tertiaryLabel)
+                    .foregroundStyle(C.subLabel)
             }
         }
         .padding(.horizontal, 16)

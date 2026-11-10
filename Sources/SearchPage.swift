@@ -339,7 +339,7 @@ struct SearchPage: View {
                     Button { q = "" } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 16))
-                            .foregroundStyle(C.tertiaryLabel)
+                            .foregroundStyle(C.subLabel)
                     }
                     .buttonStyle(.plain)
                 }
@@ -723,7 +723,7 @@ struct SearchPage: View {
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(C.tertiaryLabel)
+                    .foregroundStyle(C.subLabel)
             }
             .padding(.horizontal, 13)
             .frame(height: 62)

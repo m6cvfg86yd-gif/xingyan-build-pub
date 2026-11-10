@@ -56,6 +56,13 @@ struct ContactSection: Identifiable {
     let users: [User]
 }
 
+private func contactDetailLine(_ label: String, _ value: String) -> String {
+    if Lang.isRussian || Lang.isEnglish {
+        return "\(Tr(label)): \(value)"
+    }
+    return "\(Tr(label))：\(value)"
+}
+
 struct ContactsView: View {
 
     @ObservedObject private var lang = LangStore.shared
