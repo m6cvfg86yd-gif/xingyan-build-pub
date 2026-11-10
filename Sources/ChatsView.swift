@@ -866,9 +866,11 @@ struct ChatsView: View {
     @State private var showOfficialConversation = false
     @State private var showOfficialAdminEditor = false
     @State private var showOfficialIconPicker = false
+    @State private var localOfficialRowAvatar = ""
     @State private var showWeatherConversation = false
     @State private var showWeatherAdminEditor = false
     @State private var showWeatherIconPicker = false
+    @State private var localWeatherRowAvatar = ""
 
     @State private var botCardChat: Chat?
 
@@ -1650,6 +1652,7 @@ struct ChatsView: View {
     }
 
     private var officialRowAvatar: String {
+        if !localOfficialRowAvatar.isEmpty { return localOfficialRowAvatar }
         UIConfig.text("officialRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -1751,6 +1754,7 @@ struct ChatsView: View {
     }
 
     private var weatherRowAvatar: String {
+        if !localWeatherRowAvatar.isEmpty { return localWeatherRowAvatar }
         UIConfig.text("weatherRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -2071,7 +2075,11 @@ struct ChatsView: View {
                 if n == 0 { app.tabBarDepth = 0 }
             }
 
-            .onAppear { cachedSnapshot = chatSnapshot() }
+            .onAppear {
+                cachedSnapshot = chatSnapshot()
+                localOfficialRowAvatar = UserDefaults.standard.string(forKey: "chris.accountIcon.officialRowAvatar") ?? ""
+                localWeatherRowAvatar = UserDefaults.standard.string(forKey: "chris.accountIcon.weatherRowAvatar") ?? ""
+            }
             .onChange(of: app.chats) { _ in cachedSnapshot = chatSnapshot() }
             .onChange(of: chatFilter) { _ in cachedSnapshot = chatSnapshot() }
             .onChange(of: keyword) { _ in cachedSnapshot = chatSnapshot() }
@@ -2241,6 +2249,7 @@ struct ChatsView: View {
         do {
             let path = try await API.shared.upload(image: image)
             if await API.shared.opsSetUIKey(key, path) {
+                clearLocalAccountIcon(key)
                 await app.refreshUI(force: true)
                 app.show(success)
                 return
@@ -2250,11 +2259,27 @@ struct ChatsView: View {
         }
 
         if let inlineIcon, await API.shared.opsSetUIKey(key, inlineIcon) {
+            clearLocalAccountIcon(key)
             await app.refreshUI(force: true)
             app.show(success)
+        } else if let inlineIcon {
+            rememberLocalAccountIcon(key, inlineIcon)
+            app.show(success + Tr("（已在本机保存）"))
         } else {
             app.show(Tr("头像保存失败，请确认当前账号有管理权限"))
         }
+    }
+
+    private func rememberLocalAccountIcon(_ key: String, _ value: String) {
+        UserDefaults.standard.set(value, forKey: "chris.accountIcon." + key)
+        if key == "officialRowAvatar" { localOfficialRowAvatar = value }
+        if key == "weatherRowAvatar" { localWeatherRowAvatar = value }
+    }
+
+    private func clearLocalAccountIcon(_ key: String) {
+        UserDefaults.standard.removeObject(forKey: "chris.accountIcon." + key)
+        if key == "officialRowAvatar" { localOfficialRowAvatar = "" }
+        if key == "weatherRowAvatar" { localWeatherRowAvatar = "" }
     }
 
     private var emptyView: some View {

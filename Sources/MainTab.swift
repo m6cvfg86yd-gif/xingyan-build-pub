@@ -63,7 +63,8 @@ struct MainTabView: View {
                                  momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
                                  meDot: app.showDot("me", auto: false),
                                  avatarPath: tabAvatarPath)
-                        .frame(height: max(49, L.tabH - 6))
+                        .frame(height: 49 + L.safeBottom)
+                        .ignoresSafeArea(edges: .bottom)
                         .transition(.move(edge: .bottom))
                 }
             }
