@@ -968,8 +968,7 @@ struct ChatDetailView: View {
             }
             return liveChat.name
         }
-        let n = liveChat.memberCount ?? (liveChat.memberIds?.count ?? 0)
-        return n > 0 ? liveChat.name + "(" + String(n) + ")" : liveChat.name
+        return liveChat.name
     }
 
     private var navTitleShown: String {
@@ -988,10 +987,184 @@ struct ChatDetailView: View {
             let count = liveChat.memberCount ?? (liveChat.memberIds?.count ?? 0)
             return count > 0 ? "\(count)人星友连接" : ""
         }
-        if let peer = peerUserId, app.contact(for: peer)?.online == true {
-            return "在线"
+        if let peer = peerUserId, let user = app.contact(for: peer) {
+            return user.online == true ? "在线" : "离线"
         }
         return ""
+    }
+
+    private var navAvatarPath: String {
+        let raw = (liveChat.avatar ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !raw.isEmpty { return raw }
+        guard let peer = peerUserId, let user = app.contact(for: peer) else { return "" }
+        return (user.avatarPath ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var whatsAppChatAvatar: some View {
+        Group {
+            if isGroup,
+               navAvatarPath.isEmpty || navAvatarPath.contains("/uploads/group-") {
+                GroupAvatarMosaic(chatId: liveChat.id,
+                                  memberIds: liveChat.memberIds ?? [],
+                                  size: 34, radius: 17)
+            } else {
+                Avatar(path: navAvatarPath, size: 34, radius: 17,
+                       circle: true, group: isGroup)
+            }
+        }
+        .frame(width: 34, height: 34)
+        .clipShape(Circle())
+    }
+
+    private var whatsAppChatHeader: some View {
+        let hideChrome = hidesChatNavigation && isGroup
+        let title = loadingAllGroupHistory ? navTitleShown : navTitle
+
+        return HStack(spacing: 0) {
+            if let back = navBackAction {
+                Button(action: back) {
+                    ZStack {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 19, weight: .semibold))
+                            .foregroundStyle(adaptiveTopInk)
+                            .shadow(color: adaptiveTopOutline, radius: 0.8,
+                                    x: 0.5, y: 0)
+                        if let badge = leftUnreadBadge {
+                            badge
+                                .offset(x: 14, y: -12)
+                        }
+                    }
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Tr("返回"))
+            }
+
+            if !hideChrome {
+                Button {
+                    if isGroup { showGroupInfo = true } else { showChatInfo = true }
+                } label: {
+                    HStack(spacing: 9) {
+                        whatsAppChatAvatar
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack(spacing: 4) {
+                                Text(title)
+                                    .font(pf(16.5, .semibold))
+                                    .foregroundStyle(chat.showsOfficialMark
+                                                     ? AnyShapeStyle(OfficialAccountVisual.name)
+                                                     : AnyShapeStyle(adaptiveTopInk))
+                                    .lineLimit(1)
+                                if chat.showsOfficialMark {
+                                    OfficialMark()
+                                }
+                            }
+
+                            if !chatNavigationStatus.isEmpty {
+                                Text(chatNavigationStatus)
+                                    .font(pf(11.5, .regular))
+                                    .foregroundColor(adaptiveTopInk.opacity(
+                                        topBarUsesLightInk ? 0.82 : 0.76
+                                    ))
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(title)
+
+                Spacer(minLength: 6)
+
+                Button {
+                    showCallChoice = true
+                } label: {
+                    Image(systemName: "phone")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(adaptiveTopInk)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Tr("语音通话"))
+
+                Menu {
+                    Button {
+                        if isGroup { showGroupInfo = true } else { showChatInfo = true }
+                    } label: {
+                        Label(Tr("会话信息"), systemImage: "info.circle")
+                    }
+
+                    if isGroup && !groupAnnouncement.isEmpty {
+                        Button {
+                            announcePage = groupAnnouncement
+                            showAnnouncePage = true
+                        } label: {
+                            Label(Tr("群公告"), systemImage: "megaphone")
+                        }
+                    }
+
+                    Button {
+                        showChatFavorites = true
+                    } label: {
+                        Label(Tr("收藏"), systemImage: "bookmark")
+                    }
+
+                    if isStarWorld {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                newsMode.toggle()
+                            }
+                        } label: {
+                            Label(Tr("世界"), systemImage: "globe.asia.australia")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(adaptiveTopInk)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Tr("更多"))
+            } else {
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.trailing, 2)
+        .frame(height: L.navH)
+        .animation(.easeOut(duration: 0.18), value: hideChrome)
+    }
+
+    private var chatTopNavigation: AnyView {
+        if selectMode {
+            return AnyView(
+                NavBar(title: navTitleShown, back: nil,
+                       titleColor: adaptiveTopInk,
+                       titleOutline: .clear,
+                       backColor: adaptiveTopInk,
+                       titleView: chatNavigationTitle,
+                       leftExtra: nil,
+                       backGlass: false,
+                       floating: false,
+                       titleGlass: false,
+                       rightGlass: false) {
+                    Button {
+                        exitSelectMode()
+                    } label: {
+                        Text(Tr("取消"))
+                            .font(pf(15.5))
+                            .foregroundColor(adaptiveTopInk)
+                            .frame(width: 52, height: 36)
+                    }
+                    .buttonStyle(.plain)
+                }
+            )
+        }
+        return AnyView(whatsAppChatHeader)
     }
 
     private var chatNavigationTitle: AnyView {
@@ -1534,53 +1707,7 @@ struct ChatDetailView: View {
             AnyView(VStack(spacing: 0) {
 
             VStack(spacing: 0) {
-            NavBar(title: navTitleShown, back: navBackAction,
-                   titleColor: adaptiveTopInk,
-                   titleOutline: .clear,
-                   backColor: adaptiveTopInk,
-                   hideChromeExceptBack: hidesChatNavigation && isGroup,
-                   titleView: chatNavigationTitle,
-                   leftExtra: selectMode ? nil : leftUnreadBadge,
-                   backGlass: false,
-                   floating: false,
-                   titleGlass: false,
-                   rightGlass: false) {
-                HStack(spacing: 0) {
-
-                    if selectMode {
-                        Button {
-                            exitSelectMode()
-                        } label: {
-                            Text(Tr("取消"))
-                                .font(pf(15.5))
-                                .foregroundColor(adaptiveTopInk)
-                                .frame(width: 52, height: 36)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if !selectMode {
-                        Button {
-                            CrashCatcher.markStep("三点", isGroup
-                                ? "群聊三点点击 \(chat.id)"
-                                : "单聊三点点击 \(chat.id)")
-                            if isGroup { showGroupInfo = true } else { showChatInfo = true }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(adaptiveTopInk)
-                                .shadow(color: adaptiveTopOutline, radius: 0.8, x: 0.5, y: 0)
-                                .frame(width: 44, height: 36)
-                                .contentShape(Rectangle().inset(by: -8))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Tr("更多"))
-                    }
-                }
-                .zIndex(2)
-            }
-            if !selectMode && !hidesChatNavigation {
-                chatSectionBar
-            }
+            chatTopNavigation
             }
             .background {
                 if !hidesChatNavigation || !isGroup {
