@@ -1043,27 +1043,27 @@ struct ChatDetailView: View {
 
     private var whatsAppChatHeader: some View {
         let hideChrome = false
-        let title = (Lang.isEnglish || Lang.isRussian) ? "Star chat" : "星言"
+        let title = "Star chat"
 
         return HStack(spacing: 0) {
             if let back = navBackAction {
                 Button(action: back) {
-                    ZStack {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 19, weight: .semibold))
-                            .foregroundStyle(adaptiveTopInk)
-                            .shadow(color: adaptiveTopOutline, radius: 0.8,
-                                    x: 0.5, y: 0)
-                        if let badge = leftUnreadBadge {
-                            badge
-                                .offset(x: 14, y: -12)
-                        }
-                    }
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(adaptiveTopInk)
+                        .shadow(color: adaptiveTopOutline, radius: 0.8,
+                                x: 0.5, y: 0)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Tr("返回"))
+            }
+
+            if let badge = leftUnreadBadge {
+                badge
+                    .padding(.leading, 3)
+                    .padding(.trailing, 5)
             }
 
             if !hideChrome {
@@ -1079,9 +1079,6 @@ struct ChatDetailView: View {
                                     .font(pf(16.5, .semibold))
                                     .foregroundStyle(Color(.systemBlue))
                                     .lineLimit(1)
-                                if chat.showsOfficialMark {
-                                    OfficialMark()
-                                }
                             }
 
                             if !whatsAppChatSubtitle.isEmpty {
@@ -1206,9 +1203,6 @@ struct ChatDetailView: View {
                                 ? OfficialAccountVisual.glow : .clear,
                                 radius: 3)
                         .lineLimit(1)
-                    if !selectMode && chat.showsOfficialMark {
-                        OfficialMark()
-                    }
                 }
                 if !chatNavigationStatus.isEmpty {
                     Text(chatNavigationStatus)

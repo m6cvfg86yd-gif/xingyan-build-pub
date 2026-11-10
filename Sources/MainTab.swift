@@ -404,6 +404,10 @@ struct TabBar: View {
     private var selColor: Color { UIConfig.color("tabOrbitSelColor", 0x17201C, 0xDDF7ED) }
     private var unselColor: Color { UIConfig.color("tabOrbitUnselColor", 0x626B66, 0x8AA79C) }
 
+    private func activeColor(_ index: Int) -> Color {
+        index < 3 ? (scheme == .dark ? .white : .black) : selColor
+    }
+
     private func tabIconFont(_ i: Int, on: Bool) -> Font {
         let base = UIConfig.num("tabIcon\(i)", (i == 0 || i == 1) ? L.tabIcon - 2 : L.tabIcon)
         return pf(on ? base + 1.5 : base)
@@ -554,7 +558,7 @@ struct TabBar: View {
                         .minimumScaleFactor(0.75)
                         .contentTransition(.interpolate)
                 }
-                .foregroundColor(selColor)
+                .foregroundColor(activeColor(i))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .id(i)
                 .transition(.asymmetric(
@@ -583,10 +587,10 @@ struct TabBar: View {
                                 if custom.hasPrefix("http") || custom.hasPrefix("/uploads") || custom.hasPrefix("data:") {
                                     RemoteImage(path: custom, template: true)
                                         .frame(width: customSize(i), height: customSize(i))
-                                        .foregroundColor(selection == i ? selColor : unselColor)
+                                        .foregroundColor(selection == i ? activeColor(i) : unselColor)
                                 } else {
                                     FlexIcon(custom: custom, size: customSize(i),
-                                             color: selection == i ? selColor : unselColor,
+                                             color: selection == i ? activeColor(i) : unselColor,
                                              symbol: items[i].0)
                                 }
                             } else if i == 3, let av = app.me?.avatarPath, !av.isEmpty {
@@ -646,7 +650,7 @@ struct TabBar: View {
                             .minimumScaleFactor(0.82)
                             .frame(height: max(12, L.tabLabel + 2))
                     }
-                    .foregroundColor(selection == i ? selColor : unselColor)
+                    .foregroundColor(selection == i ? activeColor(i) : unselColor)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 2)
                     .contentShape(Rectangle())

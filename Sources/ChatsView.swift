@@ -378,11 +378,6 @@ struct ChatRow: View, Equatable {
                         .truncationMode(.tail)
                         .layoutPriority(1)
 
-                    if chat.showsOfficialMark {
-                        OfficialVerifiedV()
-                            .fixedSize()
-                    }
-
                     if let lv = chat.qqLevel, lv > 1, GrowthFlags.showInChats == true {
                         QQLevelBadge(level: lv, size: L.v(13, 3.6, 15), maxIcons: 3)
                             .fixedSize()
