@@ -64,8 +64,10 @@ struct RowSwipeCatcher: UIViewRepresentable {
                 horizontal = false
             case .changed:
                 if !horizontal {
-
-                    guard abs(t.x) > abs(t.y) + 4 else { return }
+                    let v = g.velocity(in: g.view)
+                    let xWins = abs(t.x) >= max(4, abs(t.y) + 1.5)
+                        || (abs(v.x) > 80 && abs(v.x) > abs(v.y) * 1.1)
+                    guard xWins else { return }
                     horizontal = true
                     freezeEnclosingScroll(g.view)
                     onBegan()
@@ -90,9 +92,10 @@ struct RowSwipeCatcher: UIViewRepresentable {
         }
 
         func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
-            guard let pan = g as? UIPanGestureRecognizer else { return true }
-            let translation = pan.translation(in: g.view)
-            return abs(translation.x) > abs(translation.y) + 4
+            // 系统刚开始识别时通常只有约 10px 位移；如果此时要求明显横向，
+            // 稍带斜度的左滑会被直接判失败、后面再也起不来。
+            // 先允许识别，在 handlePan(.changed) 里真正判断横向意图。
+            true
         }
     }
 
@@ -108,6 +111,7 @@ struct RowSwipeCatcher: UIViewRepresentable {
         pan.delegate = context.coordinator
         pan.cancelsTouchesInView = false
         pan.delaysTouchesBegan = false
+        pan.maximumNumberOfTouches = 1
         v.addGestureRecognizer(pan)
 
         let tap = UITapGestureRecognizer(target: context.coordinator,
