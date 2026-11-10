@@ -3227,7 +3227,7 @@ struct ChatDetailView: View {
         } label: {
             Image(systemName: symbol)
                 .font(.system(size: 24, weight: .medium))
-                .symbolRenderingMode(.hierarchical)
+                .symbolRenderingMode(.monochrome)
                 .foregroundStyle(quickChipInk)
                 .shadow(color: composerUsesLightInk
                         ? Color.black.opacity(0.40)
@@ -3250,31 +3250,31 @@ struct ChatDetailView: View {
     private func quickChipSymbol(_ action: String) -> String {
         switch action {
         case "photo":
-            return "photo"
+            return "photo.fill"
         case "camera":
-            return "camera"
+            return "camera.fill"
         case "location":
-            return "location"
+            return "location.fill"
         case "file":
-            return "doc"
+            return "doc.fill"
         case "transfer":
-            return "arrow.left.arrow.right"
+            return "banknote.fill"
         case "redpacket":
-            return "envelope"
+            return "gift.fill"
         case "card":
-            return "person.crop.rectangle"
+            return "person.crop.rectangle.fill"
         case "gift":
-            return "gift"
+            return "gift.fill"
         case "music":
-            return "music.note"
+            return "music.note.list"
         case "videocall":
-            return "video"
+            return "video.fill"
         case "voice":
-            return "waveform"
+            return "waveform.circle.fill"
         case "favorite":
-            return "star"
+            return "star.fill"
         default:
-            return "circle.grid.2x2"
+            return "plus.circle.fill"
         }
     }
 
