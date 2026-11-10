@@ -643,6 +643,32 @@ struct EmojiPanel: View {
         .accessibilityLabel(pack.name)
     }
 
+    private func singleTabButton(_ i: Int, _ title: String, _ sticker: String) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.16)) { tab = i }
+        } label: {
+            VStack(spacing: 2) {
+                Group {
+                    if isImageSticker(sticker) {
+                        StickerThumb(url: sticker)
+                    } else {
+                        Text(sticker).font(pf(L.v(19, 5.4, 22)))
+                    }
+                }
+                .frame(width: 28, height: 28)
+
+                Capsule()
+                    .fill(tab == i ? C.label : Color.clear)
+                    .frame(width: 12, height: 2)
+            }
+            .frame(width: 52, height: 40)
+            .scaleEffect(tab == i ? 1.04 : 1)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
     private func packPage(_ pack: PanelPack) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
@@ -696,8 +722,8 @@ struct EmojiPanel: View {
                         ForEach(packTabs.indices, id: \.self) { offset in
                             packTabButton(4 + offset, packTabs[offset])
                         }
-                        if !singleStickers.isEmpty {
-                            glyphTabButton(singleTabIndex, Tr("我添加的表情"), "⭐")
+                        if let first = singleStickers.first {
+                            singleTabButton(singleTabIndex, Tr("我添加的表情"), first)
                         }
                     }
                     .padding(.horizontal, 8)
