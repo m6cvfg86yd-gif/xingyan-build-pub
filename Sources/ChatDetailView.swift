@@ -896,8 +896,6 @@ struct ChatDetailView: View {
     @ObservedObject private var realtime = Realtime.shared
     @ObservedObject private var recorder = VoiceRecorder.shared
 
-    @StateObject private var dictation = Dictation()
-
     @State private var pressStart: Date?
     @State private var voiceStarting = false
     @State private var pushTask: Task<Void, Never>?
@@ -3726,60 +3724,37 @@ struct ChatDetailView: View {
 
             HStack(spacing: 6) {
 
-                Group {
-                    if recorder.recording {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(recorder.willCancel ? C.red : C.green)
-                    } else if voiceMode {
-                        Image(systemName: "keyboard")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(C.green)
+                Button {
+                    if recorder.recording { return }
+                    if voiceMode {
+                        voiceMode = false
+                        focused = true
                     } else {
-                        ThreeWaveMicGlyph(ink: adaptiveMicInk)
+                        focused = false
+                        panel = .none
+                        showCamera = true
                     }
-                }
+                } label: {
+                    Group {
+                        if recorder.recording {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(recorder.willCancel ? C.red : C.green)
+                        } else if voiceMode {
+                            Image(systemName: "keyboard")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(C.green)
+                        } else {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(adaptiveMicInk)
+                        }
+                    }
                     .frame(width: 32, height: 40)
-                    .scaleEffect(pressStart != nil ? 0.93 : 1)
-                    .animation(.spring(response: 0.20, dampingFraction: 0.74),
-                               value: pressStart)
                     .contentShape(Circle())
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { v in
-                                if pressStart == nil { pressStart = Date() }
-                                if recorder.recording {
-                                    recorder.drag(v.translation.height)
-                                    return
-                                }
-                                if !voiceStarting, Date().timeIntervalSince(pressStart ?? Date()) > 0.22 {
-                                    voiceStarting = true
-                                    focused = false
-                                    panel = .none
-                                    Task { _ = await recorder.begin(); voiceStarting = false }
-                                }
-                            }
-                            .onEnded { _ in
-                                let held = Date().timeIntervalSince(pressStart ?? Date())
-                                pressStart = nil
-                                voiceStarting = false
-                                if recorder.recording {
-                                    if recorder.willCancel { recorder.cancel(); return }
-                                    if recorder.willTranscribe {
-                                        guard let got = recorder.end() else { return }
-                                        transcribeToInput(got.url)
-                                        return
-                                    }
-                                    finishVoice()
-                                    return
-                                }
-                                if held < 0.22 {
-                                    voiceMode.toggle()
-                                    if voiceMode { focused = false; panel = .none }
-                                }
-                            }
-                    )
-                    .accessibilityLabel(Tr(voiceMode ? "切换到键盘" : "语音"))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Tr(voiceMode ? "切换到键盘" : "拍摄"))
 
                 HStack(spacing: 0) {
                     if voiceMode {
@@ -3873,17 +3848,20 @@ struct ChatDetailView: View {
                                 lastInputSnapshot = v
                             }
 
-                            if focused {
+                            if !voiceMode,
+                               input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                 Button {
-                                    let base = input
-                                    dictation.toggle { s in input = base.isEmpty ? s : (base + s) }
+                                    focused = false
+                                    panel = .none
+                                    voiceMode = true
                                 } label: {
-                                    Image(systemName: dictation.listening ? "mic.fill" : "mic")
+                                    Image(systemName: "mic")
                                         .font(.system(size: 17))
-                                        .foregroundColor(dictation.listening ? C.green : adaptiveMicInk)
+                                        .foregroundColor(adaptiveMicInk)
                                         .frame(width: 30, height: 30)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel(Tr("切换到语音"))
                             }
                         }
                     }
@@ -4012,23 +3990,6 @@ struct ChatDetailView: View {
                     .ignoresSafeArea(edges: .bottom)
                 }
         }
-        .overlay(alignment: .top) {
-            if dictation.listening {
-                        Text(Tr("正在听你说，说完自己上屏…"))
-                    .font(pf(12))
-                    .foregroundColor(C.green)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(.thinMaterial))
-                    .overlay(Capsule().stroke(C.green.opacity(0.32), lineWidth: 0.7))
-                    .offset(y: -22)
-            }
-        }
-        .onChange(of: dictation.error) { msg in
-            if !msg.isEmpty { app.show(msg) }
-        }
-        .onDisappear { dictation.stop() }
-
         .background {
             if !(panel == .emoji && emojiPanelExpanded) {
                 Group {

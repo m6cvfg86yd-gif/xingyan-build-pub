@@ -108,7 +108,7 @@ struct StickerStore: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.65))
+                    .foregroundColor(C.searchIcon)
                 ZStack(alignment: .leading) {
                     if keyword.isEmpty {
                         Text(Tr("搜索表情包"))
