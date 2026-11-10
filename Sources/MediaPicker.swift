@@ -43,6 +43,7 @@ struct MediaPicker: UIViewControllerRepresentable {
         var cfg = PHPickerConfiguration(photoLibrary: .shared())
         cfg.filter = videosOnly ? .videos : .any(of: [.images, .videos, .livePhotos])
         cfg.selectionLimit = videosOnly ? 1 : max(1, maxImages)
+        cfg.selection = .ordered
         cfg.preferredAssetRepresentationMode = .current
         let vc = PHPickerViewController(configuration: cfg)
         vc.delegate = context.coordinator
@@ -91,7 +92,7 @@ struct MediaPicker: UIViewControllerRepresentable {
 
                 let deliver = {
                     guard let list = box.take() else { return }
-                    CrashCatcher.note("选图", "拿到 \(list.count) 张，交给发送")
+                    CrashCatcher.note("选图", "拿到 \(list.count) 张，交给聊天输入框")
                     guard !list.isEmpty else { return }
                     if list.count > 1, let multi = self.parent.onImages {
                         multi(list)

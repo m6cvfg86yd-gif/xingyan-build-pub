@@ -928,6 +928,8 @@ struct ChatDetailView: View {
 
     @State private var pendingMedia: MediaSendSheet.Payload?
 
+    @State private var draftImages: [UIImage] = []
+
     @State private var videoToPlay: URL?
 
     @State private var videoPayload = ""
@@ -1984,10 +1986,7 @@ struct ChatDetailView: View {
                         },
                         onLive: { image, url in pendingMedia = .live(image, url) },
                         maxImages: 9,
-                        onImages: { list in
-                            if list.count > 1 { pendingMedia = .images(list) }
-                            else if let one = list.first { pendingMedia = .image(one) }
-                        },
+                        onImages: { stageDraftImages($0) },
 
                         onNotice: { msg in app.show(msg) })
         }
@@ -3552,6 +3551,94 @@ struct ChatDetailView: View {
         min(19.5, composerInputHeight / 2)
     }
 
+    private var draftImagesBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "photo.stack.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(C.green)
+                Text("\(draftImages.count) " + Tr("张照片"))
+                    .font(pf(13, .semibold))
+                    .foregroundColor(composerUsesLightInk ? .white : C.label)
+                Text(Tr("按选择顺序发送"))
+                    .font(pf(11.5))
+                    .foregroundColor(composerUsesLightInk ? Color.white.opacity(0.64) : C.subLabel)
+                Spacer(minLength: 0)
+                Button { showPhoto = true } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(composerUsesLightInk ? .white : C.label)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Tr("继续添加照片"))
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(draftImages.indices, id: \.self) { index in
+                        ZStack(alignment: .topLeading) {
+                            Image(uiImage: draftImages[index])
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 72, height: 72)
+                                .clipped()
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                            Text("\(index + 1)")
+                                .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(width: 20, height: 20)
+                                .background(Circle().fill(Color.black.opacity(0.56)))
+                                .padding(5)
+                        }
+                        .overlay(alignment: .topTrailing) {
+                            Button {
+                                guard draftImages.indices.contains(index) else { return }
+                                withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
+                                    draftImages.remove(at: index)
+                                }
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 20, height: 20)
+                                    .background(Circle().fill(Color.black.opacity(0.62)))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(4)
+                            .accessibilityLabel(Tr("移除这张照片"))
+                        }
+                    }
+
+                    Button { showPhoto = true } label: {
+                        VStack(spacing: 5) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 19, weight: .medium))
+                            Text(Tr("添加"))
+                                .font(pf(10.5, .medium))
+                        }
+                        .foregroundColor(composerUsesLightInk ? .white : C.label)
+                        .frame(width: 72, height: 72)
+                        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(10)
+        .background {
+            GlassBackground(
+                shape: RoundedRectangle(cornerRadius: 18, style: .continuous),
+                shadow: true
+            )
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
+        .animation(.spring(response: 0.26, dampingFraction: 0.82), value: draftImages.count)
+    }
+
     private var activeComposer: some View {
         VStack(spacing: 0) {
 
@@ -3620,6 +3707,12 @@ struct ChatDetailView: View {
                     focused = true
                 }
             }
+
+            if !draftImages.isEmpty {
+                draftImagesBar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
             HStack(spacing: 6) {
 
                 Group {
@@ -3794,7 +3887,7 @@ struct ChatDetailView: View {
                                   : Color.dyn(0xF2F2F2, 0x242427))
                     }
                 }
-                if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && draftImages.isEmpty {
 
                     HStack(spacing: 2) {
                         Button {
@@ -3830,7 +3923,11 @@ struct ChatDetailView: View {
                     .frame(height: L.composerIconBox + 8)
                 } else {
                     Button {
-                        sendText()
+                        if draftImages.isEmpty {
+                            sendText()
+                        } else {
+                            sendDraftImages()
+                        }
                     } label: {
                         ZStack {
                             Circle()
@@ -3883,7 +3980,7 @@ struct ChatDetailView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .animation(.spring(response: 0.24, dampingFraction: 0.82),
-                       value: input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                       value: input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && draftImages.isEmpty)
 
             if kbUp {
                 quickBar
@@ -4381,6 +4478,32 @@ struct ChatDetailView: View {
         guard let data = try? JSONSerialization.data(withJSONObject: items),
               let s = String(data: data, encoding: .utf8) else { return "[]" }
         return s
+    }
+
+    private func stageDraftImages(_ images: [UIImage]) {
+        guard !images.isEmpty else { return }
+        let room = max(0, 9 - draftImages.count)
+        guard room > 0 else {
+            app.show(Tr("一次最多发送 9 张照片"))
+            return
+        }
+        if images.count > room {
+            app.show(Tr("一次最多发送 9 张照片，多出的已忽略"))
+        }
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+            draftImages.append(contentsOf: images.prefix(room))
+        }
+        focused = false
+        panel = .none
+    }
+
+    private func sendDraftImages() {
+        let images = draftImages
+        guard !images.isEmpty else { return }
+        withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+            draftImages.removeAll()
+        }
+        sendMedia(.images(images), live: false, original: false)
     }
 
     private func sendMedia(_ p: MediaSendSheet.Payload, live: Bool, original: Bool) {
