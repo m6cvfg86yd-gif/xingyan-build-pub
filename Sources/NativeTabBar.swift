@@ -247,7 +247,7 @@ struct NativeTabBar: UIViewRepresentable {
             .font: pfUIFont(10.5, .medium)
         ]
         let selectedTitle: [NSAttributedString.Key: Any] = [
-            .foregroundColor: UIColor.systemBlue,
+            .foregroundColor: UIColor(OrbitTheme.secondary),
             .font: pfUIFont(10.5, .semibold)
         ]
         let selectedMyTitle: [NSAttributedString.Key: Any] = [
