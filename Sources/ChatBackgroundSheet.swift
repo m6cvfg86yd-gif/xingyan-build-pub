@@ -41,7 +41,7 @@ func normalizedChatBackground(_ path: String) -> String {
 }
 
 func defaultChatCanvasColor() -> Color {
-    Color.dyn(0xEFEAE2, 0x121212)
+    Color.dyn(0xEFEAE2, 0x000000)
 }
 
 func effectiveDefaultChatBackground(_ path: String) -> String {

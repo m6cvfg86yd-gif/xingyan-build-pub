@@ -199,15 +199,15 @@ struct SearchPage: View {
     }
 
     private var xhsCanvas: Color {
-        Color.dyn(0xF7F7F7, 0x0F0F10)
+        Color.dyn(0xF7F7F7, 0x000000)
     }
 
     private var xhsCard: Color {
-        Color.dyn(0xFFFFFF, 0x18181A)
+        Color.dyn(0xFFFFFF, 0x141416)
     }
 
     private var xhsField: Color {
-        Color.dyn(0xFFFFFF, 0x202023)
+        Color.dyn(0xFFFFFF, 0x1C1C1E)
     }
 
     private var xhsRed: Color {

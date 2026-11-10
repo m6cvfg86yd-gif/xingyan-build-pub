@@ -1218,7 +1218,7 @@ struct ChatsView: View {
             .frame(height: 36)
             .background {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.dyn(0xF0F2F5, 0x101014))
+                    .fill(Color.dyn(0xF0F2F5, 0x1C1C1E))
             }
             .contentShape(Rectangle())
         }

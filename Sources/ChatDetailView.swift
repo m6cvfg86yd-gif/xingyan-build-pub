@@ -7,11 +7,11 @@ import CoreImage
 
 private enum ChatTheme {
     static let page = defaultChatCanvasColor()
-    static let panel = Color.dyn(0xF0F2F5, 0x181A1E)
+    static let panel = Color.dyn(0xF0F2F5, 0x141416)
     static var bubbleMine: Color {
         UIConfig.color("bubbleMineColor", 0x95EC69, 0x1E88C7)
     }
-    static let bubbleOther = Color.dyn(0xFFFFFF, 0x25282D)
+    static let bubbleOther = Color.dyn(0xFFFFFF, 0x1C1C1E)
     static let ink = Color.dyn(0x161823, 0xE9EBF0)
     static let mineInk = Color.dyn(0xFFFFFF, 0xE9EBF0)
     static let secondary = Color.dyn(0x999999, 0x7D8188)
@@ -19,8 +19,8 @@ private enum ChatTheme {
     static let groupSenderNameOnDark = Color.dyn(0xFFFFFF, 0xFFFFFF)
     static let secondaryOnMine = Color.dyn(0x999999, 0xB7D7CF)
     static let timeInk = Color.dyn(0x8A8A8E, 0x8A8D94)
-    static let composerBg = Color.dyn(0xF0F2F5, 0x23262C)
-    static let separator = Color.dyn(0xE9EDEF, 0x2F3238)
+    static let composerBg = Color.dyn(0xF0F2F5, 0x1C1C1E)
+    static let separator = Color.dyn(0xE9EDEF, 0x2C2C2E)
     static let link = Color.dyn(0x0067DC, 0x7CCBFF)
     static let linkOnMine = Color.dyn(0x003C9E, 0xBFE8FF)
     static let mentionMe = Color.dyn(0xE53935, 0xFF9E91)

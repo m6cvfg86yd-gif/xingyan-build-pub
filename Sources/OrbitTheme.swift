@@ -1,14 +1,14 @@
 import SwiftUI
 
 enum OrbitTheme {
-    static let canvas = Color.dyn(0xFFFFFF, 0x121212)
-    static let raised = Color.dyn(0xFFFFFF, 0x191919)
-    static let field = Color.dyn(0xECEAE4, 0x171B19)
-    static let fieldRaised = Color.dyn(0xE6E3DC, 0x1D2220)
+    static let canvas = Color.dyn(0xFFFFFF, 0x000000)
+    static let raised = Color.dyn(0xFFFFFF, 0x141416)
+    static let field = Color.dyn(0xECEAE4, 0x1C1C1E)
+    static let fieldRaised = Color.dyn(0xE6E3DC, 0x2C2C2E)
     static let ink = Color.dyn(0x17201C, 0xEFF4F1)
-    static let secondary = Color.dyn(0x626B66, 0xA8B2AD)
-    static let tertiary = Color.dyn(0x929994, 0x727C77)
-    static let divider = Color.dyn(0xE2DFD7, 0x232925)
+    static let secondary = Color.dyn(0x626B66, 0xAEAEB2)
+    static let tertiary = Color.dyn(0x929994, 0x8E8E93)
+    static let divider = Color.dyn(0xE2DFD7, 0x2C2C2E)
     static let jade = Color.dyn(0x24C77F, 0x3AD48C)
     static let jadeDeep = Color.dyn(0x177D55, 0x52E09B)
     static let jadeSoft = Color.dyn(0xDDF8EB, 0x123A2A)
