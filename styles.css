@@ -635,7 +635,7 @@ body::after,
 .hero::after,
 .product-glow,
 .feature-card::after { display: none !important; }
-.hero { background: #000 !important; }
+.hero { background: transparent !important; }
 .brand img,
 .hero-icon,
 .security-visual img { box-shadow: none !important; }
