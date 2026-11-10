@@ -1626,13 +1626,17 @@ struct ChatsView: View {
 
     @ViewBuilder private func chatsNavGlass(_ scrolled: CGFloat) -> some View {
         let blur = UIConfig.num("chatsNavGlassAlpha", 1)
+        let reveal = max(0, min(1, scrolled / 9))
         ZStack {
-            if scheme == .dark {
-                chatsPageFill
-            } else {
-                Rectangle().fill(.bar)
-                    .opacity(max(0, min(1, blur)))
-                chatsPageFill.opacity(0.90)
+            chatsPageFill
+            if reveal > 0.01 {
+                if scheme == .dark {
+                    HarmonyDarkMask(strength: 0.98)
+                        .opacity(reveal)
+                } else {
+                    Rectangle().fill(.bar)
+                        .opacity(max(0, min(1, blur)) * reveal)
+                }
             }
         }
         .ignoresSafeArea(edges: .top)
