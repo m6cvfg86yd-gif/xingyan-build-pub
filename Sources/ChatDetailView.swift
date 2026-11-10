@@ -517,6 +517,7 @@ struct ChatDetailView: View {
     @State private var burnedIds: Set<String> = []
 
     @State private var frameBox = MsgFrameBox()
+    @State private var frameCaptureTick = 0
 
     @State private var msgIndex: [String: Int] = [:]
     @State private var menuRect: CGRect = .zero
@@ -2435,6 +2436,7 @@ struct ChatDetailView: View {
                             hideNavigationWhileScrolling()
                         } else {
                             ScrollGate.shared.setScrolling(false)
+                            frameCaptureTick &+= 1
                             revealNavigationAfterScrolling()
                         }
                     }, onSizeChange: {
@@ -2976,7 +2978,14 @@ struct ChatDetailView: View {
                 let contentFrame = g.frame(in: .global)
                 Color.clear
                     .onAppear { frameBox.frames[message.id] = contentFrame }
-                    .onChange(of: contentFrame) { f in frameBox.frames[message.id] = f }
+                    .onChange(of: contentFrame) { f in
+                        if !ChatScrollHandle.shared.moving {
+                            frameBox.frames[message.id] = f
+                        }
+                    }
+                    .onChange(of: frameCaptureTick) { _ in
+                        frameBox.frames[message.id] = contentFrame
+                    }
             })
     }
 
@@ -3014,7 +3023,14 @@ struct ChatDetailView: View {
             let contentFrame = g.frame(in: .global)
             Color.clear
                 .onAppear { frameBox.frames[message.id] = contentFrame }
-                .onChange(of: contentFrame) { f in frameBox.frames[message.id] = f }
+                .onChange(of: contentFrame) { f in
+                    if !ChatScrollHandle.shared.moving {
+                        frameBox.frames[message.id] = f
+                    }
+                }
+                .onChange(of: frameCaptureTick) { _ in
+                    frameBox.frames[message.id] = contentFrame
+                }
         })
     }
 
