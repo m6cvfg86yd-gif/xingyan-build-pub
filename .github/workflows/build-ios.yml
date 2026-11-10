@@ -152,7 +152,6 @@ jobs:
             -swift-version 5 \
             -parse-as-library \
             -O \
-            -whole-module-optimization \
             -F "$SDK/System/Library/Frameworks" \
             -F WebRTCKit/WebRTC.xcframework/ios-arm64 \
             -F TRTCKit \
