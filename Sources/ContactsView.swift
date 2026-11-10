@@ -135,10 +135,10 @@ private var funcs: [(String, String, Color, String)] {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(C.tabText1)
-                    .font(pfStyled(size: 24, weight: .bold))
+                    .font(pfStyled(size: 26, weight: .bold))
                     .foregroundStyle(C.label)
                 Text("\(filtered.count) 位联系人")
-                    .font(pfStyled(size: 12, weight: .regular))
+                    .font(pfStyled(size: 12.5, weight: .regular))
                     .foregroundStyle(C.subLabel)
             }
 
@@ -216,7 +216,7 @@ private var funcs: [(String, String, Color, String)] {
                                         HStack(spacing: 0) {
                                             Text(section.letter)
                                                 .font(pfStyled(size: 13, weight: .semibold))
-                                                .foregroundStyle(contactsAccent)
+                                                .foregroundStyle(C.subLabel)
                                             Spacer(minLength: 0)
                                         }
                                         .padding(.leading, 16)
@@ -437,7 +437,7 @@ private var funcs: [(String, String, Color, String)] {
             .frame(width: 32, height: 32)
 
             Text(item.0)
-                .font(pfStyled(size: 16, weight: .regular))
+                .font(pfStyled(size: 17, weight: .regular))
                 .foregroundColor(C.label)
 
             Spacer(minLength: 8)
@@ -454,7 +454,7 @@ private var funcs: [(String, String, Color, String)] {
         }
         .padding(.leading, 16)
         .padding(.trailing, 18)
-        .frame(height: 56)
+        .frame(height: 60)
         .background(contactsCanvas)
         .contentShape(Rectangle())
     }
@@ -471,8 +471,8 @@ private var funcs: [(String, String, Color, String)] {
     private var starStrip: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(Tr("星标朋友"))
-                .font(pfStyled(size: 13, weight: .semibold))
-                .foregroundStyle(contactsAccent)
+                .font(pfStyled(size: 14, weight: .semibold))
+                .foregroundStyle(C.subLabel)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 15) {
                     ForEach(starUsers) { u in
@@ -491,7 +491,7 @@ private var funcs: [(String, String, Color, String)] {
                                             .offset(x: 3, y: 3)
                                     }
                                 Text(u.name)
-                                    .font(pfStyled(size: 11.5, weight: .medium))
+                                    .font(pfStyled(size: 12, weight: .regular))
                                     .foregroundColor(C.subLabel)
                                     .lineLimit(1)
                                     .frame(width: 58)
@@ -636,10 +636,10 @@ private var funcs: [(String, String, Color, String)] {
         HStack(spacing: 12) {
 
             Avatar(path: user.avatarPath,
-                   size: max(46, min(52, L.ctAvatar)),
+                   size: max(50, min(54, L.ctAvatar)),
                    radius: 26, circle: true,
                    level: (user.qqLevel ?? 0) > 1 ? (user.qqLevel ?? 0) : 0)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     Text(user.name)
                         .font(pfStyled(size: 17, weight: .regular))
@@ -661,7 +661,7 @@ private var funcs: [(String, String, Color, String)] {
 
                 if let subtitle = contactSubtitle(user) {
                     Text(subtitle)
-                        .font(pfStyled(size: 13, weight: .regular))
+                        .font(pfStyled(size: 14, weight: .regular))
                         .foregroundColor(C.subLabel)
                         .lineLimit(1)
                 }
@@ -676,7 +676,7 @@ private var funcs: [(String, String, Color, String)] {
         }
         .padding(.leading, 16)
         .padding(.trailing, 16)
-        .frame(height: max(64, L.ctRowH))
+        .frame(height: max(72, L.ctRowH))
         .background(contactsCanvas)
         .overlay(alignment: .bottom) {
             Rectangle()

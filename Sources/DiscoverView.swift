@@ -199,7 +199,7 @@ struct DiscoverView: View {
     }
 
     private var worldSectionFill: Color {
-        Color.dyn(0xF7F7F7, 0x0C0C0E)
+        worldCanvas
     }
 
     private var worldHairline: Color {
