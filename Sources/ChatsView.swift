@@ -1873,7 +1873,8 @@ struct ChatsView: View {
                 if app.chats.isEmpty {
                     VStack(spacing: 0) {
                         Color.clear.frame(height: L.safeTop + chatsHeaderH
-                                          + chatsSearchH + chatFilterOffset)
+                                          + chatFilterOffset)
+                        chatsSearchBar
                         officialConversationRow
                             .frame(width: chatsContentMaxWidth)
                         weatherConversationRow
@@ -1886,7 +1887,8 @@ struct ChatsView: View {
                         LazyVStack(spacing: 0) {
 
                             Color.clear.frame(height: L.safeTop + chatsHeaderH
-                                              + chatsSearchH + chatFilterOffset)
+                                              + chatFilterOffset)
+                            chatsSearchBar
                             if snapshot.list.isEmpty {
                                 Text(Tr("这个分类暂时没有会话"))
                                     .font(pf(14))
@@ -2023,21 +2025,18 @@ struct ChatsView: View {
                 }
 
                 VStack(spacing: 0) {
-                    VStack(spacing: 0) {
-                        chatTopHeader
-                        chatsSearchBar
-                    }
-                    .background {
-                        ZStack {
-                            if UIConfig.num("navBarSwallowTouch", 1) > 0 {
-                                Color.clear
-                                    .contentShape(Rectangle())
+                    chatTopHeader
+                        .background {
+                            ZStack {
+                                if UIConfig.num("navBarSwallowTouch", 1) > 0 {
+                                    Color.clear
+                                        .contentShape(Rectangle())
+                                }
+                                chatsNavGlass(scrolled)
                             }
-                            chatsNavGlass(scrolled)
                         }
-                    }
-                    .opacity(navFadeForFloor)
-                    .allowsHitTesting(!floorUp)
+                        .opacity(navFadeForFloor)
+                        .allowsHitTesting(!floorUp)
 
                     Spacer(minLength: 0)
                 }
