@@ -410,6 +410,7 @@ struct ChatRow: View, Equatable {
                     .foregroundStyle(ChatListVisual.timeInk)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
+                unreadAvatarBadge
             }
             .frame(minWidth: 54, alignment: .trailing)
         }
@@ -516,10 +517,6 @@ struct ChatRow: View, Equatable {
                         .overlay(Circle().stroke(C.hairline, lineWidth: 0.5))
                         .offset(x: 5, y: 5)
                 }
-            }
-            .overlay(alignment: .topTrailing) {
-                unreadAvatarBadge
-                    .offset(x: 7, y: -7)
             }
     }
 }
