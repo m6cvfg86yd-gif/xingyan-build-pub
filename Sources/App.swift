@@ -40,6 +40,7 @@ final class AppState: ObservableObject {
     @Published var me: User? {
         didSet {
             rememberLastUser()
+            contactVisualRevision &+= 1
 
             if me != nil { startDotWatch() } else { dotTask?.cancel() }
         }
@@ -192,8 +193,12 @@ final class AppState: ObservableObject {
     @Published var chats: [Chat] = []
 
     @Published var contacts: [User] = [] {
-        didSet { rebuildContactIndex() }
+        didSet {
+            rebuildContactIndex()
+            contactVisualRevision &+= 1
+        }
     }
+    @Published private(set) var contactVisualRevision = 0
     private var contactIndex: [String: User] = [:]
     private func rebuildContactIndex() {
         var m = [String: User](minimumCapacity: contacts.count)

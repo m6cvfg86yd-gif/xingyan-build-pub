@@ -275,13 +275,18 @@ private struct XingyanPresenceDot: View {
     }
 }
 
-struct ChatRow: View {
+struct ChatRow: View, Equatable {
     let chat: Chat
     let app: AppState
+    var contactRevision: Int = 0
     @State private var fetchedPeer: User?
     @State private var peerRequestStarted = false
 
     var onTapAvatar: (() -> Void)? = nil
+
+    static func == (lhs: ChatRow, rhs: ChatRow) -> Bool {
+        lhs.chat == rhs.chat && lhs.contactRevision == rhs.contactRevision
+    }
 
     var body: some View {
 
@@ -579,7 +584,12 @@ struct SwipeChatRow: View {
     var body: some View {
         ZStack(alignment: .trailing) {
 
-            ChatRow(chat: chat, app: app, onTapAvatar: onTapAvatar)
+            EquatableView(content: ChatRow(
+                chat: chat,
+                app: app,
+                contactRevision: app.contactVisualRevision,
+                onTapAvatar: onTapAvatar
+            ))
                 .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
                 .background(rowBg)
                 .overlay(alignment: .bottom) {
