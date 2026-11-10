@@ -393,7 +393,12 @@ struct DiscoverView: View {
                 discoverTopHeader
                     .measure("discover.nav")
 
-                    .background { TopGlassBar(scrolled: navScrolled, fallback: worldCanvas, always: true) }
+                    .background {
+                        TopGlassBar(scrolled: navScrolled,
+                                    fallback: worldCanvas,
+                                    always: true,
+                                    matchFallback: true)
+                    }
                     .overlay(alignment: .bottom) { TopGlassLine(scrolled: navScrolled) }
                     .zIndex(1)
                 ScrollView {

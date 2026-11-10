@@ -96,7 +96,7 @@ struct NotifyView: View {
                             .foregroundStyle(.primary)
                         Spacer()
                         Text(sysText)
-                            .foregroundStyle(push.authorized ? Color.secondary : Color.red)
+                            .foregroundStyle(push.authorized ? Color.secondary : Color(.systemBlue))
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.tertiary)

@@ -258,6 +258,13 @@ private struct ChatImmersiveEdgeMask: View {
 
     var body: some View {
         GeometryReader { proxy in
+            if normalizedChatBackground(path) == "solid:black" {
+                Rectangle()
+                    .fill(Color.black)
+                    .frame(width: max(1, proxy.size.width),
+                           height: max(1, proxy.size.height),
+                           alignment: edge == .top ? .top : .bottom)
+            } else {
             let width = max(1, proxy.size.width)
             let height = max(1, proxy.size.height)
             let alignment: Alignment = edge == .top ? .top : .bottom
@@ -330,6 +337,7 @@ private struct ChatImmersiveEdgeMask: View {
             }
             .frame(width: width, height: height, alignment: alignment)
             .clipped()
+            }
         }
         .allowsHitTesting(false)
     }
@@ -1062,9 +1070,7 @@ struct ChatDetailView: View {
                             HStack(spacing: 4) {
                                 Text(title)
                                     .font(pf(16.5, .semibold))
-                                    .foregroundStyle(chat.showsOfficialMark
-                                                     ? AnyShapeStyle(OfficialAccountVisual.name)
-                                                     : AnyShapeStyle(adaptiveTopInk))
+                                    .foregroundStyle(Color(.systemBlue))
                                     .lineLimit(1)
                                 if chat.showsOfficialMark {
                                     OfficialMark()

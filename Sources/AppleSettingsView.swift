@@ -82,7 +82,7 @@ struct AppleSettingsView: View {
                     NotifyView()
                 } label: {
                     settingsRow(Tr("通知"), symbol: "bell.badge.fill",
-                                color: .red)
+                                color: Color(.systemBlue))
                 }
                 NavigationLink {
                     PrivacyView()

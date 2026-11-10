@@ -15,6 +15,7 @@ struct TopGlassBar: View {
     var offset: CGFloat = 80
 
     var always: Bool = false
+    var matchFallback: Bool = false
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -28,7 +29,9 @@ struct TopGlassBar: View {
         if t > 0.01 {
 
             Group {
-                if scheme == .dark {
+                if matchFallback {
+                    fallback
+                } else if scheme == .dark {
 
                     HarmonyDarkMask(strength: 0.98)
                 } else {
