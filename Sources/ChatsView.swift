@@ -2239,9 +2239,11 @@ struct ChatsView: View {
     }
 
     private func saveAccountIcon(_ image: UIImage, key: String, success: String) async {
-        let inlineIcon = image.resizedJPEG(maxSide: 384, quality: 0.82).map {
-            "data:image/jpeg;base64," + $0.base64EncodedString()
-        }
+        let inlineIcon = await Task.detached(priority: .userInitiated) {
+            image.resizedJPEG(maxSide: 384, quality: 0.82).map {
+                "data:image/jpeg;base64," + $0.base64EncodedString()
+            }
+        }.value
 
         do {
             let path = try await API.shared.upload(image: image)

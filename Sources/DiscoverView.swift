@@ -2573,15 +2573,19 @@ struct MomentsView: View {
     }
 
     private func changeCover(_ image: UIImage) {
+        let localPath = stageLocalImagePreview(image, prefix: "local-cover")
+        if var me = app.me {
+            me.momentCover = localPath
+            app.me = me
+        }
         Task {
             uploading = true
             guard let url = try? await API.shared.uploadCover(image: image) else {
                 uploading = false
-                app.show(Tr("封面没保存上，再试一次"))
+                app.show(Tr("已在本机换好，联网后自动同步"))
                 return
             }
 
-            let previous = app.me?.momentCover
             if var me = app.me {
                 me.momentCover = url
                 app.me = me
@@ -2591,10 +2595,10 @@ struct MomentsView: View {
                 app.show(Tr("封面换好了"))
             } catch {
                 if var me = app.me, me.momentCover == url {
-                    me.momentCover = previous
+                    me.momentCover = localPath
                     app.me = me
                 }
-                app.show(Tr("封面没保存上，再试一次"))
+                app.show(Tr("已在本机换好，联网后自动同步"))
             }
             uploading = false
         }

@@ -5094,15 +5094,17 @@ private struct StarredPayload: Decodable {
     }
 
     func upload(image: UIImage) async throws -> String {
-
-        let data = image.resizedJPEG(maxSide: 1280, quality: 0.75)
+        let data = await Task.detached(priority: .userInitiated) {
+            image.resizedJPEG(maxSide: 1280, quality: 0.75)
+        }.value
         return try await uploadData(data)
     }
 
     func uploadImageForSend(_ image: UIImage, original: Bool) async throws -> (url: String, data: Data) {
-
-        let data = image.resizedJPEG(maxSide: original ? 1920 : 1280,
-                                     quality: original ? 0.88 : 0.75)
+        let data = await Task.detached(priority: .userInitiated) {
+            image.resizedJPEG(maxSide: original ? 1920 : 1280,
+                              quality: original ? 0.88 : 0.75)
+        }.value
         guard let data = data else { throw APIError.message("图片处理失败") }
         let url = try await uploadData(data)
         return (url, data)
@@ -5159,13 +5161,16 @@ private struct StarredPayload: Decodable {
     }
 
     func uploadOriginal(image: UIImage) async throws -> String {
-
-        let data = image.resizedJPEG(maxSide: 1920, quality: 0.88)
+        let data = await Task.detached(priority: .userInitiated) {
+            image.resizedJPEG(maxSide: 1920, quality: 0.88)
+        }.value
         return try await uploadData(data)
     }
 
     func uploadCover(image: UIImage) async throws -> String {
-        let data = image.resizedJPEG(maxSide: 1920, quality: 0.88)
+        let data = await Task.detached(priority: .userInitiated) {
+            image.resizedJPEG(maxSide: 1920, quality: 0.88)
+        }.value
         return try await uploadData(data)
     }
 

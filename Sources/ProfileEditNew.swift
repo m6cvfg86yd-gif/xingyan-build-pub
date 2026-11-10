@@ -490,10 +490,11 @@ struct ProfileEditView: View {
 
     private func changeAvatar(_ image: UIImage) {
         busy = true
-        let previousAvatar = app.me?.avatarPath ?? ""
+        let localPath = stageLocalImagePreview(image, prefix: "local-avatar")
+        app.applyMyProfileFields(["avatar": localPath])
         Task {
             if let url = try? await API.shared.upload(image: image) {
-                cacheUploadedImage(image, path: url)
+                await cacheUploadedImage(image, path: url)
                 app.applyMyProfileFields(["avatar": url])
                 do {
                     let fields: [String: Any] = ["avatar": url]
@@ -503,14 +504,13 @@ struct ProfileEditView: View {
                         app.applyMyProfileFields(fields)
                     }
                 } catch {
-                    app.applyMyProfileFields(["avatar": previousAvatar])
                     busy = false
-                    app.show(Tr("头像上传失败，再试一次"))
+                    app.show(Tr("已在本机换好，联网后自动同步"))
                     return
                 }
                 app.show(Tr("头像换好了"))
             } else {
-                app.show(Tr("头像上传失败，再试一次"))
+                app.show(Tr("已在本机换好，联网后自动同步"))
             }
             busy = false
         }

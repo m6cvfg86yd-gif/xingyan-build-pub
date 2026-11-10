@@ -916,15 +916,34 @@ final class ImageStore {
     }
 }
 
-func cacheUploadedImage(_ image: UIImage, path: String, maxSide: CGFloat = 640) {
+func cacheUploadedImage(_ image: UIImage, path: String, maxSide: CGFloat = 640) async {
     guard !path.isEmpty else { return }
-    guard let data = image.resizedJPEG(maxSide: maxSide, quality: 0.88),
-          let prepared = RemoteImage.downsampled(data, maxSide: maxSide) else {
+    let preparedPair = await Task.detached(priority: .userInitiated) {
+        guard let data = image.resizedJPEG(maxSide: maxSide, quality: 0.88),
+              let prepared = RemoteImage.downsampled(data, maxSide: maxSide) else {
+            return nil
+        }
+        return (data, prepared)
+    }.value
+    guard let (data, prepared) = preparedPair else {
         ImageStore.shared.put(path, image)
         return
     }
     ImageStore.shared.put(path, prepared)
     ImageStore.shared.diskWrite(path, data)
+}
+
+func stageLocalImagePreview(_ image: UIImage,
+                            prefix: String,
+                            maxSide: CGFloat = 1920) -> String {
+    let path = prefix + "-" + UUID().uuidString
+    ImageStore.shared.put(path, image)
+    Task.detached(priority: .utility) {
+        if let data = image.resizedJPEG(maxSide: maxSide, quality: 0.9) {
+            ImageStore.shared.diskWrite(path, data)
+        }
+    }
+    return path
 }
 
 func chatWallpaperDecodeSide() -> CGFloat {
