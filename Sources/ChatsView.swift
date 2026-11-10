@@ -21,6 +21,38 @@ private enum ChatListVisual {
     static let selectedChipInk = Color.dyn(0xFFFFFF, 0x17171A)
 }
 
+private struct XingyanMainStarTitle: View {
+    var size: CGFloat = 30
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0x188BFF), Color(hex: 0x325DFF)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            Ellipse()
+                .stroke(Color.white.opacity(0.64), lineWidth: 0.8)
+                .frame(width: size * 0.76, height: size * 0.29)
+                .rotationEffect(.degrees(-18))
+
+            Image(systemName: "sparkle")
+                .font(.system(size: size * 0.48, weight: .bold))
+                .foregroundStyle(.white)
+
+            Circle()
+                .stroke(Color.white.opacity(0.20), lineWidth: 0.8)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: Color(hex: 0x286DFF).opacity(0.22),
+                radius: 5, y: 2)
+    }
+}
+
 struct RowSwipeCatcher: UIViewRepresentable {
 
     var onTap: (CGPoint) -> Void
@@ -1125,25 +1157,23 @@ struct ChatsView: View {
     private var chatTopHeader: some View {
         ZStack {
             HStack(spacing: 7) {
-                Text(chatListBrandTitle)
-                    .font(pfStyled(size: 22, weight: .semibold))
-                    .foregroundStyle(Color(.systemBlue))
-                    .lineLimit(1)
+                XingyanMainStarTitle()
+                    .accessibilityLabel(chatListBrandTitle)
 
                 if unreadTotal > 0 {
                     Text(unreadTotal > 99 ? "99+" : "\(unreadTotal)")
                         .font(pfStyled(size: 9.5, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color(.systemBlue))
                         .lineLimit(1)
                         .padding(.horizontal, unreadTotal > 9 ? 5 : 0)
                         .frame(minWidth: 18, minHeight: 18)
                         .background {
-                            Capsule().fill(Color(.systemBlue))
+                            Capsule().fill(Color.white)
                         }
                         .overlay {
-                            Capsule().stroke(Color.white.opacity(0.20), lineWidth: 0.5)
+                            Capsule().stroke(Color(.systemBlue).opacity(0.16), lineWidth: 0.6)
                         }
-                        .shadow(color: Color(.systemBlue).opacity(0.20),
+                        .shadow(color: Color.black.opacity(0.08),
                                 radius: 4, y: 1)
                 }
 
