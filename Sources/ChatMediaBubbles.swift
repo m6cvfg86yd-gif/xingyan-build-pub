@@ -357,20 +357,35 @@ struct VideoPlayerSheet: View {
                             .frame(width: 40, alignment: .leading)
                         scrubBar
 
-                        Button { toggleSpeed() } label: {
-                            Text(speed > 1.5 ? "2x" : "1x")
+                        Menu {
+                            ForEach([0.5, 1.0, 1.5, 2.0], id: \.self) { value in
+                                Button {
+                                    setPlaybackSpeed(value)
+                                } label: {
+                                    if abs(speed - value) < 0.01 {
+                                        Label(Self.speedLabel(value), systemImage: "checkmark")
+                                    } else {
+                                        Text(Self.speedLabel(value))
+                                    }
+                                }
+                            }
+                        } label: {
+                            Text(Self.speedLabel(speed))
                                 .font(pfStyled(size: 12, weight: .semibold))
-                                .foregroundColor(speed > 1.5 ? Color(hex: 0x0A84FF) : .white)
-                                .frame(width: 36, height: 22)
+                                .foregroundColor(abs(speed - 1) > 0.01
+                                                 ? Color(hex: 0x0A84FF) : .white)
+                                .frame(width: 42, height: 24)
                                 .background {
                                     GlassBackground(
                                         shape: Capsule(style: .continuous),
                                         shadow: false,
-                                        tint: speed > 1.5 ? Color(hex: 0x0A84FF).opacity(0.18) : nil
+                                        tint: abs(speed - 1) > 0.01
+                                            ? Color(hex: 0x0A84FF).opacity(0.18) : nil
                                     )
                                 }
                         }
-                        .buttonStyle(.plain)
+                        .menuStyle(.button)
+                        .accessibilityLabel(Tr("播放速度"))
                         Text(Self.fmt(total))
                             .font(pfStyled(size: 12, weight: .medium))
                             .foregroundColor(.white.opacity(0.88))
@@ -504,12 +519,19 @@ struct VideoPlayerSheet: View {
         .frame(height: 26)
     }
 
-    private func toggleSpeed() {
-        speed = speed > 1.5 ? 1 : 2
+    private static func speedLabel(_ value: Double) -> String {
+        value == floor(value)
+            ? "\(Int(value))×"
+            : String(format: "%.1f×", value)
+    }
+
+    private func setPlaybackSpeed(_ value: Double) {
+        speed = value
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         if let p = player {
-            if p.rate == 0 { p.play() }
-            p.rate = Float(speed)
+            if p.rate > 0 {
+                p.rate = Float(value)
+            }
         }
     }
 
