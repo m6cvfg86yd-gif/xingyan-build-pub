@@ -88,7 +88,7 @@ struct ContactsView: View {
 
     private var listHeadH: CGFloat { max(0, L.navH - 7) }
     private var contactsCanvas: Color { Color.dyn(0xFFFFFF, 0x000000) }
-    private var contactsField: Color { Color.dyn(0xF0F2F5, 0x101014) }
+    private var contactsField: Color { Color.dyn(0xF0F2F5, 0x0A0A0C) }
     private var contactsRule: Color { Color.dyn(0xE9EDEF, 0x1C1C20) }
     private let contactsAccent = Color(hex: 0x25D366)
 
@@ -190,7 +190,11 @@ private var funcs: [(String, String, Color, String)] {
 
                     contactsTopHeader
 
-                    .background(contactsCanvas)
+                    .background {
+                        TopGlassBar(scrolled: 0,
+                                    fallback: contactsCanvas,
+                                    always: true)
+                    }
 
                 }
                 .zIndex(1)
@@ -416,6 +420,10 @@ private var funcs: [(String, String, Color, String)] {
             .frame(height: 44)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(contactsField))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(C.searchBorder, lineWidth: 0.6)
+            }
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)

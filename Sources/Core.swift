@@ -406,7 +406,7 @@ enum C {
     static var cardBg      : Color { UIConfig.color("cardBg", 0xFFFFFF, 0x1C1C1E) }
     static var chatRowBg   : Color { UIConfig.color("chatRowBg", 0xFFFFFF, 0x000000) }
     static var pinnedBg    : Color { UIConfig.color("pinnedBg", 0xF2F2F2, 0x1C1C1E) }
-    static var searchBg    : Color { UIConfig.color("searchBg", 0xFFFFFF, 0x1C1C1E) }
+    static var searchBg    : Color { UIConfig.color("searchBg", 0xFFFFFF, 0x0A0A0A) }
 
     static var fieldBg     : Color { UIConfig.color("fieldBg", 0xF2F2F2, 0x2C2C2E) }
     static var searchIcon  : Color { UIConfig.color("searchIcon", 0xB2B2B2, 0x9A9A9E) }

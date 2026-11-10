@@ -1226,7 +1226,11 @@ struct ChatsView: View {
             .frame(height: 36)
             .background {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.dyn(0xF0F2F5, 0x1C1C1E))
+                    .fill(Color.dyn(0xF0F2F5, 0x0A0A0A))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(C.searchBorderChats, lineWidth: 0.6)
+                    }
             }
             .contentShape(Rectangle())
         }
