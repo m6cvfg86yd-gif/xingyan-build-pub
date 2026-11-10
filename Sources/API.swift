@@ -1477,6 +1477,14 @@ enum ServerTrustPolicy {
         "c3e72ccf02acda9d4dd335d653408ab5776150c66afb1b518640d0ce6d52c095"
     ]
 
+    private static func isPinned(_ certificate: SecCertificate) -> Bool {
+        let data = SecCertificateCopyData(certificate) as Data
+        let digest = SHA256.hash(data: data)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return pinnedCertificate.contains(digest)
+    }
+
     static func canAccept(_ trust: SecTrust, host: String) -> Bool {
         guard API.trustedHost(host) else { return false }
 
@@ -1484,17 +1492,21 @@ enum ServerTrustPolicy {
             return SecTrustEvaluateWithError(trust, nil)
         }
 
-        guard let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate] else {
-            return false
+        // SecTrustCopyCertificateChain's Swift array bridge can be empty on
+        // newer iOS versions. Check the leaf directly, then walk the raw chain.
+        if let leaf = SecTrustGetCertificateAtIndex(trust, 0), isPinned(leaf) {
+            return true
         }
 
-        return chain.contains { certificate in
-            let data = SecCertificateCopyData(certificate) as Data
-            let digest = SHA256.hash(data: data)
-                .map { String(format: "%02x", $0) }
-                .joined()
-            return pinnedCertificate.contains(digest)
+        guard let rawChain = SecTrustCopyCertificateChain(trust) else {
+            return false
         }
+        for case let certificate as SecCertificate in rawChain as NSArray {
+            if isPinned(certificate) {
+                return true
+            }
+        }
+        return false
     }
 }
 
