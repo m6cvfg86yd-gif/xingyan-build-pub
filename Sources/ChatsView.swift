@@ -1163,17 +1163,17 @@ struct ChatsView: View {
                 if unreadTotal > 0 {
                     Text(unreadTotal > 99 ? "99+" : "\(unreadTotal)")
                         .font(pfStyled(size: 9.5, weight: .bold))
-                        .foregroundStyle(Color(.systemBlue))
+                        .foregroundStyle(.white)
                         .lineLimit(1)
                         .padding(.horizontal, unreadTotal > 9 ? 5 : 0)
                         .frame(minWidth: 18, minHeight: 18)
                         .background {
-                            Capsule().fill(Color.white)
+                            Capsule().fill(Color(.systemBlue))
                         }
                         .overlay {
-                            Capsule().stroke(Color(.systemBlue).opacity(0.16), lineWidth: 0.6)
+                            Capsule().stroke(Color.white.opacity(0.20), lineWidth: 0.6)
                         }
-                        .shadow(color: Color.black.opacity(0.08),
+                        .shadow(color: Color(.systemBlue).opacity(0.20),
                                 radius: 4, y: 1)
                 }
 
