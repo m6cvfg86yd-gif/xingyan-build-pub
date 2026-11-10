@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 import Combine
 import UIKit
 import QuickLook
+import QuickLookThumbnailing
 import CoreImage
 
 private enum ChatTheme {
@@ -4916,6 +4917,7 @@ struct ChatDetailView: View {
                         sendingFileProgress = value
                     }
                 })
+            LocalStore.keepOriginal(uploadedURL, from: url)
             let body: [String: Any] = [
                 "url": uploadedURL,
                 "name": name,
@@ -6799,53 +6801,37 @@ struct MessageRow: View {
         let o = dict(message.body)
         let name = (o["name"] as? String) ?? "文件"
         let bytes = (o["bytes"] as? Int) ?? 0
+        let path = (o["url"] as? String) ?? ""
         let look = FileKind.look(name)
-        return HStack(spacing: 10) {
-            VStack(spacing: 1) {
-                Image(systemName: look.symbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(look.color)
-                Text(look.badge)
-                    .font(pfExact(7.5, .bold))
-                    .foregroundColor(look.color)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.65)
-            }
-            .frame(width: 40, height: 40)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(look.color.opacity(0.13)))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(look.color.opacity(0.18), lineWidth: 0.6))
+        let ext = (name as NSString).pathExtension
+        let typeName = UTType(filenameExtension: ext)?.localizedDescription ?? look.badge
+        return HStack(spacing: 11) {
+            NativeFileThumbnail(name: name, path: path)
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
-                    .font(pf(14))
+                    .font(pf(15, .semibold))
                     .foregroundColor(ChatTheme.ink)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                HStack(spacing: 6) {
-                    Text(look.badge)
-                        .font(pfExact(9.5, .semibold))
-                        .foregroundColor(look.color)
-                        .lineLimit(1)
-                        .padding(.horizontal, 5)
-                        .frame(height: 16)
-                        .background(Capsule().fill(look.color.opacity(0.12)))
-                    Text(byteText(bytes)).font(pf(11)).foregroundColor(ChatTheme.secondary)
-                }
+                Text(typeName + " · " + byteText(bytes))
+                    .font(pf(12))
+                    .foregroundColor(ChatTheme.secondary)
+                    .lineLimit(1)
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundColor(ChatTheme.secondary.opacity(0.7))
         }
-        .padding(.horizontal, 12)
-        .frame(width: 210, height: 64, alignment: .leading)
+        .padding(.horizontal, 13)
+        .frame(width: 224, height: 72, alignment: .leading)
         .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.dyn(0xFFFFFF, 0x1C1C1E))
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .fill(.regularMaterial)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(ChatTheme.separator.opacity(0.75), lineWidth: 0.6)
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .stroke(Color.primary.opacity(0.07), lineWidth: 0.6)
                 }
                 .shadow(color: Color.black.opacity(mine ? 0.05 : 0.10),
                         radius: 6, x: 0, y: 3)
@@ -7044,6 +7030,73 @@ enum FileKind {
             let label = ext.isEmpty ? "文件" : ext.uppercased()
             return ("doc", Color(hex: 0x8A93FF), label)
         }
+    }
+}
+
+private struct NativeFileThumbnail: View {
+    let name: String
+    let path: String
+
+    @State private var thumbnail: UIImage?
+
+    private static let cache = NSCache<NSString, UIImage>()
+
+    private var look: (symbol: String, color: Color, badge: String) {
+        FileKind.look(name)
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemBackground))
+
+            if let thumbnail {
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(3)
+            } else {
+                VStack(spacing: 2) {
+                    Image(systemName: "doc.fill")
+                        .font(.system(size: 24, weight: .regular))
+                        .foregroundColor(look.color)
+                    Text(look.badge)
+                        .font(pfExact(7.5, .bold))
+                        .foregroundColor(look.color)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                }
+            }
+        }
+        .frame(width: 48, height: 56)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+        }
+        .task(id: path) { await loadThumbnail() }
+    }
+
+    private func loadThumbnail() async {
+        guard let local = LocalStore.localURL(path),
+              FileManager.default.fileExists(atPath: local.path) else { return }
+
+        let key = (path + "#file-thumbnail") as NSString
+        if let hit = Self.cache.object(forKey: key) {
+            thumbnail = hit
+            return
+        }
+        let request = QLThumbnailGenerator.Request(
+            fileAt: local,
+            size: CGSize(width: 144, height: 168),
+            scale: UIScreen.main.scale,
+            representationTypes: .thumbnail
+        )
+        guard let representation = try? await QLThumbnailGenerator.shared
+            .generateBestRepresentation(for: request) else { return }
+        let image = representation.uiImage
+        Self.cache.setObject(image, forKey: key)
+        thumbnail = image
     }
 }
 
