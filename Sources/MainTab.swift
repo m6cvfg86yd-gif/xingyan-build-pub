@@ -933,6 +933,8 @@ struct NavBar<Right: View>: View {
         Text(title)
             .font(pf(titleSize, weight))
             .foregroundColor(titleColor ?? C.label)
+            .lineLimit(1)
+            .minimumScaleFactor(0.76)
             .shadow(color: titleOutline ?? .clear, radius: 0.8, x: 0.6, y: 0)
             .shadow(color: titleOutline ?? .clear, radius: 0.8, x: -0.6, y: 0)
             .shadow(color: titleOutline ?? .clear, radius: 0.8, x: 0, y: 0.6)

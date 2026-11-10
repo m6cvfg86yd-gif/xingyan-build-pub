@@ -5,7 +5,12 @@ final class LangStore: ObservableObject {
     static let key = "chris.lang"
 
     @Published var code: String {
-        didSet { UserDefaults.standard.set(code, forKey: LangStore.key) }
+        didSet {
+            guard oldValue != code else { return }
+            UserDefaults.standard.set(code, forKey: LangStore.key)
+            copyVersion &+= 1
+            NotificationCenter.default.post(name: .chrisUIPrefsChanged, object: nil)
+        }
     }
     @Published var copyVersion = 0
 
@@ -33,7 +38,16 @@ enum Lang {
     }
     static var isEnglish: Bool { LangStore.shared.code != "zh" }
     static var isRussian: Bool { LangStore.shared.code == "ru" }
+    static var isChinese: Bool { LangStore.shared.code == "zh" }
     static func t(_ zh: String, _ en: String) -> String { isEnglish ? en : zh }
+
+    static var localeIdentifier: String {
+        switch code {
+        case "en": return "en_US"
+        case "ru": return "ru_RU"
+        default: return "zh_CN"
+        }
+    }
 
     static var name: String {
         switch code {

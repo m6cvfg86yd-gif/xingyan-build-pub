@@ -569,6 +569,12 @@ func pfName(_ weight: Font.Weight) -> String? {
         return name
     }
 
+    // 非中文界面默认使用 iOS 的 SF 西文/西里尔字体，
+    // 避免把中文紧凑字形直接套到英文和俄文排版上。
+    if Lang.isEnglish {
+        return nil
+    }
+
     var want = "PingFangSC-Regular"
     if weight == .medium {
         want = "PingFangSC-Medium"
