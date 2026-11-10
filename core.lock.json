@@ -8,8 +8,8 @@
     },
     {
       "path": "Sources/App.swift",
-      "size": 149128,
-      "sha256": "569788a4771fafb6ea7585a30d78f982db870cf05eded2e9b9e2a0938f72f42e"
+      "size": 149292,
+      "sha256": "0269340384e62265a1d1fe1c79e7e70f70292ae6a5ef1da745c331444b268c64"
     },
     {
       "path": "Sources/Realtime.swift",
@@ -73,8 +73,8 @@
     },
     {
       "path": "Sources/ChatDetailView.swift",
-      "size": 277881,
-      "sha256": "2e8dffa501e1a997052fbab9406219d04f99b4253d6feacf0657b25da66322da"
+      "size": 278159,
+      "sha256": "9872ae366824f6012bfea75344d7ef4b19cfac0fa9388a574472e069029b55ce"
     },
     {
       "path": "Sources/GroupInfoView.swift",

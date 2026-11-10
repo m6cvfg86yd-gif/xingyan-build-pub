@@ -1037,7 +1037,7 @@ struct ChatDetailView: View {
 
     private var whatsAppChatHeader: some View {
         let hideChrome = false
-        let title = "Star chat"
+        let title = (Lang.isEnglish || Lang.isRussian) ? "Star chat" : "星言"
 
         return HStack(spacing: 0) {
             if let back = navBackAction {
@@ -1781,23 +1781,26 @@ struct ChatDetailView: View {
                     announcePage = groupAnnouncement
                     showAnnouncePage = true
                 } label: {
-                    HStack(spacing: 7) {
+                    HStack(spacing: 8) {
                         Image(systemName: "megaphone.fill")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color(hex: 0xF5A623))
                         Text(Tr("群公告"))
-                            .font(pf(12.5, .semibold))
+                            .font(pf(13, .semibold))
+                            .foregroundStyle(C.label)
                         Text(groupAnnouncement)
-                            .font(pf(13))
-                            .foregroundColor(C.label)
+                            .font(pf(13, .regular))
+                            .foregroundColor(C.subLabel)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         Spacer(minLength: 0)
-                        Chevron(size: 7, line: 1.4, color: C.subLabel)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(C.subLabel.opacity(0.78))
                     }
-                    .foregroundColor(C.green)
                     .padding(.horizontal, 12)
-                    .frame(height: 36)
-                    .background(.regularMaterial)
+                    .frame(height: 38)
+                    .background(Color.dyn(0xF7F7F7, 0x1C1C1E))
                     .overlay(alignment: .bottom) {
                         Rectangle().fill(ChatTheme.separator).frame(height: 0.5)
                     }

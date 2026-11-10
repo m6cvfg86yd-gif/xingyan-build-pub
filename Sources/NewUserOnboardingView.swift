@@ -83,7 +83,7 @@ struct NewUserOnboardingView: View {
                         .foregroundColor(.white)
                 }
                 .frame(width: 28, height: 28)
-                Text("Star chat")
+                Text((Lang.isEnglish || Lang.isRussian) ? "Star chat" : "星言")
                     .font(pfStyled(size: 16, weight: .semibold))
                     .foregroundColor(C.label)
             }

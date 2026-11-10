@@ -1093,13 +1093,18 @@ struct ChatsView: View {
         }
     }
 
+    private var chatListBrandTitle: String {
+        (Lang.isEnglish || Lang.isRussian) ? "Star chat" : "星言"
+    }
+
     private var navTitle: String {
 
         if app.offline {
-            return Lang.isEnglish ? "Star chat (No Connection)" : "Star chat（未连接）"
+            return Lang.isEnglish ? "\(chatListBrandTitle) (No Connection)"
+                                  : "\(chatListBrandTitle)（未连接）"
         }
 
-        return unreadTotal > 0 ? "Star chat(\(unreadTotal))" : "Star chat"
+        return unreadTotal > 0 ? "\(chatListBrandTitle)(\(unreadTotal))" : chatListBrandTitle
     }
 
     private var unreadTotal: Int { app.chats.reduce(0) { $0 + ($1.unread ?? 0) } }
@@ -1107,7 +1112,7 @@ struct ChatsView: View {
     private var chatTopHeader: some View {
         ZStack {
             HStack(spacing: 7) {
-                Text("Star chat")
+                Text(chatListBrandTitle)
                     .font(pfStyled(size: 22, weight: .semibold))
                     .foregroundStyle(Color(.systemBlue))
                     .lineLimit(1)

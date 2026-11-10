@@ -3164,7 +3164,9 @@ struct RegisterSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     registrationHero
 
-                    Text(Tr("创建你的 Star chat 账号"))
+                    Text((Lang.isEnglish || Lang.isRussian)
+                         ? Tr("创建你的 Star chat 账号")
+                         : "创建你的星言账号")
                         .font(pfStyled(size: 24, weight: .semibold))
                         .foregroundColor(C.label)
                     Text(Tr("手机号验证后自动生成星言号，之后统一用绑定手机号登录。"))
@@ -3272,7 +3274,7 @@ struct RegisterSheet: View {
                 .background(registrationGreen, in: Circle())
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Star chat")
+                Text((Lang.isEnglish || Lang.isRussian) ? "Star chat" : "星言")
                     .font(pfStyled(size: 18, weight: .semibold))
                     .foregroundColor(C.label)
                 Text(Tr("用手机号创建账号，开始聊天与连接"))
