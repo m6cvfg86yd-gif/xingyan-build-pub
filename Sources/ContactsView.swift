@@ -79,7 +79,6 @@ struct ContactsView: View {
 
     @State private var starIds: [String] = []
 
-    private var listHeadH: CGFloat { max(0, L.navH - 7) }
     private var contactsCanvas: Color { Color.dyn(0xFFFFFF, 0x000000) }
     private var contactsField: Color { Color.dyn(0xF0F2F5, 0x101014) }
     private var contactsRule: Color { Color.dyn(0xE9EDEF, 0x1C1C20) }
@@ -175,18 +174,18 @@ private var funcs: [(String, String, Color, String)] {
                 }
                 .zIndex(1)
 
+                contactsSearchBar
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 10)
+                    .background(contactsCanvas)
+                    .zIndex(1)
+
                 ScrollViewReader { proxy in
                     ZStack(alignment: .trailing) {
                         ScrollView {
 
                             LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-
-                                Color.clear.frame(height: listHeadH)
-
-                                contactsSearchBar
-                                    .padding(.horizontal, 16)
-                                    .padding(.top, 6)
-                                    .padding(.bottom, 10)
 
                                 if keyword.isEmpty {
 
@@ -276,7 +275,6 @@ private var funcs: [(String, String, Color, String)] {
                     }
                 }
 
-                .padding(.top, -listHeadH)
             }
             .background(contactsCanvas.ignoresSafeArea(edges: .bottom))
 
