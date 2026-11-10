@@ -24,7 +24,7 @@ body {
   min-width: 320px;
   overflow-x: hidden;
   background:
-    radial-gradient(ellipse 42% 28% at 50% 12%, #040816 0, transparent 72%),
+    radial-gradient(ellipse 42% 28% at 50% 12%, #020202 0, transparent 72%),
     var(--black);
   color: var(--white);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
@@ -39,10 +39,10 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 38% 27% at 52% 17%, rgba(46, 103, 230, .34), transparent 68%),
-    radial-gradient(ellipse 33% 25% at 81% 44%, rgba(117, 55, 208, .24), transparent 72%),
-    radial-gradient(ellipse 40% 30% at 17% 72%, rgba(15, 111, 142, .2), transparent 72%),
-    linear-gradient(127deg, transparent 18%, rgba(39, 74, 153, .17) 40%, rgba(91, 45, 146, .12) 56%, transparent 78%);
+    radial-gradient(ellipse 38% 27% at 52% 17%, rgba(255, 255, 255, .13), transparent 68%),
+    radial-gradient(ellipse 33% 25% at 81% 44%, rgba(255, 255, 255, .075), transparent 72%),
+    radial-gradient(ellipse 40% 30% at 17% 72%, rgba(255, 255, 255, .05), transparent 72%),
+    linear-gradient(127deg, transparent 18%, rgba(255, 255, 255, .055) 40%, rgba(255, 255, 255, .035) 56%, transparent 78%);
   filter: blur(58px) saturate(128%);
   transform: scale(1.04);
   animation: nebula-drift 26s ease-in-out infinite alternate;
@@ -96,7 +96,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 650; letter-spacing: .04em; }
-.brand img { width: 28px; height: 28px; border-radius: 8px; box-shadow: 0 0 22px rgba(53,213,139,.18); }
+.brand img { width: 28px; height: 28px; border-radius: 8px; box-shadow: 0 0 22px rgba(255,255,255,.1); }
 .main-nav { display: flex; gap: 30px; margin-left: 54px; }
 .main-nav a, .text-action { color: rgba(255,255,255,.58); font-size: 12px; transition: color .2s var(--ease); }
 .main-nav a:hover, .text-action:hover { color: white; }
@@ -124,8 +124,8 @@ main { position: relative; z-index: 2; }
   align-items: center;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 42% 33% at 50% 28%, rgba(102, 150, 255, .12), transparent 72%),
-    radial-gradient(ellipse 38% 28% at 50% 63%, rgba(58, 190, 160, .07), transparent 74%),
+    radial-gradient(ellipse 42% 33% at 50% 28%, rgba(255, 255, 255, .09), transparent 72%),
+    radial-gradient(ellipse 38% 28% at 50% 63%, rgba(255, 255, 255, .045), transparent 74%),
     transparent;
 }
 .hero::after {
@@ -235,7 +235,7 @@ h1 strong { color: #9a9aa1; font-weight: inherit; }
   border-radius: 50%;
   background:
     radial-gradient(circle at 48% 42%, rgba(255,255,255,.09), transparent 35%),
-    radial-gradient(circle at 58% 62%, rgba(53,213,139,.075), transparent 44%);
+    radial-gradient(circle at 58% 62%, rgba(255,255,255,.055), transparent 44%);
   filter: blur(110px);
   animation: breathe 8s ease-in-out infinite;
 }

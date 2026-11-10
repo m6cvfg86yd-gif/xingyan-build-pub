@@ -29,7 +29,7 @@
       phase: Math.random() * Math.PI * 2,
       speed: 0.00045 + Math.random() * 0.0011,
       drift: (Math.random() - 0.5) * 0.018,
-      tint: index % 11 === 0 ? "176, 214, 255" : index % 17 === 0 ? "174, 255, 215" : "255, 255, 255",
+      tint: index % 9 === 0 ? "220, 220, 220" : "255, 255, 255",
     }));
   };
 
@@ -96,9 +96,9 @@
         meteor.x - meteor.vx * 12,
         meteor.y - meteor.vy * 12,
       );
-      gradient.addColorStop(0, `rgba(225,239,255,${opacity})`);
-      gradient.addColorStop(.28, `rgba(150,197,255,${opacity * .52})`);
-      gradient.addColorStop(1, "rgba(150,197,255,0)");
+      gradient.addColorStop(0, `rgba(255,255,255,${opacity})`);
+      gradient.addColorStop(.28, `rgba(220,220,220,${opacity * .52})`);
+      gradient.addColorStop(1, "rgba(255,255,255,0)");
       context.beginPath();
       context.strokeStyle = gradient;
       context.lineWidth = 1;
