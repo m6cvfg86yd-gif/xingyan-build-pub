@@ -3911,31 +3911,49 @@ struct ChatDetailView: View {
                     .padding(.horizontal, 2)
                     .frame(height: L.composerIconBox + 8)
                 } else {
-                    Button {
-                        if draftImages.isEmpty {
-                            sendText()
-                        } else {
-                            sendDraftImages()
+                    HStack(spacing: 2) {
+                        if !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Button {
+                                focused = false
+                                panel = (panel == .emoji) ? .none : .emoji
+                            } label: {
+                                Image(systemName: "face.smiling")
+                                    .font(.system(size: max(19, L.composerIcon - 3), weight: .medium))
+                                    .symbolRenderingMode(.monochrome)
+                                    .foregroundStyle(panel == .emoji ? C.green : adaptiveEmojiInk)
+                                    .frame(width: 32, height: 40)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Tr("表情"))
                         }
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(LinearGradient(
-                                    colors: [Color(hex: 0x4EDC7C), C.green],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ))
-                            Image(systemName: "paperplane.fill")
-                                .font(.system(size: 15.5, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .offset(x: -0.5, y: 0.5)
+
+                        Button {
+                            if draftImages.isEmpty {
+                                sendText()
+                            } else {
+                                sendDraftImages()
+                            }
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(LinearGradient(
+                                        colors: [Color(hex: 0x4EDC7C), C.green],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ))
+                                Image(systemName: "paperplane.fill")
+                                    .font(.system(size: 15.5, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .offset(x: -0.5, y: 0.5)
+                            }
+                                .frame(width: 36, height: 36)
+                                .shadow(color: C.green.opacity(0.22), radius: 7, y: 3)
                         }
-                            .frame(width: 36, height: 36)
-                            .shadow(color: C.green.opacity(0.22), radius: 7, y: 3)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("发送"))
+                        .transition(.scale(scale: 0.72).combined(with: .opacity))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Tr("发送"))
-                    .transition(.scale(scale: 0.72).combined(with: .opacity))
                 }
             }
             .padding(.horizontal, 2)
