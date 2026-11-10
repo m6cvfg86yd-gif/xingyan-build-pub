@@ -460,12 +460,6 @@ struct TabBar: View {
             return AnyView(ZStack {
                 Rectangle().fill(.ultraThinMaterial)
                     .opacity(0.84)
-                LinearGradient(
-                    colors: [Color(hex: 0xD8EEE5).opacity(0.28),
-                             Color(hex: 0x83B29F).opacity(0.18)],
-                    startPoint: .top, endPoint: .bottom
-                )
-                OrbitTheme.jade.opacity(0.07)
             })
         }
         let fill = UIConfig.colorIfSet("tabBarColor")
@@ -519,12 +513,12 @@ struct TabBar: View {
                                 seed: 0.74,
                                 native: true)
                 Capsule(style: .continuous)
-                    .fill(scheme == .dark ? OrbitTheme.raised.opacity(0.82)
+                    .fill(scheme == .dark ? Color.white.opacity(0.08)
                                           : Color.white.opacity(0.18))
                 Capsule(style: .continuous)
                     .stroke(
                         LinearGradient(
-                            colors: [scheme == .dark ? OrbitTheme.jade.opacity(0.55)
+                            colors: [scheme == .dark ? Color.white.opacity(0.24)
                                                      : Color.white.opacity(0.78),
                                      Color.white.opacity(0.12)],
                             startPoint: .top,
@@ -532,23 +526,6 @@ struct TabBar: View {
                         ),
                         lineWidth: 0.8
                     )
-                Capsule(style: .continuous)
-                    .stroke(
-                        AngularGradient(
-                            colors: [
-                                Color(red: 0.34, green: 0.88, blue: 1.00).opacity(0.34),
-                                Color(red: 0.62, green: 0.52, blue: 1.00).opacity(0.24),
-                                Color(red: 1.00, green: 0.58, blue: 0.80).opacity(0.20),
-                                Color(red: 1.00, green: 0.86, blue: 0.48).opacity(0.24),
-                                Color(red: 0.54, green: 1.00, blue: 0.76).opacity(0.20),
-                                Color(red: 0.34, green: 0.88, blue: 1.00).opacity(0.34)
-                            ],
-                            center: .center,
-                            angle: .degrees(28)
-                        ),
-                        lineWidth: 1.15
-                    )
-                    .blendMode(.plusLighter)
                 VStack(spacing: 0) {
                     Image(systemName: items[i].1)
                         .font(.system(size: 28, weight: .regular))
@@ -675,14 +652,14 @@ struct TabBar: View {
                                     seed: 0.22,
                                     native: true)
                     Capsule(style: .continuous)
-                        .fill(scheme == .dark ? OrbitTheme.jade.opacity(0.10)
+                        .fill(scheme == .dark ? Color.white.opacity(0.07)
                                               : Color.white.opacity(0.20))
                 }
                     .overlay(
 
                         Capsule(style: .continuous)
                             .stroke(LinearGradient(colors: [scheme == .dark
-                                                            ? OrbitTheme.jade.opacity(0.48)
+                                                            ? Color.white.opacity(0.22)
                                                             : Color.white.opacity(0.70),
                                                             Color.white.opacity(0.12)],
                                                    startPoint: .top, endPoint: .bottom),
