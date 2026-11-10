@@ -425,9 +425,17 @@ struct ChatRow: View, Equatable {
         let preview = kind == "pat"
             ? Tr("星语提醒")
             : (raw.isEmpty ? fallbackPreview(kind) : raw)
-        let body = Text(preview)
+        let body = previewInkText(preview)
         guard chat.lastMessage?.mentionMe == true, chat.unreadCount > 0 else { return body }
-        return Text(Tr("[有人@我] ")).foregroundColor(.green) + body
+        return Text(Tr("[有人@我] ")).foregroundColor(Color(.systemRed)) + body
+    }
+
+    private func previewInkText(_ preview: String) -> Text {
+        let redPrefixes = ["[草稿]", "草稿：", "草稿:", "[未发送]", "[失败]", "发送失败"]
+        if redPrefixes.contains(where: { preview.hasPrefix($0) }) {
+            return Text(preview).foregroundColor(Color(.systemRed))
+        }
+        return Text(preview)
     }
 
     /// 旧服务端或实时推送偶尔只带 kind 不带 preview，列表仍按微信占位。
@@ -545,15 +553,22 @@ struct SwipeChatRow: View {
     @State private var mode: Mode = .none
     @State private var dragging = false
 
-    private var btnW: CGFloat { UIConfig.num("swipeBtnW", 88) }
+    private var btnW: CGFloat { UIConfig.num("swipeBtnW", 74) }
     private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
-    private var fullW: CGFloat { btnW * 3 }
+    private let actionGap: CGFloat = 4
+    private var fullW: CGFloat { btnW * 3 + actionGap * 2 }
 
-    private var blueBg: Color { UIConfig.color("swipeGray", 0x84858A, 0x5C5D63) }
+    private var blueBg: Color {
+        UIConfig.colorIfSet("swipeUnread") ?? Color(hex: 0x28986C)
+    }
 
-    private var yellowBg: Color { UIConfig.color("swipeOrange", 0xFF851D, 0xC26A1A) }
+    private var yellowBg: Color {
+        UIConfig.colorIfSet("swipeHide") ?? Color(hex: 0x7B8087)
+    }
 
-    private var redBg: Color { UIConfig.color("swipeDelete", 0xFE4F3E, 0xD94637) }
+    private var redBg: Color {
+        UIConfig.colorIfSet("swipeDelete") ?? Color(uiColor: .systemRed)
+    }
 
     @State private var crossedOpen = false
 
@@ -671,7 +686,7 @@ struct SwipeChatRow: View {
     }
 
     private var actionButtons: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: actionGap) {
             switch mode {
             case .none:
 
@@ -701,6 +716,7 @@ struct SwipeChatRow: View {
                 }
             }
         }
+        .padding(.vertical, 7)
         .frame(height: ChatListVisual.rowHeight)
         .frame(width: max(0, -offset), height: ChatListVisual.rowHeight, alignment: .trailing)
         .clipped()
@@ -735,8 +751,10 @@ struct SwipeChatRow: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.68)
                 .allowsTightening(true)
-                .frame(width: max(0, width), height: ChatListVisual.rowHeight)
-                .background(bg)
+                .frame(width: max(0, width),
+                       height: ChatListVisual.rowHeight - 14)
+                .background(bg, in: RoundedRectangle(cornerRadius: 12,
+                                                     style: .continuous))
                 .contentShape(Rectangle())
         }
         .buttonStyle(RowSwipeActionButtonStyle())
