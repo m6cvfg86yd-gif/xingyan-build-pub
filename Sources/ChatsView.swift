@@ -1838,6 +1838,10 @@ struct ChatsView: View {
     }
 
     var body: some View {
+        AnyView(chatsWorkspaceRoot)
+    }
+
+    private var chatsWorkspaceRoot: some View {
         let snapshot = cachedSnapshot
         return NavigationStack(path: $path) {
 
@@ -1954,28 +1958,31 @@ struct ChatsView: View {
                         including: floorOn && scrolled < 1 && !floorUp ? .all : .none
                     )
                     .onPreferenceChange(ChatsScrollKey.self) { v in
-                        let s = max(0, v)
-                        let wasNearTop = scrolled <= 8
+                        // iOS 27 会在布局过程中同步派发 preference；立即回写
+                        // @State 会让同一视图树再次布局，严重时耗尽线程栈。
+                        // 延迟到下一轮 main queue，合并同一帧内的重复更新。
+                        DispatchQueue.main.async {
+                            let s = max(0, v)
+                            let wasNearTop = scrolled <= 8
 
-                        if s > 8, wasNearTop {
-                            NotificationCenter.default.post(name: .chrisRowSwipe, object: nil)
+                            if s > 8, wasNearTop {
+                                NotificationCenter.default.post(name: .chrisRowSwipe, object: nil)
+                            }
+
+                            if s < 1 { scrolled = 0 }
+                            else if s > 8 { scrolled = 9 }
+
+                            if s < 1 {
+                                setFilterHidden(false)
+                            } else if s > 8 {
+                                setFilterHidden(true)
+                            }
+
+                            let p = heavyPull(max(0, -v))
+                            if abs(p - pullDown) > 0.5 { pullDown = p }
+
+                            if s > 14, floorUp { floorUp = false }
                         }
-
-                        // 只记录“顶部/已经离开顶部”两个状态，避免滚动时每帧
-                        // 触发 SwiftUI 重算。滑行动量仍由原生 UIScrollView 负责。
-                        if s < 1 { scrolled = 0 }
-                        else if s > 8 { scrolled = 9 }
-
-                        if s < 1 {
-                            setFilterHidden(false)
-                        } else if s > 8 {
-                            setFilterHidden(true)
-                        }
-
-                        let p = heavyPull(max(0, -v))
-                        if abs(p - pullDown) > 0.5 { pullDown = p }
-
-                        if s > 14, floorUp { floorUp = false }
                     }
 
                     .ignoresSafeArea(edges: .top)
@@ -2086,7 +2093,9 @@ struct ChatsView: View {
             .onChange(of: keyword) { _ in cachedSnapshot = chatSnapshot() }
 
             .onChange(of: floorUp) { v in
-                withAnimation(.easeOut(duration: 0.2)) { app.floorFull = v }
+                DispatchQueue.main.async {
+                    withAnimation(.easeOut(duration: 0.2)) { app.floorFull = v }
+                }
             }
 
             .navigationDestination(for: Chat.self) { chat in
