@@ -2241,7 +2241,8 @@ struct ChatsView: View {
 
             while !Task.isCancelled {
                 await app.loadChats()
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                let pollSeconds: UInt64 = Realtime.shared.connected ? 60 : 4
+                try? await Task.sleep(nanoseconds: pollSeconds * 1_000_000_000)
             }
         }
 

@@ -427,7 +427,8 @@ struct NewFriendsView: View {
             await load()
 
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                let pollSeconds: UInt64 = Realtime.shared.connected ? 60 : 4
+                try? await Task.sleep(nanoseconds: pollSeconds * 1_000_000_000)
                 if Task.isCancelled { break }
                 await load()
             }

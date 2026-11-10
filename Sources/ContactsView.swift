@@ -131,13 +131,26 @@ private var funcs: [(String, String, Color, String)] {
         }.map { ContactSection(letter: $0, users: map[$0] ?? []) }
     }
 
+    private var contactCountText: String {
+        let count = filtered.count
+        if Lang.isRussian { return "\(count) контактов" }
+        if Lang.isEnglish { return "\(count) \(count == 1 ? "contact" : "contacts")" }
+        return "\(count) 位联系人"
+    }
+
+    private func contactDetailLine(_ label: String, _ value: String) -> String {
+        if Lang.isRussian { return "\(Tr(label)): \(value)" }
+        if Lang.isEnglish { return "\(Tr(label)): \(value)" }
+        return "\(Tr(label))：\(value)"
+    }
+
     private var contactsTopHeader: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(C.tabText1)
                     .font(pfStyled(size: 26, weight: .bold))
                     .foregroundStyle(C.label)
-                Text("\(filtered.count) 位联系人")
+                Text(contactCountText)
                     .font(pfStyled(size: 12.5, weight: .regular))
                     .foregroundStyle(C.subLabel)
             }
@@ -234,7 +247,7 @@ private var funcs: [(String, String, Color, String)] {
                                             .frame(maxWidth: .infinity)
                                             .padding(.top, 40)
                                     } else {
-                                        Text("\(filtered.count)位联系人")
+                                        Text(contactCountText)
 
                                             .font(pfStyled(size: 12.5, weight: .medium))
                                             .foregroundColor(OrbitTheme.tertiary)
@@ -354,7 +367,8 @@ private var funcs: [(String, String, Color, String)] {
             if let ids = try? await API.shared.starredFriends() { starIds = ids }
 
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                let pollSeconds: UInt64 = realtime.connected ? 60 : 5
+                try? await Task.sleep(nanoseconds: pollSeconds * 1_000_000_000)
                 if Task.isCancelled { break }
                 await app.loadContacts()
             }
@@ -864,27 +878,30 @@ struct ContactCardView: View {
         }
         .confirmationDialog("", isPresented: $showInfo, titleVisibility: .hidden) {
             if isBot {
-                Button("昵称：\(realNicknameText)") { }
-                Button("账号：\(u.username ?? "—")") { }
-                if let b = u.bio, !b.isEmpty { Button("简介：\(b)") { } }
+                Button(contactDetailLine("昵称", realNicknameText)) { }
+                Button(contactDetailLine("账号", u.username ?? "—")) { }
+                if let b = u.bio, !b.isEmpty {
+                    Button(contactDetailLine("简介", b)) { }
+                }
             } else {
-                Button("昵称：\(realNicknameText)") { }
-                Button("账号：\(u.username ?? "—")") { }
+                Button(contactDetailLine("昵称", realNicknameText)) { }
+                Button(contactDetailLine("账号", u.username ?? "—")) { }
                 if let r = meta?.remark ?? u.remark, !r.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Button("备注：\(r)") { }
+                    Button(contactDetailLine("备注", r)) { }
                 }
 
                 if let b = u.bio, !b.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Button("个性签名：\(b)") { }
+                    Button(contactDetailLine("个性签名", b)) { }
                 }
-                Button("地区：\((u.region?.isEmpty == false) ? u.region! : "未知")") { }
-                Button("网络属地：" + networkProvinceText) { }
-                Button("手机型号：" + deviceModelText) { }
+                Button(contactDetailLine("地区",
+                                         (u.region?.isEmpty == false) ? u.region! : Tr("未知"))) { }
+                Button(contactDetailLine("网络属地", networkProvinceText)) { }
+                Button(contactDetailLine("手机型号", deviceModelText)) { }
             }
             Button(Tr("取消"), role: .cancel) { }
         }
         .confirmationDialog("", isPresented: $showPhone, titleVisibility: .hidden) {
-            Button("拨打 \(phone)") { dial() }
+            Button(contactDetailLine("拨打", phone)) { dial() }
             Button(Tr("取消"), role: .cancel) { }
         }
         .task { await load() }

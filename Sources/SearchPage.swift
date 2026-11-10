@@ -195,7 +195,786 @@ struct SearchPage: View {
     }
 
     var body: some View {
-        nativeSearchBody
+        xhsSearchBody
+    }
+
+    private var xhsCanvas: Color {
+        Color.dyn(0xF7F7F7, 0x0F0F10)
+    }
+
+    private var xhsCard: Color {
+        Color.dyn(0xFFFFFF, 0x18181A)
+    }
+
+    private var xhsField: Color {
+        Color.dyn(0xFFFFFF, 0x202023)
+    }
+
+    private var xhsRed: Color {
+        Color(hex: 0xFF2442)
+    }
+
+    private var xhsSearchBody: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                xhsSearchHeader
+
+                if key.isEmpty {
+                    xhsIdleContent
+                } else {
+                    xhsResultsContent
+                }
+            }
+            .background(xhsCanvas.ignoresSafeArea())
+            .toolbar(.hidden, for: .navigationBar)
+            .overlay(alignment: .bottom) {
+                GeometryReader { g in
+                    if voiceBall, kbHeight > 1, !inputMethodChanging {
+                        VoiceOrb(level: dictation.listening ? 0.55 : 0.16,
+                                 diameter: 92,
+                                 listening: dictation.listening,
+                                 metalShader: false)
+                            .position(x: g.size.width / 2,
+                                      y: max(70, g.size.height - kbHeight - 62))
+                            .transition(.opacity.combined(with: .scale(scale: 0.86)))
+                            .onTapGesture {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                dictation.toggle { value in q = value }
+                            }
+                    }
+                }
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+                .allowsHitTesting(voiceBall && kbHeight > 1)
+                .animation(.easeOut(duration: 0.22), value: kbHeight)
+            }
+        }
+        .onAppear {
+            focused = true
+            history = SearchHistory.all
+        }
+        .onChange(of: q) { _ in scheduleRemoteSearch() }
+        .onChange(of: scope) { _ in scheduleRemoteSearch() }
+        .task { await loadHot() }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notice in
+            guard let frame = notice.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+            let height = max(0, UIScreen.main.bounds.height - frame.minY)
+            if abs(height - kbHeight) > 0.5 {
+                if voiceBall { beginInputMethodTransition() }
+                withAnimation(.easeOut(duration: 0.22)) { kbHeight = height }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            if kbHeight != 0 {
+                dictation.stop()
+                withAnimation(.easeOut(duration: 0.22)) { kbHeight = 0 }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UITextInputMode.currentInputModeDidChangeNotification)) { _ in
+            beginInputMethodTransition()
+        }
+        .onDisappear {
+            searchTask?.cancel()
+            dictation.stop()
+        }
+        .sheet(item: $pickedUser) { user in
+            NavigationView {
+                ContactCardView(
+                    user: user,
+                    onOpenChat: { chat in
+                        pickedUser = nil
+                        onOpenChat?(chat)
+                        dismiss()
+                    },
+                    onOpenMoments: { _ in
+                        pickedUser = nil
+                        showMoments = true
+                    }
+                )
+                .environmentObject(app)
+            }
+        }
+        .fullScreenCover(isPresented: $showMoments) {
+            MomentsView().environmentObject(app)
+        }
+        .fullScreenCover(isPresented: $showChannels) {
+            ChannelsView().environmentObject(app)
+        }
+        .fullScreenCover(isPresented: $showAI) {
+            PluginsView().environmentObject(app)
+        }
+        .fullScreenCover(isPresented: $showBrowser) {
+            InAppBrowserView()
+        }
+        .fullScreenCover(isPresented: $showDrop) {
+            FaceToFaceFileSheet(rows: [],
+                                avatar: app.me?.avatarPath ?? "",
+                                name: app.me?.name ?? "")
+                .environmentObject(app)
+        }
+    }
+
+    private var xhsSearchHeader: some View {
+        HStack(spacing: 9) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(C.label)
+                    .frame(width: 36, height: 44)
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(xhsRed)
+
+                TextField(Tr("搜索人、消息与官方工具"), text: $q)
+                    .font(pfStyled(size: 15.5, weight: .regular))
+                    .foregroundStyle(C.label)
+                    .focused($focused)
+                    .submitLabel(.search)
+                    .onSubmit { remember(key) }
+
+                if !key.isEmpty {
+                    Button { q = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(C.tertiaryLabel)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 13)
+            .frame(height: 42)
+            .background(xhsField, in: Capsule())
+            .overlay(Capsule().stroke(C.hairline, lineWidth: 0.6))
+
+            Button(Tr("取消")) { dismiss() }
+                .font(pfStyled(size: 14.5, weight: .medium))
+                .foregroundStyle(C.label)
+                .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.dyn(0xFFFFFF, 0x0F0F10))
+    }
+
+    private var xhsIdleContent: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 22) {
+                if !history.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            xhsSectionTitle(Tr("最近搜索"))
+                            Spacer()
+                            Button {
+                                SearchHistory.clear()
+                                withAnimation(.easeOut(duration: 0.18)) { history = [] }
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(C.subLabel)
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        ChipFlow(spacing: 9, lineSpacing: 9) {
+                            ForEach(history, id: \.self) { term in
+                                xhsTermChip(term, symbol: "clock.arrow.circlepath")
+                            }
+                        }
+                    }
+                }
+
+                if !hot.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        xhsSectionTitle(Tr("热门搜索"))
+                        VStack(spacing: 0) {
+                            ForEach(Array(hot.enumerated()), id: \.offset) { index, term in
+                                Button {
+                                    selectTerm(term)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Text("\(index + 1)")
+                                            .font(pfStyled(size: 15, weight: .bold))
+                                            .foregroundStyle(index < 3 ? xhsRed : C.subLabel)
+                                            .frame(width: 24)
+                                        Text(Tr(term))
+                                            .font(pfStyled(size: 15.5, weight: .regular))
+                                            .foregroundStyle(C.label)
+                                        Spacer(minLength: 0)
+                                        if index < 3 {
+                                            Text("HOT")
+                                                .font(pfStyled(size: 8.5, weight: .bold))
+                                                .foregroundStyle(.white)
+                                                .padding(.horizontal, 6)
+                                                .frame(height: 18)
+                                                .background(Capsule().fill(xhsRed))
+                                        }
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .frame(height: 48)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+
+                                if index < hot.count - 1 {
+                                    Rectangle()
+                                        .fill(C.hairline)
+                                        .frame(height: 0.5)
+                                        .padding(.leading, 50)
+                                }
+                            }
+                        }
+                        .background(xhsCard)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    xhsSectionTitle(Tr("灵感发现"))
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                                       GridItem(.flexible(), spacing: 10)],
+                              spacing: 10) {
+                        ForEach(officialTools) { tool in
+                            xhsToolCard(tool)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
+            .padding(.bottom, 34)
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private var xhsResultsContent: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: 18) {
+                xhsScopeRow
+
+                if searchingRemote {
+                    HStack(spacing: 10) {
+                        ProgressView().tint(xhsRed)
+                        Text(Tr("正在搜索全部聊天记录"))
+                            .font(pfStyled(size: 13.5))
+                            .foregroundStyle(C.subLabel)
+                    }
+                    .padding(.horizontal, 16)
+                }
+
+                if !matchedTools.isEmpty {
+                    xhsResultSection(Tr("官方工具"), count: matchedTools.count) {
+                        VStack(spacing: 0) {
+                            ForEach(Array(matchedTools.enumerated()), id: \.element.id) { index, tool in
+                                xhsToolRow(tool)
+                                if index < matchedTools.count - 1 {
+                                    Rectangle().fill(C.hairline)
+                                        .frame(height: 0.5)
+                                        .padding(.leading, 58)
+                                }
+                            }
+                        }
+                        .background(xhsCard)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                }
+
+                if !directChats.isEmpty {
+                    xhsGridSection(Tr("聊天"), count: directChats.count) {
+                        ForEach(directChats) { chat in
+                            xhsChatCard(chat, isGroup: false)
+                        }
+                    }
+                }
+
+                if !groups.isEmpty {
+                    xhsGridSection(Tr("群聊"), count: groups.count) {
+                        ForEach(groups) { chat in
+                            xhsChatCard(chat, isGroup: true)
+                        }
+                    }
+                }
+
+                if !contacts.isEmpty {
+                    xhsGridSection(Tr("联系人"), count: contacts.count) {
+                        ForEach(contacts) { user in
+                            xhsPersonCard(user)
+                        }
+                    }
+                }
+
+                if !remotePeople.isEmpty {
+                    xhsGridSection(Tr("更多联系人"), count: remotePeople.count) {
+                        ForEach(remotePeople) { person in
+                            xhsRemotePersonCard(person)
+                        }
+                    }
+                }
+
+                if !remoteGroups.isEmpty {
+                    xhsGridSection(Tr("更多群聊"), count: remoteGroups.count) {
+                        ForEach(remoteGroups) { group in
+                            xhsRemoteGroupCard(group)
+                        }
+                    }
+                }
+
+                if !remoteMessages.isEmpty {
+                    xhsResultSection(Tr("消息命中"), count: remoteMessages.count) {
+                        VStack(spacing: 10) {
+                            ForEach(remoteMessages) { hit in
+                                xhsMessageCard(hit)
+                            }
+                        }
+                    }
+                }
+
+                if !remoteMoments.isEmpty {
+                    xhsMediaGridSection(Tr("朋友圈"), count: remoteMoments.count) {
+                        ForEach(remoteMoments) { post in
+                            xhsMomentCard(post)
+                        }
+                    }
+                }
+
+                if !remoteVideos.isEmpty {
+                    xhsMediaGridSection(Tr("视频号"), count: remoteVideos.count) {
+                        ForEach(remoteVideos) { video in
+                            xhsVideoCard(video)
+                        }
+                    }
+                }
+
+                if !searchingRemote && !hasResults {
+                    VStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 28, weight: .light))
+                            .foregroundStyle(C.subLabel)
+                        Text(Tr("没有找到结果"))
+                            .font(pfStyled(size: 16, weight: .semibold))
+                            .foregroundStyle(C.label)
+                        Text(Tr("换一个关键词试试"))
+                            .font(pfStyled(size: 13))
+                            .foregroundStyle(C.subLabel)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 70)
+                }
+            }
+            .padding(.vertical, 12)
+            .padding(.bottom, 34)
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+
+    private func xhsSectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(pfStyled(size: 17, weight: .bold))
+            .foregroundStyle(C.label)
+    }
+
+    private func xhsTermChip(_ term: String, symbol: String) -> some View {
+        Button {
+            remember(term)
+            q = term
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: symbol)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(C.subLabel)
+                Text(Tr(term))
+                    .font(pfStyled(size: 13.5, weight: .regular))
+                    .foregroundStyle(C.label)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 34)
+            .background(xhsCard, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func xhsToolCard(_ tool: OfficialTool) -> some View {
+        Button {
+            remember(key)
+            switch tool.id {
+            case "ai": showAI = true
+            case "browser": showBrowser = true
+            default: showDrop = true
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 9) {
+                Image(systemName: tool.symbol)
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(xhsRed)
+                    .frame(width: 40, height: 40)
+                    .background(xhsRed.opacity(0.10),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                Text(tool.title)
+                    .font(pfStyled(size: 15, weight: .semibold))
+                    .foregroundStyle(C.label)
+                    .lineLimit(1)
+                Text(Tr(tool.subtitle))
+                    .font(pfStyled(size: 12, weight: .regular))
+                    .foregroundStyle(C.subLabel)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 124, alignment: .topLeading)
+            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var xhsScopeRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(scopes, id: \.0) { item in
+                    let selected = scope == item.0
+                    Button {
+                        scope = item.0
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: item.2)
+                                .font(.system(size: 11.5, weight: .medium))
+                            Text(Tr(item.1))
+                                .font(pfStyled(size: 13, weight: .medium))
+                        }
+                        .foregroundStyle(selected ? Color.white : C.subLabel)
+                        .padding(.horizontal, 13)
+                        .frame(height: 34)
+                        .background(selected ? xhsRed : xhsCard, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+        }
+    }
+
+    private func xhsResultSection<Content: View>(
+        _ title: String,
+        count: Int,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                xhsSectionTitle(title)
+                Spacer()
+                Text("\(count)")
+                    .font(pfStyled(size: 11, weight: .semibold))
+                    .foregroundStyle(C.subLabel)
+            }
+            content()
+        }
+        .padding(.horizontal, 14)
+    }
+
+    private func xhsGridSection<Content: View>(
+        _ title: String,
+        count: Int,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        xhsResultSection(title, count: count) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                               GridItem(.flexible(), spacing: 10)],
+                      spacing: 10) {
+                content()
+            }
+        }
+    }
+
+    private func xhsMediaGridSection<Content: View>(
+        _ title: String,
+        count: Int,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        xhsGridSection(title, count: count, content: content)
+    }
+
+    private func xhsToolRow(_ tool: OfficialTool) -> some View {
+        Button {
+            remember(key)
+            switch tool.id {
+            case "ai": showAI = true
+            case "browser": showBrowser = true
+            default: showDrop = true
+            }
+        } label: {
+            HStack(spacing: 11) {
+                Image(systemName: tool.symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(xhsRed)
+                    .frame(width: 36, height: 36)
+                    .background(xhsRed.opacity(0.10), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(tool.title)
+                        .font(pfStyled(size: 15.5, weight: .semibold))
+                        .foregroundStyle(C.label)
+                    Text(Tr(tool.subtitle))
+                        .font(pfStyled(size: 12.5))
+                        .foregroundStyle(C.subLabel)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(C.tertiaryLabel)
+            }
+            .padding(.horizontal, 13)
+            .frame(height: 62)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func xhsChatCard(_ chat: Chat, isGroup: Bool) -> some View {
+        Button {
+            remember(key)
+            onOpenChat?(chat)
+            dismiss()
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Avatar(path: chatAvatar(chat), size: 44,
+                           radius: isGroup ? 12 : 10, group: isGroup)
+                    Spacer(minLength: 0)
+                    Text(isGroup ? Tr("群聊") : Tr("聊天"))
+                        .font(pfStyled(size: 10, weight: .semibold))
+                        .foregroundStyle(xhsRed)
+                        .padding(.horizontal, 7)
+                        .frame(height: 21)
+                        .background(Capsule().fill(xhsRed.opacity(0.09)))
+                }
+
+                Text(chatTitle(chat))
+                    .font(pfStyled(size: 15.5, weight: .semibold))
+                    .foregroundStyle(C.label)
+                    .lineLimit(1)
+
+                Text(chat.lastMessage?.preview?.isEmpty == false
+                     ? chat.lastMessage?.preview ?? ""
+                     : Tr("打开会话"))
+                    .font(pfStyled(size: 12.5, weight: .regular))
+                    .foregroundStyle(C.subLabel)
+                    .lineLimit(2)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
+            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func xhsPersonCard(_ user: User) -> some View {
+        Button {
+            remember(key)
+            onOpenUser?(user)
+            dismiss()
+        } label: {
+            VStack(spacing: 9) {
+                Avatar(path: user.avatarPath, size: 58, radius: 29, circle: true)
+                Text(user.name)
+                    .font(pfStyled(size: 15.5, weight: .semibold))
+                    .foregroundStyle(C.label)
+                    .lineLimit(1)
+                Text(user.username?.isEmpty == false ? "@\(user.username ?? "")" : Tr("联系人"))
+                    .font(pfStyled(size: 12.5, weight: .regular))
+                    .foregroundStyle(C.subLabel)
+                    .lineLimit(1)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 142)
+            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func xhsRemotePersonCard(_ person: SearchAllData.Person) -> some View {
+        Button {
+            remember(key)
+            pickedUser = User(id: person.id)
+        } label: {
+            VStack(spacing: 9) {
+                Avatar(path: person.avatar ?? "", size: 58, radius: 29, circle: true)
+                Text(person.name ?? Tr("联系人"))
+                    .font(pfStyled(size: 15.5, weight: .semibold))
+                    .foregroundStyle(C.label)
+                    .lineLimit(1)
+                Text(person.username?.isEmpty == false ? "@\(person.username ?? "")" : Tr("联系人"))
+                    .font(pfStyled(size: 12.5))
+                    .foregroundStyle(C.subLabel)
+                    .lineLimit(1)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 142)
+            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func xhsRemoteGroupCard(_ group: SearchAllData.Group) -> some View {
+        Button {
+            remember(key)
+            openChat(id: group.id)
+        } label: {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack {
+                    Avatar(path: group.avatar ?? "", size: 48, radius: 13, group: true)
+                    Spacer()
+                    Image(systemName: "person.3.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(C.subLabel)
+                }
+                Text(group.name ?? Tr("群聊"))
+                    .font(pfStyled(size: 15.5, weight: .semibold))
+                    .foregroundStyle(C.label)
+                    .lineLimit(1)
+                Text("\(group.members ?? 0) " + Tr("人"))
+                    .font(pfStyled(size: 12.5))
+                    .foregroundStyle(C.subLabel)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
+            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func xhsMessageCard(_ hit: SearchAllData.ChatHit) -> some View {
+        let localChat = app.chats.first(where: { $0.id == hit.chatId })
+        let title = hit.chatTitle?.isEmpty == false
+            ? hit.chatTitle ?? ""
+            : (localChat.map(chatTitle) ?? Tr("聊天"))
+        let avatar = localChat.map(chatAvatar) ?? ""
+
+        return Button {
+            remember(key)
+            openChat(id: hit.chatId)
+        } label: {
+            HStack(alignment: .top, spacing: 11) {
+                Avatar(path: avatar, size: 40, radius: 11,
+                       group: hit.isGroup == true)
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text(title)
+                            .font(pfStyled(size: 14.5, weight: .semibold))
+                            .foregroundStyle(C.label)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(compactSearchTime(hit.at))
+                            .font(pfStyled(size: 10.5))
+                            .foregroundStyle(C.subLabel)
+                    }
+                    Text(hit.text ?? "")
+                        .font(pfStyled(size: 13.5, weight: .regular))
+                        .foregroundStyle(C.subLabel)
+                        .lineLimit(3)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 14)
+    }
+
+    private func xhsMomentCard(_ post: SearchAllData.Post) -> some View {
+        Button {
+            remember(key)
+            showMoments = true
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                if let image = post.images?.first, !image.isEmpty {
+                    RemoteImage(path: image, mode: .fill, maxSide: 420)
+                        .frame(height: 150)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                } else {
+                    LinearGradient(colors: [xhsRed.opacity(0.72), Color(hex: 0x7D2F3B)],
+                                   startPoint: .topLeading,
+                                   endPoint: .bottomTrailing)
+                        .frame(height: 150)
+                        .overlay {
+                            Image(systemName: "photo.on.rectangle.angled")
+                                .font(.system(size: 30, weight: .light))
+                                .foregroundStyle(.white.opacity(0.78))
+                        }
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(post.content ?? Tr("朋友圈"))
+                        .font(pfStyled(size: 14, weight: .semibold))
+                        .foregroundStyle(C.label)
+                        .lineLimit(2)
+                    Text(post.author ?? "")
+                        .font(pfStyled(size: 11.5))
+                        .foregroundStyle(C.subLabel)
+                }
+                .padding(10)
+            }
+            .background(xhsCard)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func xhsVideoCard(_ video: SearchAllData.Video) -> some View {
+        Button {
+            remember(key)
+            showChannels = true
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                if let cover = video.cover, !cover.isEmpty {
+                    RemoteImage(path: cover, mode: .fill, maxSide: 420)
+                        .frame(height: 160)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 30, height: 30)
+                                .background(Circle().fill(Color.black.opacity(0.42)))
+                                .padding(8)
+                        }
+                } else {
+                    Color.black
+                        .frame(height: 160)
+                        .overlay {
+                            Image(systemName: "play.rectangle.fill")
+                                .font(.system(size: 34, weight: .light))
+                                .foregroundStyle(.white.opacity(0.72))
+                        }
+                }
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(video.title ?? Tr("视频号"))
+                        .font(pfStyled(size: 14, weight: .semibold))
+                        .foregroundStyle(C.label)
+                        .lineLimit(2)
+                    Text(video.author ?? "")
+                        .font(pfStyled(size: 11.5))
+                        .foregroundStyle(C.subLabel)
+                }
+                .padding(10)
+            }
+            .background(xhsCard)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var nativeSearchBody: some View {

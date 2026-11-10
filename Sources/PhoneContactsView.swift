@@ -13,6 +13,12 @@ private struct LocalPhoneContact: Identifiable {
     let phone: String
 }
 
+private struct PhoneContactSection: Identifiable {
+    var id: String { letter }
+    let letter: String
+    let contacts: [LocalPhoneContact]
+}
+
 private struct QRInvite: Identifiable {
     let id = UUID()
     let name: String
@@ -68,7 +74,6 @@ struct PhoneContactsView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    @Environment(\.colorScheme) private var scheme
 
     var onOpenUser: (User) -> Void
 
@@ -89,12 +94,27 @@ struct PhoneContactsView: View {
         }
     }
 
+    private var groupedContacts: [PhoneContactSection] {
+        var order: [String] = []
+        var map: [String: [LocalPhoneContact]] = [:]
+        for contact in filteredContacts {
+            let letter = pinyinInitial(contact.name)
+            if map[letter] == nil { order.append(letter) }
+            map[letter, default: []].append(contact)
+        }
+        return order.sorted { a, b in
+            if a == "#" { return false }
+            if b == "#" { return true }
+            return a < b
+        }.map { PhoneContactSection(letter: $0, contacts: map[$0] ?? []) }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             NavBar(title: Tr("手机联系人"), back: { dismiss() })
 
             ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                     contactsHero
 
                     switch state {
@@ -106,26 +126,25 @@ struct PhoneContactsView: View {
                                 .font(pf(16, .semibold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 48)
-                                .background(
-                                    Capsule().fill(
-                                        LinearGradient(colors: [OrbitTheme.jadeDeep, OrbitTheme.jade],
-                                                       startPoint: .leading, endPoint: .trailing)
-                                    )
-                                )
-                                .shadow(color: OrbitTheme.jade.opacity(0.18), radius: 10, y: 5)
+                                .frame(height: 50)
+                                .background(Color(hex: 0x25D366),
+                                            in: RoundedRectangle(cornerRadius: 10,
+                                                                 style: .continuous))
                         }
                         .buttonStyle(.plain)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
 
                     case .requesting:
                         ProgressView(Tr("正在读取手机联系人…"))
-                            .padding(.vertical, 24)
+                            .padding(.vertical, 30)
 
                     case .ready:
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
-                                .foregroundColor(OrbitTheme.tertiary)
+                                .foregroundColor(C.subLabel)
                             TextField(Tr("搜索姓名或号码"), text: $keyword)
+                                .font(pfStyled(size: 15.5, weight: .regular))
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                             if !keyword.isEmpty {
@@ -140,32 +159,45 @@ struct PhoneContactsView: View {
                         }
                         .padding(.horizontal, 12)
                         .frame(height: 44)
-                        .background(OrbitTheme.field)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(OrbitTheme.divider, lineWidth: 0.7)
-                        }
+                        .background(Color.dyn(0xF0F2F5, 0x101014),
+                                    in: RoundedRectangle(cornerRadius: 12,
+                                                         style: .continuous))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
 
                         if contacts.isEmpty {
                             Text(Tr("手机通讯录里没有可查询的号码"))
-                                .font(pf(14))
+                                .font(pf(15))
                                 .foregroundColor(C.subLabel)
                                 .padding(.vertical, 30)
                         } else if filteredContacts.isEmpty {
                             Text(Tr("没有找到匹配的手机联系人"))
-                                .font(pf(14))
+                                .font(pf(15))
                                 .foregroundColor(C.subLabel)
                                 .padding(.vertical, 30)
                         } else {
-                            ForEach(filteredContacts) { contact in
-                                Button {
-                                    Task { await lookUp(contact) }
-                                } label: {
-                                    phoneContactRow(contact)
+                            ForEach(groupedContacts) { section in
+                                Section {
+                                    ForEach(section.contacts) { contact in
+                                        Button {
+                                            Task { await lookUp(contact) }
+                                        } label: {
+                                            phoneContactRow(contact)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(!searchingPhone.isEmpty)
+                                    }
+                                } header: {
+                                    HStack {
+                                        Text(section.letter)
+                                            .font(pfStyled(size: 13, weight: .semibold))
+                                            .foregroundStyle(C.subLabel)
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .frame(height: 30)
+                                    .background(Color.dyn(0xFFFFFF, 0x000000))
                                 }
-                                .buttonStyle(MenuPressStyle())
-                                .disabled(!searchingPhone.isEmpty)
                             }
                         }
                     }
@@ -179,8 +211,6 @@ struct PhoneContactsView: View {
                     }
 
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
                 .padding(.bottom, max(20, L.safeBottom))
             }
         }
@@ -197,121 +227,69 @@ struct PhoneContactsView: View {
     }
 
     private var phoneContactsBackdrop: some View {
-        ZStack {
-            OrbitTheme.canvas
-            RadialGradient(colors: [OrbitTheme.jade.opacity(scheme == .dark ? 0.09 : 0.12), .clear],
-                           center: .topTrailing, startRadius: 0, endRadius: 300)
-        }
-        .ignoresSafeArea()
+        Color.dyn(0xFFFFFF, 0x000000).ignoresSafeArea()
     }
 
     private var contactsHero: some View {
-        ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(colors: scheme == .dark
-                                   ? [Color(hex: 0x14231A), Color(hex: 0x09100C)]
-                                   : [Color(hex: 0xFCFEFC), Color(hex: 0xEAF5EE)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "person.2.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 46, height: 46)
+                .background(Color(hex: 0x25D366), in: Circle())
 
-            PhoneOrbitMotif(accent: OrbitTheme.jade, ink: OrbitTheme.secondary)
-                .frame(width: 170, height: 125)
-                .offset(x: 24, y: -10)
-                .allowsHitTesting(false)
-
-            VStack(alignment: .leading, spacing: 11) {
-                HStack(spacing: 9) {
-                    PhoneContactMark(accent: OrbitTheme.jade)
-                        .frame(width: 28, height: 28)
-                    Text("XINGYAN · CONTACT ORBIT")
-                        .font(pfStyled(size: 9.5, weight: .semibold))
-                        .tracking(1.3)
-                        .foregroundStyle(OrbitTheme.secondary)
-                }
+            VStack(alignment: .leading, spacing: 5) {
                 Text(Tr("从手机通讯录添加朋友"))
-                    .font(pf(21, .semibold))
-                    .foregroundStyle(OrbitTheme.ink)
-                Text(Tr("星言只在你选择一个联系人后，用这个号码查询对应账号；不会批量上传其他联系人。"))
-                    .font(pf(12))
-                    .foregroundStyle(OrbitTheme.secondary)
+                    .font(pfStyled(size: 17, weight: .semibold))
+                    .foregroundStyle(C.label)
+                Text(Tr("仅在你选择联系人后查询号码，不会批量上传通讯录。"))
+                    .font(pfStyled(size: 13.5, weight: .regular))
+                    .foregroundStyle(C.subLabel)
                     .fixedSize(horizontal: false, vertical: true)
-
-                if state == .ready {
-                    HStack(spacing: 7) {
-                        Text("\(contacts.count)")
-                            .font(pfStyled(size: 12, weight: .bold, design: .rounded))
-                        Text(Tr("个本地联系人"))
-                            .font(pf(10.5, .medium))
-                    }
-                    .foregroundStyle(OrbitTheme.jadeDeep)
-                    .padding(.horizontal, 10)
-                    .frame(height: 26)
-                    .background(Capsule().fill(OrbitTheme.jadeSoft))
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
+
+            Spacer(minLength: 0)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(OrbitTheme.divider, lineWidth: 0.7)
-        }
-        .shadow(color: Color.black.opacity(scheme == .dark ? 0.30 : 0.07), radius: 16, y: 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
     }
 
     private func phoneContactRow(_ contact: LocalPhoneContact) -> some View {
         HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 15, style: .continuous)
-                    .fill(LinearGradient(colors: [OrbitTheme.jade.opacity(0.20),
-                                                  OrbitTheme.jade.opacity(0.07)],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                Text(String(contact.name.prefix(1)))
-                    .font(pfStyled(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(OrbitTheme.jadeDeep)
-            }
-            .frame(width: 46, height: 46)
-            .overlay {
-                RoundedRectangle(cornerRadius: 15, style: .continuous)
-                    .stroke(OrbitTheme.jade.opacity(0.16), lineWidth: 0.7)
-            }
+            Text(String(contact.name.prefix(1)))
+                .font(pfStyled(size: 18, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 46, height: 46)
+                .background(Color(hex: 0x8E8E93), in: Circle())
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(contact.name)
-                    .font(pf(15.5, .medium))
-                    .foregroundStyle(OrbitTheme.ink)
+                    .font(pfStyled(size: 17, weight: .regular))
+                    .foregroundStyle(C.label)
                     .lineLimit(1)
                 Text(contact.phone)
-                    .font(pfStyled(size: 11.5, weight: .regular, design: .monospaced))
-                    .foregroundStyle(OrbitTheme.tertiary)
+                    .font(pfStyled(size: 14, weight: .regular))
+                    .foregroundStyle(C.subLabel)
                     .lineLimit(1)
             }
 
             Spacer(minLength: 6)
             if searchingPhone == contact.phone {
-                ProgressView().tint(OrbitTheme.jade)
+                ProgressView().tint(Color(hex: 0x25D366))
             } else {
-                HStack(spacing: 5) {
-                    Text(Tr("查找"))
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 9, weight: .bold))
-                }
-                .font(pf(11.5, .semibold))
-                .foregroundStyle(OrbitTheme.jadeDeep)
-                .padding(.horizontal, 10)
-                .frame(height: 29)
-                .background(Capsule().fill(OrbitTheme.jadeSoft))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(C.tertiaryLabel)
             }
         }
-        .padding(.horizontal, 12)
-        .frame(height: 68)
-        .background(OrbitTheme.raised)
-        .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .stroke(OrbitTheme.divider, lineWidth: 0.7)
+        .padding(.horizontal, 16)
+        .frame(height: 72)
+        .background(Color.dyn(0xFFFFFF, 0x000000))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(C.hairline)
+                .frame(height: 0.5)
+                .padding(.leading, 74)
         }
         .contentShape(Rectangle())
     }

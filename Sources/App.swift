@@ -2283,7 +2283,7 @@ struct ServerSheet: View {
         NavigationView {
             Form {
                 Section(header: Text(Tr("电脑的局域网地址（IP:端口）"))) {
-            TextField("aa.x8iu.com（加密）", text: $server)
+            TextField(Tr("aa.x8iu.com（加密）"), text: $server)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled(true)
                         .keyboardType(.numbersAndPunctuation)
@@ -2833,13 +2833,13 @@ struct AccountLoginSheet: View {
                             .foregroundColor(LoginTheme.ink(colorScheme)) }
                         HairLine(color: C.navLine)
                         row {
-                            TextField("验证码", text: $code).keyboardType(.numberPad).focused($focus, equals: .code)
+                            TextField(Tr("验证码"), text: $code).keyboardType(.numberPad).focused($focus, equals: .code)
                                 .foregroundColor(LoginTheme.ink(colorScheme))
                             Button(Tr("获取验证码")) { sendCode() }
                                 .font(pfStyled(14)).foregroundColor(C.loginGreen)
                         }
                     } else {
-                        row { TextField("账号 / 用户名", text: $username).focused($focus, equals: .user)
+                        row { TextField(Tr("账号 / 用户名"), text: $username).focused($focus, equals: .user)
                             .foregroundColor(LoginTheme.ink(colorScheme))
                             .textInputAutocapitalization(.never).autocorrectionDisabled(true) }
                         HairLine(color: C.navLine)
@@ -2847,7 +2847,7 @@ struct AccountLoginSheet: View {
                         row {
                             Group {
                                 if showPassword {
-                                    TextField("密码", text: $password)
+                                    TextField(Tr("密码"), text: $password)
                                 } else {
                                     SecureField("密码", text: $password)
                                 }
@@ -3048,7 +3048,7 @@ struct UnbanSheet: View {
                         .foregroundColor(.secondary)
                         .padding(.bottom, 14)
 
-                    field { TextField("被封的账号（用户名 / 手机号）", text: $username)
+                    field { TextField(Tr("被封的账号（用户名 / 手机号）"), text: $username)
                         .textInputAutocapitalization(.never).autocorrectionDisabled(true) }
                     HairLine(color: C.navLine)
                     field { SecureField("该账号的密码", text: $password)
@@ -3056,7 +3056,7 @@ struct UnbanSheet: View {
                         .textInputAutocapitalization(.never)
                         .privacySensitive() }
                     HairLine(color: C.navLine)
-                    field { TextField("身份证号（18 位）", text: $idCard)
+                    field { TextField(Tr("身份证号（18 位）"), text: $idCard)
                         .textInputAutocapitalization(.characters).autocorrectionDisabled(true) }
 
                     if let e = error {
@@ -3597,7 +3597,7 @@ struct PhoneLoginView: View {
                         .buttonStyle(.plain)
                         .overlay(alignment: .bottom) { hairline }
 
-                        TextField("请输入手机号", text: $phone)
+                        TextField(Tr("请输入手机号"), text: $phone)
                             .keyboardType(.numberPad)
                             .font(pfStyled(16.5))
                             .frame(height: 54)
@@ -3605,7 +3605,7 @@ struct PhoneLoginView: View {
                             .overlay(alignment: .bottom) { hairline }
 
                         HStack(spacing: 10) {
-                            TextField("请输入验证码", text: $code)
+                            TextField(Tr("请输入验证码"), text: $code)
                                 .keyboardType(.numberPad)
                                 .font(pfStyled(16.5))
                             Button { sendCode() } label: {

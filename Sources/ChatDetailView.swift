@@ -1663,7 +1663,11 @@ struct ChatDetailView: View {
                                 } label: {
                                     HStack(spacing: 5) {
                                         if unreadHere > 0 {
-                                            Text("\(unreadHere) 条新消息")
+                                            Text(Lang.isRussian
+                                                 ? "\(unreadHere) новых сообщений"
+                                                 : (Lang.isEnglish
+                                                    ? "\(unreadHere) new messages"
+                                                    : "\(unreadHere) 条新消息"))
                                                 .font(pf(11.5, .medium))
                                                 .foregroundColor(C.label)
                                         }
@@ -3901,7 +3905,7 @@ struct ChatDetailView: View {
         }
         .overlay(alignment: .top) {
             if dictation.listening {
-                Text("正在听你说，说完自己上屏…")
+                        Text(Tr("正在听你说，说完自己上屏…"))
                     .font(pf(12))
                     .foregroundColor(C.green)
                     .padding(.horizontal, 10)
@@ -5388,9 +5392,9 @@ struct SystemLine: View {
         }
         let pink = usesLightInk ? Color(hex: 0xFF9CC4) : Color(hex: 0xC33F78)
         return Text(inviter).foregroundColor(pink)
-            + Text(" 邀请 ").foregroundColor(ink)
+            + Text(Tr(" 邀请 ")).foregroundColor(ink)
             + Text(invitees).foregroundColor(pink)
-            + Text(" 加入了群聊").foregroundColor(ink)
+            + Text(Tr(" 加入了群聊")).foregroundColor(ink)
     }
 
     private var ink: Color {
@@ -6317,7 +6321,7 @@ struct MessageRow: View {
             RedPacketCard(info: info, mine: mine, myId: myId)
         } else {
 
-            Text("[红包] 这条记录是旧版本的，已经失效")
+            Text(Tr("[红包] 这条记录是旧版本的，已经失效"))
                 .font(pf(14))
                 .foregroundColor(ChatTheme.secondary)
                 .padding(.horizontal, 12)

@@ -193,7 +193,7 @@ struct HarmonyLoginView: View {
                     .font(pfStyled(size: 16.5, weight: .medium))
                     .foregroundColor(ink)
                 Rectangle().fill(fieldStroke).frame(width: 0.7, height: 20)
-                TextField("请输入手机号", text: $phone)
+                        TextField(Tr("请输入手机号"), text: $phone)
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
                     .focused($focus, equals: .phone)
@@ -215,7 +215,7 @@ struct HarmonyLoginView: View {
 
             if codeSent {
                 HStack(spacing: 12) {
-                    TextField("请输入 6 位验证码", text: $code)
+                        TextField(Tr("请输入 6 位验证码"), text: $code)
                         .keyboardType(.numberPad)
                         .textContentType(.oneTimeCode)
                         .focused($focus, equals: .code)
@@ -247,7 +247,7 @@ struct HarmonyLoginView: View {
 
     private var passwordFields: some View {
         VStack(spacing: 10) {
-            TextField("账号", text: $user)
+                        TextField(Tr("账号"), text: $user)
                 .textContentType(.username)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -266,7 +266,7 @@ struct HarmonyLoginView: View {
             HStack {
                 Group {
                     if showPassword {
-                        TextField("密码", text: $pass)
+                        TextField(Tr("密码"), text: $pass)
                     } else {
                         SecureField("密码", text: $pass)
                     }
@@ -299,9 +299,9 @@ struct HarmonyLoginView: View {
     private var actionArea: some View {
         VStack(spacing: 10) {
             HStack(spacing: 14) {
-                Button("找回密码") { showReset = true }
-                Button("自助解封") { showUnban = true }
-                Button("注册") { showRegister = true }
+                    Button(Tr("找回密码")) { showReset = true }
+                    Button(Tr("自助解封")) { showUnban = true }
+                    Button(Tr("注册")) { showRegister = true }
                 Spacer()
                 Button(mode == .phone ? "账号密码登录 ›" : "手机号登录 ›") {
                     mode = mode == .phone ? .password : .phone
