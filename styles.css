@@ -168,6 +168,23 @@ h1 strong { color: #9a9aa1; font-weight: inherit; }
 }
 .primary-button { color: #050505; background: #f4f4f6; }
 .primary-button:hover { transform: translateY(-2px); background: white; }
+.hero-actions .primary-button,
+.download-button {
+  color: #fff;
+  background: #007aff;
+  box-shadow: 0 12px 34px rgba(0, 122, 255, .24);
+}
+.hero-actions .primary-button:hover,
+.download-button:hover {
+  color: #fff;
+  background: #168cff;
+  box-shadow: 0 15px 40px rgba(0, 122, 255, .3);
+}
+.hero-actions .primary-button:focus-visible,
+.download-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .72);
+  outline-offset: 3px;
+}
 .ghost-button { color: rgba(255,255,255,.72); border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.035); }
 .ghost-button:hover { transform: translateY(-2px); color: white; border-color: rgba(255,255,255,.25); }
 .windows-mark { display: grid; grid-template-columns: repeat(2, 6px); gap: 2px; }
