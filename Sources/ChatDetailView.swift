@@ -4451,8 +4451,8 @@ struct ChatDetailView: View {
                         dims.append((w: r.w, h: r.h))
                         seedLocalImage(r.url, list[r.idx], data: r.data)
                     }
-                    if urls.count >= 4 {
-                        CrashCatcher.note("发图", "合成一条九宫格（\(urls.count) 张）")
+                    if urls.count >= 2 {
+                        CrashCatcher.note("发图", "合成一条相册消息（\(urls.count) 张）")
                         let body = "{\"paths\":" + Self.jsonStringArray(urls) + "}"
                         if let m = try await API.shared.send(chatId: chat.id, kind: "images", content: body) {
                             appendVisibleMessage(m)
@@ -5621,7 +5621,6 @@ struct MessageRow: View {
 
     @State private var voiceScrub: Double = -1
 
-    @State private var albumOpen = false
     @State private var patPulse = false
 
     private var avatarPath: String {
@@ -5650,7 +5649,6 @@ struct MessageRow: View {
 
         .environment(\.bubbleUsesLightInk, senderNameUsesLightInk)
         .environment(\.bubbleWallpaperTint, wallpaperTint)
-        .onAppear { albumOpen = AlbumFold.isOpen(message.id) }
     }
 
     private var avatarView: some View {
@@ -6535,116 +6533,126 @@ struct MessageRow: View {
     private var imagesGridBubble: some View {
         let o = dict(message.body)
         let paths = (o["paths"] as? [String]) ?? []
-        return Group {
-            if paths.count >= 2 && !albumOpen {
-                albumStackBubble(paths)
-            } else {
-                albumGridBubble(paths)
-            }
-        }
+        return albumGridBubble(paths)
     }
 
-    private func toggleAlbum() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        withAnimation(.spring(response: 0.36, dampingFraction: 0.72)) {
-            albumOpen.toggle()
-        }
-        AlbumFold.setOpen(message.id, albumOpen)
-    }
-
-    private func albumStackBubble(_ paths: [String]) -> some View {
-        let n = paths.count
-        let side: CGFloat = 148
-        let pad: CGFloat = 11
-        return ZStack(alignment: .topLeading) {
-            photoEdge(side).offset(x: pad, y: pad)
-            photoEdge(side).offset(x: pad / 2, y: pad / 2)
-            RemoteImage(path: paths[0], maxSide: 900)
-                .frame(width: side, height: side)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(alignment: .bottomLeading) { albumCountBadge(n).padding(7) }
-                .overlay(alignment: .bottomTrailing) { albumExpandButton.padding(7) }
-                .contentShape(Rectangle())
-                .onTapGesture { toggleAlbum() }
-        }
-        .frame(width: side + pad, height: side + pad, alignment: .topLeading)
-
-        .shadow(color: Color.black.opacity(0.16), radius: 7, x: 0, y: 3)
-    }
-
-    private func photoEdge(_ side: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(Color.dyn(0xE9E9EB, 0x3A3A3F))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(ChatTheme.separator, lineWidth: 0.5))
-            .frame(width: side, height: side)
-    }
-
-    private func albumCountBadge(_ n: Int) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "square.grid.2x2.fill")
-                .font(.system(size: 10.5, weight: .semibold))
-            Text(Tr("共") + " \(n) " + Tr("张"))
-                .font(pf(11.5, .medium))
-        }
-        .foregroundColor(.white)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(Capsule().fill(Color.black.opacity(0.42)))
-    }
-
-    private var albumExpandButton: some View {
-        Image(systemName: "arrow.up.left.and.arrow.down.right")
-            .font(.system(size: 11, weight: .bold))
-            .foregroundColor(.white)
-            .frame(width: 24, height: 24)
-            .background(Circle().fill(Color.black.opacity(0.42)))
-    }
-
+    @ViewBuilder
     private func albumGridBubble(_ paths: [String]) -> some View {
-        let n = paths.count
-        let cols = n <= 2 ? max(1, n) : (n == 4 ? 2 : 3)
-        let side: CGFloat = cols == 2 ? 122 : 78
-        let rows = n > 0 ? (n + cols - 1) / cols : 0
-        return VStack(alignment: .trailing, spacing: 5) {
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(0..<rows, id: \.self) { r in
-                    HStack(spacing: 2) {
-                        ForEach(0..<cols, id: \.self) { c in
-                            let i = r * cols + c
-                            if i < n {
-                                Button { onOpenImage?(paths[i]) } label: {
-                                    RemoteImage(path: paths[i], maxSide: 900)
-                                        .frame(width: side, height: side)
-                                        .clipped()
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
+        let total = paths.count
+        let gap: CGFloat = 2.5
+        let width: CGFloat = 229
+
+        if total == 0 {
+            EmptyView()
+        } else if total == 1 {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                onOpenImage?(paths[0])
+            } label: {
+                RemoteImage(path: paths[0], maxSide: 1200)
+                    .frame(width: width, height: 188)
+                    .clipped()
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .shadow(color: Color.black.opacity(0.14), radius: 7, x: 0, y: 2)
+        } else if total == 2 {
+            let tileWidth = (width - gap) / 2
+            HStack(spacing: gap) {
+                ForEach(Array(paths.enumerated()), id: \.offset) { index, path in
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        onOpenImage?(path)
+                    } label: {
+                        RemoteImage(path: path, maxSide: 900)
+                            .frame(width: tileWidth, height: 172)
+                            .clipped()
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Tr("预览图片") + " \(index + 1)")
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .frame(width: width)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+                    .allowsHitTesting(false)
+            }
+            .padding(4)
+            .background {
+                GlassBackground(
+                    shape: RoundedRectangle(cornerRadius: 18, style: .continuous),
+                    shadow: true
+                )
+            }
+        } else {
+            let strip = Array(paths.dropFirst().prefix(3))
+            let tileWidth = (width - CGFloat(strip.count - 1) * gap) / CGFloat(max(1, strip.count))
 
-            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(Color.black.opacity(0.10), lineWidth: 0.6))
-            .shadow(color: Color.black.opacity(0.16), radius: 7, x: 0, y: 3)
-
-            if n >= 2 {
-                Button { toggleAlbum() } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.down.right.and.arrow.up.left")
-                            .font(.system(size: 9.5, weight: .bold))
-                        Text(Tr("收起")).font(pf(11.5))
-                    }
-                    .foregroundColor(ChatTheme.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3.5)
-                    .background(Capsule().fill(Color.dyn(0xEDEDF0, 0x33333A)))
+            VStack(spacing: gap) {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onOpenImage?(paths[0])
+                } label: {
+                    RemoteImage(path: paths[0], maxSide: 1200)
+                        .frame(width: width, height: 156)
+                        .clipped()
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(Tr("预览图片") + " 1")
+
+                HStack(spacing: gap) {
+                    ForEach(Array(strip.enumerated()), id: \.offset) { offset, path in
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            onOpenImage?(path)
+                        } label: {
+                            ZStack(alignment: .bottomTrailing) {
+                                RemoteImage(path: path, maxSide: 900)
+                                    .frame(width: tileWidth, height: 76)
+                                    .clipped()
+
+                                if offset == strip.count - 1 && total > strip.count + 1 {
+                                    Text("+\(total - strip.count - 1)")
+                                        .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .frame(height: 25)
+                                        .background {
+                                            GlassBackground(
+                                                shape: Capsule(style: .continuous),
+                                                opacity: 0.84,
+                                                tint: Color.black.opacity(0.30)
+                                            )
+                                        }
+                                        .padding(6)
+                                }
+                            }
+                            .frame(width: tileWidth, height: 76)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("预览图片") + " \(offset + 2)")
+                    }
+                }
+            }
+            .frame(width: width)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 0.5)
+                    .allowsHitTesting(false)
+            }
+            .padding(4)
+            .background {
+                GlassBackground(
+                    shape: RoundedRectangle(cornerRadius: 18, style: .continuous),
+                    shadow: true
+                )
             }
         }
     }
