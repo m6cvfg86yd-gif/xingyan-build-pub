@@ -1867,7 +1867,6 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var realtime = Realtime.shared
     @ObservedObject private var appFont = AppFontStore.shared
-    @ObservedObject private var lang = LangStore.shared
     /// 二级登录确认默认关闭；保留 SavedLoginConfirm，后续可通过该开关恢复。
     @AppStorage("chris.savedLoginConfirmEnabled") private var savedLoginConfirmEnabled = false
 
@@ -1913,8 +1912,6 @@ struct RootView: View {
             .onChange(of: geo.size.width) { w in L.width = w }
         }
         .font(pf(17))
-        .environment(\.locale, Locale(identifier: Lang.localeIdentifier))
-        .environment(\.layoutDirection, .leftToRight)
         .modifier(ThemedScrollIndicators())
         .task { await app.boot() }
         .task {

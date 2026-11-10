@@ -8,8 +8,6 @@ final class LangStore: ObservableObject {
         didSet {
             guard oldValue != code else { return }
             UserDefaults.standard.set(code, forKey: LangStore.key)
-            copyVersion &+= 1
-            NotificationCenter.default.post(name: .chrisUIPrefsChanged, object: nil)
         }
     }
     @Published var copyVersion = 0
