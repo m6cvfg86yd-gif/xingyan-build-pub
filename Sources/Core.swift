@@ -2612,14 +2612,16 @@ struct PhotoPager: View {
 
     private var topBar: some View {
         HStack {
-            Button { closePager() } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background { NativeGlassCircleBackground() }
-            }
-            .buttonStyle(.plain)
+            Image(systemName: "chevron.left")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 40, height: 40)
+                .contentShape(Circle())
+                .background { NativeGlassCircleBackground() }
+                .highPriorityGesture(TapGesture().onEnded { closePager() })
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel(Tr("返回"))
+                .zIndex(20)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)

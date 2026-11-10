@@ -402,14 +402,16 @@ struct VideoPlayerSheet: View {
                 }
 
                 HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background { NativeGlassCircleBackground() }
-                    }
-                    .buttonStyle(.plain)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
+                        .background { NativeGlassCircleBackground() }
+                        .highPriorityGesture(TapGesture().onEnded { dismiss() })
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityLabel(Tr("关闭"))
+                        .zIndex(30)
 
                     Button { pip.toggle() } label: {
                         Image(systemName: pip.active ? "pip.exit" : "pip.enter")
