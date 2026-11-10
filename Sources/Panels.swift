@@ -222,6 +222,40 @@ struct EmojiPanel: View {
     @ObservedObject private var catalog = StickerCatalog.shared
     @State private var expanded = false
 
+    private var packTabs: [PanelPack] {
+        var seen = Set<String>()
+        var list: [PanelPack] = []
+        for pack in installed where pack.isImage && seen.insert(pack.id).inserted {
+            list.append(pack)
+        }
+        for pack in mine?.packList ?? [] {
+            let id = pack.id ?? ""
+            guard !id.isEmpty, seen.insert(id).inserted else { continue }
+            let rawIcon = pack.icon ?? ""
+            let icon = rawIcon.isEmpty ? (pack.stickers?.first ?? "✨") : rawIcon
+            list.append(PanelPack(
+                id: id,
+                name: pack.name ?? Tr("表情包"),
+                icon: icon,
+                stickers: pack.stickers ?? [],
+                isImage: true
+            ))
+        }
+        return list
+    }
+
+    private var singleStickers: [String] {
+        mine?.singleList ?? []
+    }
+
+    private var singleTabIndex: Int {
+        4 + packTabs.count
+    }
+
+    private var maximumTabIndex: Int {
+        singleStickers.isEmpty ? 3 + packTabs.count : 4 + packTabs.count
+    }
+
     private var emojiRowH: CGFloat {
         min(46, max(40, (L.width - 20) / 7))
     }
@@ -589,7 +623,7 @@ struct EmojiPanel: View {
         } label: {
             VStack(spacing: 2) {
                 Group {
-                    if pack.isImage {
+                    if pack.isImage && isImageSticker(pack.icon) {
                         StickerThumb(url: pack.icon)
                     } else {
                         Text(pack.icon).font(pf(L.v(19, 5.4, 22)))
@@ -612,7 +646,7 @@ struct EmojiPanel: View {
     private func packPage(_ pack: PanelPack) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
-                if pack.isImage {
+                if pack.isImage && isImageSticker(pack.icon) {
                     StickerThumb(url: pack.icon).frame(width: 18, height: 18)
                 } else {
                     Text(pack.icon).font(pf(13))
@@ -659,6 +693,12 @@ struct EmojiPanel: View {
                         glyphTabButton(1, Tr("笑脸"), "😊")
                         glyphTabButton(2, Tr("赞"), "👍")
                         glyphTabButton(3, Tr("其他表情包"), "🧩")
+                        ForEach(packTabs.indices, id: \.self) { offset in
+                            packTabButton(4 + offset, packTabs[offset])
+                        }
+                        if !singleStickers.isEmpty {
+                            glyphTabButton(singleTabIndex, Tr("我添加的表情"), "⭐")
+                        }
                     }
                     .padding(.horizontal, 8)
                 }
@@ -684,11 +724,21 @@ struct EmojiPanel: View {
                 classicPage.tag(1)
                 emojiGrid(likeGlyphs).tag(2)
                 minePage.tag(3)
+                ForEach(packTabs.indices, id: \.self) { offset in
+                    packPage(packTabs[offset]).tag(4 + offset)
+                }
+                if !singleStickers.isEmpty {
+                    ScrollView(showsIndicators: false) {
+                        packTitle("⭐", Tr("我添加的表情"))
+                        stickerRow(singleStickers)
+                    }
+                    .tag(singleTabIndex)
+                }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onAppear {
                 installed = buildInstalled()
-                if tab < 0 || tab > 3 { tab = 1 }
+                if tab < 0 || tab > maximumTabIndex { tab = 1 }
             }
             .task {
                 await StickerCatalog.shared.loadIfNeeded()
@@ -696,7 +746,14 @@ struct EmojiPanel: View {
             }
             .onChange(of: catalog.packs) { _ in
                 installed = buildInstalled()
-                if tab < 0 || tab > 3 { tab = 1 }
+                if tab < 0 || tab > maximumTabIndex { tab = 1 }
+            }
+            .onChange(of: mine) { _ in
+                installed = buildInstalled()
+                if tab < 0 || tab > maximumTabIndex { tab = 1 }
+            }
+            .onChange(of: maximumTabIndex) { limit in
+                if tab > limit { tab = 1 }
             }
             .onChange(of: expanded) { value in
                 onExpandedChange?(value)
