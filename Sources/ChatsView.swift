@@ -2023,25 +2023,21 @@ struct ChatsView: View {
                 }
 
                 VStack(spacing: 0) {
-                    chatTopHeader
-
+                    VStack(spacing: 0) {
+                        chatTopHeader
+                        chatsSearchBar
+                    }
                     .background {
                         ZStack {
                             if UIConfig.num("navBarSwallowTouch", 1) > 0 {
                                 Color.clear
-                                    .frame(height: chatsHeaderH)
                                     .contentShape(Rectangle())
                             }
                             chatsNavGlass(scrolled)
                         }
                     }
-
                     .opacity(navFadeForFloor)
                     .allowsHitTesting(!floorUp)
-
-                    chatsSearchBar
-                        .opacity(navFadeForFloor)
-                        .allowsHitTesting(!floorUp)
 
                     Spacer(minLength: 0)
                 }
