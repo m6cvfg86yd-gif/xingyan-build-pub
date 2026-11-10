@@ -51,21 +51,6 @@ struct NativeChromeMaterial: View {
     var opacity: Double = 1
 
     var body: some View {
-        #if compiler(>=6.2)
-        if #available(iOS 26.0, *) {
-            Color.clear
-                .glassEffect(.regular, in: Rectangle())
-                .opacity(max(0, min(1, opacity)))
-                .allowsHitTesting(false)
-        } else {
-            fallback
-        }
-        #else
-        fallback
-        #endif
-    }
-
-    private var fallback: some View {
         Rectangle()
             .fill(.bar)
             .opacity(max(0, min(1, opacity)))

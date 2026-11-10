@@ -902,23 +902,22 @@ struct PlusPanel: View {
     }
 
     private func tile(_ item: PlusItem) -> some View {
-        let c = tileColors(item.action)
         return VStack(spacing: tileGap) {
-
             ZStack {
-                RoundedRectangle(cornerRadius: L.v(17, 5, 19), style: .continuous)
-                    .fill(LinearGradient(colors: c,
-                                         startPoint: .topLeading,
-                                         endPoint: .bottomTrailing))
+                Circle()
+                    .fill(C.green.opacity(0.12))
                     .frame(width: tileH, height: tileH)
-                    .shadow(color: c[1].opacity(0.32), radius: 9, y: 4)
-                SVGIcon(markup: I.plus(item.icon),
-                        size: L.v(25, 7.4, 28),
-                        color: .white)
+                Circle()
+                    .stroke(C.green.opacity(0.18), lineWidth: 0.8)
+                    .frame(width: tileH, height: tileH)
+                Image(systemName: whatsAppPlusSymbol(item))
+                    .font(.system(size: L.v(23, 7, 26), weight: .semibold))
+                    .symbolRenderingMode(.monochrome)
+                    .foregroundStyle(C.green)
             }
             Text(chatEntryLabel(item.label, action: item.action))
                 .font(pf(L.v(11.5, 3.2, 12.5)))
-                .foregroundColor(C.label)
+                .foregroundColor(C.subLabel)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .fixedSize(horizontal: false, vertical: true)
@@ -937,6 +936,30 @@ struct PlusPanel: View {
 
             if let lp = onLongPress, lp(item) { return }
             onTap(item)
+        }
+    }
+
+    private func whatsAppPlusSymbol(_ item: PlusItem) -> String {
+        switch (item.action ?? "").lowercased() {
+        case "photo": return "photo.on.rectangle.angled"
+        case "camera": return "camera.fill"
+        case "video", "videocall": return "video.fill"
+        case "voice", "voicecall": return "phone.fill"
+        case "location": return "location.fill"
+        case "liveshare": return "location.circle.fill"
+        case "file": return "doc.fill"
+        case "card", "contact": return "person.crop.rectangle"
+        case "redpacket": return "envelope.fill"
+        case "transfer": return "arrow.left.arrow.right"
+        case "gift": return "gift.fill"
+        case "music": return "music.note"
+        case "screenshare", "screen": return "rectangle.on.rectangle"
+        case "favorite", "star": return "star.fill"
+        case "coupon": return "ticket.fill"
+        case "vote": return "chart.bar.fill"
+        case "chain", "link": return "link"
+        case "feedback": return "bubble.left.and.bubble.right.fill"
+        default: return "plus.circle.fill"
         }
     }
 }
