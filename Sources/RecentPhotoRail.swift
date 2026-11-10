@@ -95,13 +95,13 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
         options.sortDescriptors = [
             NSSortDescriptor(key: "creationDate", ascending: false)
         ]
-        options.fetchLimit = 24
+        options.fetchLimit = 80
         let result = PHAsset.fetchAssets(with: .image, options: options)
         var rows: [PHAsset] = []
-        rows.reserveCapacity(min(24, result.count))
+        rows.reserveCapacity(min(40, result.count))
         result.enumerateObjects { asset, index, stop in
             rows.append(asset)
-            if rows.count >= 12 || index + 1 >= result.count { stop.pointee = true }
+            if rows.count >= 40 || index + 1 >= result.count { stop.pointee = true }
         }
         assets = rows
     }
