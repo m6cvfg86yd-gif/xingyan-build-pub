@@ -478,8 +478,6 @@ struct ChatDetailView: View {
     @State private var backgroundBottomLuminance: Double? = nil
     @State private var wallpaperTopTint: Color? = nil
     @State private var wallpaperBottomTint: Color? = nil
-    @State private var hidesChatNavigation = false
-    @State private var navRevealTask: Task<Void, Never>?
     @State private var historySyncTask: Task<Void, Never>?
 
     @State private var hiddenMessageIds: Set<String> = []
@@ -1038,7 +1036,7 @@ struct ChatDetailView: View {
     }
 
     private var whatsAppChatHeader: some View {
-        let hideChrome = hidesChatNavigation && isGroup
+        let hideChrome = false
         let title = "Star chat"
 
         return HStack(spacing: 0) {
@@ -1100,9 +1098,11 @@ struct ChatDetailView: View {
                 Button {
                     showCallChoice = true
                 } label: {
-                    Image(systemName: "phone")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(adaptiveTopInk)
+                    Image(systemName: "phone.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(C.red))
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -1747,8 +1747,6 @@ struct ChatDetailView: View {
                                       effect: backgroundEffect)
                     .ignoresSafeArea(edges: .top)
             }
-            .animation(.easeOut(duration: 0.18), value: hidesChatNavigation)
-
             if !isGroup && peerBanned {
                 HStack(spacing: 9) {
                     Image(systemName: "exclamationmark.shield.fill")
@@ -2344,8 +2342,6 @@ struct ChatDetailView: View {
             settleTask = nil
             pinTask?.cancel()
             pinTask = nil
-            navRevealTask?.cancel()
-            navRevealTask = nil
             patAnimationTask?.cancel()
             patAnimationTask = nil
             let snapshot = messages
@@ -2440,18 +2436,14 @@ struct ChatDetailView: View {
                         if ChatScrollHandle.shared.moving, let g = ChatScrollHandle.shared.gap {
                             let next = g <= 16
                             if wasAtBottom != next { wasAtBottom = next }
-                            hideNavigationWhileScrolling()
                         }
                     }, onScrollStateChange: { scrolling in
                         if scrolling {
                             ScrollGate.shared.setScrolling(true)
                             followOwnSendUntil = Date.distantPast
-                            navRevealTask?.cancel()
-                            hideNavigationWhileScrolling()
                         } else {
                             ScrollGate.shared.setScrolling(false)
                             frameCaptureTick &+= 1
-                            revealNavigationAfterScrolling()
                         }
                     }, onSizeChange: {
 
@@ -2510,8 +2502,6 @@ struct ChatDetailView: View {
                 atBottom = true
                 scrollToEnd(proxy, animated: false)
                 scheduleSettledBottom()
-                revealChatNavigation()
-
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
                     CrashCatcher.note("聊天页",
                         "打开 \(chat.id) 条数=\(messages.count) 内容高=\(Int(lastContentHeight))"
@@ -2520,32 +2510,6 @@ struct ChatDetailView: View {
                 }
             }
         }
-    }
-
-    private func hideNavigationWhileScrolling() {
-        guard !hidesChatNavigation else { return }
-        navRevealTask?.cancel()
-        hidesChatNavigation = true
-    }
-
-    private func revealNavigationAfterScrolling() {
-        navRevealTask?.cancel()
-        navRevealTask = Task { @MainActor in
-            while ChatScrollHandle.shared.moving {
-                try? await Task.sleep(nanoseconds: 220_000_000)
-                guard !Task.isCancelled else { return }
-            }
-            try? await Task.sleep(nanoseconds: 220_000_000)
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.18)) {
-                hidesChatNavigation = false
-            }
-        }
-    }
-
-    private func revealChatNavigation() {
-        navRevealTask?.cancel()
-        hidesChatNavigation = false
     }
 
     private func autoLoadOlder() {
