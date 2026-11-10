@@ -71,49 +71,46 @@
               <span></span>
               <b class="rail-avatar">C</b>
             </aside>
-            <section class="preview-list">
+            <section class="preview-list" aria-label="会话列表演示">
               <header><b>Star chat</b><span>＋</span></header>
-              <div class="preview-search">⌕ <span>搜索</span></div>
-              <div class="preview-filters"><b>✦</b><i>♟</i><i>♙</i><i>⌖</i></div>
-              <div class="preview-chat-row active">
+              <label class="preview-search">⌕ <input data-preview-search type="search" placeholder="搜索" aria-label="搜索演示会话"></label>
+              <div class="preview-filters" aria-label="会话筛选演示">
+                <button type="button" data-preview-filter="all" aria-pressed="true">✦</button>
+                <button type="button" data-preview-filter="unread" aria-pressed="false">♟</button>
+                <button type="button" data-preview-filter="group" aria-pressed="false">♙</button>
+                <button type="button" data-preview-filter="pinned" aria-pressed="false">⌖</button>
+              </div>
+              <button type="button" class="preview-chat-row active" data-preview-chat="design" data-kind="group" data-unread="0" data-pinned="true">
                 <span class="preview-avatar blue">设</span>
                 <div><b>设计协作</b><small>新的方案已经上传</small></div>
                 <time>现在</time>
-              </div>
-              <div class="preview-chat-row">
+              </button>
+              <button type="button" class="preview-chat-row" data-preview-chat="family" data-kind="group" data-unread="2" data-pinned="false">
                 <span class="preview-avatar green">家</span>
                 <div><b>家人群</b><small>妈妈：今晚早点回来</small></div>
                 <time>18:24</time>
-              </div>
-              <div class="preview-chat-row">
+              </button>
+              <button type="button" class="preview-chat-row" data-preview-chat="official" data-kind="direct" data-unread="0" data-pinned="false">
                 <span class="preview-avatar gray">星</span>
                 <div><b>星言官方</b><small>欢迎来到 Star chat</small></div>
                 <time>周二</time>
-              </div>
+              </button>
             </section>
             <section class="preview-chat">
               <header class="preview-chat-head">
-                <span class="preview-avatar blue">设</span>
-                <div><b>设计协作</b><small><i></i> 8 位成员</small></div>
+                <span class="preview-avatar blue" data-preview-avatar>设</span>
+                <div><b data-preview-name>设计协作</b><small><i></i><span data-preview-status>8 位成员</span></small></div>
                 <nav><span>◷</span><span>⌕</span><span>⌕</span><span>⋯</span></nav>
               </header>
               <div class="preview-messages">
                 <time class="preview-day">今天</time>
-                <div class="preview-message incoming">
-                  <span class="preview-avatar blue">林</span>
-                  <div><small>林澈</small><p>新的深色版本已经打包好了。</p></div>
-                </div>
-                <div class="preview-message outgoing">
-                  <p>收到，我正在电脑上检查。</p>
-                </div>
-                <div class="preview-file">
-                  <span class="preview-file-icon">PDF</span>
-                  <div><b>Star-chat-设计稿.pdf</b><small>12.8 MB · 上传中 76%</small><em><i></i></em></div>
-                  <strong>↑</strong>
-                </div>
+                <div data-preview-message-list></div>
               </div>
               <div class="preview-composer">
-                <span>☺</span><b>＋</b><p>建立你的星友连接</p><strong>➤</strong>
+                <button type="button" data-preview-action="emoji" aria-label="表情">☺</button>
+                <button type="button" data-preview-action="plus" aria-label="更多">＋</button>
+                <input data-preview-input type="text" maxlength="80" placeholder="建立你的星友连接" aria-label="输入消息演示">
+                <button type="button" class="preview-send" data-preview-send aria-label="发送">➤</button>
               </div>
             </section>
           </div>
@@ -126,6 +123,7 @@
           <span class="file-symbol">↗</span>
           <div><b>文件发送完成</b><small>上传进度 · 100%</small></div>
         </div>
+        <p class="preview-hint">可直接点击切换会话、筛选和发送消息</p>
       </div>
     </section>
 
