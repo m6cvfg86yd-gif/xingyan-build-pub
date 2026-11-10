@@ -64,6 +64,7 @@ struct MainTabView: View {
                                  meDot: app.showDot("me", auto: false),
                                  avatarPath: tabAvatarPath)
                         .frame(height: 49 + L.safeBottom)
+                        .offset(y: L.safeBottom)
                         .ignoresSafeArea(edges: .bottom)
                         .transition(.move(edge: .bottom))
                 }
