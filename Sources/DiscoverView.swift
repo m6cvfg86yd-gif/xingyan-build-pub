@@ -67,6 +67,83 @@ private struct WorldEntryGroup: Identifiable {
     let items: [DiscoverItem]
 }
 
+private struct WorldStarfield: View {
+    private struct Star {
+        let x: Double
+        let y: Double
+        let radius: Double
+        let phase: Double
+        let speed: Double
+        let baseAlpha: Double
+    }
+
+    private let stars: [Star] = (0..<92).map { i in
+        let x = Double((i * 47 + 13) % 101) / 101.0
+        let y = Double((i * 73 + 29) % 103) / 103.0
+        let depth = Double((i * 31 + 7) % 17) / 16.0
+        return Star(
+            x: x,
+            y: y,
+            radius: 0.45 + depth * 1.35,
+            phase: Double((i * 19) % 31) / 4.4,
+            speed: 0.28 + depth * 0.42,
+            baseAlpha: 0.22 + depth * 0.54
+        )
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+            Canvas(opaque: false, rendersAsynchronously: true) { context, size in
+                let time = timeline.date.timeIntervalSinceReferenceDate
+                for star in stars {
+                    let twinkle = 0.5 + 0.5 * sin(time * star.speed + star.phase)
+                    let alpha = min(0.92, star.baseAlpha * (0.58 + twinkle * 0.58))
+                    let radius = star.radius * (0.90 + twinkle * 0.16)
+                    let center = CGPoint(x: star.x * size.width,
+                                         y: star.y * size.height)
+                    let rect = CGRect(x: center.x - radius,
+                                      y: center.y - radius,
+                                      width: radius * 2,
+                                      height: radius * 2)
+
+                    if star.radius > 1.25 {
+                        let glowRect = rect.insetBy(dx: -radius * 5.5,
+                                                    dy: -radius * 5.5)
+                        context.fill(
+                            Path(ellipseIn: glowRect),
+                            with: .radialGradient(
+                                Gradient(colors: [
+                                    Color.white.opacity(alpha * 0.18),
+                                    Color.clear
+                                ]),
+                                center: center,
+                                startRadius: 0,
+                                endRadius: radius * 6.5
+                            )
+                        )
+                    }
+
+                    context.fill(Path(ellipseIn: rect),
+                                 with: .color(Color.white.opacity(alpha)))
+
+                    if star.radius > 1.45 && alpha > 0.48 {
+                        var sparkle = Path()
+                        sparkle.move(to: CGPoint(x: center.x - radius * 3.2, y: center.y))
+                        sparkle.addLine(to: CGPoint(x: center.x + radius * 3.2, y: center.y))
+                        sparkle.move(to: CGPoint(x: center.x, y: center.y - radius * 3.2))
+                        sparkle.addLine(to: CGPoint(x: center.x, y: center.y + radius * 3.2))
+                        context.stroke(sparkle,
+                                       with: .color(Color.white.opacity(alpha * 0.20)),
+                                       lineWidth: 0.45)
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 struct DiscoverView: View {
 
     @State private var navScrolled: CGFloat = 0
@@ -198,8 +275,23 @@ struct DiscoverView: View {
         Color.dyn(0xFFFFFF, 0x000000)
     }
 
+    private var worldPageBackground: some View {
+        ZStack {
+            if scheme == .dark {
+                Color.black
+                WorldStarfield()
+            } else {
+                Color.white
+            }
+        }
+    }
+
     private var worldSectionFill: Color {
-        worldCanvas
+        scheme == .dark ? Color.black.opacity(0.58) : .white
+    }
+
+    private var worldRowFill: Color {
+        scheme == .dark ? Color.black.opacity(0.70) : .white
     }
 
     private var worldHairline: Color {
@@ -271,7 +363,7 @@ struct DiscoverView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 78)
-            .background(worldCanvas)
+            .background(worldRowFill)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -329,7 +421,7 @@ struct DiscoverView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 74)
-            .background(worldCanvas)
+            .background(worldRowFill)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -373,7 +465,7 @@ struct DiscoverView: View {
             }
             .padding(.horizontal, 16)
             .frame(height: 74)
-            .background(worldCanvas)
+            .background(worldRowFill)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -435,11 +527,11 @@ struct DiscoverView: View {
                 }
 
                 .padding(.top, -L.navH)
-                .background(worldCanvas)
+                .background(Color.clear)
             }
-            .background(worldCanvas.ignoresSafeArea(edges: .bottom))
+            .background(worldPageBackground.ignoresSafeArea(edges: .bottom))
 
-            .background(worldCanvas.ignoresSafeArea(edges: .top))
+            .background(worldPageBackground.ignoresSafeArea(edges: .top))
             .toolbar(.hidden, for: .navigationBar)
             .overlay {
                 if app.offline && path.isEmpty {
