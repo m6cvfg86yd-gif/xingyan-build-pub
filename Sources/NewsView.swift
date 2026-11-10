@@ -20,7 +20,6 @@ struct NewsFeedView: View {
 
     @State private var offset = 0
     @State private var total = 0
-    @State private var updatedAt: Double = 0
     @State private var web: WebURL?
 
     static let builtinChannels: [NewsChannel] = [
@@ -95,37 +94,24 @@ struct NewsFeedView: View {
         .refreshable { await load(tab) }
     }
 
+    @ViewBuilder
     private var premiumChannelBar: some View {
-        VStack(spacing: 7) {
-            if channels.count > 1 {
-                Picker("", selection: Binding(
-                    get: { tab },
-                    set: { select($0) }
-                )) {
-                    ForEach(channels) { channel in
-                        Text(Tr(channel.label)).tag(channel.id)
-                    }
+        if channels.count > 1 {
+            Picker("", selection: Binding(
+                get: { tab },
+                set: { select($0) }
+            )) {
+                ForEach(channels) { channel in
+                    Text(Tr(channel.label)).tag(channel.id)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 16)
             }
-            HStack(spacing: 5) {
-                Image(systemName: "clock")
-                    .font(.caption2.weight(.semibold))
-                Text(updatedAt > 0
-                     ? Tr("更新于") + " " + timeText(updatedAt)
-                     : Tr("实时热点"))
-                Spacer(minLength: 0)
-                Text(Tr("下拉刷新"))
-            }
-            .font(pfStyled(size: 11))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 18)
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .background(newsPageBg)
+            .overlay(alignment: .bottom) { HairLine() }
         }
-        .padding(.vertical, 8)
-        .background(newsPageBg)
-        .overlay(alignment: .bottom) { HairLine() }
     }
 
     private var premiumLoading: some View {
@@ -632,7 +618,6 @@ struct NewsFeedView: View {
             guard source == tab else { loadingTab = ""; return }
             if onlyTabs == nil, !feed.tabs.isEmpty { channels = feed.tabs }
             if let t = feed.total, t > 0 { total = t }
-            updatedAt = feed.updatedAt ?? 0
             var seen = Set<String>()
             items = feed.items.filter { seen.insert($0.id).inserted }
             failed = items.isEmpty
@@ -687,25 +672,27 @@ struct NewsView: View {
         NewsFeedView(refreshToken: refreshToken)
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .navigationTitle((official?.name.isEmpty == false) ? (official?.name ?? Tr("时刻新闻")) : Tr("时刻新闻"))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 12) {
+                Menu {
+                    Button { refreshToken += 1 } label: {
+                        Label(Tr("刷新"), systemImage: "arrow.clockwise")
+                    }
                     if app.me?.ops == true, official != nil {
                         Button {
                             editingOfficial = official
                         } label: {
-                            Image(systemName: "square.and.pencil")
+                            Label(Tr("管理时刻新闻"), systemImage: "square.and.pencil")
                         }
-                        .accessibilityLabel(Tr("管理时刻新闻"))
                     }
-                    Button { refreshToken += 1 } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .accessibilityLabel(Tr("刷新"))
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .semibold))
                 }
+                .accessibilityLabel(Tr("更多"))
             }
         }
         .task {
