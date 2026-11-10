@@ -2096,7 +2096,7 @@ struct ChatDetailView: View {
 
         .task(id: chat.id) {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                try? await Task.sleep(nanoseconds: 8_000_000_000)
                 if Task.isCancelled { break }
                 guard hasBurnMsg else { continue }
                 let gone = await API.shared.burnSweep(chatId: chat.id)

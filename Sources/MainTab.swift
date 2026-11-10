@@ -263,7 +263,10 @@ struct MainTabView: View {
         .task {
             while !Task.isCancelled {
                 await app.checkReachability()
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                let delay: UInt64 = Realtime.shared.connected
+                    ? 20_000_000_000
+                    : 5_000_000_000
+                try? await Task.sleep(nanoseconds: delay)
             }
         }
 
