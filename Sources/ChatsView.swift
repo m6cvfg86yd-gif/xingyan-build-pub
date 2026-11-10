@@ -1190,8 +1190,8 @@ struct ChatsView: View {
                         plusMenu = true
                     }
                 } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .semibold))
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(ChatListVisual.ink)
                         .frame(width: 40, height: 40)
                         .contentShape(Rectangle())
