@@ -522,7 +522,7 @@ struct ChatRow: View, Equatable {
             }
             .overlay(alignment: .topTrailing) {
                 unreadAvatarBadge
-                    .offset(x: 5, y: -5)
+                    .offset(x: 7, y: -7)
             }
     }
 }
