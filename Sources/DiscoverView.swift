@@ -1225,6 +1225,7 @@ struct MomentsView: View {
     @State private var spinTask: Task<Void, Never>?
 
     @State private var lastDragAt = Date(timeIntervalSince1970: 0)
+    @State private var scrollGateActive = false
     @ObservedObject private var realtime = Realtime.shared
 
     @State private var expandedGroups: Set<String> = []
@@ -1300,11 +1301,17 @@ struct MomentsView: View {
             }
 
             .simultaneousGesture(
-                DragGesture(minimumDistance: 6).onChanged { _ in
-                    tapLockUntil = Date().addingTimeInterval(0.35)
-
-                    ScrollGate.shared.touch()
-                }
+                DragGesture(minimumDistance: 6)
+                    .onChanged { _ in
+                        guard !scrollGateActive else { return }
+                        scrollGateActive = true
+                        ScrollGate.shared.setScrolling(true)
+                    }
+                    .onEnded { _ in
+                        tapLockUntil = Date().addingTimeInterval(0.35)
+                        scrollGateActive = false
+                        ScrollGate.shared.setScrolling(false)
+                    }
             )
             .onPreferenceChange(OffsetKey2.self) { y in
                 if scrollMetrics.baseBlock == nil { scrollMetrics.baseBlock = y }
@@ -1419,6 +1426,11 @@ struct MomentsView: View {
             scrollMetrics.blockY = 0
             sentinelGone = false
             solid = false
+        }
+        .onDisappear {
+            guard scrollGateActive else { return }
+            scrollGateActive = false
+            ScrollGate.shared.setScrolling(false)
         }
         .task {
 
