@@ -460,6 +460,8 @@ struct TabBar: View {
             return AnyView(ZStack {
                 Rectangle().fill(.ultraThinMaterial)
                     .opacity(0.84)
+                Color(hex: 0x0C0C0D)
+                    .opacity(0.52)
             })
         }
         let fill = UIConfig.colorIfSet("tabBarColor")
@@ -513,7 +515,7 @@ struct TabBar: View {
                                 seed: 0.74,
                                 native: true)
                 Capsule(style: .continuous)
-                    .fill(scheme == .dark ? Color.white.opacity(0.08)
+                    .fill(scheme == .dark ? Color(hex: 0x1A1A1C).opacity(0.88)
                                           : Color.white.opacity(0.18))
                 Capsule(style: .continuous)
                     .stroke(
@@ -652,7 +654,7 @@ struct TabBar: View {
                                     seed: 0.22,
                                     native: true)
                     Capsule(style: .continuous)
-                        .fill(scheme == .dark ? Color.white.opacity(0.07)
+                        .fill(scheme == .dark ? Color(hex: 0x1A1A1C).opacity(0.80)
                                               : Color.white.opacity(0.20))
                 }
                     .overlay(
