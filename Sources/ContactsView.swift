@@ -78,6 +78,7 @@ struct ContactsView: View {
     @State private var phoneSelectedUser: User?
 
     @State private var showSearch = false
+    @State private var navScrolled: CGFloat = 0
     @ObservedObject private var realtime = Realtime.shared
 
     @State private var idxLetter = ""
@@ -191,9 +192,11 @@ private var funcs: [(String, String, Color, String)] {
                     contactsTopHeader
 
                     .background {
-                        TopGlassBar(scrolled: 0,
-                                    fallback: contactsCanvas,
-                                    always: true)
+                        TopGlassBar(scrolled: navScrolled,
+                                    fallback: contactsCanvas)
+                    }
+                    .overlay(alignment: .bottom) {
+                        TopGlassLine(scrolled: navScrolled)
                     }
 
                 }
@@ -204,6 +207,8 @@ private var funcs: [(String, String, Color, String)] {
                         ScrollView {
 
                             LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                                TopScrollProbe(space: "contactsScroll")
+                                    .frame(height: 0)
 
                                 Color.clear.frame(height: listHeadH)
 
@@ -271,6 +276,7 @@ private var funcs: [(String, String, Color, String)] {
                                 Color.clear
                                     .frame(height: L.tabH + L.safeBottom + 12)
                             }
+                            .topScrollTracking($navScrolled, space: "contactsScroll")
                         }
                         .background(contactsCanvas)
                         .refreshable { await app.loadContacts() }
