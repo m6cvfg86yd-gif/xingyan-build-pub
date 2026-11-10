@@ -1662,14 +1662,10 @@ struct ChatsView: View {
                     if officialRowAvatar.isEmpty {
                         ZStack {
                             Circle()
-                                .fill(LinearGradient(
-                                    colors: [Color(hex: 0x25B779), Color(hex: 0x0E6041)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ))
+                                .fill(Color(hex: 0x25D366))
                             Image(systemName: "checkmark.seal.fill")
                                 .font(.system(size: ChatListVisual.avatarSize * 0.42, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.96))
+                                .foregroundStyle(.white)
                         }
                         .frame(width: ChatListVisual.avatarSize,
                                height: ChatListVisual.avatarSize)
@@ -1886,6 +1882,8 @@ struct ChatsView: View {
                             Color.clear.frame(height: L.safeTop + chatsHeaderH
                                               + chatFilterOffset)
                             chatsSearchBar
+                            officialConversationRow
+                                .frame(width: chatsContentMaxWidth)
                             if snapshot.list.isEmpty {
                                 Text(Tr("这个分类暂时没有会话"))
                                     .font(pf(14))
@@ -1906,8 +1904,6 @@ struct ChatsView: View {
                             } else {
                                 chatListRows(snapshot.list)
                             }
-                            officialConversationRow
-                                .frame(width: chatsContentMaxWidth)
                             weatherConversationRow
                                 .frame(width: chatsContentMaxWidth)
 
