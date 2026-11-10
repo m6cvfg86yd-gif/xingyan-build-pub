@@ -219,6 +219,8 @@ h1 strong { color: #9a9aa1; font-weight: inherit; }
 .window-bar span { width: 7px; height: 7px; border-radius: 50%; background: #353538; }
 .window-bar b { margin-left: 9px; color: #7b7b82; font-size: 9.5px; font-weight: 500; }
 .app-window > img { width: 100%; aspect-ratio: 1.604; object-fit: cover; }
+.preview-page { width: 100%; height: 720px; border: 0; display: block; background: #000; }
+.app-window > .app-shell { display: none; }
 .app-shell {
   height: 720px;
   display: grid;
@@ -237,8 +239,12 @@ h1 strong { color: #9a9aa1; font-weight: inherit; }
   background: #050505;
 }
 .preview-rail img { width: 26px; height: 26px; border-radius: 7px; margin-bottom: 2px; }
-.preview-rail > i { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #77777e; font-size: 13px; font-style: normal; }
-.preview-rail > i.active { color: white; background: rgba(255,255,255,.09); }
+.rail-action { width: 28px; height: 28px; border: 0; display: grid; place-items: center; border-radius: 8px; color: #77777e; background: transparent; cursor: pointer; transition: color .18s, background .18s, transform .18s; }
+.rail-action:hover { color: #c8c8cd; background: rgba(255,255,255,.055); }
+.rail-action.active { color: white; background: rgba(255,255,255,.1); }
+.rail-action:active { transform: scale(.92); }
+.rail-action svg { width: 15px; height: 15px; }
+.rail-action.active svg path:first-child { fill: rgba(255,255,255,.1); }
 .preview-rail > span { flex: 1; }
 .rail-avatar { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 50%; color: white; background: #2d6b54; font-size: 10px; }
 .preview-list { padding: 0 10px; border-right: 1px solid rgba(255,255,255,.08); background: #080808; }
@@ -246,10 +252,12 @@ h1 strong { color: #9a9aa1; font-weight: inherit; }
 .preview-list > header b { font-size: 16px; letter-spacing: -.3px; }
 .preview-list > header span { color: #8c8c92; }
 .preview-search { height: 30px; padding: 0 10px; display: flex; align-items: center; gap: 7px; border: 1px solid rgba(255,255,255,.09); border-radius: 7px; color: #6c6c72; background: #111; font-size: 9px; }
+.preview-search svg { width: 12px; height: 12px; flex: 0 0 auto; }
 .preview-search input { min-width: 0; flex: 1; border: 0; outline: 0; color: #d7d7db; background: transparent; font: inherit; }
 .preview-search input::placeholder { color: #6c6c72; }
 .preview-filters { height: 42px; margin: 8px -2px 4px; padding: 4px; display: grid; grid-template-columns: repeat(4, 1fr); border-radius: 9px; background: #171719; }
 .preview-filters button { border: 0; display: grid; place-items: center; border-radius: 6px; color: #77777d; background: transparent; font-size: 10px; cursor: pointer; transition: color .2s, background .2s; }
+.preview-filters button svg { width: 12px; height: 12px; }
 .preview-filters button[aria-pressed="true"] { color: white; background: #2563eb; }
 .preview-chat-row { width: 100%; height: 66px; border: 0; display: flex; align-items: center; gap: 9px; padding: 0 7px; border-radius: 8px; color: #f2f2f7; background: transparent; text-align: left; font: inherit; cursor: pointer; transition: background .2s; }
 .preview-chat-row:hover { background: rgba(255,255,255,.045); }
@@ -270,7 +278,10 @@ h1 strong { color: #9a9aa1; font-weight: inherit; }
 .preview-chat-head b { font-size: 12px; font-weight: 600; }
 .preview-chat-head small { margin-top: 4px; color: #8e8e93; font-size: 8px; }
 .preview-chat-head small i { width: 4px; height: 4px; display: inline-block; margin-right: 4px; border-radius: 50%; background: #35d58b; }
-.preview-chat-head nav { display: flex; gap: 10px; color: #8e8e93; font-size: 11px; }
+.preview-chat-head nav { display: flex; gap: 3px; color: #8e8e93; }
+.preview-chat-head nav button { width: 26px; height: 26px; border: 0; display: grid; place-items: center; border-radius: 7px; color: #8e8e93; background: transparent; cursor: pointer; transition: color .18s, background .18s; }
+.preview-chat-head nav button:hover { color: #f2f2f7; background: rgba(255,255,255,.06); }
+.preview-chat-head nav svg { width: 13px; height: 13px; }
 .preview-messages { position: relative; flex: 1; padding: 20px 40px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; overflow: hidden; background: radial-gradient(circle at 72% 24%, rgba(255,255,255,.025), transparent 48%); }
 .preview-message-list { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .preview-day { align-self: center; margin-bottom: 5px; color: #f2f2f7; font-size: 8px; }
@@ -297,6 +308,10 @@ h1 strong { color: #9a9aa1; font-weight: inherit; }
 .preview-composer .preview-send { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: white; background: #007aff; font-size: 10px; transition: transform .18s var(--ease), background .18s; }
 .preview-composer .preview-send:hover { transform: scale(1.06); background: #2992ff; }
 .preview-hint { margin: 14px 0 0; color: #55555b; text-align: center; font-size: 9px; }
+.app-shell svg { fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; }
+.preview-composer button svg { width: 14px; height: 14px; }
+.preview-composer > button:nth-child(2) svg { width: 12px; height: 12px; stroke-width: 1.9; }
+.preview-composer .preview-send svg { width: 13px; height: 13px; fill: rgba(0,0,0,.12); }
 .floating-card {
   position: absolute;
   z-index: 5;
@@ -517,6 +532,7 @@ footer nav a { color: #75757c; font-size: 10px; }
   .primary-button, .ghost-button { width: 100%; }
   .product-stage { width: 100%; margin-top: 54px; }
   .app-window { transform: none; }
+  .preview-page { height: 430px; }
   .app-shell { height: 430px; grid-template-columns: 1fr; }
   .preview-rail, .preview-list { display: none; }
   .preview-chat-head { padding: 0 12px; }

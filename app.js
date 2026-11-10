@@ -124,6 +124,15 @@
   };
 
   if (previewRoot) {
+    document.querySelectorAll("[data-preview-rail]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("[data-preview-rail]").forEach((item) => {
+          item.classList.toggle("active", item === button);
+        });
+        previewHint.textContent = `${button.getAttribute("aria-label")} 页面已接入交互演示`;
+      });
+    });
+
     document.querySelectorAll("[data-preview-chat]").forEach((row) => {
       row.addEventListener("click", () => selectPreviewChat(row.dataset.previewChat));
     });
@@ -207,9 +216,9 @@
         previewHint.textContent = "文件已打开（交互演示）";
       }
     });
-    document.querySelectorAll(".preview-chat-head nav span").forEach((item) => {
+    document.querySelectorAll("[data-preview-head]").forEach((item) => {
       item.addEventListener("click", () => {
-        previewHint.textContent = "顶栏功能已接入演示";
+        previewHint.textContent = `${item.getAttribute("aria-label")} 功能已接入演示`;
       });
     });
     selectPreviewChat("design");
