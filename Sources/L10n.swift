@@ -777,7 +777,7 @@ enum L10n {
         "读不到这个文件": "Cannot read this file",
         "已举报，管理员会处理": "Reported. An admin will review it",
         "这条语音找不到了": "This voice message is missing",
-        "聊天": "Chat",
+        "聊天": "Message",
         "重试": "Retry",
         "已标为未读": "Marked as unread",
         "朋友资料": "Contact info",
