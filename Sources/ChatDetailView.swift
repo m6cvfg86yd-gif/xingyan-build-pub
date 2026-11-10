@@ -1473,8 +1473,8 @@ struct ChatDetailView: View {
 
     private var adaptiveMicInk: Color {
         composerUsesLightInk
-            ? Color(hex: 0x7DE2AC)
-            : Color(hex: 0x148758)
+            ? Color(hex: 0x5BE39A)
+            : Color(hex: 0x117A50)
     }
 
     private var adaptiveEmojiInk: Color {
@@ -3857,9 +3857,10 @@ struct ChatDetailView: View {
                                     voiceMode = true
                                 } label: {
                                     Image(systemName: "mic")
-                                        .font(.system(size: 17))
+                                        .font(.system(size: max(19, L.composerIcon - 3), weight: .medium))
                                         .foregroundColor(adaptiveMicInk)
-                                        .frame(width: 30, height: 30)
+                                        .frame(width: 32, height: 40)
+                                        .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(Tr("切换到语音"))
