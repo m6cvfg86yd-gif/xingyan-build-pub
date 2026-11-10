@@ -3,6 +3,7 @@ import UIKit
 import Darwin
 
 private enum ChatListVisual {
+    static var foreignDesign: Bool { Lang.isEnglish }
     static let rowHeight: CGFloat = 72
     static let rowLeading: CGFloat = 16
     static let headerLeading: CGFloat = 12
@@ -11,15 +12,33 @@ private enum ChatListVisual {
     static let avatarGap: CGFloat = 9
     static let dividerLeading: CGFloat = 76
 
-    static let ink = Color.dyn(0x1A1A1A, 0xF4F4F6)
-    static let previewInk = Color.dyn(0xB2B2B2, 0x9E9FA5)
-    static let timeInk = Color.dyn(0xCCCCCC, 0x74757B)
+    static var ink: Color {
+        foreignDesign ? Color(hex: 0xF4F7F4) : Color.dyn(0x1A1A1A, 0xF4F4F6)
+    }
+    static var previewInk: Color {
+        foreignDesign ? Color(hex: 0x8D948F) : Color.dyn(0xB2B2B2, 0x9E9FA5)
+    }
+    static var timeInk: Color {
+        foreignDesign ? Color(hex: 0x686E6A) : Color.dyn(0xCCCCCC, 0x74757B)
+    }
     static let rule = Color.dyn(0xECECED, 0x29292D)
     static var listRule: Color { Lang.isChinese ? rule : .clear }
     static let badgeRing = Color.dyn(0xFFFFFF, 0x121212)
-    static let chipInk = Color.dyn(0x62636A, 0xA8A9AF)
-    static let selectedChipFill = Color.dyn(0x161823, 0xF1F1F3)
-    static let selectedChipInk = Color.dyn(0xFFFFFF, 0x17171A)
+    static var chipInk: Color {
+        foreignDesign ? Color.white.opacity(0.48) : Color.dyn(0x62636A, 0xA8A9AF)
+    }
+    static var selectedChipFill: Color {
+        foreignDesign ? Color.white.opacity(0.92) : Color.dyn(0x161823, 0xF1F1F3)
+    }
+    static var selectedChipInk: Color {
+        foreignDesign ? Color.black : Color.dyn(0xFFFFFF, 0x17171A)
+    }
+    static var rowSurface: Color {
+        foreignDesign ? Color(hex: 0x0D100E) : Color.dyn(0xFFFFFF, 0x121212)
+    }
+    static var searchFill: Color {
+        foreignDesign ? Color.white.opacity(0.065) : Color.dyn(0xEFEFEF, 0x29292C)
+    }
 }
 
 struct RowSwipeCatcher: UIViewRepresentable {
@@ -534,7 +553,7 @@ struct SwipeChatRow: View {
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
-    private var rowBg: Color { cardStyle ? .clear : Color.dyn(0xFFFFFF, 0x121212) }
+    private var rowBg: Color { cardStyle ? .clear : ChatListVisual.rowSurface }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -764,7 +783,9 @@ struct ChatsView: View {
     private var chatsCardInset: CGFloat { max(8, UIConfig.num("chatsOrbitInset", 12)) }
     private var chatsCardRadius: CGFloat { max(16, UIConfig.num("chatsOrbitRadius", 22)) }
     private var chatsPageFill: Color {
-        Color.dyn(0xFFFFFF, 0x121212)
+        ChatListVisual.foreignDesign
+            ? Color(hex: 0x0B0D0C)
+            : Color.dyn(0xFFFFFF, 0x121212)
     }
     private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x121212) }
 
@@ -1162,7 +1183,7 @@ struct ChatsView: View {
             .frame(height: 36)
             .background {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.dyn(0xEFEFEF, 0x29292C))
+                    .fill(ChatListVisual.searchFill)
             }
             .contentShape(Rectangle())
         }
