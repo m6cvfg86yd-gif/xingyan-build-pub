@@ -222,7 +222,7 @@ struct NativeTabBar: UIViewRepresentable {
             scheme: scheme == .dark ? "dark" : "light",
             avatarPath: context.coordinator.customIcon(3) == nil ? avatarPath : "",
             normalColor: UIColor(OrbitTheme.secondary),
-            selectedColor: UIColor(OrbitTheme.jade)
+            selectedColor: UIColor.systemBlue
         )
         refresh(bar)
         bar.setNeedsLayout()
@@ -231,7 +231,7 @@ struct NativeTabBar: UIViewRepresentable {
     }
 
     private func applyColors(_ bar: UITabBar) {
-        bar.tintColor = UIColor(OrbitTheme.jade)
+        bar.tintColor = UIColor.systemBlue
         bar.unselectedItemTintColor = UIColor(OrbitTheme.secondary)
 
         let appearance = UITabBarAppearance()
@@ -247,12 +247,12 @@ struct NativeTabBar: UIViewRepresentable {
             .font: pfUIFont(10.5, .medium)
         ]
         let selectedTitle: [NSAttributedString.Key: Any] = [
-            .foregroundColor: UIColor(OrbitTheme.jade),
+            .foregroundColor: UIColor.systemBlue,
             .font: pfUIFont(10.5, .semibold)
         ]
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(OrbitTheme.secondary)
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = normalTitle
-        appearance.stackedLayoutAppearance.selected.iconColor = UIColor(OrbitTheme.jade)
+        appearance.stackedLayoutAppearance.selected.iconColor = UIColor.systemBlue
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedTitle
         if scheme == .dark {
             appearance.selectionIndicatorImage = UIImage()
