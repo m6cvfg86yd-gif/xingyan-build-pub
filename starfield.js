@@ -19,13 +19,13 @@
   let pointerY = 0;
 
   const makeStars = () => {
-    const count = Math.max(52, Math.min(280, Math.round((width * height) / 9000)));
+    const count = Math.max(64, Math.min(360, Math.round((width * height) / 6800)));
     stars = Array.from({ length: count }, (_, index) => ({
       x: Math.random() * width,
       y: Math.random() * height,
       depth: 0.22 + Math.random() * 0.78,
-      radius: 0.35 + Math.random() * 1.4,
-      alpha: 0.22 + Math.random() * 0.76,
+      radius: 0.5 + Math.random() * 1.45,
+      alpha: 0.34 + Math.random() * 0.62,
       phase: Math.random() * Math.PI * 2,
       speed: 0.00045 + Math.random() * 0.0011,
       drift: (Math.random() - 0.5) * 0.018,
@@ -53,8 +53,8 @@
     pointerY += (pointerTargetY - pointerY) * 0.035;
 
     for (const star of stars) {
-      const pulse = 0.58 + Math.sin(time * star.speed + star.phase) * 0.42;
-      const alpha = Math.max(0.06, star.alpha * pulse);
+      const pulse = 0.74 + Math.sin(time * star.speed + star.phase) * 0.26;
+      const alpha = Math.max(0.16, star.alpha * pulse);
       if (!staticFrame) {
         star.x += star.drift * star.depth;
         if (star.x < -2) star.x = width + 2;
@@ -64,7 +64,7 @@
       const drawY = star.y + pointerY * star.depth * 12;
       context.beginPath();
       context.fillStyle = `rgba(${star.tint}, ${alpha})`;
-      context.arc(drawX, drawY, star.radius * (.72 + star.depth * .42), 0, Math.PI * 2);
+      context.arc(drawX, drawY, star.radius * (.84 + star.depth * .34), 0, Math.PI * 2);
       context.fill();
 
     }
