@@ -260,7 +260,7 @@ struct EmojiPanel: View {
         min(46, max(40, (L.width - 20) / 7))
     }
     private var collapsedH: CGFloat {
-        let tabsH: CGFloat = 40
+        let tabsH: CGFloat = 44
         let deleteH = L.v(38, 10.4, 42)
         return tabsH + deleteH + emojiRowH * 5 + 10
     }
@@ -580,17 +580,17 @@ struct EmojiPanel: View {
             withAnimation(.easeOut(duration: 0.16)) { tab = i }
         } label: {
             Image(systemName: symbol)
-                .font(.system(size: L.v(17, 4.9, 19), weight: .medium))
-            .foregroundColor(tab == i ? C.label : C.subLabel)
-            .frame(width: 42, height: 32)
-            .background {
-                if tab == i {
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(C.label.opacity(0.07))
+                .font(.system(size: L.v(19, 5.3, 21), weight: .medium))
+                .foregroundColor(tab == i ? C.label : C.subLabel)
+                .frame(width: 46, height: 36)
+                .background {
+                    if tab == i {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(C.label.opacity(0.07))
+                    }
                 }
-            }
-            .scaleEffect(tab == i ? 1.04 : 1)
-            .contentShape(Rectangle())
+                .scaleEffect(tab == i ? 1.04 : 1)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -601,8 +601,8 @@ struct EmojiPanel: View {
             withAnimation(.easeOut(duration: 0.16)) { tab = i }
         } label: {
             Text(glyph)
-                .font(.system(size: 22))
-                .frame(width: 42, height: 32)
+                .font(.system(size: 24))
+                .frame(width: 46, height: 36)
                 .background {
                     if tab == i {
                         RoundedRectangle(cornerRadius: 11, style: .continuous)
@@ -629,13 +629,13 @@ struct EmojiPanel: View {
                         Text(pack.icon).font(pf(L.v(19, 5.4, 22)))
                     }
                 }
-                .frame(width: 28, height: 28)
+                .frame(width: 32, height: 32)
 
                 Capsule()
                     .fill(tab == i ? C.label : Color.clear)
                     .frame(width: 12, height: 2)
             }
-            .frame(width: 52, height: 40)
+            .frame(width: 56, height: 44)
             .scaleEffect(tab == i ? 1.04 : 1)
             .contentShape(Rectangle())
         }
@@ -652,16 +652,16 @@ struct EmojiPanel: View {
                     if isImageSticker(sticker) {
                         StickerThumb(url: sticker)
                     } else {
-                        Text(sticker).font(pf(L.v(19, 5.4, 22)))
+                        Text(sticker).font(pf(L.v(21, 5.8, 23)))
                     }
                 }
-                .frame(width: 28, height: 28)
+                .frame(width: 32, height: 32)
 
                 Capsule()
                     .fill(tab == i ? C.label : Color.clear)
                     .frame(width: 12, height: 2)
             }
-            .frame(width: 52, height: 40)
+            .frame(width: 56, height: 44)
             .scaleEffect(tab == i ? 1.04 : 1)
             .contentShape(Rectangle())
         }
@@ -737,13 +737,13 @@ struct EmojiPanel: View {
                     Image(systemName: expanded ? "chevron.down" : "chevron.up")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(C.subLabel)
-                        .frame(width: 38, height: 40)
+                        .frame(width: 42, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(expanded ? Tr("收起") : Tr("展开"))
             }
-            .frame(height: 40)
+            .frame(height: 44)
 
             TabView(selection: $tab) {
                 emojiSearchPage.tag(0)
