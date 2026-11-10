@@ -2570,10 +2570,18 @@ struct PhotoPager: View {
 
                 if showActions { topBar }
                 Spacer(minLength: 0)
-                Text(saved ? Tr("已保存到相册") : (paths.count > 1 ? "\(index + 1) / \(paths.count)" : ""))
-                    .font(pfExact(showActions ? 13 : 14))
-                    .foregroundColor(.white.opacity(0.85))
-                    .padding(.bottom, showActions ? 10 : 26)
+                if saved || paths.count > 1 {
+                    Text(saved ? Tr("已保存到相册") : "\(index + 1) / \(paths.count)")
+                        .font(pfExact(showActions ? 13 : 14))
+                        .foregroundColor(.white.opacity(0.92))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background {
+                            GlassBackground(shape: Capsule(style: .continuous), shadow: true)
+                        }
+                        .padding(.bottom, showActions ? 10 : 26)
+                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                }
                 if showActions { actionBar }
             }
         }
@@ -2603,7 +2611,7 @@ struct PhotoPager: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
                     .frame(width: 36, height: 36)
-                    .background(Circle().fill(Color.black.opacity(0.35)))
+                    .background { NativeGlassCircleBackground() }
             }
             .buttonStyle(.plain)
             Spacer(minLength: 0)
@@ -2619,12 +2627,13 @@ struct PhotoPager: View {
             barButton(saved ? Tr("已保存") : Tr("保存"),
                       saved ? "checkmark.circle" : "square.and.arrow.down") { save(index) }
         }
-        .padding(.bottom, L.safeBottom)
-        .background(
-            LinearGradient(colors: [Color.black.opacity(0.0), Color.black.opacity(0.62)],
-                           startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea(edges: .bottom)
-        )
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background {
+            GlassBackground(shape: Capsule(style: .continuous), shadow: true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, max(10, L.safeBottom))
     }
 
     private func barButton(_ title: String, _ icon: String, _ tap: @escaping () -> Void) -> some View {
