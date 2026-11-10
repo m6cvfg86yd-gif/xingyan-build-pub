@@ -153,7 +153,7 @@ final class Realtime: ObservableObject {
         ensurePathMonitor()
 
         let currentToken = API.shared.token
-        if socket != nil, connected, socketToken == currentToken { return }
+        if socket != nil, socketToken == currentToken { return }
         stop()
         guard !currentToken.isEmpty else { return }
         socketToken = currentToken
@@ -223,6 +223,7 @@ final class Realtime: ObservableObject {
             try? await Task.sleep(nanoseconds: 12_000_000_000)
             guard let self, self.socket === task, !self.connected, !Task.isCancelled else { return }
             AppLog.info("实时连接 12 秒未收到首包，重新连接", net: true)
+            self.stop()
             self.start()
         }
 
@@ -233,7 +234,7 @@ final class Realtime: ObservableObject {
                 if Task.isCancelled { return }
                 guard let self = self else { return }
                 if Date().timeIntervalSince(self.rxClock.value) > 25 {
-                    self.connected = false
+                    self.stop()
                     self.start()
                     return
                 }
@@ -261,6 +262,11 @@ final class Realtime: ObservableObject {
     private func onSocketDown(lanOnly: Bool) async {
         connected = false
         ready = false
+        heartbeat?.cancel()
+        heartbeat = nil
+        socket?.cancel(with: .goingAway, reason: nil)
+        socket = nil
+        socketToken = ""
         AppLog.info("实时长连接断了（第 " + String(failCount + 1) + " 次），准备重连", net: true)
 
         if Date().timeIntervalSince(socketUpAt) > 10 { failCount = 0 }
