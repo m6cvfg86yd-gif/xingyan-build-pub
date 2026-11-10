@@ -15,6 +15,7 @@ private enum ChatListVisual {
     static let previewInk = Color.dyn(0xB2B2B2, 0x9E9FA5)
     static let timeInk = Color.dyn(0xCCCCCC, 0x74757B)
     static let rule = Color.dyn(0xECECED, 0x29292D)
+    static var listRule: Color { Lang.isChinese ? rule : .clear }
     static let badgeRing = Color.dyn(0xFFFFFF, 0x121212)
     static let chipInk = Color.dyn(0x62636A, 0xA8A9AF)
     static let selectedChipFill = Color.dyn(0x161823, 0xF1F1F3)
@@ -543,7 +544,7 @@ struct SwipeChatRow: View {
                 .background(rowBg)
                 .overlay(alignment: .bottom) {
                     Rectangle()
-                        .fill(ChatListVisual.rule)
+                        .fill(ChatListVisual.listRule)
                         .frame(height: 0.5)
                         .padding(.leading, ChatListVisual.dividerLeading)
                 }
@@ -1663,7 +1664,7 @@ struct ChatsView: View {
                 .contentShape(Rectangle())
                 .overlay(alignment: .bottom) {
                     Rectangle()
-                        .fill(ChatListVisual.rule)
+                        .fill(ChatListVisual.listRule)
                         .frame(height: 0.5)
                         .padding(.leading, ChatListVisual.dividerLeading)
                 }
@@ -1766,7 +1767,7 @@ struct ChatsView: View {
                 .contentShape(Rectangle())
                 .overlay(alignment: .bottom) {
                     Rectangle()
-                        .fill(ChatListVisual.rule)
+                        .fill(ChatListVisual.listRule)
                         .frame(height: 0.5)
                         .padding(.leading, ChatListVisual.dividerLeading)
                 }
