@@ -80,9 +80,9 @@ struct ContactsView: View {
     @State private var starIds: [String] = []
 
     private var listHeadH: CGFloat { max(0, L.navH - 7) }
-    private var contactsCanvas: Color { Color.dyn(0xFFFFFF, 0x0B141A) }
-    private var contactsField: Color { Color.dyn(0xF0F2F5, 0x202C33) }
-    private var contactsRule: Color { Color.dyn(0xE9EDEF, 0x222D34) }
+    private var contactsCanvas: Color { Color.dyn(0xFFFFFF, 0x121212) }
+    private var contactsField: Color { Color.dyn(0xF0F2F5, 0x1C1C1E) }
+    private var contactsRule: Color { Color.dyn(0xE9EDEF, 0x29292D) }
     private let contactsAccent = Color(hex: 0x25D366)
 
 private var funcs: [(String, String, Color, String)] {
