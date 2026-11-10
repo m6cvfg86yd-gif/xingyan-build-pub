@@ -985,8 +985,13 @@ final class AppState: ObservableObject {
 
     func loadChats() async {
         let epoch = accountEpoch
-        loadingChats = true
-        defer { if epoch == accountEpoch { loadingChats = false } }
+        let showInitialLoading = chats.isEmpty && !loadingChats
+        if showInitialLoading { loadingChats = true }
+        defer {
+            if epoch == accountEpoch && showInitialLoading {
+                loadingChats = false
+            }
+        }
         do {
             let fresh = try await API.shared.chats()
             guard let userId = me?.id, !userId.isEmpty, isCurrentAccount(epoch) else { return }

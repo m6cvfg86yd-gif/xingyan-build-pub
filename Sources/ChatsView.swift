@@ -88,6 +88,12 @@ struct RowSwipeCatcher: UIViewRepresentable {
                                shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
             true
         }
+
+        func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
+            guard let pan = g as? UIPanGestureRecognizer else { return true }
+            let translation = pan.translation(in: g.view)
+            return abs(translation.x) > abs(translation.y) + 4
+        }
     }
 
     func makeCoordinator() -> Coord { Coord() }
@@ -168,7 +174,7 @@ private struct ConversationScrollFeel: UIViewRepresentable {
                         scroll.alwaysBounceVertical = true
                         scroll.alwaysBounceHorizontal = false
                         scroll.bounces = true
-                        scroll.delaysContentTouches = false
+                        scroll.delaysContentTouches = true
                         scroll.canCancelContentTouches = true
                         scroll.decelerationRate = .normal
                         scroll.keyboardDismissMode = .interactive
@@ -271,7 +277,7 @@ private struct XingyanPresenceDot: View {
 
 struct ChatRow: View {
     let chat: Chat
-    @EnvironmentObject private var app: AppState
+    let app: AppState
     @State private var fetchedPeer: User?
 
     var onTapAvatar: (() -> Void)? = nil
@@ -523,6 +529,7 @@ struct SwipeChatRow: View {
     enum Mode { case none, hideConfirm, delConfirm }
 
     let chat: Chat
+    let app: AppState
     var onOpen: () -> Void
 
     var onTapAvatar: (() -> Void)? = nil
@@ -569,7 +576,7 @@ struct SwipeChatRow: View {
     var body: some View {
         ZStack(alignment: .trailing) {
 
-            ChatRow(chat: chat, onTapAvatar: onTapAvatar)
+            ChatRow(chat: chat, app: app, onTapAvatar: onTapAvatar)
                 .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
                 .background(rowBg)
                 .overlay(alignment: .bottom) {
@@ -1854,6 +1861,7 @@ struct ChatsView: View {
         ForEach(chats) { chat in
             SwipeChatRow(
                 chat: chat,
+                app: app,
                 onOpen: { openRow(chat) },
                 onTapAvatar: ((chat.botRank ?? 9) < 9) ? { botCardChat = chat } : nil,
                 onUnread: { markUnread(chat) },
@@ -1980,7 +1988,8 @@ struct ChatsView: View {
                                     floorUp = open
                                     pullDown = 0
                                 }
-                            }
+                            },
+                        including: scrolled < 8 ? .all : .none
                     )
                     .ignoresSafeArea(edges: .top)
                     .background(Color.clear)

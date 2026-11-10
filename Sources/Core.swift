@@ -1161,7 +1161,6 @@ struct GroupAvatarMosaic: View {
     var radius: CGFloat = 6
 
     @EnvironmentObject private var app: AppState
-    @ObservedObject private var realtime = Realtime.shared
     @State private var fetchedMembers: [User] = []
     @State private var loaded = false
     @State private var loadedMemberKey = ""
@@ -1229,7 +1228,7 @@ struct GroupAvatarMosaic: View {
                 upsertMember(user)
             }
         }
-        .onChange(of: realtime.event) { event in
+        .onReceive(Realtime.shared.$event) { event in
             if let user = event.user, memberIds.contains(user.id) {
                 upsertMember(user)
             }

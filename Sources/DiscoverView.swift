@@ -157,11 +157,11 @@ struct DiscoverView: View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(Tr("世界"))
-                    .font(pfStyled(size: 24, weight: .bold))
+                    .font(pfStyled(size: 26, weight: .bold))
                     .foregroundStyle(OrbitTheme.ink)
                 Text(app.moments.isEmpty ? Tr("去发现、聊天、生活")
                                          : momentCountText)
-                    .font(pfStyled(size: 10.5, weight: .medium))
+                    .font(pfStyled(size: 12, weight: .regular))
                     .foregroundStyle(OrbitTheme.secondary)
                     .lineLimit(1)
             }
@@ -172,11 +172,9 @@ struct DiscoverView: View {
                 path.append("search")
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(OrbitTheme.raised))
-                    .overlay(Circle().stroke(OrbitTheme.divider, lineWidth: 0.7))
+                    .frame(width: 42, height: 42)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("搜索"))
@@ -185,16 +183,207 @@ struct DiscoverView: View {
                 showScan = true
             } label: {
                 Image(systemName: "qrcode.viewfinder")
-                    .font(.system(size: 16.5, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(OrbitTheme.jadeDeep))
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.jadeDeep)
+                    .frame(width: 42, height: 42)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("扫一扫"))
         }
         .padding(.horizontal, 16)
         .frame(height: L.navH)
+    }
+
+    private var worldCanvas: Color {
+        Color.dyn(0xFFFFFF, 0x000000)
+    }
+
+    private var worldSectionFill: Color {
+        Color.dyn(0xF7F7F7, 0x0C0C0E)
+    }
+
+    private var worldHairline: Color {
+        Color.dyn(0xE7E7E7, 0x1C1C20)
+    }
+
+    private func worldSectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(pfStyled(size: 12.5, weight: .semibold))
+                .foregroundStyle(OrbitTheme.secondary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 34)
+        .background(worldSectionFill)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private func worldUpdatesRow(_ item: DiscoverItem) -> some View {
+        Button {
+            open(item)
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [OrbitTheme.jadeDeep, Color(hex: 0x6FD84B)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 2
+                        )
+                        .frame(width: 58, height: 58)
+
+                    if !latestThumb.isEmpty {
+                        RemoteImage(path: latestThumb, mode: .fill, maxSide: 180)
+                            .frame(width: 50, height: 50)
+                            .clipShape(Circle())
+                    } else {
+                        Avatar(path: latestMomentAvatar,
+                               size: 50, circle: true)
+                    }
+                }
+                .frame(width: 60, height: 60)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(Tr(item.label))
+                        .font(pfStyled(size: 17, weight: .semibold))
+                        .foregroundStyle(OrbitTheme.ink)
+                        .lineLimit(1)
+                    Text(heroStatusText)
+                        .font(pfStyled(size: 13.5, weight: .regular))
+                        .foregroundStyle(OrbitTheme.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                if !app.moments.isEmpty {
+                    Text(app.moments.count > 99 ? "99+" : "\(app.moments.count)")
+                        .font(pfStyled(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, app.moments.count > 9 ? 6 : 0)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .background(Capsule().fill(OrbitTheme.jadeDeep))
+                }
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 78)
+            .background(worldCanvas)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(worldHairline)
+                .frame(height: 0.5)
+                .padding(.leading, 88)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func worldFlatRow(_ item: DiscoverItem) -> some View {
+        let accent = Color(hexString: item.color ?? "#4A90D9", fallback: 0x4A90D9)
+        let artwork = worldArtworkPath(item)
+
+        return Button {
+            open(item)
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(accent)
+
+                    if !artwork.isEmpty {
+                        RemoteImage(path: artwork, mode: .fill, maxSide: 180)
+                            .frame(width: 52, height: 52)
+                            .clipShape(RoundedRectangle(cornerRadius: 14,
+                                                       style: .continuous))
+                    } else {
+                        Image(systemName: RowIcon.sf(action: item.action,
+                                                     label: item.label))
+                            .font(.system(size: 21, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .frame(width: 52, height: 52)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(Tr(item.label))
+                        .font(pfStyled(size: 16.5, weight: .medium))
+                        .foregroundStyle(OrbitTheme.ink)
+                        .lineLimit(1)
+                    Text(worldSubtitle(item))
+                        .font(pfStyled(size: 13, weight: .regular))
+                        .foregroundStyle(OrbitTheme.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 74)
+            .background(worldCanvas)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(worldHairline)
+                .frame(height: 0.5)
+                .padding(.leading, 80)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func worldShopRow(_ item: DiscoverItem) -> some View {
+        Button {
+            open(item)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "bag.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 52, height: 52)
+                    .background(
+                        Color(hex: 0xC93A32),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(Tr("星选商城"))
+                        .font(pfStyled(size: 16.5, weight: .medium))
+                        .foregroundStyle(OrbitTheme.ink)
+                    Text(Tr("今日精选 · 每日上新"))
+                        .font(pfStyled(size: 13, weight: .regular))
+                        .foregroundStyle(OrbitTheme.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(OrbitTheme.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 74)
+            .background(worldCanvas)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(worldHairline)
+                .frame(height: 0.5)
+                .padding(.leading, 80)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     var body: some View {
@@ -204,58 +393,50 @@ struct DiscoverView: View {
                 discoverTopHeader
                     .measure("discover.nav")
 
-                    .background { TopGlassBar(scrolled: navScrolled, fallback: OrbitTheme.canvas, always: true) }
+                    .background { TopGlassBar(scrolled: navScrolled, fallback: worldCanvas, always: true) }
                     .overlay(alignment: .bottom) { TopGlassLine(scrolled: navScrolled) }
                     .zIndex(1)
                 ScrollView {
-                    VStack(spacing: 0) {
+                    LazyVStack(spacing: 0) {
                         TopScrollProbe(space: "discoverScroll")
                             .frame(height: 0)
 
                         Color.clear.frame(height: L.navH)
 
-                        VStack(spacing: 22) {
-                            if let hero = worldHeroItem {
-                                VStack(spacing: 10) {
-                                    WorldSectionHeading(title: Tr("此刻"), count: 1)
-                                    worldFeatureCard(hero)
-                                }
-                            }
+                        if let hero = worldHeroItem {
+                            worldSectionHeader(Tr("动态"))
+                            worldUpdatesRow(hero)
+                        }
+
+                        if worldShopItem != nil || !worldEntryGroups.isEmpty {
+                            worldSectionHeader(Tr("探索"))
 
                             if let shop = worldShopItem {
-                                VStack(spacing: 10) {
-                                    WorldSectionHeading(title: Tr("精选服务"), count: 1)
-                                    worldShopCard(shop)
-                                }
+                                worldShopRow(shop)
                             }
 
                             ForEach(worldEntryGroups) { group in
-                                VStack(spacing: 10) {
-                                    WorldSectionHeading(title: group.title,
-                                                        count: group.items.count)
-                                    WorldGroupCard {
-                                        LazyVGrid(columns: worldColumns, spacing: 10) {
-                                            ForEach(group.items) { item in
-                                                worldEntryCard(item)
-                                            }
-                                        }
+                                worldSectionHeader(group.title)
+                                VStack(spacing: 0) {
+                                    ForEach(group.items) { item in
+                                        worldFlatRow(item)
                                     }
                                 }
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
-                        .padding(.bottom, 34)
+
+                        Color.clear
+                            .frame(height: max(24, L.safeBottom + L.tabH + 12))
                     }
                     .topScrollTracking($navScrolled, space: "discoverScroll")
                 }
 
                 .padding(.top, -L.navH)
-                .background(OrbitTheme.canvas)
+                .background(worldCanvas)
             }
-            .background(OrbitTheme.canvas.ignoresSafeArea(edges: .bottom))
+            .background(worldCanvas.ignoresSafeArea(edges: .bottom))
 
-            .background(OrbitTheme.canvas.ignoresSafeArea(edges: .top))
+            .background(worldCanvas.ignoresSafeArea(edges: .top))
             .toolbar(.hidden, for: .navigationBar)
             .overlay {
                 if app.offline && path.isEmpty {
@@ -360,7 +541,7 @@ struct DiscoverView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 34)
-        .background(OrbitTheme.canvas.ignoresSafeArea())
+        .background(worldCanvas.ignoresSafeArea())
     }
 
     private var grouped: [[DiscoverItem]] {
