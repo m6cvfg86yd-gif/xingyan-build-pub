@@ -259,7 +259,12 @@ private struct ChatImmersiveEdgeMask: View {
 
     var body: some View {
         GeometryReader { proxy in
-            if normalizedChatBackground(path) == "solid:black" {
+            if path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                defaultChatCanvasColor()
+                    .frame(width: max(1, proxy.size.width),
+                           height: max(1, proxy.size.height),
+                           alignment: edge == .top ? .top : .bottom)
+            } else if normalizedChatBackground(path) == "solid:black" {
                 Rectangle()
                     .fill(Color.black)
                     .frame(width: max(1, proxy.size.width),
