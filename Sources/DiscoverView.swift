@@ -144,6 +144,45 @@ private struct WorldStarfield: View {
     }
 }
 
+private struct XingyanMallMark: View {
+    var size: CGFloat = 52
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.27, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0xEF3541), Color(hex: 0xB40F1A)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: Color(hex: 0xD51624).opacity(0.30),
+                        radius: size * 0.16, y: size * 0.08)
+
+            RoundedRectangle(cornerRadius: size * 0.27, style: .continuous)
+                .stroke(Color.white.opacity(0.16), lineWidth: 0.8)
+
+            Ellipse()
+                .stroke(Color.white.opacity(0.50), lineWidth: 0.9)
+                .frame(width: size * 0.72, height: size * 0.27)
+                .rotationEffect(.degrees(-18))
+
+            Image(systemName: "bag.fill")
+                .font(.system(size: size * 0.49, weight: .semibold))
+                .foregroundStyle(.white)
+                .offset(y: size * 0.015)
+
+            Image(systemName: "sparkle")
+                .font(.system(size: size * 0.19, weight: .bold))
+                .foregroundStyle(Color.white.opacity(0.96))
+                .offset(x: size * 0.28, y: -size * 0.26)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
 struct DiscoverView: View {
 
     @State private var navScrolled: CGFloat = 0
@@ -439,14 +478,7 @@ struct DiscoverView: View {
             open(item)
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "bag.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 52, height: 52)
-                    .background(
-                        Color(hex: 0xC93A32),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    )
+                XingyanMallMark(size: 52)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(Tr("星选商城"))
