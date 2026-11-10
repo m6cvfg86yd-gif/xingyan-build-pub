@@ -31,22 +31,25 @@ struct MainTabView: View {
         return current.isEmpty ? app.lastAvatar : current
     }
 
+    private func tabLayer<V: View>(_ content: V, index: Int) -> some View {
+        content
+            .opacity(tab == index ? 1 : 0)
+            .allowsHitTesting(tab == index)
+            .accessibilityHidden(tab != index)
+            .zIndex(tab == index ? 1 : 0)
+    }
+
     var body: some View {
 
         ZStack(alignment: .bottom) {
 
             ZStack {
-                switch tab {
-                case 0:
-                    ChatsView()
-                case 1:
-                    ContactsView()
-                case 2:
-                    DiscoverView()
-                default:
-                    MeView()
-                }
+                tabLayer(ChatsView(), index: 0)
+                tabLayer(ContactsView(), index: 1)
+                tabLayer(DiscoverView(), index: 2)
+                tabLayer(MeView(), index: 3)
             }
+            .animation(.easeOut(duration: 0.14), value: tab)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             .ignoresSafeArea(edges: app.tabBarHidden ? [] : .bottom)
