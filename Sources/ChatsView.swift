@@ -830,7 +830,7 @@ struct ChatsView: View {
 
     @State private var floorUp = false
 
-    private var floorOn: Bool { UIConfig.num("chatsFloor", 1) > 0 }
+    private var floorOn: Bool { false }
 
     private var floorPull: CGFloat { max(40, UIConfig.num("chatsFloorPull", 120)) }
 
