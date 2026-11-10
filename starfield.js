@@ -19,13 +19,13 @@
   let pointerY = 0;
 
   const makeStars = () => {
-    const count = Math.max(48, Math.min(220, Math.round((width * height) / 9800)));
+    const count = Math.max(52, Math.min(280, Math.round((width * height) / 9000)));
     stars = Array.from({ length: count }, (_, index) => ({
       x: Math.random() * width,
       y: Math.random() * height,
       depth: 0.22 + Math.random() * 0.78,
-      radius: 0.3 + Math.random() * 1.2,
-      alpha: 0.16 + Math.random() * 0.72,
+      radius: 0.35 + Math.random() * 1.4,
+      alpha: 0.22 + Math.random() * 0.76,
       phase: Math.random() * Math.PI * 2,
       speed: 0.00045 + Math.random() * 0.0011,
       drift: (Math.random() - 0.5) * 0.018,

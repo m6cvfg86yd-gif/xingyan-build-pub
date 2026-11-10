@@ -23,7 +23,9 @@ body {
   margin: 0;
   min-width: 320px;
   overflow-x: hidden;
-  background: var(--black);
+  background:
+    radial-gradient(ellipse 42% 28% at 50% 12%, #040816 0, transparent 72%),
+    var(--black);
   color: var(--white);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
@@ -37,11 +39,11 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 36% 25% at 52% 18%, rgba(42, 91, 188, .22), transparent 68%),
-    radial-gradient(ellipse 31% 23% at 80% 44%, rgba(99, 54, 170, .15), transparent 72%),
-    radial-gradient(ellipse 38% 28% at 18% 70%, rgba(16, 88, 112, .12), transparent 72%),
-    linear-gradient(127deg, transparent 20%, rgba(32, 56, 110, .1) 42%, rgba(72, 42, 108, .075) 55%, transparent 75%);
-  filter: blur(52px) saturate(118%);
+    radial-gradient(ellipse 38% 27% at 52% 17%, rgba(46, 103, 230, .34), transparent 68%),
+    radial-gradient(ellipse 33% 25% at 81% 44%, rgba(117, 55, 208, .24), transparent 72%),
+    radial-gradient(ellipse 40% 30% at 17% 72%, rgba(15, 111, 142, .2), transparent 72%),
+    linear-gradient(127deg, transparent 18%, rgba(39, 74, 153, .17) 40%, rgba(91, 45, 146, .12) 56%, transparent 78%);
+  filter: blur(58px) saturate(128%);
   transform: scale(1.04);
   animation: nebula-drift 26s ease-in-out infinite alternate;
 }
@@ -51,7 +53,7 @@ body::after {
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  background: radial-gradient(ellipse at 50% 42%, transparent 28%, rgba(0,0,0,.28) 74%, rgba(0,0,0,.76) 100%);
+  background: radial-gradient(ellipse at 50% 42%, transparent 38%, rgba(0,0,0,.2) 76%, rgba(0,0,0,.62) 100%);
 }
 a { color: inherit; text-decoration: none; }
 img { display: block; max-width: 100%; }
@@ -64,7 +66,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   width: 100%;
   height: 100%;
   pointer-events: none;
-  opacity: .9;
+  opacity: 1;
   mix-blend-mode: screen;
 }
 
@@ -122,8 +124,8 @@ main { position: relative; z-index: 2; }
   align-items: center;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 38% 31% at 50% 30%, rgba(255,255,255,.075), transparent 72%),
-    radial-gradient(ellipse 38% 28% at 50% 63%, rgba(53,213,139,.05), transparent 74%),
+    radial-gradient(ellipse 42% 33% at 50% 28%, rgba(102, 150, 255, .12), transparent 72%),
+    radial-gradient(ellipse 38% 28% at 50% 63%, rgba(58, 190, 160, .07), transparent 74%),
     transparent;
 }
 .hero::after {
@@ -564,9 +566,9 @@ footer nav a { color: #75757c; font-size: 10px; }
   50% { opacity: 1; transform: scale(1.04); }
 }
 @keyframes nebula-drift {
-  0% { transform: translate3d(-1.5%, -1%, 0) scale(1.035); filter: blur(52px) saturate(112%); }
-  50% { transform: translate3d(1.6%, .8%, 0) scale(1.065); filter: blur(58px) saturate(124%); }
-  100% { transform: translate3d(-.5%, 1.8%, 0) scale(1.045); filter: blur(54px) saturate(118%); }
+  0% { transform: translate3d(-1.5%, -1%, 0) scale(1.035); filter: blur(56px) saturate(120%); }
+  50% { transform: translate3d(1.6%, .8%, 0) scale(1.065); filter: blur(64px) saturate(136%); }
+  100% { transform: translate3d(-.5%, 1.8%, 0) scale(1.045); filter: blur(60px) saturate(126%); }
 }
 
 @media (max-width: 1000px) {
