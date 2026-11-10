@@ -1996,7 +1996,7 @@ struct ChatsView: View {
                                     pullDown = 0
                                 }
                             },
-                        including: scrolled < 8 ? .all : .none
+                        including: (floorOn && scrolled < 8) ? .all : .none
                     )
                     .ignoresSafeArea(edges: .top)
                     .background(Color.clear)
