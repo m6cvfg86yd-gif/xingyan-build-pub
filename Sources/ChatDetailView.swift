@@ -7,7 +7,7 @@ import CoreImage
 
 private enum ChatTheme {
     static let page = defaultChatCanvasColor()
-    static let panel = Color.dyn(0xF7F7F7, 0x181A1E)
+    static let panel = Color.dyn(0xF0F2F5, 0x181A1E)
     static var bubbleMine: Color {
         UIConfig.color("bubbleMineColor", 0x95EC69, 0x1E88C7)
     }
@@ -19,8 +19,8 @@ private enum ChatTheme {
     static let groupSenderNameOnDark = Color.dyn(0xFFFFFF, 0xFFFFFF)
     static let secondaryOnMine = Color.dyn(0x999999, 0xB7D7CF)
     static let timeInk = Color.dyn(0x8A8A8E, 0x8A8D94)
-    static let composerBg = Color.dyn(0xFFFFFF, 0x23262C)
-    static let separator = Color.dyn(0xE5E5E5, 0x2F3238)
+    static let composerBg = Color.dyn(0xF0F2F5, 0x23262C)
+    static let separator = Color.dyn(0xE9EDEF, 0x2F3238)
     static let link = Color.dyn(0x0067DC, 0x7CCBFF)
     static let linkOnMine = Color.dyn(0x003C9E, 0xBFE8FF)
     static let mentionMe = Color.dyn(0xE53935, 0xFF9E91)
@@ -993,6 +993,16 @@ struct ChatDetailView: View {
         return ""
     }
 
+    private var whatsAppChatSubtitle: String {
+        if loadingAllGroupHistory { return navTitleShown }
+        if !peerTyping.isEmpty {
+            return isGroup ? "有人正在输入…" : "对方正在输入…"
+        }
+        let context = isGroup ? liveChat.name : navTitle
+        let status = chatNavigationStatus.trimmingCharacters(in: .whitespacesAndNewlines)
+        return status.isEmpty ? context : context + " · " + status
+    }
+
     private var navAvatarPath: String {
         let raw = (liveChat.avatar ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !raw.isEmpty { return raw }
@@ -1018,7 +1028,7 @@ struct ChatDetailView: View {
 
     private var whatsAppChatHeader: some View {
         let hideChrome = hidesChatNavigation && isGroup
-        let title = loadingAllGroupHistory ? navTitleShown : navTitle
+        let title = "Star chat"
 
         return HStack(spacing: 0) {
             if let back = navBackAction {
@@ -1061,8 +1071,8 @@ struct ChatDetailView: View {
                                 }
                             }
 
-                            if !chatNavigationStatus.isEmpty {
-                                Text(chatNavigationStatus)
+                            if !whatsAppChatSubtitle.isEmpty {
+                                Text(whatsAppChatSubtitle)
                                     .font(pf(11.5, .regular))
                                     .foregroundColor(adaptiveTopInk.opacity(
                                         topBarUsesLightInk ? 0.82 : 0.76
@@ -3842,7 +3852,7 @@ struct ChatDetailView: View {
                 ZStack {
                     if composerNeedsLightLift {
                         Capsule(style: .continuous)
-                            .fill(Color(hex: 0xF1F1F2))
+                            .fill(Color.white)
                     } else {
                         Capsule(style: .continuous)
                             .fill(.thinMaterial)
