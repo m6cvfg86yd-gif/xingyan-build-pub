@@ -33,7 +33,8 @@ struct TopGlassBar: View {
                     fallback
                 } else {
                     ZStack {
-                        NativeChromeMaterial(opacity: max(0, min(1, blur)) * t)
+                        NativeChromeMaterial(opacity: max(0, min(1, blur)) * t,
+                                             liquid: true)
                         if let maskColor = UIConfig.colorIfSet("chatsNavMaskColor") {
                             maskColor.opacity(max(0, min(1, mask)) * t)
                         }
@@ -49,8 +50,24 @@ struct TopGlassBar: View {
 
 struct NativeChromeMaterial: View {
     var opacity: Double = 1
+    var liquid: Bool = false
 
     var body: some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *), liquid {
+            Color.clear
+                .glassEffect(.regular, in: Rectangle())
+                .opacity(max(0, min(1, opacity)))
+                .allowsHitTesting(false)
+        } else {
+            fallback
+        }
+        #else
+        fallback
+        #endif
+    }
+
+    private var fallback: some View {
         Rectangle()
             .fill(.bar)
             .opacity(max(0, min(1, opacity)))
