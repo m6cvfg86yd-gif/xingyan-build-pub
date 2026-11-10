@@ -3122,7 +3122,6 @@ struct UnbanSheet: View {
 struct RegisterSheet: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var scheme
 
     private enum Field: Hashable { case phone, code }
 
@@ -3146,13 +3145,21 @@ struct RegisterSheet: View {
         validPhone && codeSent && code.count == 6 && !busy
     }
 
+    private var registrationGreen: Color {
+        Color(hex: 0x25D366)
+    }
+
+    private var registrationCanvas: Color {
+        Color.dyn(0xFFFFFF, 0x0B141A)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     registrationHero
 
-                    Text(Tr("创建你的星言账号"))
+                    Text(Tr("创建你的 Star chat 账号"))
                         .font(pfStyled(size: 24, weight: .semibold))
                         .foregroundColor(C.label)
                     Text(Tr("手机号验证后自动生成星言号，之后统一用绑定手机号登录。"))
@@ -3199,9 +3206,7 @@ struct RegisterSheet: View {
                     .background(C.cardBg)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(C.navLine, lineWidth: 0.6))
-                    .shadow(color: Color.black.opacity(scheme == .dark ? 0.18 : 0.055),
-                            radius: 12, y: 5)
+                        .stroke(C.hairline, lineWidth: 0.6))
 
                     if let e = error {
                         Text(e)
@@ -3217,8 +3222,8 @@ struct RegisterSheet: View {
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(canSubmit ? LoginTheme.accent : LoginTheme.disabledGray.opacity(0.75))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(canSubmit ? registrationGreen : LoginTheme.disabledGray.opacity(0.75))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSubmit)
@@ -3234,7 +3239,7 @@ struct RegisterSheet: View {
                 }
                 .padding(20)
             }
-            .background(Color(.systemBackground).ignoresSafeArea())
+            .background(registrationCanvas.ignoresSafeArea())
             .navigationTitle(Tr("手机号注册"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .navigationBarLeading) { Button(Tr("取消")) { dismiss() } } }
@@ -3255,38 +3260,24 @@ struct RegisterSheet: View {
 
     private var registrationHero: some View {
         HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .stroke(OrbitTheme.jade.opacity(0.28), lineWidth: 1)
-                    .frame(width: 58, height: 58)
-                Circle()
-                    .trim(from: 0.12, to: 0.78)
-                    .stroke(OrbitTheme.gold,
-                            style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
-                    .frame(width: 68, height: 68)
-                    .rotationEffect(.degrees(-28))
-                Image(systemName: "sparkles")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(OrbitTheme.jade)
-            }
-            .frame(width: 72, height: 72)
+            Image(systemName: "bubble.left.and.bubble.right.fill")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 64, height: 64)
+                .background(registrationGreen, in: Circle())
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(Tr("加入星言"))
-                    .font(pfStyled(size: 15, weight: .semibold))
+                Text("Star chat")
+                    .font(pfStyled(size: 18, weight: .semibold))
                     .foregroundColor(C.label)
-                Text(Tr("真实、克制、只属于你的通讯空间"))
+                Text(Tr("用手机号创建账号，开始聊天与连接"))
                     .font(pfStyled(size: 12.5))
                     .foregroundColor(C.subLabel)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(16)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .stroke(C.navLine, lineWidth: 0.6))
         .padding(.bottom, 2)
     }
 

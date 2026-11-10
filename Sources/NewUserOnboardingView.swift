@@ -68,25 +68,7 @@ struct NewUserOnboardingView: View {
     }
 
     private var onboardingBackground: some View {
-        ZStack {
-            Color.dyn(0xF7F8F7, 0x121214).ignoresSafeArea()
-            Circle()
-                .fill(Color(hex: 0x07C160).opacity(0.12))
-                .frame(width: 310, height: 310)
-                .blur(radius: 46)
-                .offset(x: -155, y: -310)
-            Circle()
-                .fill(Color(hex: 0x3D7EFF).opacity(0.09))
-                .frame(width: 280, height: 280)
-                .blur(radius: 50)
-                .offset(x: 165, y: 285)
-            LinearGradient(
-                colors: [Color.white.opacity(0.04), Color.clear],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        }
+        Color.dyn(0xFFFFFF, 0x0B141A).ignoresSafeArea()
     }
 
     private var heading: some View {
@@ -94,14 +76,14 @@ struct NewUserOnboardingView: View {
             HStack(spacing: 7) {
                 ZStack {
                     Circle().fill(LinearGradient(
-                        colors: [Color(hex: 0x07C160), Color(hex: 0x16B979)],
+                        colors: [Color(hex: 0x25D366), Color(hex: 0x1FAA59)],
                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                    Image(systemName: "sparkles")
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.white)
                 }
                 .frame(width: 28, height: 28)
-                Text(Tr("星言"))
+                Text("Star chat")
                     .font(pfStyled(size: 16, weight: .semibold))
                     .foregroundColor(C.label)
             }
@@ -110,7 +92,7 @@ struct NewUserOnboardingView: View {
                 ForEach(0..<2, id: \.self) { index in
                     Capsule()
                         .fill(index <= step
-                              ? LinearGradient(colors: [Color(hex: 0x07C160), Color(hex: 0x16B979)],
+                              ? LinearGradient(colors: [Color(hex: 0x25D366), Color(hex: 0x1FAA59)],
                                                startPoint: .leading, endPoint: .trailing)
                               : LinearGradient(colors: [C.subLabel.opacity(0.18), C.subLabel.opacity(0.18)],
                                                startPoint: .leading, endPoint: .trailing))
@@ -142,10 +124,10 @@ struct NewUserOnboardingView: View {
                     ZStack {
                         Circle()
                             .fill(LinearGradient(
-                                colors: [Color(hex: 0x07C160), Color(hex: 0x25C885), Color(hex: 0x82E5B9)],
+                                colors: [Color(hex: 0x25D366), Color(hex: 0x1FAA59)],
                                 startPoint: .topLeading, endPoint: .bottomTrailing))
                             .frame(width: 172, height: 172)
-                            .shadow(color: Color(hex: 0x07C160).opacity(0.20), radius: 25, y: 14)
+                            .shadow(color: Color(hex: 0x25D366).opacity(0.16), radius: 14, y: 7)
 
                         if let avatar {
                             Image(uiImage: avatar)
@@ -162,11 +144,11 @@ struct NewUserOnboardingView: View {
                                     .font(.system(size: 48, weight: .light))
                                     .foregroundColor(C.subLabel.opacity(0.62))
                                 if uploading {
-                                    ProgressView().tint(Color(hex: 0x07C160))
+                                    ProgressView().tint(Color(hex: 0x25D366))
                                 } else {
                                     Label(Tr("选择头像"), systemImage: "camera.fill")
                                         .font(pfStyled(size: 13, weight: .medium))
-                                        .foregroundColor(Color(hex: 0x07C160))
+                                        .foregroundColor(Color(hex: 0x25D366))
                                 }
                             }
                         }
@@ -230,17 +212,21 @@ struct NewUserOnboardingView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 11)
 
-                VStack(spacing: 10) {
+                VStack(spacing: 0) {
                     ForEach(OnboardingFeature.all) { feature in
                         featureCard(feature)
                     }
                 }
+                .background(Color.dyn(0xFFFFFF, 0x111B21))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(C.hairline, lineWidth: 0.5))
                 .padding(.top, 26)
 
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "checkmark.shield.fill")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Color(hex: 0x07C160))
+                        .foregroundColor(Color(hex: 0x25D366))
                         .padding(.top, 1)
                     Text(Tr("头像和资料之后可在「我 → 个人信息」中修改；登录设备与隐私权限在「我 → 设置」中管理。"))
                         .font(pfStyled(size: 12.5))
@@ -251,11 +237,11 @@ struct NewUserOnboardingView: View {
                 .padding(14)
                 .background(
                     RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(Color(hex: 0x07C160).opacity(0.07))
+                        .fill(Color(hex: 0x25D366).opacity(0.06))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .stroke(Color(hex: 0x07C160).opacity(0.18), lineWidth: 0.7)
+                        .stroke(Color(hex: 0x25D366).opacity(0.16), lineWidth: 0.7)
                 )
                 .padding(.top, 18)
                 .padding(.bottom, 18)
@@ -267,11 +253,11 @@ struct NewUserOnboardingView: View {
         HStack(spacing: 13) {
             Image(systemName: feature.symbol)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(Color(hex: 0x07C160))
+                .foregroundColor(Color(hex: 0x25D366))
                 .frame(width: 42, height: 42)
                 .background(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(hex: 0x07C160).opacity(0.10))
+                        .fill(Color(hex: 0x25D366).opacity(0.10))
                 )
             VStack(alignment: .leading, spacing: 3) {
                 Text(Tr(feature.title))
@@ -286,14 +272,12 @@ struct NewUserOnboardingView: View {
         }
         .padding(.horizontal, 14)
         .frame(minHeight: 72)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.dyn(0xFFFFFF, 0x1D1D20).opacity(0.96))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(C.hairline, lineWidth: 0.55)
-        )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(C.hairline)
+                .frame(height: 0.5)
+                .padding(.leading, 69)
+        }
     }
 
     private var bottomAction: some View {
@@ -333,11 +317,11 @@ struct NewUserOnboardingView: View {
                 .background(
                     Capsule().fill(LinearGradient(
                         colors: canContinue
-                              ? [Color(hex: 0x07C160), Color(hex: 0x16B979)]
+                              ? [Color(hex: 0x25D366), Color(hex: 0x1FAA59)]
                               : [C.subLabel.opacity(0.28), C.subLabel.opacity(0.28)],
                         startPoint: .leading, endPoint: .trailing))
                 )
-                .shadow(color: canContinue ? Color(hex: 0x07C160).opacity(0.20) : .clear,
+                .shadow(color: canContinue ? Color(hex: 0x25D366).opacity(0.18) : .clear,
                         radius: 16, y: 8)
             }
             .buttonStyle(OnboardingPressStyle())
