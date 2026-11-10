@@ -370,7 +370,7 @@ private struct StarWorldSceneView: UIViewRepresentable {
         view.isOpaque = false
         view.antialiasingMode = .multisampling4X
         view.preferredFramesPerSecond = 60
-        view.rendersContinuously = true
+        view.rendersContinuously = false
         context.coordinator.sceneView = view
         context.coordinator.map = map
         context.coordinator.onTravel = onTravel
@@ -382,6 +382,12 @@ private struct StarWorldSceneView: UIViewRepresentable {
         tap.cancelsTouchesInView = false
         view.addGestureRecognizer(tap)
         return view
+    }
+
+    static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
+        uiView.isPlaying = false
+        uiView.scene?.isPaused = true
+        uiView.scene = nil
     }
 
     func updateUIView(_ view: SCNView, context: Context) {
