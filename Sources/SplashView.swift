@@ -37,8 +37,8 @@ struct StarLaunchBackdrop: View {
             ZStack {
                 LinearGradient(
                     colors: [
-                        Color(hex: 0x12D56D),
-                        Color(hex: 0x06C755)
+                        Color(hex: 0x38D868),
+                        Color(hex: 0x34C759)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -100,7 +100,7 @@ struct LaunchCenterIcon: View {
                         .overlay {
                             LaunchOrbitGlyph()
                                 .stroke(
-                                    Color(hex: 0x06C755),
+                                    Color(hex: 0x34C759),
                                     style: StrokeStyle(
                                         lineWidth: 4.2,
                                         lineCap: .round
