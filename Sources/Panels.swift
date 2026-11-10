@@ -725,8 +725,10 @@ struct PlusPanel: View {
     var onTap: (PlusItem) -> Void
 
     var onLongPress: ((PlusItem) -> Bool)? = nil
+    var onRecentImage: ((UIImage) -> Void)? = nil
 
     @State private var page = 0
+    @ObservedObject private var recentPhotos = RecentPhotoStore.shared
 
     @State private var pressed: String? = nil
     private let perPage = 8
@@ -770,8 +772,16 @@ struct PlusPanel: View {
         return gridPad * 2 + rows * (tileH + tileGap + 16) + max(0, rows - 1) * gridGap + dotsH
     }
 
+    private var recentRailExtra: CGFloat {
+        (onRecentImage != nil && !recentPhotos.assets.isEmpty) ? 87 : 0
+    }
+
     var body: some View {
         VStack(spacing: 0) {
+            if let onRecentImage, !recentPhotos.assets.isEmpty {
+                RecentPhotoRail(store: recentPhotos, onPick: onRecentImage)
+            }
+
             TabView(selection: $page) {
                 ForEach(pages.indices, id: \.self) { p in
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: L.v(10, 3.2, 14)), count: 4),
@@ -803,8 +813,9 @@ struct PlusPanel: View {
                 Color.clear.frame(height: L.v(10, 3, 12))
             }
         }
-        .frame(height: max(panelH, neededH))
+        .frame(height: max(panelH, neededH) + recentRailExtra)
         .overlay(alignment: .top) { Rectangle().fill(C.hairline).frame(height: 0.5) }
+        .task { await recentPhotos.loadIfNeeded() }
     }
 
     private func tile(_ item: PlusItem) -> some View {

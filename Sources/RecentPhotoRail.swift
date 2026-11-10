@@ -1,0 +1,195 @@
+import Photos
+import SwiftUI
+import UIKit
+
+@MainActor
+final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
+    static let shared = RecentPhotoStore()
+
+    @Published private(set) var assets: [PHAsset] = []
+
+    private let manager = PHCachingImageManager()
+    private let thumbCache = NSCache<NSString, UIImage>()
+    private var loaded = false
+
+    private override init() {
+        super.init()
+        PHPhotoLibrary.shared().register(self)
+    }
+
+    func loadIfNeeded() async {
+        guard !loaded else { return }
+        loaded = true
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        switch status {
+        case .authorized, .limited:
+            reloadAssets()
+        case .notDetermined:
+            let next = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+            if next == .authorized || next == .limited { reloadAssets() }
+        default:
+            break
+        }
+    }
+
+    func thumbnail(for asset: PHAsset, side: CGFloat) async -> UIImage? {
+        let pixelSide = max(96, side * UIScreen.main.scale)
+        let key = "\(asset.localIdentifier)#\(Int(pixelSide))" as NSString
+        if let hit = thumbCache.object(forKey: key) { return hit }
+
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .fastFormat
+        options.resizeMode = .fast
+        options.isNetworkAccessAllowed = true
+        options.isSynchronous = false
+        let size = CGSize(width: pixelSide, height: pixelSide)
+
+        let image: UIImage? = await withCheckedContinuation { continuation in
+            var resumed = false
+            manager.requestImage(for: asset,
+                                 targetSize: size,
+                                 contentMode: .aspectFill,
+                                 options: options) { image, info in
+                guard !resumed else { return }
+                let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) == true
+                if degraded, image != nil { return }
+                resumed = true
+                continuation.resume(returning: image)
+            }
+        }
+        if let image { thumbCache.setObject(image, forKey: key) }
+        return image
+    }
+
+    func preview(for asset: PHAsset) async -> UIImage? {
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .highQualityFormat
+        options.resizeMode = .fast
+        options.isNetworkAccessAllowed = true
+        options.isSynchronous = false
+        let side = min(2400, max(1200, UIScreen.main.bounds.longestSide * UIScreen.main.scale))
+
+        return await withCheckedContinuation { continuation in
+            var resumed = false
+            manager.requestImage(for: asset,
+                                 targetSize: CGSize(width: side, height: side),
+                                 contentMode: .aspectFit,
+                                 options: options) { image, info in
+                guard !resumed else { return }
+                let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) == true
+                if degraded, image != nil { return }
+                resumed = true
+                continuation.resume(returning: image)
+            }
+        }
+    }
+
+    nonisolated func photoLibraryDidChange(_ changeInstance: PHChange) {
+        Task { @MainActor in
+            reloadAssets()
+        }
+    }
+
+    private func reloadAssets() {
+        let options = PHFetchOptions()
+        options.sortDescriptors = [
+            NSSortDescriptor(key: "creationDate", ascending: false)
+        ]
+        options.fetchLimit = 24
+        let result = PHAsset.fetchAssets(with: .image, options: options)
+        var rows: [PHAsset] = []
+        rows.reserveCapacity(min(24, result.count))
+        result.enumerateObjects { asset, index, stop in
+            rows.append(asset)
+            if rows.count >= 12 || index + 1 >= result.count { stop.pointee = true }
+        }
+        assets = rows
+    }
+}
+
+struct RecentPhotoRail: View {
+    @ObservedObject var store: RecentPhotoStore
+    var onPick: (UIImage) -> Void
+
+    @State private var loadingId = ""
+    private let tile: CGFloat = 58
+
+    var body: some View {
+        if !store.assets.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(Tr("最近照片"))
+                        .font(pf(11.5, .semibold))
+                        .foregroundColor(C.subLabel)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 7) {
+                        ForEach(store.assets, id: \.localIdentifier) { asset in
+                            Button {
+                                guard loadingId.isEmpty else { return }
+                                loadingId = asset.localIdentifier
+                                Task {
+                                    let image = await store.preview(for: asset)
+                                    loadingId = ""
+                                    if let image { onPick(image) }
+                                }
+                            } label: {
+                                ZStack {
+                                    RecentAssetThumbnail(asset: asset,
+                                                         store: store,
+                                                         side: tile)
+                                    if loadingId == asset.localIdentifier {
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(Color.black.opacity(0.34))
+                                        ProgressView()
+                                            .tint(.white)
+                                    }
+                                }
+                                .frame(width: tile, height: tile)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                }
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 9)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(C.hairline).frame(height: 0.5)
+            }
+            .task { await store.loadIfNeeded() }
+        }
+    }
+}
+
+private struct RecentAssetThumbnail: View {
+    let asset: PHAsset
+    @ObservedObject var store: RecentPhotoStore
+    let side: CGFloat
+
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.dyn(0xE9E9E9, 0x242426)
+            }
+        }
+        .task(id: asset.localIdentifier) {
+            image = await store.thumbnail(for: asset, side: side)
+        }
+    }
+}

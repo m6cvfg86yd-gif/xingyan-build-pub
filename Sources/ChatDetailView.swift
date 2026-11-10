@@ -3955,7 +3955,11 @@ struct ChatDetailView: View {
         case .plus:
             PlusPanel(items: plusItems,
                       onTap: { item in handlePlus(item) },
-                      onLongPress: { item in handlePlusLong(item) })
+                      onLongPress: { item in handlePlusLong(item) },
+                      onRecentImage: { image in
+                          panel = .none
+                          pendingMedia = .image(image)
+                      })
         case .mention:
             MentionPanel(members: mentionMembers,
                          query: $mentionQuery,
