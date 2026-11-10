@@ -319,7 +319,12 @@ struct VideoPlayerSheet: View {
                     .foregroundColor(.white.opacity(0.9))
                     .multilineTextAlignment(.center)
                     .padding(14)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.14)))
+                    .background {
+                        GlassBackground(
+                            shape: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                            shadow: true
+                        )
+                    }
                     .padding(30)
             }
             VStack(spacing: 0) {
@@ -335,9 +340,15 @@ struct VideoPlayerSheet: View {
                         Button { toggleSpeed() } label: {
                             Text(speed > 1.5 ? "2x" : "1x")
                                 .font(pfStyled(size: 12, weight: .semibold))
-                                .foregroundColor(speed > 1.5 ? Color.black : .white)
+                                .foregroundColor(speed > 1.5 ? Color(hex: 0x0A84FF) : .white)
                                 .frame(width: 36, height: 22)
-                                .background(Capsule().fill(speed > 1.5 ? Color.white : Color.white.opacity(0.18)))
+                                .background {
+                                    GlassBackground(
+                                        shape: Capsule(style: .continuous),
+                                        shadow: false,
+                                        tint: speed > 1.5 ? Color(hex: 0x0A84FF).opacity(0.18) : nil
+                                    )
+                                }
                         }
                         .buttonStyle(.plain)
                         Text(Self.fmt(total))
@@ -345,9 +356,14 @@ struct VideoPlayerSheet: View {
                             .foregroundColor(.white.opacity(0.88))
                             .frame(width: 40, alignment: .trailing)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.top, 6)
-                    .transition(.opacity)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background {
+                        GlassBackground(shape: Capsule(style: .continuous), shadow: true)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
                 HStack {
@@ -356,7 +372,7 @@ struct VideoPlayerSheet: View {
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(width: 40, height: 40)
-                            .background(Circle().fill(Color.black.opacity(0.35)))
+                            .background { NativeGlassCircleBackground() }
                     }
                     .buttonStyle(.plain)
 
@@ -365,7 +381,7 @@ struct VideoPlayerSheet: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(width: 40, height: 40)
-                            .background(Circle().fill(Color.black.opacity(0.35)))
+                            .background { NativeGlassCircleBackground() }
                     }
                     .buttonStyle(.plain)
                     .opacity(pip.possible || pip.active ? 1 : 0.4)
@@ -383,8 +399,13 @@ struct VideoPlayerSheet: View {
                         action("转发", "arrowshape.turn.up.right.fill") { showForward = true }
                         action("分享", "square.and.arrow.up") { showShare = true }
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background {
+                        GlassBackground(shape: Capsule(style: .continuous), shadow: true)
+                    }
                     .padding(.bottom, 30)
-                    .transition(.opacity)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
         }
@@ -481,9 +502,11 @@ struct VideoPlayerSheet: View {
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.white)
                     .frame(width: 46, height: 46)
-                    .background(Circle().fill(Color.white.opacity(0.16)))
-                Text(Tr(title)).font(pf(12)).foregroundColor(.white.opacity(0.92))
+                Text(Tr(title))
+                    .font(pf(12))
+                    .foregroundColor(.white.opacity(0.92))
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
