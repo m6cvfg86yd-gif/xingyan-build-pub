@@ -456,14 +456,10 @@ struct ChatRow: View, Equatable {
         }
         let raw = (chat.lastMessage?.preview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let kind = chat.lastMessage?.kind ?? ""
-        let effectiveRaw = isSystemPreview(raw) && (Lang.isEnglish || Lang.isRussian)
-            ? fallbackPreview(kind)
-            : raw
-        let preview = kind == "pat"
-            ? sessionCopy(zh: "星语提醒", en: "[Reminder]", ru: "[Напоминание]")
-            : (effectiveRaw.isEmpty ? fallbackPreview(kind) : effectiveRaw)
-        let body = previewInkText(preview)
-        guard chat.lastMessage?.mentionMe == true, chat.unreadCount > 0 else { return body }
+        let preview = localizedPreview(raw: raw, kind: kind)
+        let body = previewInkText(preview.text)
+        let mentioned = chat.lastMessage?.mentionMe == true || preview.mentioned
+        guard mentioned, chat.unreadCount > 0 else { return body }
         return Text(sessionCopy(
             zh: "[有人@我] ",
             en: "[Mentioned you] ",
@@ -472,22 +468,125 @@ struct ChatRow: View, Equatable {
     }
 
     private func sessionCopy(zh: String, en: String, ru: String) -> String {
-        if Lang.isEnglish { return en }
         if Lang.isRussian { return ru }
+        if Lang.isEnglish { return en }
         return zh
     }
 
-    private func isSystemPreview(_ value: String) -> Bool {
-        [
-            "[图片]", "[视频]", "[语音]", "[文件]", "[链接]", "[音乐]",
-            "[位置]", "[名片]", "[转账]", "[红包]", "[礼物]", "[小程序]",
-            "[视频号]", "[语音通话]", "[视频通话]", "[消息]", "消息",
-            "群聊", "新的会话", "看看今天的热点", "查看官方内容"
-        ].contains(value)
+    private func localizedPreview(raw: String, kind: String) -> (text: String, mentioned: Bool) {
+        var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        var mentioned = false
+
+        // 服务端会把 @ 提醒写进 preview；这里先摘掉，统一由列表前面的红色标记绘制一次。
+        for prefix in ["[有人@我]", "[Mentioned you]", "[Упомянули вас]"] {
+            guard value.hasPrefix(prefix) else { continue }
+            mentioned = true
+            value = String(value.dropFirst(prefix.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            break
+        }
+
+        if kind == "pat" {
+            return (fallbackPreview("pat"), mentioned)
+        }
+        guard !value.isEmpty else { return (fallbackPreview(kind), mentioned) }
+        guard Lang.isEnglish || Lang.isRussian else { return (value, mentioned) }
+        return (localizedGeneratedPreview(value), mentioned)
+    }
+
+    private static let generatedPreviewTags: [(zh: String, en: String, ru: String)] = [
+        ("[图片]", "[Photo]", "[Фото]"),
+        ("[视频]", "[Video]", "[Видео]"),
+        ("[语音]", "[Voice]", "[Голос]"),
+        ("[文件]", "[File]", "[Файл]"),
+        ("[链接]", "[Link]", "[Ссылка]"),
+        ("[音乐]", "[Music]", "[Музыка]"),
+        ("[位置]", "[Location]", "[Место]"),
+        ("[名片]", "[Contact]", "[Контакт]"),
+        ("[转账]", "[Transfer]", "[Перевод]"),
+        ("[红包]", "[Red Packet]", "[Красный конверт]"),
+        ("[礼物]", "[Gift]", "[Подарок]"),
+        ("[小程序]", "[Mini Program]", "[Мини-программа]"),
+        ("[视频号]", "[Channels]", "[Каналы]"),
+        ("[语音通话]", "[Voice Call]", "[Голосовой вызов]"),
+        ("[视频通话]", "[Video Call]", "[Видеовызов]"),
+        ("[消息]", "[Message]", "[Сообщение]"),
+        ("[文章]", "[Article]", "[Статья]"),
+        ("[笔记]", "[Note]", "[Заметка]"),
+        ("[引用]", "[Quote]", "[Цитата]"),
+        ("[实况]", "[Live Photo]", "[Живое фото]"),
+        ("[消息已撤回]", "[Message recalled]", "[Сообщение отозвано]"),
+        ("[未发送]", "[Not sent]", "[Не отправлено]"),
+        ("[失败]", "[Failed]", "[Ошибка]"),
+        ("[草稿]", "[Draft]", "[Черновик]")
+    ]
+
+    private static let generatedPreviewCopy: [String: (zh: String, en: String, ru: String)] = [
+        "消息": ("消息", "Message", "Сообщение"),
+        "群聊": ("群聊", "Group chat", "Групповой чат"),
+        "新的会话": ("新的会话", "New conversation", "Новый чат"),
+        "看看今天的热点": ("看看今天的热点", "See today's trending stories", "Смотрите сегодняшние тренды"),
+        "查看官方内容": ("查看官方内容", "View official updates", "Смотреть официальные обновления"),
+        "星语提醒": ("星语提醒", "[Reminder]", "[Напоминание]"),
+        "拍了拍": ("拍了拍", "[Reminder]", "[Напоминание]"),
+        "你撤回了一条消息": ("你撤回了一条消息", "You recalled a message", "Вы отозвали сообщение"),
+        "对方撤回了一条消息": ("对方撤回了一条消息", "The other person recalled a message", "Собеседник отозвал сообщение"),
+        "撤回了一条消息": ("撤回了一条消息", "recalled a message", "отозвал сообщение"),
+        "发送失败": ("发送失败", "Failed to send", "Не удалось отправить"),
+        "已取消": ("已取消", "Cancelled", "Отменено"),
+        "对方无应答": ("对方无应答", "No answer", "Нет ответа")
+    ]
+
+    private func localizedGeneratedPreview(_ value: String) -> String {
+        for draftPrefix in ["草稿：", "草稿:"] where value.hasPrefix(draftPrefix) {
+            let content = String(value.dropFirst(draftPrefix.count))
+            return sessionCopy(zh: "草稿：", en: "Draft: ", ru: "Черновик: ") + content
+        }
+
+        if let tag = Self.generatedPreviewTags.first(where: { value == $0.zh }) {
+            return sessionCopy(zh: tag.zh, en: tag.en, ru: tag.ru)
+        }
+
+        // 动态卡片会写成「[文章] 标题」「[名片] 名字」，只翻译标签，用户内容保持原样。
+        for tag in Self.generatedPreviewTags {
+            let prefix = tag.zh + " "
+            guard value.hasPrefix(prefix) else { continue }
+            let localizedTag = sessionCopy(zh: tag.zh, en: tag.en, ru: tag.ru)
+            return localizedTag + String(value.dropFirst(tag.zh.count))
+        }
+
+        if let item = Self.generatedPreviewCopy[value] {
+            return sessionCopy(zh: item.zh, en: item.en, ru: item.ru)
+        }
+        if value.hasPrefix("通话时长 ") {
+            return sessionCopy(zh: "通话时长 ", en: "Call duration ", ru: "Длительность ")
+                + String(value.dropFirst("通话时长 ".count))
+        }
+        if value.hasPrefix("视频通话时长 ") {
+            return sessionCopy(zh: "视频通话时长 ", en: "Video call duration ", ru: "Длительность видеовызова ")
+                + String(value.dropFirst("视频通话时长 ".count))
+        }
+
+        // 群聊预览是「发送人：内容」。只替换系统卡片部分，昵称和用户正文不动。
+        let separator = value.firstIndex(where: { $0 == "：" || $0 == ":" })
+        if let separator {
+            let head = String(value[..<separator])
+            let tailStart = value.index(after: separator)
+            let tail = String(value[tailStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let localizedTail = localizedGeneratedPreview(tail)
+            if localizedTail != tail {
+                return head + ": " + localizedTail
+            }
+        }
+        return value
     }
 
     private func previewInkText(_ preview: String) -> Text {
-        let redPrefixes = ["[草稿]", "草稿：", "草稿:", "[未发送]", "[失败]", "发送失败"]
+        let redPrefixes = [
+            "[草稿]", "草稿：", "草稿:", "[未发送]", "[失败]", "发送失败",
+            "[Draft]", "Draft:", "[Not sent]", "[Failed]", "Failed to send",
+            "[Черновик]", "Черновик:", "[Не отправлено]", "[Ошибка]", "Не удалось отправить"
+        ]
         if redPrefixes.contains(where: { preview.hasPrefix($0) }) {
             return Text(preview).foregroundColor(Color(.systemRed))
         }
