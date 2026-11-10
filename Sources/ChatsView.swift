@@ -1650,7 +1650,7 @@ struct ChatsView: View {
 
     private var officialRowAvatar: String {
         if !localOfficialRowAvatar.isEmpty { return localOfficialRowAvatar }
-        UIConfig.text("officialRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return UIConfig.text("officialRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var officialConversationRow: some View {
@@ -1752,7 +1752,7 @@ struct ChatsView: View {
 
     private var weatherRowAvatar: String {
         if !localWeatherRowAvatar.isEmpty { return localWeatherRowAvatar }
-        UIConfig.text("weatherRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return UIConfig.text("weatherRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var weatherConversationRow: some View {
