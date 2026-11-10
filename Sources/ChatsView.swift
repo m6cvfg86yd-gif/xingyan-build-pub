@@ -1630,13 +1630,8 @@ struct ChatsView: View {
         ZStack {
             chatsPageFill
             if reveal > 0.01 {
-                if scheme == .dark {
-                    HarmonyDarkMask(strength: 0.98)
-                        .opacity(reveal)
-                } else {
-                    Rectangle().fill(.bar)
-                        .opacity(max(0, min(1, blur)) * reveal)
-                }
+                Rectangle().fill(.bar)
+                    .opacity(max(0, min(1, blur)) * reveal)
             }
         }
         .ignoresSafeArea(edges: .top)

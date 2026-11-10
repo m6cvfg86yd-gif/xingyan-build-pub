@@ -31,28 +31,12 @@ struct TopGlassBar: View {
             Group {
                 if matchFallback {
                     fallback
-                } else if scheme == .dark {
-
-                    HarmonyDarkMask(strength: 0.98)
                 } else {
                     ZStack {
                         Rectangle().fill(.bar)
                             .opacity(max(0, min(1, blur)) * t)
-                        (UIConfig.colorIfSet("chatsNavMaskColor") ?? fallback)
-                            .opacity(max(0, min(1, mask)) * t)
-
-                        if UIConfig.num("navRimLight", 1) > 0 {
-                            RadialGradient(colors: [Color.white.opacity(0.30 * t), Color.clear],
-                                           center: UnitPoint(x: 0.14, y: 0.18),
-                                           startRadius: 1, endRadius: 170)
-                            VStack { Spacer()
-                                Rectangle()
-                                    .fill(LinearGradient(colors: [Color.clear,
-                                                                  Color.white.opacity(0.22 * t),
-                                                                  Color.clear],
-                                                         startPoint: .leading, endPoint: .trailing))
-                                    .frame(height: 0.5)
-                            }
+                        if let maskColor = UIConfig.colorIfSet("chatsNavMaskColor") {
+                            maskColor.opacity(max(0, min(1, mask)) * t)
                         }
                     }
                 }
