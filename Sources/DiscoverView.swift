@@ -1414,8 +1414,8 @@ struct MomentsView: View {
                 Task { await reload() }
             }
             .environmentObject(app)
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
+            .presentationDetents([.fraction(0.72), .large])
+            .presentationDragIndicator(.hidden)
         }
         .onAppear {
             scrollMetrics.baseTop = nil
