@@ -3688,6 +3688,10 @@ struct ChatDetailView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
+            if kbUp {
+                quickBar
+            }
+
             HStack(spacing: 6) {
 
                 Button {
@@ -3955,10 +3959,6 @@ struct ChatDetailView: View {
             .padding(.vertical, 6)
             .animation(.spring(response: 0.24, dampingFraction: 0.82),
                        value: input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && draftImages.isEmpty)
-
-            if kbUp {
-                quickBar
-            }
 
             panelView
 
