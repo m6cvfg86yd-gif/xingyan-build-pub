@@ -32,6 +32,7 @@ struct NewsFeedView: View {
     ]
 
     private var accent: Color { C.green }
+    private var newsPageBg: Color { Color(uiColor: .systemGroupedBackground) }
 
     var body: some View {
         premiumFeed
@@ -67,7 +68,7 @@ struct NewsFeedView: View {
             }
             .padding(.horizontal, 16)
         }
-        .background(C.navBg)
+        .background(newsPageBg)
         .overlay(alignment: .bottom) { HairLine() }
     }
 
@@ -90,7 +91,7 @@ struct NewsFeedView: View {
             }
             .padding(.bottom, 34)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(newsPageBg)
         .refreshable { await load(tab) }
     }
 
@@ -123,7 +124,7 @@ struct NewsFeedView: View {
             .padding(.horizontal, 18)
         }
         .padding(.vertical, 8)
-        .background(.bar)
+        .background(newsPageBg)
         .overlay(alignment: .bottom) { HairLine() }
     }
 
@@ -687,6 +688,8 @@ struct NewsView: View {
         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
         .navigationTitle((official?.name.isEmpty == false) ? (official?.name ?? Tr("时刻新闻")) : Tr("时刻新闻"))
         .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {

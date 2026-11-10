@@ -1411,6 +1411,7 @@ struct ChatDetailView: View {
     }
 
     private var topBarUsesLightInk: Bool {
+        if isStarWorld && newsMode { return scheme == .dark }
         switch resolvedBackgroundEffect {
         case .blackBlur: return true
         case .whiteBlur: return false
@@ -1429,6 +1430,10 @@ struct ChatDetailView: View {
             return Self.prefersLightTopInk(for: backgroundTopLuminance)
         }
         return senderNameUsesLightInk
+    }
+
+    private var newsMaskColor: Color {
+        Color(uiColor: .systemGroupedBackground)
     }
 
     private static func prefersLightTopInk(for luminance: Double) -> Bool {
@@ -1742,12 +1747,18 @@ struct ChatDetailView: View {
             chatTopNavigation
             }
             .background {
-                ChatImmersiveEdgeMask(path: backgroundPath,
-                                      edge: .top,
-                                      tint: wallpaperTopTint,
-                                      dark: topBarUsesLightInk,
-                                      effect: backgroundEffect)
-                    .ignoresSafeArea(edges: .top)
+                Group {
+                    if isStarWorld && newsMode {
+                        newsMaskColor
+                    } else {
+                        ChatImmersiveEdgeMask(path: backgroundPath,
+                                              edge: .top,
+                                              tint: wallpaperTopTint,
+                                              dark: topBarUsesLightInk,
+                                              effect: backgroundEffect)
+                    }
+                }
+                .ignoresSafeArea(edges: .top)
             }
             if !isGroup && peerBanned {
                 HStack(spacing: 9) {
@@ -4020,12 +4031,18 @@ struct ChatDetailView: View {
 
         .background {
             if !(panel == .emoji && emojiPanelExpanded) {
-                ChatImmersiveEdgeMask(path: backgroundPath,
-                                      edge: .bottom,
-                                      tint: wallpaperBottomTint,
-                                      dark: composerUsesLightInk,
-                                      effect: backgroundEffect)
-                    .ignoresSafeArea(edges: .bottom)
+                Group {
+                    if isStarWorld && newsMode {
+                        newsMaskColor
+                    } else {
+                        ChatImmersiveEdgeMask(path: backgroundPath,
+                                              edge: .bottom,
+                                              tint: wallpaperBottomTint,
+                                              dark: composerUsesLightInk,
+                                              effect: backgroundEffect)
+                    }
+                }
+                .ignoresSafeArea(edges: .bottom)
             }
         }
     }
