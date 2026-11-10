@@ -250,10 +250,19 @@ struct NativeTabBar: UIViewRepresentable {
             .foregroundColor: UIColor.systemBlue,
             .font: pfUIFont(10.5, .semibold)
         ]
+        let selectedMyTitle: [NSAttributedString.Key: Any] = [
+            .foregroundColor: UIColor(OrbitTheme.jade),
+            .font: pfUIFont(10.5, .semibold)
+        ]
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(OrbitTheme.secondary)
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = normalTitle
         appearance.stackedLayoutAppearance.selected.iconColor = UIColor.systemBlue
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedTitle
+        if let items = bar.items, items.count == 4 {
+            // “我的”保持原来的品牌绿，只统一前三个入口的苹果蓝选中色。
+            items[3].setTitleTextAttributes(normalTitle, for: .normal)
+            items[3].setTitleTextAttributes(selectedMyTitle, for: .selected)
+        }
         if scheme == .dark {
             appearance.selectionIndicatorImage = UIImage()
             bar.selectionIndicatorImage = UIImage()
@@ -413,8 +422,9 @@ struct NativeTabBar: UIViewRepresentable {
 
             let normal = render(custom: custom, index: index, selected: false, size: size,
                                 color: normalColor)
+            let itemSelectedColor = index == 3 ? UIColor(OrbitTheme.jade) : selectedColor
             let selected = render(custom: custom, index: index, selected: true, size: size,
-                                  color: selectedColor)
+                                  color: itemSelectedColor)
             return (normal, selected)
         }
 
