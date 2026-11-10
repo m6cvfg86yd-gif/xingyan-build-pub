@@ -2438,7 +2438,8 @@ struct ChatDetailView: View {
                 .overlay(alignment: .topLeading) {
                     ScrollOffsetProbe(onChange: { _, _ in
                         if ChatScrollHandle.shared.moving, let g = ChatScrollHandle.shared.gap {
-                            wasAtBottom = g <= 16
+                            let next = g <= 16
+                            if wasAtBottom != next { wasAtBottom = next }
                             hideNavigationWhileScrolling()
                         }
                     }, onScrollStateChange: { scrolling in
