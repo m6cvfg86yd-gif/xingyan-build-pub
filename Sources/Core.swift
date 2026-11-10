@@ -2521,7 +2521,8 @@ struct PhotoPager: View {
     @State private var shareItems: [Any] = []
     @State private var showShare = false
 
-    @State private var tapCloseTask: Task<Void, Never>? = nil
+    @State private var chromeVisible = true
+    @State private var hideChromeTask: Task<Void, Never>? = nil
 
     private var currentPath: String? {
         (index >= 0 && index < paths.count) ? paths[index] : nil
@@ -2549,7 +2550,7 @@ struct PhotoPager: View {
                         Color.black
                         if abs(i - index) <= 1 {
                             ZoomableRemoteImage(path: paths[i], onDoubleTap: {
-                                tapCloseTask?.cancel()
+                                revealChrome()
                             })
                         }
                     }
@@ -2557,14 +2558,6 @@ struct PhotoPager: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-
-            .onTapGesture {
-                tapCloseTask?.cancel()
-                tapCloseTask = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 250_000_000)
-                    if !Task.isCancelled { onClose() }
-                }
-            }
 
             VStack(spacing: 0) {
 
@@ -2584,15 +2577,29 @@ struct PhotoPager: View {
                 }
                 if showActions { actionBar }
             }
+            .opacity(showActions && !chromeVisible ? 0 : 1)
+            .allowsHitTesting(!showActions || chromeVisible)
+            .animation(.easeInOut(duration: 0.2), value: chromeVisible)
         }
         .contentShape(Rectangle())
 
-        .onTapGesture { if !showActions { onClose() } }
+        .onTapGesture {
+            if showActions {
+                toggleChrome()
+            } else {
+                onClose()
+            }
+        }
         .onLongPressGesture {
             if let cb = onLongPress { cb(); return }
             save(index)
         }
-        .onAppear { index = min(max(0, startIndex), max(0, paths.count - 1)) }
+        .onAppear {
+            index = min(max(0, startIndex), max(0, paths.count - 1))
+            revealChrome()
+        }
+        .onChange(of: index) { _ in revealChrome() }
+        .onDisappear { hideChromeTask?.cancel() }
 
         .sheet(isPresented: $showForward) {
             if let p = currentPath {
@@ -2649,6 +2656,34 @@ struct PhotoPager: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func toggleChrome() {
+        hideChromeTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.2)) {
+            chromeVisible.toggle()
+        }
+        if chromeVisible { scheduleChromeHide() }
+    }
+
+    private func revealChrome() {
+        guard showActions else { return }
+        withAnimation(.easeInOut(duration: 0.18)) {
+            chromeVisible = true
+        }
+        scheduleChromeHide()
+    }
+
+    private func scheduleChromeHide() {
+        hideChromeTask?.cancel()
+        guard showActions else { return }
+        hideChromeTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.24)) {
+                chromeVisible = false
+            }
+        }
     }
 
     private func save(_ i: Int) {
