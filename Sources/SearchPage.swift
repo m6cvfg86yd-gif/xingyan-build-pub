@@ -1266,7 +1266,6 @@ struct SearchPage: View {
                     HStack(spacing: 5) {
                         Text(chatTitle(chat)).font(.body).foregroundStyle(C.label).lineLimit(1)
                         if isAssistantChat(chat) {
-                            OfficialVerifiedV(size: 14)
                                 .fixedSize()
                         }
                     }

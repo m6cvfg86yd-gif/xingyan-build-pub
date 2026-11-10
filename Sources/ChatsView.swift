@@ -1685,7 +1685,6 @@ struct ChatsView: View {
                                 .font(pfStyled(size: 17, weight: .semibold))
                                 .foregroundStyle(OfficialAccountVisual.name)
                                 .lineLimit(1)
-                            OfficialVerifiedV(size: 15)
                         }
                         Text(officialRowSubtitle)
                             .font(pfStyled(size: 15, weight: .regular))
@@ -1790,7 +1789,6 @@ struct ChatsView: View {
                                 .font(pfStyled(size: 17, weight: .semibold))
                                 .foregroundStyle(ChatListVisual.ink)
                                 .lineLimit(1)
-                            OfficialVerifiedV(size: 15)
                         }
                         Text(weatherRowSubtitle)
                             .font(pfStyled(size: 15, weight: .regular))

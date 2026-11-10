@@ -258,7 +258,6 @@ struct OfficialNoticeCenterView: View {
                 HStack(spacing: 5) {
                     Text(displayName)
                         .font(.headline)
-                    OfficialVerifiedV(size: 15)
                 }
                 Text(Tr("平台公告、安全学堂与反诈提醒"))
                     .font(.subheadline)
@@ -738,7 +737,6 @@ struct WeatherOfficialView: View {
                 HStack(spacing: 5) {
                     Text(name)
                         .font(.headline)
-                    OfficialVerifiedV(size: 15)
                 }
                 Text(subtitle)
                     .font(.subheadline)
