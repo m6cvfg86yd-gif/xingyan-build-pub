@@ -3385,6 +3385,13 @@ struct ChatDetailView: View {
         min(220, max(120, L.height * 0.36))
     }
 
+    private var composerUsesEmojiShortcut: Bool {
+        !input.isEmpty &&
+            (input.count >= 28 ||
+             input.contains("\n") ||
+             inputBoxHeight > L.inputH + 12)
+    }
+
     private var composerInputHeight: CGFloat {
         (voiceMode || recorder.recording) ? L.inputH : max(L.inputH, inputBoxHeight)
     }
@@ -3611,16 +3618,30 @@ struct ChatDetailView: View {
                             }
 
                             if focused {
-                                Button {
-                                    let base = input
-                                    dictation.toggle { s in input = base.isEmpty ? s : (base + s) }
-                                } label: {
-                                    Image(systemName: dictation.listening ? "mic.fill" : "mic")
-                                        .font(.system(size: 17))
-                                        .foregroundColor(dictation.listening ? C.green : adaptiveMicInk)
-                                        .frame(width: 30, height: 30)
+                                if composerUsesEmojiShortcut {
+                                    Button {
+                                        focused = false
+                                        panel = (panel == .emoji) ? .none : .emoji
+                                    } label: {
+                                        Image(systemName: "face.smiling")
+                                            .font(.system(size: 18, weight: .medium))
+                                            .foregroundStyle(panel == .emoji ? C.green : adaptiveEmojiInk)
+                                            .frame(width: 30, height: 30)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel(Tr("表情"))
+                                } else {
+                                    Button {
+                                        let base = input
+                                        dictation.toggle { s in input = base.isEmpty ? s : (base + s) }
+                                    } label: {
+                                        Image(systemName: dictation.listening ? "mic.fill" : "mic")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(dictation.listening ? C.green : adaptiveMicInk)
+                                            .frame(width: 30, height: 30)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
