@@ -285,6 +285,7 @@ struct VideoPlayerSheet: View {
     @State private var timeObs: Any?
 
     @State private var controls = true
+    @State private var playing = true
     @State private var hideTask: Task<Void, Never>?
     @State private var showForward = false
     @State private var showShare = false
@@ -295,9 +296,13 @@ struct VideoPlayerSheet: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.black
+                .ignoresSafeArea()
+                .onTapGesture { toggleControls() }
             if let p = player {
-                PiPHostView(player: p, box: pip).ignoresSafeArea()
+                PiPHostView(player: p, box: pip)
+                    .ignoresSafeArea()
+                    .onTapGesture { toggleControls() }
             }
 
             if pip.active {
@@ -327,6 +332,21 @@ struct VideoPlayerSheet: View {
                     }
                     .padding(30)
             }
+
+            if controls && !pip.active {
+                Button(action: togglePlayback) {
+                    Image(systemName: playing ? "pause.fill" : "play.fill")
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 64, height: 64)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .background { NativeGlassCircleBackground() }
+                .transition(.scale(scale: 0.86).combined(with: .opacity))
+                .accessibilityLabel(Text(playing ? Tr("暂停") : Tr("播放")))
+            }
+
             VStack(spacing: 0) {
 
                 if controls {
@@ -409,8 +429,6 @@ struct VideoPlayerSheet: View {
                 }
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture { toggleControls() }
         .onAppear {
             Task { await start() }
             autoHideControls()
@@ -493,6 +511,21 @@ struct VideoPlayerSheet: View {
             if p.rate == 0 { p.play() }
             p.rate = Float(speed)
         }
+    }
+
+    private func togglePlayback() {
+        guard let p = player else { return }
+        if p.rate > 0 {
+            p.pause()
+            playing = false
+            hideTask?.cancel()
+        } else {
+            p.play()
+            p.rate = Float(speed)
+            playing = true
+            autoHideControls()
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     private func action(_ title: String, _ symbol: String, _ run: @escaping () -> Void) -> some View {
@@ -579,6 +612,7 @@ struct VideoPlayerSheet: View {
         }
         player = p
         p.play()
+        playing = true
         if speed > 1.5 { p.rate = Float(speed) }
 
         timeObs = p.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
