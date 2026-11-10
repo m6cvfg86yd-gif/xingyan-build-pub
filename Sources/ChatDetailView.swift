@@ -487,6 +487,7 @@ struct ChatDetailView: View {
     @State private var persistTask: Task<Void, Never>?
     @State private var input = ""
     @State private var inputBoxHeight: CGFloat = 39
+    @State private var dismissDragActive = false
     @State private var loading = true
     @State private var initialRetryTask: Task<Void, Never>?
     @State private var panel: PanelKind = .none
@@ -1627,10 +1628,17 @@ struct ChatDetailView: View {
                 .simultaneousGesture(TapGesture().onEnded { dismissTyping() })
 
                 .simultaneousGesture(
-                    DragGesture(minimumDistance: 8).onChanged { _ in
-                        dismissTyping()
-                        ScrollGate.shared.touch()
-                    },
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { _ in
+                            guard !dismissDragActive else { return }
+                            dismissDragActive = true
+                            dismissTyping()
+                            ScrollGate.shared.setScrolling(true)
+                        }
+                        .onEnded { _ in
+                            dismissDragActive = false
+                            ScrollGate.shared.setScrolling(false)
+                        },
                     including: (focused || panel != .none) ? .all : .none
                 )
                 .zIndex(1)
@@ -2324,6 +2332,10 @@ struct ChatDetailView: View {
         }
 
         .onDisappear {
+            if dismissDragActive {
+                dismissDragActive = false
+                ScrollGate.shared.setScrolling(false)
+            }
             historySyncTask?.cancel()
             historySyncTask = nil
             persistTask?.cancel()
