@@ -1423,7 +1423,7 @@ struct ChatDetailView: View {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var chatDetailContent: some View {
+    var body: some View {
         ZStack {
             chatBackdrop
                 .ignoresSafeArea()
@@ -1505,10 +1505,7 @@ struct ChatDetailView: View {
             }
 
         }
-    }
 
-    private var chatWithChrome: some View {
-        chatDetailContent
         .onChange(of: recorder.seconds) { s in
             if recorder.recording, s >= recorder.maxSeconds { finishVoice() }
         }
@@ -1751,10 +1748,6 @@ struct ChatDetailView: View {
             }
             .zIndex(30)
         }
-    }
-
-    var body: some View {
-        chatWithChrome
         .sheet(isPresented: $showForward) {
             ForwardPickerView(items: forwardItems) { }
                 .environmentObject(app)
