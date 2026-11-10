@@ -1165,23 +1165,17 @@ struct GroupAvatarMosaic: View {
     @State private var loaded = false
     @State private var loadedMemberKey = ""
 
-    private var resolvedUsers: [String: User] {
-        // 本机资料优先：刚换头像/昵称时不必等服务端生成新的群拼图。
-        let local = [app.me].compactMap { $0 } + app.contacts + fetchedMembers
-        var out: [String: User] = [:]
-        for user in local where out[user.id] == nil {
-            out[user.id] = user
-        }
-        return out
-    }
-
     private var shownCount: Int {
         max(1, min(4, memberIds.count))
     }
 
     private var slots: [User?] {
-        let lookup = resolvedUsers
-        return Array(memberIds.prefix(shownCount)).map { lookup[$0] }
+        memberIds.prefix(shownCount).map { id in
+            // AppState.contact(for:) uses the maintained ID index, so large
+            // address books no longer rebuild a full dictionary for every row.
+            app.contact(for: id)
+                ?? fetchedMembers.first(where: { $0.id == id })
+        }
     }
 
     private var shape: AnyShape {
@@ -1218,25 +1212,6 @@ struct GroupAvatarMosaic: View {
         .task(id: memberIds) {
             await refreshMembers()
         }
-        .onChange(of: app.contacts) { contacts in
-            for user in contacts where memberIds.contains(user.id) {
-                upsertMember(user)
-            }
-        }
-        .onChange(of: app.me) { user in
-            if let user, memberIds.contains(user.id) {
-                upsertMember(user)
-            }
-        }
-        .onReceive(Realtime.shared.$event) { event in
-            if let user = event.user, memberIds.contains(user.id) {
-                upsertMember(user)
-            }
-            if (event.type == "group" && event.chatId == chatId)
-                || (event.type == "profile" && event.user == nil) {
-                Task { await refreshMembers(force: true) }
-            }
-        }
     }
 
     private func refreshMembers(force: Bool = false) async {
@@ -1246,8 +1221,7 @@ struct GroupAvatarMosaic: View {
         loaded = true
         loadedMemberKey = memberKey
         if !force {
-            let known = Set(([app.me].compactMap { $0 } + app.contacts).map(\.id))
-            guard memberIds.contains(where: { !known.contains($0) }) else { return }
+            guard memberIds.contains(where: { app.contact(for: $0) == nil }) else { return }
         }
         if let result = try? await API.shared.chatMembers(chatId: chatId) {
             fetchedMembers = result.members.filter { memberIds.contains($0.id) }

@@ -279,6 +279,7 @@ struct ChatRow: View {
     let chat: Chat
     let app: AppState
     @State private var fetchedPeer: User?
+    @State private var peerRequestStarted = false
 
     var onTapAvatar: (() -> Void)? = nil
 
@@ -340,6 +341,8 @@ struct ChatRow: View {
         let title = (chat.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let avatar = (chat.avatar ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard title.isEmpty || avatar.isEmpty else { return }
+        guard !peerRequestStarted else { return }
+        peerRequestStarted = true
         fetchedPeer = try? await API.shared.user(id: peerId)
     }
 
