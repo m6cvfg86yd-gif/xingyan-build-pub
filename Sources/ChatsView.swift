@@ -125,7 +125,25 @@ struct RowSwipeCatcher: UIViewRepresentable {
 private struct ConversationScrollFeel: UIViewRepresentable {
     final class Coordinator {
         weak var scrollView: UIScrollView?
+        var offsetObservation: NSKeyValueObservation?
+        var lastZone = -1
+        var onZoneChange: (Int) -> Void = { _ in }
+
+        func publishZone(_ scroll: UIScrollView) {
+            let y = scroll.contentOffset.y
+            let zone: Int
+            if y < 1 { zone = 0 }
+            else if y <= 8 { zone = 1 }
+            else if y <= 14 { zone = 2 }
+            else { zone = 3 }
+            guard zone != lastZone else { return }
+            lastZone = zone
+            let callback = onZoneChange
+            DispatchQueue.main.async { callback(zone) }
+        }
     }
+
+    let onZoneChange: (Int) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -137,21 +155,32 @@ private struct ConversationScrollFeel: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onZoneChange = onZoneChange
         DispatchQueue.main.async {
             var current: UIView? = uiView
             while let view = current {
                 if let scroll = view as? UIScrollView {
-                    guard context.coordinator.scrollView !== scroll else { return }
-                    context.coordinator.scrollView = scroll
-                    scroll.isDirectionalLockEnabled = true
-                    scroll.alwaysBounceVertical = true
-                    scroll.bounces = true
-                    scroll.delaysContentTouches = false
-                    scroll.canCancelContentTouches = true
-                    scroll.decelerationRate = .normal
-                    scroll.keyboardDismissMode = .interactive
-                    scroll.showsVerticalScrollIndicator = false
-                    scroll.scrollsToTop = true
+                    if context.coordinator.scrollView !== scroll {
+                        context.coordinator.offsetObservation = nil
+                        context.coordinator.scrollView = scroll
+                        context.coordinator.lastZone = -1
+                        scroll.isDirectionalLockEnabled = true
+                        scroll.alwaysBounceVertical = true
+                        scroll.alwaysBounceHorizontal = false
+                        scroll.bounces = true
+                        scroll.delaysContentTouches = false
+                        scroll.canCancelContentTouches = true
+                        scroll.decelerationRate = .normal
+                        scroll.keyboardDismissMode = .interactive
+                        scroll.showsVerticalScrollIndicator = false
+                        scroll.scrollsToTop = true
+                        context.coordinator.offsetObservation =
+                            scroll.observe(\.contentOffset, options: [.new]) { [weak coordinator = context.coordinator, weak scroll] _, _ in
+                                guard let coordinator, let scroll else { return }
+                                coordinator.publishZone(scroll)
+                            }
+                    }
+                    context.coordinator.publishZone(scroll)
                     return
                 }
                 current = view.superview
@@ -302,6 +331,9 @@ struct ChatRow: View {
     private func loadPeerIfNeeded() async {
         guard let peerId, !peerId.isEmpty,
               app.contact(for: peerId) == nil else { return }
+        let title = (chat.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let avatar = (chat.avatar ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard title.isEmpty || avatar.isEmpty else { return }
         fetchedPeer = try? await API.shared.user(id: peerId)
     }
 
@@ -1019,6 +1051,25 @@ struct ChatsView: View {
         guard filterHidden != hidden else { return }
         withAnimation(.easeOut(duration: hidden ? 0.16 : 0.22)) {
             filterHidden = hidden
+        }
+    }
+
+    private func handleScrollZone(_ zone: Int) {
+        let wasNearTop = scrolled <= 8
+        if zone >= 2, wasNearTop {
+            NotificationCenter.default.post(name: .chrisRowSwipe, object: nil)
+        }
+
+        if zone == 0 {
+            if scrolled != 0 { scrolled = 0 }
+            setFilterHidden(false)
+        } else if zone >= 2 {
+            if scrolled != 9 { scrolled = 9 }
+            setFilterHidden(true)
+        }
+
+        if zone >= 3, floorUp {
+            floorUp = false
         }
     }
 
@@ -1865,13 +1916,10 @@ struct ChatsView: View {
                         }
 
                         .background(
-                            GeometryReader { g in
-                                Color.clear.preference(
-                                    key: ChatsScrollKey.self,
-                                    value: -g.frame(in: .named("chatsScroll")).minY)
+                            ConversationScrollFeel { zone in
+                                handleScrollZone(zone)
                             }
                         )
-                        .background(ConversationScrollFeel())
                     }
                     .id(chatFilter)
                     .coordinateSpace(name: "chatsScroll")
@@ -1892,7 +1940,10 @@ struct ChatsView: View {
                                     floorDragActive = true
                                 }
                                 if floorOn, dy > 0 {
-                                    pullDown = heavyPull(dy)
+                                    let pulled = heavyPull(dy)
+                                    if abs(pulled - pullDown) >= 0.75 {
+                                        pullDown = pulled
+                                    }
 
                                     let step = max(1, floorPull / 3)
                                     let lit = min(3, Int(dy / step))
@@ -1929,31 +1980,6 @@ struct ChatsView: View {
                                 }
                             }
                     )
-                    .onPreferenceChange(ChatsScrollKey.self) { v in
-                        let s = max(0, v)
-                        let wasNearTop = scrolled <= 8
-
-                        if s > 8, wasNearTop {
-                            NotificationCenter.default.post(name: .chrisRowSwipe, object: nil)
-                        }
-
-                        // 只记录“顶部/已经离开顶部”两个状态，避免滚动时每帧
-                        // 触发 SwiftUI 重算。滑行动量仍由原生 UIScrollView 负责。
-                        if s < 1 { scrolled = 0 }
-                        else if s > 8 { scrolled = 9 }
-
-                        if s < 1 {
-                            setFilterHidden(false)
-                        } else if s > 8 {
-                            setFilterHidden(true)
-                        }
-
-                        let p = heavyPull(max(0, -v))
-                        if abs(p - pullDown) > 0.5 { pullDown = p }
-
-                        if s > 14, floorUp { floorUp = false }
-                    }
-
                     .ignoresSafeArea(edges: .top)
                     .background(Color.clear)
                     .refreshable { await app.loadChats() }
@@ -2330,13 +2356,6 @@ struct ChatsView: View {
             try? await Task.sleep(nanoseconds: 350_000_000)
             path.append(c)
         }
-    }
-}
-
-private struct ChatsScrollKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }
 
