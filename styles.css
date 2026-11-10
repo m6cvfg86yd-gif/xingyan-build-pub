@@ -626,3 +626,18 @@ footer nav a { color: #75757c; font-size: 10px; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+
+/* Pure black cosmos: crisp monochrome stars without glow layers. */
+body { background: #000 !important; }
+body::before,
+body::after,
+.page-noise,
+.hero::after,
+.product-glow,
+.feature-card::after { display: none !important; }
+.hero { background: #000 !important; }
+.brand img,
+.hero-icon,
+.security-visual img { box-shadow: none !important; }
+.app-window { box-shadow: 0 95px 200px rgba(0,0,0,.92) !important; }
+#starfield { filter: none !important; }

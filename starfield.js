@@ -12,7 +12,7 @@
   let shootingStars = [];
   let frameId = 0;
   let lastFrame = 0;
-  let nextShootingStar = performance.now() + 5500;
+  let nextShootingStar = Number.POSITIVE_INFINITY;
   let pointerTargetX = 0;
   let pointerTargetY = 0;
   let pointerX = 0;
@@ -67,12 +67,6 @@
       context.arc(drawX, drawY, star.radius * (.72 + star.depth * .42), 0, Math.PI * 2);
       context.fill();
 
-      if (star.radius > 1.18) {
-        context.beginPath();
-        context.fillStyle = `rgba(${star.tint}, ${alpha * 0.12})`;
-        context.arc(drawX, drawY, star.radius * 3.8, 0, Math.PI * 2);
-        context.fill();
-      }
     }
 
     if (!staticFrame && time > nextShootingStar) {
