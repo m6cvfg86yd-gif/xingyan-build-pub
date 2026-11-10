@@ -149,6 +149,7 @@ private struct ConversationScrollFeel: UIViewRepresentable {
                     scroll.delaysContentTouches = false
                     scroll.canCancelContentTouches = true
                     scroll.decelerationRate = .normal
+                    scroll.contentInsetAdjustmentBehavior = .never
                     scroll.keyboardDismissMode = .interactive
                     scroll.showsVerticalScrollIndicator = false
                     scroll.scrollsToTop = true
@@ -1927,7 +1928,8 @@ struct ChatsView: View {
                                     floorUp = open
                                     pullDown = 0
                                 }
-                            }
+                            },
+                        including: floorOn && scrolled < 1 && !floorUp ? .all : .none
                     )
                     .onPreferenceChange(ChatsScrollKey.self) { v in
                         let s = max(0, v)
