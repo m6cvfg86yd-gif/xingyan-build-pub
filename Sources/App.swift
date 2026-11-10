@@ -29,6 +29,14 @@ final class AppState: ObservableObject {
             chats = LocalStore.cachedChatList(userId: cached.id)
         }
         applyCachedUIConfig()
+
+        // RootView.task can be delayed by an iOS 27 layout transaction. Start
+        // boot independently so authentication and /api/chats never depend on
+        // the first SwiftUI body pass completing. boot() remains idempotent.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.boot()
+        }
     }
 
     func checkReachability() async {
