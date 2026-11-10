@@ -67,7 +67,9 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
         options.resizeMode = .fast
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false
-        let side = min(2400, max(1200, UIScreen.main.bounds.longestSide * UIScreen.main.scale))
+        let bounds = UIScreen.main.bounds
+        let nativeSide = max(bounds.width, bounds.height) * UIScreen.main.scale
+        let side = min(2400, max(1200, nativeSide))
 
         return await withCheckedContinuation { continuation in
             var resumed = false
