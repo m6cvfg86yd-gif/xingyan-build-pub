@@ -487,7 +487,7 @@ struct ChatRow: View, Equatable {
                     .minimumScaleFactor(0.72)
                     .padding(.horizontal, chat.unreadCount > 9 ? 5 : 0)
                     .frame(minWidth: 18, minHeight: 18)
-                    .background(Capsule().fill(Color(hex: 0xFA5151)))
+                    .background(Capsule().fill(Color(.systemBlue)))
                     .overlay(Capsule().stroke(ChatListVisual.badgeRing, lineWidth: 1.5))
             }
         }
