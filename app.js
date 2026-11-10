@@ -213,6 +213,39 @@
       });
     });
     selectPreviewChat("design");
+
+    const productStage = document.querySelector(".product-stage");
+    const appWindow = document.querySelector(".app-window");
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (productStage && appWindow && !reduceMotion) {
+      let pointerFrame = 0;
+      productStage.addEventListener("pointermove", (event) => {
+        if (pointerFrame) return;
+        pointerFrame = requestAnimationFrame(() => {
+          pointerFrame = 0;
+          const rect = productStage.getBoundingClientRect();
+          const x = (event.clientX - rect.left) / rect.width - 0.5;
+          const y = (event.clientY - rect.top) / rect.height - 0.5;
+          appWindow.style.setProperty("--preview-rotate-y", `${x * 2.2}deg`);
+          appWindow.style.setProperty("--preview-rotate-x", `${1.2 - y * 1.8}deg`);
+        });
+      });
+      productStage.addEventListener("pointerleave", () => {
+        appWindow.style.setProperty("--preview-rotate-y", "0deg");
+        appWindow.style.setProperty("--preview-rotate-x", "1.2deg");
+      });
+
+      const updatePreviewDepth = () => {
+        const rect = productStage.getBoundingClientRect();
+        const progress = Math.max(
+          0,
+          Math.min(1, (window.innerHeight - rect.top) / (window.innerHeight + rect.height)),
+        );
+        appWindow.style.setProperty("--preview-scale", String(.972 + progress * .038));
+      };
+      updatePreviewDepth();
+      window.addEventListener("scroll", updatePreviewDepth, { passive: true });
+    }
   }
 
   const header = document.querySelector(".site-header");

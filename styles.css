@@ -166,27 +166,61 @@ h1 strong { color: #9a9aa1; font-weight: inherit; }
 .product-stage {
   position: relative;
   z-index: 3;
-  width: min(1040px, 92vw);
-  margin-top: 78px;
-  perspective: 1400px;
+  width: min(1240px, calc(100vw - 48px));
+  margin-top: 86px;
+  perspective: 1800px;
+  transform-style: preserve-3d;
   animation: rise 1.2s .3s var(--ease) both;
 }
-.product-glow { position: absolute; width: 68%; height: 58%; left: 16%; top: 24%; border-radius: 50%; background: rgba(53,213,139,.09); filter: blur(100px); }
+.product-glow {
+  position: absolute;
+  width: 78%;
+  height: 72%;
+  left: 11%;
+  top: 18%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 48% 42%, rgba(255,255,255,.09), transparent 35%),
+    radial-gradient(circle at 58% 62%, rgba(53,213,139,.075), transparent 44%);
+  filter: blur(110px);
+  animation: breathe 8s ease-in-out infinite;
+}
 .app-window {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.16);
-  border-radius: 16px;
-  background: #0c0c0d;
-  box-shadow: 0 58px 130px rgba(0,0,0,.85), 0 0 0 1px rgba(0,0,0,.7) inset;
-  transform: rotateX(1.8deg);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 27px;
+  background: #000;
+  box-shadow:
+    0 95px 200px rgba(0,0,0,.92),
+    0 0 0 1px rgba(255,255,255,.025) inset,
+    0 0 90px rgba(255,255,255,.035);
+  transform:
+    perspective(1800px)
+    rotateX(var(--preview-rotate-x, 1.2deg))
+    rotateY(var(--preview-rotate-y, 0deg))
+    scale(var(--preview-scale, 1));
+  transform-origin: 50% 45%;
+  transition: transform .42s var(--ease);
+  will-change: transform;
+}
+.app-window::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26%;
+  z-index: 8;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(0,0,0,.44));
 }
 .window-bar { height: 36px; padding: 0 13px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(255,255,255,.08); background: #101011; }
 .window-bar span { width: 7px; height: 7px; border-radius: 50%; background: #353538; }
 .window-bar b { margin-left: 9px; color: #7b7b82; font-size: 9.5px; font-weight: 500; }
 .app-window > img { width: 100%; aspect-ratio: 1.604; object-fit: cover; }
 .app-shell {
-  height: 640px;
+  height: 720px;
   display: grid;
   grid-template-columns: 54px 228px 1fr;
   overflow: hidden;
@@ -451,6 +485,10 @@ footer nav a { color: #75757c; font-size: 10px; }
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-9px); }
+}
+@keyframes breathe {
+  0%, 100% { opacity: .68; transform: scale(.96); }
+  50% { opacity: 1; transform: scale(1.04); }
 }
 
 @media (max-width: 1000px) {
