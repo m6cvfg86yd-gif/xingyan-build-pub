@@ -5883,6 +5883,12 @@ function unreadCount(userId, chat) {
   return (chat.flaggedUnread || []).includes(userId) ? 1 : 0;
 }
 
+/* String.slice 按 UTF-16 code unit 截断，会把 emoji 切成孤立代理字符。
+   Swift JSONDecoder 遇到这种字符串会判定整个会话数组解析失败。 */
+function previewTextSlice(value, max) {
+  return Array.from(String(value || '')).slice(0, Math.max(0, Number(max) || 0)).join('');
+}
+
 /* 会话列表里「最后一条消息」的预览文字。
    用户要求：转账不显示在会话列表（每个人名字下面），那里只显示真正的会话消息，
    所以最后一条是转账时，往前找最近一条非转账消息来显示。 */
@@ -5901,19 +5907,19 @@ function previewTextOf(m) {
   /* 会话列表里非文字消息统一显示成 [xx]（和微信一致） */
   switch (m.kind) {
     /* 引用别人的消息：微信的会话列表写着「[引用] 正文」 */
-    case 'text': return (m.quote ? '[引用] ' : '') + String(m.content).slice(0, 40);
+    case 'text': return (m.quote ? '[引用] ' : '') + previewTextSlice(m.content, 40);
     /* 笔记卡片：会话列表里写「[笔记] 标题」（微信也是这样） */
     case 'note': {
       const first = String(m.content || '').split('\n')[0] || '';
       const t = first.indexOf('[图]') === 0 ? '图片' : first;
-      return '[笔记] ' + t.slice(0, 30);
+      return '[笔记] ' + previewTextSlice(t, 30);
     }
     case 'image': return '[图片]';
     /* 一次发多张（九宫格）：微信列表里也是「[图片]」 */
     case 'images': return '[图片]';
     /* 公众号文章：会话列表里显示 [文章] 标题（微信就是这样） */
     case 'oa': {
-      try { const o = JSON.parse(String(m.content || '{}')); return '[文章] ' + String(o.title || '').slice(0, 30); }
+      try { const o = JSON.parse(String(m.content || '{}')); return '[文章] ' + previewTextSlice(o.title || '', 30); }
       catch (err) { return '[文章]'; }
     }
     case 'video': return '[视频]';
@@ -5934,7 +5940,7 @@ function previewTextOf(m) {
     case 'videocall': return '[视频通话]';
     /* 通话记录（系统消息）：微信在会话列表里直接写「通话时长 00:12」/「已取消」/「对方无应答」，
        以前这里没这一支，最后一条是通话记录时列表里显示的是「[system]」——用户说看不到通话记录就是这个 */
-    case 'system': return callRecordTextOf(String(m.content || '')).slice(0, 40);
+    case 'system': return previewTextSlice(callRecordTextOf(String(m.content || '')), 40);
     /* 拍一拍：会话列表里微信显示的就是「拍了拍」 */
     case 'pat': return '拍了拍';
     case 'transfer': return '[转账]';
