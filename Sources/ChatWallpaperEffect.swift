@@ -62,6 +62,12 @@ final class ChatWallpaperEffectRenderer {
                            options: .ignoreUnknownCharacters) {
             return data
         }
+        if let direct = ImageStore.shared.get(path),
+           let data = await Task.detached(priority: .userInitiated, operation: {
+               direct.jpegData(compressionQuality: 0.92)
+           }).value {
+            return data
+        }
         if let data = await Task.detached(priority: .userInitiated, operation: {
             ImageStore.shared.diskRead(path)
         }).value {

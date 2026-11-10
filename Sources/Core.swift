@@ -984,6 +984,12 @@ struct RemoteImage: View {
             onLoaded?(hit)
             return
         }
+        if let direct = ImageStore.shared.get(requestedPath) {
+            guard !Task.isCancelled, path == requestedPath else { return }
+            image = direct
+            onLoaded?(direct)
+            return
+        }
 
         let diskBytes: Data? = await Task.detached(priority: .userInitiated) { () -> Data? in
             ImageStore.shared.diskRead(requestedPath)
