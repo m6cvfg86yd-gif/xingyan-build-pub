@@ -1147,19 +1147,21 @@ struct ChatsView: View {
                     .buttonStyle(.plain)
                 }
 
-                Button {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
-                        plusMenu = true
+                if Lang.isChinese {
+                    Button {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
+                            plusMenu = true
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(ChatListVisual.ink)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
                     }
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(ChatListVisual.ink)
-                        .frame(width: 40, height: 40)
-                        .contentShape(Rectangle())
+                    .buttonStyle(NavPlusPressStyle())
+                    .accessibilityLabel(Tr("更多"))
                 }
-                .buttonStyle(NavPlusPressStyle())
-                .accessibilityLabel(Tr("更多"))
             }
         }
         .padding(.horizontal, 16)
