@@ -447,19 +447,43 @@ struct ChatRow: View, Equatable {
         if isGroupAvatar {
             let count = chat.memberCount ?? chat.memberIds?.count ?? 0
             if count > 0 {
-                return Text(Lang.isEnglish
-                            ? "\(count) Xingyan friends connected"
-                            : "\(count)人星友连接")
+                return Text(sessionCopy(
+                    zh: "\(count)人星友连接",
+                    en: "\(count) Xingyan friends connected",
+                    ru: "\(count) подключений Xingyan"
+                ))
             }
         }
         let raw = (chat.lastMessage?.preview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let kind = chat.lastMessage?.kind ?? ""
+        let effectiveRaw = isSystemPreview(raw) && (Lang.isEnglish || Lang.isRussian)
+            ? fallbackPreview(kind)
+            : raw
         let preview = kind == "pat"
-            ? Tr("星语提醒")
-            : (raw.isEmpty ? fallbackPreview(kind) : raw)
+            ? sessionCopy(zh: "星语提醒", en: "[Reminder]", ru: "[Напоминание]")
+            : (effectiveRaw.isEmpty ? fallbackPreview(kind) : effectiveRaw)
         let body = previewInkText(preview)
         guard chat.lastMessage?.mentionMe == true, chat.unreadCount > 0 else { return body }
-        return Text(Tr("[有人@我] ")).foregroundColor(Color(.systemRed)) + body
+        return Text(sessionCopy(
+            zh: "[有人@我] ",
+            en: "[Mentioned you] ",
+            ru: "[Упомянули вас] "
+        )).foregroundColor(Color(.systemRed)) + body
+    }
+
+    private func sessionCopy(zh: String, en: String, ru: String) -> String {
+        if Lang.isEnglish { return en }
+        if Lang.isRussian { return ru }
+        return zh
+    }
+
+    private func isSystemPreview(_ value: String) -> Bool {
+        [
+            "[图片]", "[视频]", "[语音]", "[文件]", "[链接]", "[音乐]",
+            "[位置]", "[名片]", "[转账]", "[红包]", "[礼物]", "[小程序]",
+            "[视频号]", "[语音通话]", "[视频通话]", "[消息]", "消息",
+            "群聊", "新的会话", "看看今天的热点", "查看官方内容"
+        ].contains(value)
     }
 
     private func previewInkText(_ preview: String) -> Text {
@@ -473,35 +497,43 @@ struct ChatRow: View, Equatable {
     /// 旧服务端或实时推送偶尔只带 kind 不带 preview，列表仍按微信占位。
     private func fallbackPreview(_ kind: String) -> String {
         switch kind {
-        case "image", "images": return "[图片]"
-        case "video", "livephoto": return "[视频]"
-        case "audio", "voice": return "[语音]"
-        case "file": return "[文件]"
-        case "link", "oa": return "[链接]"
-        case "music": return "[音乐]"
-        case "location": return "[位置]"
-        case "card": return "[名片]"
-        case "transfer": return "[转账]"
-        case "redpacket": return "[红包]"
-        case "gift": return "[礼物]"
-        case "miniapp", "mini", "app", "mall": return "[小程序]"
-        case "channels", "channel", "feed", "shortvideo": return "[视频号]"
-        case "call", "voicecall": return "[语音通话]"
-        case "videocall": return "[视频通话]"
-        case "pat": return Tr("星语提醒")
-        case "system": return "消息"
+        case "image", "images": return sessionCopy(zh: "[图片]", en: "[Photo]", ru: "[Фото]")
+        case "video", "livephoto": return sessionCopy(zh: "[视频]", en: "[Video]", ru: "[Видео]")
+        case "audio", "voice": return sessionCopy(zh: "[语音]", en: "[Voice]", ru: "[Голос]")
+        case "file": return sessionCopy(zh: "[文件]", en: "[File]", ru: "[Файл]")
+        case "link", "oa": return sessionCopy(zh: "[链接]", en: "[Link]", ru: "[Ссылка]")
+        case "music": return sessionCopy(zh: "[音乐]", en: "[Music]", ru: "[Музыка]")
+        case "location": return sessionCopy(zh: "[位置]", en: "[Location]", ru: "[Место]")
+        case "card": return sessionCopy(zh: "[名片]", en: "[Contact]", ru: "[Контакт]")
+        case "transfer": return sessionCopy(zh: "[转账]", en: "[Transfer]", ru: "[Перевод]")
+        case "redpacket": return sessionCopy(zh: "[红包]", en: "[Red Packet]", ru: "[Красный конверт]")
+        case "gift": return sessionCopy(zh: "[礼物]", en: "[Gift]", ru: "[Подарок]")
+        case "miniapp", "mini", "app", "mall": return sessionCopy(zh: "[小程序]", en: "[Mini Program]", ru: "[Мини-программа]")
+        case "channels", "channel", "feed", "shortvideo": return sessionCopy(zh: "[视频号]", en: "[Channels]", ru: "[Каналы]")
+        case "call", "voicecall": return sessionCopy(zh: "[语音通话]", en: "[Voice Call]", ru: "[Голосовой вызов]")
+        case "videocall": return sessionCopy(zh: "[视频通话]", en: "[Video Call]", ru: "[Видеовызов]")
+        case "pat": return sessionCopy(zh: "星语提醒", en: "[Reminder]", ru: "[Напоминание]")
+        case "system": return sessionCopy(zh: "消息", en: "Message", ru: "Сообщение")
         case "": return idlePreview
-        default: return "[消息]"
+        default: return sessionCopy(zh: "[消息]", en: "[Message]", ru: "[Сообщение]")
         }
     }
 
     private var idlePreview: String {
         if chat.type == "group" {
-            return "群聊"
+            return sessionCopy(zh: "群聊", en: "Group chat", ru: "Групповой чат")
         }
-        if chat.bot == "qqnews" { return "看看今天的热点" }
-        if chat.showsOfficialMark { return "查看官方内容" }
-        return "新的会话"
+        if chat.bot == "qqnews" {
+            return sessionCopy(zh: "看看今天的热点",
+                               en: "See today's trending stories",
+                               ru: "Смотрите сегодняшние тренды")
+        }
+        if chat.showsOfficialMark {
+            return sessionCopy(zh: "查看官方内容",
+                               en: "View official updates",
+                               ru: "Смотреть официальные обновления")
+        }
+        return sessionCopy(zh: "新的会话", en: "New conversation", ru: "Новый чат")
     }
 
     @ViewBuilder
