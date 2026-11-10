@@ -165,9 +165,6 @@ struct RecentPhotoRail: View {
             }
             .padding(.top, 12)
             .padding(.bottom, 9)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(C.hairline).frame(height: 0.5)
-            }
             .task { await store.loadIfNeeded() }
         }
     }
