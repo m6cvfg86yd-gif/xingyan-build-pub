@@ -212,162 +212,234 @@ struct ChatBackgroundSheet: View {
     }
 
     private var standardBody: some View {
-        List {
-                Section {
-                    backgroundPreview
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                }
+        ScrollView {
+            VStack(spacing: 18) {
+                backgroundPreview
 
-                if inChat {
-                    Section {
-                        Button {
-                            pick(defaultWallpaperPath.isEmpty
-                                 ? "auto"
-                                 : defaultWallpaperPath)
-                        } label: {
-                            HStack(spacing: 13) {
-                                Group {
-                                    if let solid = renderedChatBackgroundSolidColor(
-                                        defaultWallpaperPath,
-                                        dark: scheme == .dark
-                                    ) {
-                                        solid
-                                    } else if !defaultWallpaperPath.isEmpty {
-                                        RemoteImage(path: defaultWallpaperPath,
-                                                    mode: .fill,
-                                                    maxSide: 480)
-                                    } else {
-                                        defaultChatCanvasColor()
-                                    }
-                                }
-                                .frame(width: 54, height: 72)
-                                .clipShape(RoundedRectangle(cornerRadius: 10,
-                                                            style: .continuous))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .stroke(Color.secondary.opacity(0.16),
-                                                lineWidth: 0.7)
-                                }
+                VStack(spacing: 0) {
+                    wallpaperChoiceRow(
+                        symbol: "photo.on.rectangle.angled",
+                        tint: Color(hex: 0x128C7E),
+                        title: Tr("默认壁纸"),
+                        subtitle: Tr("星言全景壁纸，上下连续"),
+                        selected: usingDefaultWallpaper
+                    ) {
+                        pick(defaultWallpaperPath.isEmpty
+                             ? "auto"
+                             : defaultWallpaperPath)
+                    }
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(Tr("默认壁纸"))
-                                        .font(pfStyled(size: 16, weight: .medium))
-                                        .foregroundStyle(.primary)
-                                    Text(Tr("使用星言提供的默认聊天壁纸"))
-                                        .font(pfStyled(size: 11.5))
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer(minLength: 8)
-
-                                if usingDefaultWallpaper {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 19, weight: .semibold))
-                                        .foregroundStyle(Color.accentColor)
-                                }
-                            }
-                            .contentShape(Rectangle())
+                    if inChat {
+                        wallpaperDivider
+                        wallpaperChoiceRow(
+                            symbol: "arrow.triangle.2.circlepath",
+                            tint: Color(hex: 0x667781),
+                            title: Tr("使用全局背景"),
+                            subtitle: Tr("跟随聊天背景设置自动变化"),
+                            selected: current == "auto"
+                        ) {
+                            pick("auto")
                         }
-                        .buttonStyle(.plain)
-                        .disabled(busy)
-                    } footer: {
-                        Text(Tr("默认壁纸由星言统一维护，相册壁纸会保留完整全景。"))
                     }
                 }
+                .background(C.meCardBg)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.primary.opacity(0.055), lineWidth: 0.6)
+                }
 
-                Section {
-                    HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 10) {
+                    wallpaperSectionHeader(Tr("纯色"), detail: Tr("始终可用"))
+
+                    HStack(spacing: 12) {
                         ForEach(shownPresets, id: \.path) { item in
-                            Button { pick(item.path) } label: {
-                                VStack(spacing: 8) {
-                                    ZStack {
-                                        if let solid = chatBackgroundSolidColor(item.path) {
-                                            solid
-                                        } else {
-                                            C.pageBg
-                                        }
-                                        if normalizedChatBackground(current) == item.path {
-                                            Image(systemName: "checkmark")
-                                                .font(.system(size: 16, weight: .bold))
-                                                .foregroundColor(item.path == "solid:white" ? .black : .white)
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 128)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .stroke(normalizedChatBackground(current) == item.path
-                                                ? Color.accentColor : Color.secondary.opacity(0.18),
-                                                lineWidth: normalizedChatBackground(current) == item.path ? 2.5 : 0.7))
-                                    Text(Tr(item.name))
-                                        .font(pfStyled(size: 13))
-                                        .foregroundColor(.secondary)
-                                }
-                                .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(busy)
+                            wallpaperSwatch(item)
                         }
                     }
-                    .padding(.vertical, 8)
-                } header: {
-                    Text(Tr("纯色壁纸"))
-                } footer: {
-                    Text(Tr("不依赖网络，白底和黑底始终可用。"))
                 }
 
-                Section {
-                    Button { pick("auto") } label: {
-                        HStack {
-                            Text(inChat ? Tr("使用全局背景") : Tr("系统默认背景"))
-                            Spacer()
-                            if current == "auto" {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.accentColor)
-                            }
-                        }
+                VStack(spacing: 0) {
+                    wallpaperChoiceRow(
+                        symbol: "photo.badge.plus",
+                        tint: Color(hex: 0x0A84FF),
+                        title: Tr("从相册选择"),
+                        subtitle: Tr("选择一张照片作为聊天壁纸"),
+                        selected: false,
+                        showsChevron: true
+                    ) {
+                        picking = true
                     }
-                    .disabled(busy)
-
-                    Button { picking = true } label: {
-                        HStack {
-                            Text(Tr("从相册选择"))
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .disabled(busy)
                 }
+                .background(C.meCardBg)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.primary.opacity(0.055), lineWidth: 0.6)
+                }
+
+                Text(Tr("相册壁纸会保留完整全景；深色模式使用同一张壁纸的自然黑模糊。"))
+                    .font(pfStyled(size: 11.5))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 2)
 
                 if busy {
-                    Section {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
+                    HStack(spacing: 9) {
+                        ProgressView()
+                        Text(Tr("正在更新壁纸…"))
+                            .font(pfStyled(size: 12.5, weight: .medium))
+                            .foregroundStyle(.secondary)
                     }
+                    .padding(.top, 2)
                 }
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(C.pageBg)
-            .navigationTitle(Tr(inChat ? "选择背景图" : "聊天背景"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if modal {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(Tr("完成")) { dismiss() }
-                    }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, max(28, L.safeBottom + 20))
+        }
+        .scrollIndicators(.hidden)
+        .background(C.pageBg.ignoresSafeArea())
+        .navigationTitle(Tr(inChat ? "选择背景图" : "聊天背景"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if modal {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(Tr("完成")) { dismiss() }
                 }
             }
-            .sheet(isPresented: $picking) {
-                PhotoPicker { image in upload(image) }
-            }
+        }
+        .sheet(isPresented: $picking) {
+            PhotoPicker { image in upload(image) }
+        }
         .tint(.accentColor)
+    }
+
+    private var wallpaperDivider: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(0.075))
+            .frame(height: 0.5)
+            .padding(.leading, 60)
+    }
+
+    private func wallpaperSectionHeader(_ title: String,
+                                        detail: String? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(pfStyled(size: 13.5, weight: .semibold))
+                .foregroundStyle(.primary)
+            Spacer(minLength: 8)
+            if let detail {
+                Text(detail)
+                    .font(pfStyled(size: 11.5, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 2)
+    }
+
+    private func wallpaperChoiceRow(symbol: String,
+                                    tint: Color,
+                                    title: String,
+                                    subtitle: String,
+                                    selected: Bool,
+                                    showsChevron: Bool = false,
+                                    action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(tint)
+                    )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(pfStyled(size: 15.5, weight: .medium))
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(pfStyled(size: 11.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color(hex: 0x128C7E))
+                } else if showsChevron {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(minHeight: 62)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(busy)
+    }
+
+    private func wallpaperSwatch(_ item: (path: String, name: String)) -> some View {
+        let selected = normalizedChatBackground(current) == item.path
+        return Button {
+            pick(item.path)
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                Group {
+                    if let solid = chatBackgroundSolidColor(item.path) {
+                        solid
+                    } else {
+                        C.pageBg
+                    }
+                }
+                .overlay(alignment: .topLeading) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Capsule()
+                            .fill(Color.black.opacity(item.path == "solid:black" ? 0.38 : 0.10))
+                            .frame(width: 48, height: 9)
+                        Capsule()
+                            .fill(Color.black.opacity(item.path == "solid:black" ? 0.24 : 0.07))
+                            .frame(width: 32, height: 9)
+                    }
+                    .padding(12)
+                }
+
+                HStack(spacing: 6) {
+                    Text(Tr(item.name))
+                        .font(pfStyled(size: 12.5, weight: .semibold))
+                    Spacer(minLength: 4)
+                    if selected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(item.path == "solid:black"
+                                 ? Color.white : Color(hex: 0x202C33))
+                .padding(.horizontal, 11)
+                .frame(height: 34)
+                .frame(maxWidth: .infinity)
+                .background(.ultraThinMaterial)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 112)
+            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .stroke(selected
+                            ? Color(hex: 0x128C7E)
+                            : Color.primary.opacity(0.10),
+                            lineWidth: selected ? 2.2 : 0.7)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(busy)
     }
 
     private var immersivePath: String {
@@ -597,43 +669,75 @@ struct ChatBackgroundSheet: View {
                 Color.white.opacity(0.055)
             }
 
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 HStack {
                     Text(Tr("今天"))
-                        .font(pfStyled(size: 11))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 8)
-                        .frame(height: 22)
-                        .background(.thinMaterial, in: Capsule())
+                        .font(pfStyled(size: 10.5, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9)
+                        .frame(height: 23)
+                        .background(Color.black.opacity(0.22), in: Capsule())
                     Spacer()
+                    Label(Tr("实时预览"), systemImage: "eye.fill")
+                        .font(pfStyled(size: 10.5, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9)
+                        .frame(height: 23)
+                        .background(Color.black.opacity(0.22), in: Capsule())
                 }
-                HStack {
-                    Text(Tr("默认背景预览"))
-                        .font(pfStyled(size: 14))
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    Spacer(minLength: 60)
+
+                HStack(alignment: .bottom, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(Tr("你好，看看这张壁纸。"))
+                            .font(pfStyled(size: 13.5))
+                            .foregroundStyle(Color(hex: 0x111B21))
+                        Text("09:41")
+                            .font(pfStyled(size: 9.5))
+                            .foregroundStyle(Color(hex: 0x667781))
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.97),
+                                in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+
+                    Spacer(minLength: 54)
                 }
-                HStack {
-                    Spacer(minLength: 78)
-                    Text(Tr("黑白都保持清晰"))
-                        .font(pfStyled(size: 14))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                HStack(alignment: .bottom, spacing: 8) {
+                    Spacer(minLength: 70)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(Tr("上下遮罩会保持同一张壁纸。"))
+                            .font(pfStyled(size: 13.5))
+                            .foregroundStyle(Color(hex: 0x111B21))
+                        HStack(spacing: 3) {
+                            Spacer(minLength: 0)
+                            Text("09:42")
+                                .font(pfStyled(size: 9.5))
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 8.5, weight: .bold))
+                        }
+                        .foregroundStyle(Color(hex: 0x667781))
+                    }
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .background(Color(hex: 0xD9FDD3),
+                                in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 }
+
+                Spacer(minLength: 0)
+                    .frame(height: 12)
             }
-            .padding(16)
+            .padding(14)
         }
-        .frame(height: 235)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .stroke(Color.secondary.opacity(0.15), lineWidth: 0.7))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .frame(height: 250)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.primary.opacity(0.10), lineWidth: 0.7)
+        }
+        .shadow(color: Color.black.opacity(scheme == .dark ? 0.30 : 0.08),
+                radius: 16, y: 8)
     }
 
     private func pick(_ path: String, cacheKey: String = "") {
