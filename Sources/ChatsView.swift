@@ -1804,7 +1804,8 @@ struct ChatsView: View {
     @ViewBuilder private func chatsNavGlass(_ scrolled: CGFloat) -> some View {
         TopGlassBar(scrolled: scrolled,
                     fallback: chatsPageFill,
-                    offset: 9)
+                    offset: 9,
+                    always: true)
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
     }
