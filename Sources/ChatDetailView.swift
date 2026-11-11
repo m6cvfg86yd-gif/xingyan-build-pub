@@ -10,7 +10,7 @@ private enum ChatTheme {
     static let page = defaultChatCanvasColor()
     static let panel = Color.dyn(0xF0F2F5, 0x141416)
     static var bubbleMine: Color {
-        UIConfig.color("bubbleMineColor", 0x95EC69, 0x1E88C7)
+        UIConfig.color("bubbleMineColor", 0x0C7A70, 0x0D5C56)
     }
     static let bubbleOther = Color.dyn(0xFFFFFF, 0x1C1C1E)
     static let ink = Color.dyn(0x111B21, 0xE9EDEF)
@@ -18,12 +18,12 @@ private enum ChatTheme {
     static let secondary = Color.dyn(0x667781, 0x8696A0)
     static let groupSenderNameOnLight = Color.dyn(0x111B21, 0x111B21)
     static let groupSenderNameOnDark = Color.dyn(0xE9EDEF, 0xE9EDEF)
-    static let secondaryOnMine = Color.dyn(0x667781, 0xB7D7CF)
+    static let secondaryOnMine = Color.dyn(0xD4F5EF, 0xBCE9DF)
     static let timeInk = Color.dyn(0x667781, 0x8696A0)
     static let composerBg = Color.dyn(0xF0F2F5, 0x1C1C1E)
     static let separator = Color.dyn(0xE9EDEF, 0x2C2C2E)
     static let link = Color.dyn(0x0067DC, 0x7CCBFF)
-    static let linkOnMine = Color.dyn(0x003C9E, 0xBFE8FF)
+    static let linkOnMine = Color.dyn(0xEFFFFC, 0xD9FFF8)
     static let mentionMe = Color.dyn(0xE53935, 0xFF9E91)
     static let mentionMeOnMine = Color.dyn(0x7A1717, 0xFFD2CA)
 }
@@ -188,8 +188,8 @@ struct BubbleFill: View {
     private var mineFill: LinearGradient {
         LinearGradient(
             colors: [
-                Color.dyn(0x557AF7, 0x3567D8),
-                Color.dyn(0x5C78F7, 0x3D62D0)
+                Color.dyn(0x0C7A70, 0x0D5C56),
+                Color.dyn(0x085F57, 0x073F3B)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -5903,7 +5903,7 @@ struct MessageRow: View {
     }
 
     private var bubbleSecondaryInk: Color {
-        mine ? Color.white.opacity(0.84) : ChatTheme.secondary
+        mine ? Color(hex: 0xD4F5EF).opacity(0.92) : ChatTheme.secondary
     }
 
     private var bubbleMentionInk: Color {
@@ -5911,7 +5911,7 @@ struct MessageRow: View {
     }
 
     private var bubbleLinkInk: Color {
-        mine ? Color(hex: 0xDCE7FF) : ChatTheme.link
+        mine ? Color(hex: 0xEFFFFC) : ChatTheme.link
     }
 
     private var quoteSurface: Color {

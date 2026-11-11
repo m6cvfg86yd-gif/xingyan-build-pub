@@ -126,7 +126,7 @@ struct KefuPage: View {
             Text(m.body)
                 .font(pf(15))
 
-                .foregroundColor(mine ? C.bubbleText : C.label)
+                .foregroundColor(mine ? .white : C.label)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .background(

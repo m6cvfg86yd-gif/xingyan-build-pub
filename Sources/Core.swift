@@ -446,7 +446,7 @@ enum C {
 
     static var meCardBg    : Color { UIConfig.color("meCardBg", 0xFFFFFF, 0x141416) }
 
-    static var bubbleMine  : Color { UIConfig.color("bubbleMineColor", 0x95EC69, 0x1E88C7) }
+    static var bubbleMine  : Color { UIConfig.color("bubbleMineColor", 0x0C7A70, 0x0D5C56) }
     static var bubbleOther : Color { UIConfig.color("bubbleOtherColor", 0xFFFFFF, 0x1C1C1E) }
     static var bubbleText  : Color { UIConfig.color("bubbleTextColor", 0x191919, 0xF2F2F7) }
 

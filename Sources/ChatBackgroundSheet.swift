@@ -726,7 +726,7 @@ struct ChatBackgroundSheet: View {
                     }
                     .padding(.horizontal, 11)
                     .padding(.vertical, 8)
-                    .background(Color(hex: 0xD9FDD3),
+                    .background(Color(hex: 0x0C7A70),
                                 in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 }
 
