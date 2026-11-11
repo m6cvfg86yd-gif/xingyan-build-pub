@@ -808,10 +808,8 @@ struct PlusPanel: View {
     var onTap: (PlusItem) -> Void
 
     var onLongPress: ((PlusItem) -> Bool)? = nil
-    var onRecentImage: ((UIImage) -> Void)? = nil
 
     @State private var page = 0
-    @ObservedObject private var recentPhotos = RecentPhotoStore.shared
 
     @State private var pressed: String? = nil
     private let perPage = 8
@@ -849,14 +847,10 @@ struct PlusPanel: View {
     private var gridPad: CGFloat { L.v(14, 4.2, 18) }
     private var gridGap: CGFloat { L.v(10, 3.2, 14) }
     private var dotsH: CGFloat { L.v(22, 6, 26) }
-    private var recentRailExtra: CGFloat {
-        (onRecentImage != nil && !recentPhotos.assets.isEmpty) ? 102 : 0
-    }
-
     private var neededH: CGFloat {
         let rows = CGFloat(max(1, Int(ceil(Double(min(items.count, perPage)) / 4.0))))
         return gridPad * 2 + rows * (tileH + tileGap + 28) + max(0, rows - 1) * gridGap
-            + dotsH + recentRailExtra
+            + dotsH
     }
 
     var body: some View {
@@ -877,11 +871,6 @@ struct PlusPanel: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
 
-            if let onRecentImage {
-                RecentPhotoRail(store: recentPhotos, onPick: onRecentImage)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
-
             if pages.count > 1 {
                 HStack(spacing: L.v(5, 1.6, 7)) {
                     ForEach(pages.indices, id: \.self) { i in
@@ -899,7 +888,6 @@ struct PlusPanel: View {
         }
         .frame(height: max(panelH, neededH))
         .overlay(alignment: .top) { Rectangle().fill(C.hairline).frame(height: 0.5) }
-        .task { await recentPhotos.loadIfNeeded() }
     }
 
     private func tile(_ item: PlusItem) -> some View {
