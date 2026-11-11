@@ -92,7 +92,7 @@ private struct WorldStarfield: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { timeline in
             Canvas(opaque: false, rendersAsynchronously: true) { context, size in
                 let time = timeline.date.timeIntervalSinceReferenceDate
                 for star in stars {
@@ -1241,20 +1241,13 @@ private struct OffsetKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
-private struct OffsetKey2: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
-}
-
 private final class MomentCoverPullBox {
     var value: CGFloat = 0
 }
 
 private final class MomentScrollMetrics {
     var topY: CGFloat = 0
-    var blockY: CGFloat = 0
     var baseTop: CGFloat? = nil
-    var baseBlock: CGFloat? = nil
 }
 
 struct MomentsView: View {
@@ -1375,8 +1368,7 @@ struct MomentsView: View {
 
     private func updateSolidState() {
         let a = scrollMetrics.baseTop.map { $0 - scrollMetrics.topY } ?? 0
-        let b = scrollMetrics.baseBlock.map { $0 - scrollMetrics.blockY } ?? 0
-        let next = max(0, max(a, b)) > (L.coverH - 52) || sentinelGone
+        let next = max(0, a) > (L.coverH - 52) || sentinelGone
         if next != solid { solid = next }
     }
 
@@ -1403,18 +1395,17 @@ struct MomentsView: View {
                         coverView(extra)
                             .offset(y: coverLocked ? 0 : -extra)
                             .onAppear { coverPullBox.value = measured }
-                            .onChange(of: measured) { coverPullBox.value = $0 }
+                            .onChange(of: measured) { value in
+                                let quantized = (value / 4).rounded() * 4
+                                if abs(quantized - coverPullBox.value) >= 4 {
+                                    coverPullBox.value = quantized
+                                }
+                            }
                     }
                     .frame(height: L.coverH + (coverLocked ? coverLockPull : 0))
                     .zIndex(1)
                     momentList
                 }
-                .background(
-                    GeometryReader { g in
-                        Color.clear.preference(key: OffsetKey2.self,
-                                               value: g.frame(in: .global).minY)
-                    }
-                )
             }
             .coordinateSpace(name: "momentsScroll")
             .onPreferenceChange(OffsetKey.self) { y in
@@ -1436,12 +1427,6 @@ struct MomentsView: View {
                         ScrollGate.shared.setScrolling(false)
                     }
             )
-            .onPreferenceChange(OffsetKey2.self) { y in
-                if scrollMetrics.baseBlock == nil { scrollMetrics.baseBlock = y }
-                scrollMetrics.blockY = y
-                updateSolidState()
-            }
-
             .simultaneousGesture(
                 DragGesture(minimumDistance: 8)
                     .onChanged { v in
@@ -1544,9 +1529,7 @@ struct MomentsView: View {
         }
         .onAppear {
             scrollMetrics.baseTop = nil
-            scrollMetrics.baseBlock = nil
             scrollMetrics.topY = 0
-            scrollMetrics.blockY = 0
             sentinelGone = false
             solid = false
         }
