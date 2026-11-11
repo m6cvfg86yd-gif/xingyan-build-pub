@@ -725,6 +725,7 @@ extension Notification.Name {
 
 private enum ChatSwipeFeedback {
     static let selection = UISelectionFeedbackGenerator()
+    static let notification = UINotificationFeedbackGenerator()
 }
 
 struct SwipeChatRow: View {
@@ -857,7 +858,7 @@ struct SwipeChatRow: View {
                     dragging = false
                     dragVelocity = vx
                     if -offset > fullW * 1.12, vx <= 0 {
-                        ChatSwipeFeedback.selection.notificationOccurred(.success)
+                        ChatSwipeFeedback.notification.notificationOccurred(.success)
                         onPin(chat.pinned != true)
                         close()
                         return
