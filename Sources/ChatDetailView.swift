@@ -13,13 +13,13 @@ private enum ChatTheme {
         UIConfig.color("bubbleMineColor", 0x95EC69, 0x1E88C7)
     }
     static let bubbleOther = Color.dyn(0xFFFFFF, 0x1C1C1E)
-    static let ink = Color.dyn(0x161823, 0xE9EBF0)
-    static let mineInk = Color.dyn(0xFFFFFF, 0xE9EBF0)
-    static let secondary = Color.dyn(0x999999, 0x7D8188)
-    static let groupSenderNameOnLight = Color.dyn(0x07110C, 0x07110C)
-    static let groupSenderNameOnDark = Color.dyn(0xFFFFFF, 0xFFFFFF)
-    static let secondaryOnMine = Color.dyn(0x999999, 0xB7D7CF)
-    static let timeInk = Color.dyn(0x8A8A8E, 0x8A8D94)
+    static let ink = Color.dyn(0x111B21, 0xE9EDEF)
+    static let mineInk = Color.dyn(0xFFFFFF, 0xE9EDEF)
+    static let secondary = Color.dyn(0x667781, 0x8696A0)
+    static let groupSenderNameOnLight = Color.dyn(0x111B21, 0x111B21)
+    static let groupSenderNameOnDark = Color.dyn(0xE9EDEF, 0xE9EDEF)
+    static let secondaryOnMine = Color.dyn(0x667781, 0xB7D7CF)
+    static let timeInk = Color.dyn(0x667781, 0x8696A0)
     static let composerBg = Color.dyn(0xF0F2F5, 0x1C1C1E)
     static let separator = Color.dyn(0xE9EDEF, 0x2C2C2E)
     static let link = Color.dyn(0x0067DC, 0x7CCBFF)
@@ -2874,9 +2874,8 @@ struct ChatDetailView: View {
 
     private func timeLine(_ message: Message) -> some View {
         Text(TimeFmt.bubble(message.createdAt))
-            .font(.caption2)
-            .monospacedDigit()
-            .foregroundColor(adaptiveSystemInk)
+            .font(pf(12, .medium))
+            .foregroundColor(adaptiveSystemSecondaryInk)
 
             .padding(.horizontal, L.o("chatTimePadX", 9))
             .padding(.vertical, L.o("chatTimePadY", 4))
@@ -2899,9 +2898,9 @@ struct ChatDetailView: View {
 
     private func recallLine(_ message: Message) -> some View {
         Text(recallText(message))
-            .font(.footnote)
+            .font(pf(13))
 
-            .foregroundColor(adaptiveSystemInk)
+            .foregroundColor(adaptiveSystemSecondaryInk)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
@@ -5786,7 +5785,7 @@ struct MessageRow: View {
 
                 HStack(spacing: 4) {
                     Text(senderName)
-                        .font(pf(12, .medium))
+                        .font(pf(13, .semibold))
                         .foregroundColor(senderNameUsesLightInk
                                          ? ChatTheme.groupSenderNameOnDark
                                          : ChatTheme.groupSenderNameOnLight)
