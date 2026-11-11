@@ -225,7 +225,6 @@ struct NativeTabBar: UIViewRepresentable {
             selectedColor: UIColor.systemBlue
         )
         refresh(bar)
-        context.coordinator.animateSelection(in: bar, index: selection)
     }
 
     private func applyColors(_ bar: UITabBar) {
@@ -305,7 +304,6 @@ struct NativeTabBar: UIViewRepresentable {
                                        "globe.americas.fill", "person.crop.circle.fill"]
         private var appliedIconKeys: [Int: String] = [:]
         private var appliedStyleKey = ""
-        private var lastSelection: Int?
         private let selectionFeedback = UISelectionFeedbackGenerator()
 
         init(selection: Binding<Int>) {
@@ -317,44 +315,6 @@ struct NativeTabBar: UIViewRepresentable {
             selectionFeedback.prepare()
             selectionFeedback.selectionChanged()
             selection.wrappedValue = index
-            stabilizeLayout(tabBar)
-        }
-
-        func animateSelection(in bar: UITabBar, index: Int) {
-            defer { lastSelection = index }
-            guard let previous = lastSelection, previous != index else { return }
-            DispatchQueue.main.async { [weak bar] in
-                guard let bar else { return }
-                let buttons = bar.subviews
-                    .filter { String(describing: type(of: $0)).contains("UITabBarButton") }
-                    .sorted { $0.frame.minX < $1.frame.minX }
-                guard buttons.indices.contains(index) else { return }
-                let button = buttons[index]
-                button.layer.removeAnimation(forKey: "xingyan.tabBounce")
-                let bounce = CAKeyframeAnimation(keyPath: "transform.scale")
-                bounce.values = [1.0, 0.84, 1.10, 0.97, 1.0]
-                bounce.keyTimes = [0, 0.16, 0.48, 0.74, 1]
-                bounce.duration = 0.38
-                bounce.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                button.layer.add(bounce, forKey: "xingyan.tabBounce")
-
-                let lift = CAKeyframeAnimation(keyPath: "transform.translation.y")
-                lift.values = [0, 1.4, -1.2, 0]
-                lift.keyTimes = [0, 0.18, 0.56, 1]
-                lift.duration = 0.38
-                lift.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                button.layer.add(lift, forKey: "xingyan.tabLift")
-            }
-        }
-
-        private func stabilizeLayout(_ bar: UITabBar) {
-            bar.setNeedsLayout()
-            UIView.performWithoutAnimation { bar.layoutIfNeeded() }
-            DispatchQueue.main.async { [weak bar] in
-                guard let bar else { return }
-                bar.setNeedsLayout()
-                UIView.performWithoutAnimation { bar.layoutIfNeeded() }
-            }
         }
 
         fileprivate func customIcon(_ index: Int) -> String? {
