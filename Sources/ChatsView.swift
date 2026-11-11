@@ -124,9 +124,11 @@ struct RowSwipeCatcher: UIViewRepresentable {
         }
 
         func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
-            // 系统刚开始识别时通常只有约 10px 位移；如果此时要求明显横向，
-            // 稍带斜度的左滑会被直接判失败、后面再也起不来。
-            // 先允许识别，在 handlePan(.changed) 里真正判断横向意图。
+            if let pan = g as? UIPanGestureRecognizer,
+               let view = pan.view {
+                let v = pan.velocity(in: view)
+                return abs(v.x) > abs(v.y) * 1.1
+            }
             true
         }
     }
