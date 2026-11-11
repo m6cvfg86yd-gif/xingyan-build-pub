@@ -61,6 +61,7 @@ struct MainTabView: View {
                 }
                 .tag(3)
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
             .toolbar(.hidden, for: .tabBar)
             .toolbarBackground(.hidden, for: .tabBar)
             .background {
