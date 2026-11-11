@@ -668,9 +668,12 @@ struct ChatRow: View, Equatable {
                 || (chat.avatar ?? "").contains("/uploads/group-") {
                 GroupAvatarMosaic(chatId: chat.id,
                                   memberIds: chat.memberIds ?? [],
-                                  size: ChatListVisual.avatarSize, radius: 16)
+                                  size: ChatListVisual.avatarSize,
+                                  radius: ChatListVisual.avatarSize / 2)
             } else {
-                Avatar(path: displayAvatar, size: ChatListVisual.avatarSize, radius: 16,
+                Avatar(path: displayAvatar,
+                       size: ChatListVisual.avatarSize,
+                       radius: ChatListVisual.avatarSize / 2,
                        group: chat.type == "group" || (chat.memberCount ?? 0) > 2,
                        level: chat.qqLevel ?? 0)
             }
@@ -1324,9 +1327,9 @@ struct ChatsView: View {
                     showAccounts = true
                 } label: {
                     Avatar(path: app.me?.avatarPath ?? "",
-                           size: 40, radius: 13)
+                           size: 40, radius: 20)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            Circle()
                                 .stroke(ChatListVisual.rule, lineWidth: 0.5)
                         )
                         .frame(width: 44, height: 44)

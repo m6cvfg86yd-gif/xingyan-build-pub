@@ -2997,7 +2997,7 @@ struct ChatDetailView: View {
         HStack(alignment: .top, spacing: 0) {
             if mine { Spacer(minLength: 0) }
             if !mine {
-                Avatar(path: callerAvatar, size: L.chatAvatar, radius: 4)
+                Avatar(path: callerAvatar, size: L.chatAvatar, radius: L.chatAvatar / 2)
                 Spacer().frame(width: L.chatGapMsg)
             }
             Button {
@@ -3008,7 +3008,7 @@ struct ChatDetailView: View {
             .buttonStyle(.plain)
             if mine {
                 Spacer().frame(width: L.chatGapMsg)
-                Avatar(path: callerAvatar, size: L.chatAvatar, radius: 4)
+                Avatar(path: callerAvatar, size: L.chatAvatar, radius: L.chatAvatar / 2)
             }
             if !mine { Spacer(minLength: 0) }
         }
@@ -5761,7 +5761,8 @@ struct MessageRow: View {
         let lv = (message.senderId == myId)
             ? GrowthStore.shared.shownLevel
             : senderQQLevel
-        return Avatar(path: avatarPath, size: L.chatAvatar, radius: 4, level: lv)
+        return Avatar(path: avatarPath, size: L.chatAvatar,
+                      radius: L.chatAvatar / 2, level: lv)
             .scaleEffect(patPulse ? 1.10 : 1)
             .shadow(color: C.green.opacity(patPulse ? 0.30 : 0),
                     radius: patPulse ? 9 : 0)
