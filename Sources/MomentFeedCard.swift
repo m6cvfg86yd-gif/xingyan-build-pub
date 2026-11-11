@@ -117,7 +117,7 @@ struct MomentFeedCard: View {
                         Text(location).lineLimit(1)
                     }
                 }
-                .font(systemTextFont(12, .regular, relativeTo: .caption))
+                .font(systemTextFont(12, .regular, relativeTo: .caption1))
                 .foregroundColor(C.subLabel)
             }
             .contentShape(Rectangle())
@@ -242,7 +242,7 @@ struct MomentFeedCard: View {
                         .scaleEffect(likePulse ? 1.16 : 1)
                     if showingLikeCount > 0 {
                         Text("\(showingLikeCount)")
-                            .font(systemTextFont(12.5, .medium, relativeTo: .caption))
+                            .font(systemTextFont(12.5, .medium, relativeTo: .caption1))
                     }
                 }
                 .foregroundColor(showingLiked ? Color(hex: 0xFF3B4D) : C.subLabel)
@@ -258,7 +258,7 @@ struct MomentFeedCard: View {
                         .font(.system(size: 18, weight: .regular))
                     if !comments.isEmpty {
                         Text("\(comments.count)")
-                            .font(systemTextFont(12.5, .medium, relativeTo: .caption))
+                            .font(systemTextFont(12.5, .medium, relativeTo: .caption1))
                     }
                 }
                 .foregroundColor(C.subLabel)
@@ -301,7 +301,7 @@ struct MomentFeedCard: View {
                         Text(Lang.isEnglish
                              ? "View all \(comments.count) comments"
                              : "查看全部 \(comments.count) 条评论")
-                            .font(systemTextFont(12.5, .medium, relativeTo: .caption))
+                            .font(systemTextFont(12.5, .medium, relativeTo: .caption1))
                             .foregroundColor(C.subLabel)
                     }
                     .buttonStyle(.plain)
@@ -325,7 +325,7 @@ struct MomentFeedCard: View {
                 .frame(height: 22)
 
                 Text(localizedLikeSummary)
-                    .font(systemTextFont(12.5, .medium, relativeTo: .caption))
+                    .font(systemTextFont(12.5, .medium, relativeTo: .caption1))
                     .foregroundColor(C.label)
                     .lineLimit(1)
 
@@ -393,23 +393,19 @@ struct MomentFeedCard: View {
     private func commentLine(_ comment: MomentComment) -> some View {
         let name = comment.nickname ?? ""
         let text = comment.content ?? ""
-        return Group {
-            if comment.replyToName?.isEmpty == false {
-                Text(name).fontWeight(.semibold).foregroundColor(C.label)
-                    + Text(" 回复 ").foregroundColor(C.subLabel)
-                    + Text(comment.replyToName ?? "").fontWeight(.semibold).foregroundColor(C.label)
-                    + Text("：" + text).foregroundColor(C.label)
-            } else {
-                Text(name).fontWeight(.semibold).foregroundColor(C.label)
-                    + Text("：" + text).foregroundColor(C.label)
-            }
-        }
-        .font(systemTextFont(13, .regular, relativeTo: .caption))
-        .lineLimit(2)
-        .multilineTextAlignment(.leading)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onOpenComments)
+        let replyName = (comment.replyToName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let line = replyName.isEmpty
+            ? "\(name)：\(text)"
+            : "\(name) 回复 \(replyName)：\(text)"
+
+        return Text(line)
+            .foregroundColor(C.label)
+            .font(systemTextFont(13, .regular, relativeTo: .caption1))
+            .lineLimit(2)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onOpenComments)
     }
 
     private static func timeText(_ seconds: Int) -> String {
@@ -548,7 +544,7 @@ private struct MomentLikesSheet: View {
                 .foregroundColor(C.subLabel)
             Spacer(minLength: 0)
         }
-        .font(systemTextFont(13, .semibold, relativeTo: .caption))
+        .font(systemTextFont(13, .semibold, relativeTo: .caption1))
         .foregroundColor(C.label)
         .padding(.horizontal, 18)
         .padding(.top, 15)
@@ -577,7 +573,7 @@ private struct MomentLikesSheet: View {
                     .foregroundColor(C.label)
                     .lineLimit(1)
                 Text(relationship)
-                    .font(systemTextFont(12, .regular, relativeTo: .caption))
+                    .font(systemTextFont(12, .regular, relativeTo: .caption1))
                     .foregroundColor(C.subLabel)
             }
 
