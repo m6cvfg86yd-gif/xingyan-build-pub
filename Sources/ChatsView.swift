@@ -1802,15 +1802,9 @@ struct ChatsView: View {
     }
 
     @ViewBuilder private func chatsNavGlass(_ scrolled: CGFloat) -> some View {
-        let blur = UIConfig.num("chatsNavGlassAlpha", 1)
-        let reveal = max(0, min(1, scrolled / 9))
-        ZStack {
-            chatsPageFill
-                .opacity(1 - reveal)
-            if reveal > 0.01 {
-                NativeChromeMaterial(opacity: max(0, min(1, blur)) * reveal)
-            }
-        }
+        TopGlassBar(scrolled: scrolled,
+                    fallback: chatsPageFill,
+                    offset: 9)
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
     }

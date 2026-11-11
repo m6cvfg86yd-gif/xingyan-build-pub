@@ -316,14 +316,7 @@ struct DiscoverView: View {
     }
 
     private var worldPageBackground: some View {
-        ZStack {
-            if scheme == .dark {
-                Color.black
-                WorldStarfield()
-            } else {
-                Color.white
-            }
-        }
+        worldCanvas
     }
 
     private var worldSectionFill: Color {
