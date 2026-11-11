@@ -1078,7 +1078,7 @@ struct ChatDetailView: View {
                             HStack(spacing: 4) {
                                 Text(title)
                                     .font(pf(16.5, .semibold))
-                                    .foregroundStyle(Color(.systemBlue))
+                                    .foregroundStyle(adaptiveTopAccent)
                                     .lineLimit(1)
                             }
 
@@ -1086,7 +1086,7 @@ struct ChatDetailView: View {
                                 Text(whatsAppChatSubtitle)
                                     .font(pf(11.5, .regular))
                                     .foregroundColor(adaptiveTopInk.opacity(
-                                        topBarUsesLightInk ? 0.82 : 0.76
+                                        topBarUsesLightInk ? 0.96 : 0.88
                                     ))
                                     .lineLimit(1)
                             }
@@ -1445,6 +1445,12 @@ struct ChatDetailView: View {
 
     private var adaptiveTopInk: Color {
         topBarUsesLightInk ? .white : .black
+    }
+
+    private var adaptiveTopAccent: Color {
+        topBarUsesLightInk
+            ? Color(hex: 0x75C4FF)
+            : Color(hex: 0x0866D8)
     }
 
     private var adaptiveTopOutline: Color {
@@ -5766,12 +5772,6 @@ struct MessageRow: View {
             .onTapGesture { onOpenAvatar?(message.senderId ?? "") }
     }
 
-    private var senderNameOutline: Color {
-        senderNameUsesLightInk
-            ? Color.black.opacity(0.72)
-            : Color.white.opacity(0.88)
-    }
-
     private var bubbleColumn: some View {
         VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
             if !senderName.isEmpty {
@@ -5782,10 +5782,6 @@ struct MessageRow: View {
                         .foregroundColor(senderNameUsesLightInk
                                          ? ChatTheme.groupSenderNameOnDark
                                          : ChatTheme.groupSenderNameOnLight)
-                        .shadow(color: senderNameOutline, radius: 0.2, x: 0.8, y: 0)
-                        .shadow(color: senderNameOutline, radius: 0.2, x: -0.8, y: 0)
-                        .shadow(color: senderNameOutline, radius: 0.2, x: 0, y: 0.8)
-                        .shadow(color: senderNameOutline, radius: 0.2, x: 0, y: -0.8)
                         .lineLimit(1)
                     if senderQQLevel > 0,
                        GrowthFlags.showInChats == true {
