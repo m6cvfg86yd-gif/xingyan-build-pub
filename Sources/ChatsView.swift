@@ -14,8 +14,8 @@ private enum ChatListVisual {
     static let ink = Color.dyn(0x1A1A1A, 0xF4F4F6)
     static let previewInk = Color.dyn(0xB2B2B2, 0x9E9FA5)
     static let timeInk = Color.dyn(0xCCCCCC, 0x74757B)
-    static let rule = Color.dyn(0xE9EDEF, 0x1C1C20)
-    static let badgeRing = Color.dyn(0xFFFFFF, 0x000000)
+    static let rule = Color.dyn(0xE9EDEF, 0x1F2C34)
+    static let badgeRing = Color.dyn(0xFFFFFF, 0x0B141A)
     static let chipInk = Color.dyn(0x62636A, 0xA8A9AF)
     static let selectedChipFill = Color.dyn(0x161823, 0xF1F1F3)
     static let selectedChipInk = Color.dyn(0xFFFFFF, 0x17171A)
@@ -756,7 +756,7 @@ struct SwipeChatRow: View {
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
-    private var rowBg: Color { cardStyle ? .clear : Color.dyn(0xFFFFFF, 0x000000) }
+    private var rowBg: Color { cardStyle ? .clear : Color.dyn(0xFFFFFF, 0x0B141A) }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -991,9 +991,9 @@ struct ChatsView: View {
     private var chatsCardInset: CGFloat { max(8, UIConfig.num("chatsOrbitInset", 12)) }
     private var chatsCardRadius: CGFloat { max(16, UIConfig.num("chatsOrbitRadius", 22)) }
     private var chatsPageFill: Color {
-        Color.dyn(0xFFFFFF, 0x000000)
+        Color.dyn(0xFFFFFF, 0x0B141A)
     }
-    private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x000000) }
+    private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x0B141A) }
 
     @State private var scrolled: CGFloat = 0
     @State private var filterHidden = false
@@ -1403,7 +1403,7 @@ struct ChatsView: View {
             .frame(height: 36)
             .background {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.dyn(0xF0F2F5, 0x0A0A0A))
+                    .fill(Color.dyn(0xF0F2F5, 0x202C33))
                     .overlay {
                         RoundedRectangle(cornerRadius: 9, style: .continuous)
                             .stroke(C.searchBorderChats, lineWidth: 0.6)
