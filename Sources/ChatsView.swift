@@ -758,7 +758,7 @@ struct SwipeChatRow: View {
                 chat: chat,
                 app: app,
                 contactRevision: app.contactVisualRevision,
-                onTapAvatar: onTapAvatar
+                onTapAvatar: nil
             ))
                 .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
                 .background(rowBg)
@@ -781,37 +781,42 @@ struct SwipeChatRow: View {
         .background(rowBg)
         .clipped()
 
-        .overlay(alignment: .leading) {
-            RowSwipeCatcher(
-                onTap: { p in
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            SpatialTapGesture()
+                .onEnded { value in
                     if offset != 0 {
                         close()
-                    } else if p.x < ChatListVisual.rowLeading + ChatListVisual.avatarSize + 10,
+                    } else if value.location.x <
+                                ChatListVisual.rowLeading + ChatListVisual.avatarSize + 10,
                               let tap = onTapAvatar {
                         tap()
                     } else {
                         onOpen()
                     }
-                },
-                onBegan: {
-                    dragging = true
-                    startOffset = offset
-                    dragVelocity = 0
-                    crossedOpen = (-offset > fullW * 0.42)
-                    ChatSwipeFeedback.selection.prepare()
-
-                    NotificationCenter.default.post(name: .chrisRowSwipe, object: chat.id)
-                },
-                onChanged: { dx in
-                    var x = startOffset + dx
-                    if x > 0 {
-
-                        x = min(10, x * 0.22)
-                    } else if x < -fullW {
-
-                        x = -(fullW + min(92, (-x - fullW) * 0.30))
+                }
+        )
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 8)
+                .onChanged { value in
+                    let dx = value.translation.width
+                    let dy = value.translation.height
+                    if !dragging {
+                        guard abs(dx) >= max(7, abs(dy) + 2.5) else { return }
+                        dragging = true
+                        startOffset = offset
+                        dragVelocity = 0
+                        crossedOpen = (-offset > fullW * 0.42)
+                        ChatSwipeFeedback.selection.prepare()
+                        NotificationCenter.default.post(name: .chrisRowSwipe, object: chat.id)
                     }
 
+                    var x = startOffset + dx
+                    if x > 0 {
+                        x = min(10, x * 0.22)
+                    } else if x < -fullW {
+                        x = -(fullW + min(92, (-x - fullW) * 0.30))
+                    }
                     offset = x
 
                     let nowCrossed = (-offset > fullW * 0.42)
@@ -819,16 +824,16 @@ struct SwipeChatRow: View {
                         crossedOpen = nowCrossed
                         ChatSwipeFeedback.selection.selectionChanged()
                     }
-
-                },
-                onEnded: { _, vx in
+                }
+                .onEnded { value in
+                    guard dragging else { return }
                     dragging = false
+                    let projected = value.predictedEndTranslation.width - value.translation.width
+                    let vx = projected / 0.16
                     dragVelocity = vx
                     settle(velocity: vx)
                 }
-            )
-            .frame(width: max(0, rowWidth + offset), height: ChatListVisual.rowHeight)
-        }
+        )
 
         .onReceive(NotificationCenter.default.publisher(for: .chrisRowSwipe)) { note in
             if let id = note.object as? String {

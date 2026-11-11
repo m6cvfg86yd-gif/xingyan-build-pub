@@ -40,33 +40,38 @@ struct MainTabView: View {
 
         ZStack(alignment: .bottom) {
 
-            TabView(selection: $tab) {
+            ZStack {
                 Group {
                     if mountedTabs.contains(0) { ChatsView() } else { Color.clear }
                 }
-                .tag(0)
+                .opacity(tab == 0 ? 1 : 0)
+                .allowsHitTesting(tab == 0)
+                .accessibilityHidden(tab != 0)
+                .zIndex(tab == 0 ? 1 : 0)
 
                 Group {
                     if mountedTabs.contains(1) { ContactsView() } else { Color.clear }
                 }
-                .tag(1)
+                .opacity(tab == 1 ? 1 : 0)
+                .allowsHitTesting(tab == 1)
+                .accessibilityHidden(tab != 1)
+                .zIndex(tab == 1 ? 1 : 0)
 
                 Group {
                     if mountedTabs.contains(2) { DiscoverView() } else { Color.clear }
                 }
-                .tag(2)
+                .opacity(tab == 2 ? 1 : 0)
+                .allowsHitTesting(tab == 2)
+                .accessibilityHidden(tab != 2)
+                .zIndex(tab == 2 ? 1 : 0)
 
                 Group {
                     if mountedTabs.contains(3) { MeView() } else { Color.clear }
                 }
-                .tag(3)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .toolbar(.hidden, for: .tabBar)
-            .toolbarBackground(.hidden, for: .tabBar)
-            .background {
-                SystemTabBarHider()
-                    .frame(width: 0, height: 0)
+                .opacity(tab == 3 ? 1 : 0)
+                .allowsHitTesting(tab == 3)
+                .accessibilityHidden(tab != 3)
+                .zIndex(tab == 3 ? 1 : 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
