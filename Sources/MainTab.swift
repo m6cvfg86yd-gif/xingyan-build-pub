@@ -43,13 +43,17 @@ struct MainTabView: View {
 
         ZStack(alignment: .bottom) {
 
-            ZStack {
-                tabLayer(ChatsView(), index: 0)
-                tabLayer(ContactsView(), index: 1)
-                tabLayer(DiscoverView(), index: 2)
-                tabLayer(MeView(), index: 3)
+            TabView(selection: $tab) {
+                ChatsView()
+                    .tag(0)
+                ContactsView()
+                    .tag(1)
+                DiscoverView()
+                    .tag(2)
+                MeView()
+                    .tag(3)
             }
-            .animation(.easeOut(duration: 0.14), value: tab)
+            .toolbar(.hidden, for: .tabBar)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             .ignoresSafeArea(edges: app.tabBarHidden ? [] : .bottom)

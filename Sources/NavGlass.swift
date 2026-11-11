@@ -228,8 +228,11 @@ extension View {
             .coordinateSpace(name: space)
             .onPreferenceChange(TopScrollKey.self) { v in
                 let s = max(0, v)
-                if s > scrolled.wrappedValue || s < 1 {
-                    if abs(s - scrolled.wrappedValue) > 0.5 { scrolled.wrappedValue = s }
+                let current = scrolled.wrappedValue
+                if s < 1, current != 0 {
+                    scrolled.wrappedValue = 0
+                } else if abs(s - current) >= 8 || (current < 8 && s >= 8) {
+                    scrolled.wrappedValue = s
                 }
             }
     }
