@@ -1687,13 +1687,7 @@ struct MomentsView: View {
                         .font(.system(size: 21, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(width: 46, height: 46)
-                        .background {
-                            ZStack {
-                                GlassBackground(shape: Circle(), opacity: 0.92,
-                                                edgeAlpha: 0.74, seed: 0.36)
-                                Circle().fill(Color.black.opacity(0.18))
-                            }
-                        }
+                        .background(Circle().fill(Color.black.opacity(0.48)))
 
                     Text(Tr("设置生活圈封面"))
                         .font(pf(16.5, .semibold))
@@ -1711,15 +1705,8 @@ struct MomentsView: View {
                             .font(pf(14.5, .semibold))
                             .foregroundColor(.white)
                             .frame(width: 118, height: 38)
-                            .background {
-                                ZStack {
-                                    GlassBackground(shape: Capsule(style: .continuous),
-                                                    opacity: 0.96,
-                                                    edgeAlpha: 0.82,
-                                                    seed: 0.62)
-                                    Capsule().fill(C.green.opacity(0.26))
-                                }
-                            }
+                            .background(Capsule(style: .continuous)
+                                .fill(C.green.opacity(0.92)))
                             .overlay {
                                 Capsule(style: .continuous)
                                     .stroke(Color.white.opacity(0.42), lineWidth: 0.8)
@@ -1730,17 +1717,8 @@ struct MomentsView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 18)
                 .frame(maxWidth: 286)
-                .background {
-                    ZStack {
-                        GlassBackground(shape: RoundedRectangle(cornerRadius: 22, style: .continuous),
-                                        opacity: 0.82,
-                                        edgeAlpha: 0.58,
-                                        shadow: true,
-                                        seed: 0.48)
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(Color.black.opacity(0.24))
-                    }
-                }
+                .background(RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.black.opacity(0.58)))
                 .overlay {
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .stroke(Color.white.opacity(0.24), lineWidth: 0.7)
@@ -1803,15 +1781,8 @@ struct MomentsView: View {
                             .font(pf(12.5, .medium))
                             .foregroundColor(.white)
                             .frame(width: 88, height: 32)
-                            .background {
-                                if coverLocked {
-                                    Capsule()
-                                        .fill(.ultraThinMaterial)
-                                        .overlay(Capsule().fill(Color.black.opacity(0.12)))
-                                } else {
-                                    Capsule().fill(Color.black.opacity(0.44))
-                                }
-                            }
+                            .background(Capsule()
+                                .fill(Color.black.opacity(0.62)))
                             .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 0.7))
                     }
                     .buttonStyle(.plain)
@@ -1862,59 +1833,21 @@ struct MomentsView: View {
     }
 
     private func momentRow(_ moment: Moment) -> some View {
-        MomentNoteCard(
+        MomentFeedCard(
             moment: moment,
-            columnWidth: noteColumnWidth,
+            availableWidth: L.width,
             onOpenComments: { commentsSheet = moment },
+            onOpenImage: { index in
+                let paths = moment.images ?? []
+                guard paths.indices.contains(index) else { return }
+                viewerPaths = paths
+                viewerIndex = index
+            },
             onOpenVideo: { url in momentVideo = url },
             onOpenAvatar: { user in cardUser = user },
             onLike: { like(moment) },
-            onMore: { actionMoment = moment },
-            onDelete: { remove(moment) }
+            onMore: { actionMoment = moment }
         )
-    }
-
-    private var noteColumnWidth: CGFloat {
-        max(138, (L.width - 16 - 10) / 2)
-    }
-
-    private func noteColumns() -> ([Moment], [Moment]) {
-        let pinned = moments.filter { $0.pinned == true }
-        let regular = moments.filter { $0.pinned != true }
-        var left: [Moment] = []
-        var right: [Moment] = []
-        var leftH: CGFloat = 0
-        var rightH: CGFloat = 0
-        for moment in pinned + regular {
-            let h = estimatedNoteHeight(moment)
-            if leftH <= rightH {
-                left.append(moment)
-                leftH += h + 14
-            } else {
-                right.append(moment)
-                rightH += h + 14
-            }
-        }
-        return (left, right)
-    }
-
-    private func estimatedNoteHeight(_ moment: Moment) -> CGFloat {
-        let width = noteColumnWidth
-        var media: CGFloat = 0
-        if !(moment.video ?? "").isEmpty {
-            let w = CGFloat(max(1, moment.videoW ?? 4))
-            let h = CGFloat(max(1, moment.videoH ?? 5))
-            media = min(width * 1.48, max(width * 0.68, width * h / w))
-        } else if let first = (moment.images ?? []).first,
-                  let size = moment.imageSizes?[first], size.count >= 2,
-                  size[0] > 0, size[1] > 0 {
-            media = min(width * 1.50, max(width * 0.72,
-                                          width * CGFloat(size[1]) / CGFloat(size[0])))
-        } else if !(moment.images ?? []).isEmpty {
-            media = width * 1.16
-        }
-        let text = moment.content?.isEmpty == false ? CGFloat(64) : 10
-        return max(92, media + text + 55)
     }
 
     private func dayLabel(_ s: String?) -> String {
@@ -2006,7 +1939,6 @@ struct MomentsView: View {
     }
 
     private var momentList: some View {
-        let lanes = noteColumns()
         return LazyVStack(spacing: 0) {
             Color.clear
                 .frame(height: 1)
@@ -2019,23 +1951,14 @@ struct MomentsView: View {
                     updateSolidState()
                 }
 
-            HStack(alignment: .top, spacing: 10) {
-                LazyVStack(spacing: 14) {
-                    ForEach(lanes.0) { moment in
-                        momentRow(moment)
-                    }
+            ForEach(Array(moments.enumerated()), id: \.element.id) { index, moment in
+                let day = dayLabel(moment.createdAt)
+                if index == 0 || day != dayLabel(moments[index - 1].createdAt) {
+                    dayHeader(day)
+                        .padding(.horizontal, L.momentPadH)
                 }
-                .frame(width: noteColumnWidth)
-
-                LazyVStack(spacing: 14) {
-                    ForEach(lanes.1) { moment in
-                        momentRow(moment)
-                    }
-                }
-                .frame(width: noteColumnWidth)
+                momentRow(moment)
             }
-            .frame(maxWidth: .infinity, alignment: .top)
-            .padding(.horizontal, 8)
 
             if hasMoreMoments {
                 Text(loadingMore ? "正在加载…" : " ")
@@ -2064,10 +1987,10 @@ struct MomentsView: View {
                     .padding(.vertical, 16)
             }
         }
-        .padding(.top, 60)
+        .padding(.top, 18)
         .padding(.bottom, max(42, L.safeBottom + 20))
         .frame(maxWidth: .infinity)
-        .background(C.cardBg)
+        .background(C.pageBg)
         .offset(y: 0)
         .zIndex(0)
     }
@@ -2076,7 +1999,7 @@ struct MomentsView: View {
         ZStack {
 
             if solid {
-                Text(Tr("朋友圈"))
+                Text(Tr("生活圈"))
                     .font(pf(UIConfig.num("navTitle", 17)))
                     .foregroundColor(C.label)
             }
@@ -2126,17 +2049,18 @@ struct MomentsView: View {
         }
         .frame(height: L.navH)
 
-        .background { TopGlassBar(scrolled: solid ? 999 : 0,
-                                  fallback: Color.dyn(0xFFFFFF, 0x191919)) }
+        .background(solid ? C.pageBg : Color.clear)
+        .animation(.easeOut(duration: 0.18), value: solid)
         .zIndex(25)
         .allowsHitTesting(true)
     }
 
     private func openPhoto(_ path: String, in moment: Moment) {
         guard Date() >= tapLockUntil else { return }
-        guard !(moment.images ?? []).isEmpty else { return }
-        _ = path
-        commentsSheet = moment
+        let paths = moment.images ?? []
+        guard let index = paths.firstIndex(of: path) else { return }
+        viewerPaths = paths
+        viewerIndex = index
     }
 
     private func openNotice(_ n: MomentNotice) {
@@ -2992,19 +2916,8 @@ struct MomentRow: View {
                     }
                 }
                 .frame(width: 28, height: 19)
-                .background {
-                    ZStack {
-                        GlassBackground(
-                            shape: RoundedRectangle(cornerRadius: 4, style: .continuous),
-                            opacity: UIConfig.num("momentBtnGlass", 0.85),
-                            edgeAlpha: UIConfig.num("momentBtnEdge", 0.40),
-                            shadow: false,
-                            seed: 0.70
-                        )
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(C.cardBg.opacity(0.32))
-                    }
-                }
+                .background(RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Color.dyn(0xF2F2F7, 0x1C1C1E)))
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
             }
@@ -3209,18 +3122,8 @@ struct MomentRow: View {
             }
         }
 
-        .background {
-            ZStack {
-                GlassBackground(shape: RoundedRectangle(cornerRadius: 5, style: .continuous),
-                                opacity: UIConfig.num("momentBarGlass", 0.9),
-                                edgeAlpha: UIConfig.num("momentBarEdge", 0.35),
-                                shadow: false,
-                                seed: 0.60)
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(Color.black.opacity(0.58))
-            }
-        }
-        .shadow(color: Color.black.opacity(0.18), radius: 6, y: 2)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(Color.dyn(0x1C1C1E, 0x2C2C2E)))
     }
 }
 
