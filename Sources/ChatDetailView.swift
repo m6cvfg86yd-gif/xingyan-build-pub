@@ -1977,7 +1977,7 @@ struct ChatDetailView: View {
             Button(Tr("取消"), role: .cancel) { redialAsk = nil }
         }
 
-        .sheet(isPresented: $showChatInfo) {
+        .fullScreenCover(isPresented: $showChatInfo) {
             NavigationStack {
                 DirectChatInfoView(chat: chat, onExitChat: exitChatNow)
                     .environmentObject(app)
@@ -2111,7 +2111,7 @@ struct ChatDetailView: View {
         }
         .onChange(of: messages.count) { _ in autoOpenShopCard() }
 
-        .sheet(isPresented: $showGroupInfo) {
+        .fullScreenCover(isPresented: $showGroupInfo) {
             NavigationStack {
                 GroupInfoView(chat: chat, onExitChat: exitChatNow)
                     .environmentObject(app)
