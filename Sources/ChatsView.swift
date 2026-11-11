@@ -319,13 +319,16 @@ struct ChatRow: View, Equatable {
     let chat: Chat
     let app: AppState
     var contactRevision: Int = 0
+    var draft: String = ""
     @State private var fetchedPeer: User?
     @State private var peerRequestStarted = false
 
     var onTapAvatar: (() -> Void)? = nil
 
     static func == (lhs: ChatRow, rhs: ChatRow) -> Bool {
-        lhs.chat == rhs.chat && lhs.contactRevision == rhs.contactRevision
+        lhs.chat == rhs.chat
+            && lhs.contactRevision == rhs.contactRevision
+            && lhs.draft == rhs.draft
     }
 
     var body: some View {
@@ -448,6 +451,11 @@ struct ChatRow: View, Equatable {
     }
 
     private var mentionPreview: Text {
+        let draftText = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !draftText.isEmpty {
+            let prefix = sessionCopy(zh: "草稿：", en: "Draft: ", ru: "Черновик: ")
+            return previewInkText(prefix + draftText, kind: "draft")
+        }
         if isGroupAvatar {
             let count = chat.memberCount ?? chat.memberIds?.count ?? 0
             if count > 0 {
@@ -461,7 +469,7 @@ struct ChatRow: View, Equatable {
         let raw = (chat.lastMessage?.preview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let kind = chat.lastMessage?.kind ?? ""
         let preview = localizedPreview(raw: raw, kind: kind)
-        let body = previewInkText(preview.text)
+        let body = previewInkText(preview.text, kind: kind)
         let mentioned = chat.lastMessage?.mentionMe == true || preview.mentioned
         guard mentioned, chat.unreadCount > 0 else { return body }
         return Text(sessionCopy(
@@ -585,7 +593,7 @@ struct ChatRow: View, Equatable {
         return value
     }
 
-    private func previewInkText(_ preview: String) -> Text {
+    private func previewInkText(_ preview: String, kind: String = "") -> Text {
         let redPrefixes = [
             "[草稿]", "草稿：", "草稿:", "[未发送]", "[失败]", "发送失败",
             "[Draft]", "Draft:", "[Not sent]", "[Failed]", "Failed to send",
@@ -594,7 +602,22 @@ struct ChatRow: View, Equatable {
         if redPrefixes.contains(where: { preview.hasPrefix($0) }) {
             return Text(preview).foregroundColor(Color(.systemRed))
         }
-        return Text(preview)
+        let color: Color
+        switch kind {
+        case "transfer", "redpacket", "gift":
+            color = Color.dyn(0xB06B00, 0xF4B44C)
+        case "call", "voicecall", "videocall":
+            color = Color.dyn(0x18835F, 0x58D49B)
+        case "file", "music", "location", "card", "miniapp", "mini", "mall":
+            color = Color.dyn(0x2C73C9, 0x74B7FF)
+        case "channels", "channel", "feed", "shortvideo":
+            color = Color.dyn(0x6B5BCB, 0xAD9CFF)
+        case "pat":
+            color = Color.dyn(0x0C7A70, 0x52D6C7)
+        default:
+            color = ChatListVisual.previewInk
+        }
+        return Text(preview).foregroundColor(color)
     }
 
     /// 旧服务端或实时推送偶尔只带 kind 不带 preview，列表仍按微信占位。
@@ -723,6 +746,7 @@ struct SwipeChatRow: View {
     @State private var startOffset: CGFloat = 0
     @State private var mode: Mode = .none
     @State private var dragging = false
+    @ObservedObject private var drafts = ChatDraftStore.shared
 
     private var btnW: CGFloat { UIConfig.num("swipeBtnW", 74) }
     private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
@@ -770,6 +794,7 @@ struct SwipeChatRow: View {
                 chat: chat,
                 app: app,
                 contactRevision: app.contactVisualRevision,
+                draft: drafts.text(for: chat.id),
                 onTapAvatar: onTapAvatar
             ))
                 .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
@@ -2480,6 +2505,7 @@ struct ChatsView: View {
     }
 
     private func hide(_ chat: Chat, clear: Bool) {
+        ChatDraftStore.shared.clear(chat.id)
         withAnimation(.easeOut(duration: 0.18)) {
             app.hideChatLocally(chat.id)
         }
@@ -2500,6 +2526,7 @@ struct ChatsView: View {
     }
 
     private func remove(_ chat: Chat) {
+        ChatDraftStore.shared.clear(chat.id)
         withAnimation(.easeOut(duration: 0.18)) {
             app.hideChatLocally(chat.id)
         }

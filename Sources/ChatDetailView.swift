@@ -470,6 +470,7 @@ struct ChatDetailView: View {
     @ObservedObject private var lang = LangStore.shared
 
     @ObservedObject private var chatBg = ChatBgStore.shared
+    @ObservedObject private var drafts = ChatDraftStore.shared
     let chat: Chat
 
     @EnvironmentObject var app: AppState
@@ -489,6 +490,7 @@ struct ChatDetailView: View {
     @State private var hiddenMessageIds: Set<String> = []
 
     @State private var persistTask: Task<Void, Never>?
+    @State private var draftSaveTask: Task<Void, Never>?
     @State private var input = ""
     @State private var inputBoxHeight: CGFloat = 39
     @State private var dismissDragActive = false
@@ -1730,6 +1732,13 @@ struct ChatDetailView: View {
                 CrashCatcher.note("录音", "进聊天页发现孤儿录音，已清掉")
                 recorder.forceStop()
             }
+            if input.isEmpty {
+                let savedDraft = drafts.text(for: chat.id)
+                if !savedDraft.isEmpty {
+                    input = savedDraft
+                    lastInputSnapshot = savedDraft
+                }
+            }
             if applyNote.isEmpty { applyNote = "我是" + (app.me?.nickname ?? "") }
         }
 
@@ -2356,6 +2365,9 @@ struct ChatDetailView: View {
             historySyncTask = nil
             persistTask?.cancel()
             persistTask = nil
+            draftSaveTask?.cancel()
+            draftSaveTask = nil
+            ChatDraftStore.shared.set(input, for: chat.id)
             settleTask?.cancel()
             settleTask = nil
             pinTask?.cancel()
@@ -3834,6 +3846,7 @@ struct ChatDetailView: View {
 
                             .onChange(of: input) { v in
                                 reportTyping()
+                                scheduleDraftSave(v)
 
                                 if isGroup, justTypedAtSign(from: lastInputSnapshot, to: v) { openMentionPicker() }
                                 lastInputSnapshot = v
@@ -4162,6 +4175,8 @@ struct ChatDetailView: View {
         if isStarWorld, newsMode { withAnimation(.easeInOut(duration: 0.18)) { newsMode = false } }
 
         let quotePayload = quoteFields(quote)
+        draftSaveTask?.cancel()
+        ChatDraftStore.shared.clear(chat.id)
         input = ""
         quote = nil
         reEditDraft = nil
@@ -4173,6 +4188,15 @@ struct ChatDetailView: View {
         mentionIds = []
 
         send(kind: "text", content: ClassicEmojiSet.expand(text), mentions: ids, quote: quotePayload)
+    }
+
+    private func scheduleDraftSave(_ value: String) {
+        draftSaveTask?.cancel()
+        draftSaveTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 260_000_000)
+            guard !Task.isCancelled else { return }
+            ChatDraftStore.shared.set(value, for: chat.id)
+        }
     }
 
     private func quoteFields(_ q: Message?) -> [String: Any]? {
