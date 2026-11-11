@@ -4,6 +4,7 @@ import UIKit
 struct MainTabView: View {
     @EnvironmentObject var app: AppState
     @State private var tab = 0
+    @State private var mountedTabs: Set<Int> = [0]
     @State private var shownCrash = false
     @AppStorage("xingyan.topGreenGlow") private var topGreenGlow = true
 
@@ -31,12 +32,8 @@ struct MainTabView: View {
         return current.isEmpty ? app.lastAvatar : current
     }
 
-    private func tabLayer<V: View>(_ content: V, index: Int) -> some View {
-        content
-            .opacity(tab == index ? 1 : 0)
-            .allowsHitTesting(tab == index)
-            .accessibilityHidden(tab != index)
-            .zIndex(tab == index ? 1 : 0)
+    private var rootTabBarVisible: Bool {
+        !app.tabBarHidden && app.openChat == nil && app.openMiniApp == nil
     }
 
     var body: some View {
@@ -44,22 +41,38 @@ struct MainTabView: View {
         ZStack(alignment: .bottom) {
 
             TabView(selection: $tab) {
-                ChatsView()
-                    .tag(0)
-                ContactsView()
-                    .tag(1)
-                DiscoverView()
-                    .tag(2)
-                MeView()
-                    .tag(3)
+                Group {
+                    if mountedTabs.contains(0) { ChatsView() } else { Color.clear }
+                }
+                .tag(0)
+
+                Group {
+                    if mountedTabs.contains(1) { ContactsView() } else { Color.clear }
+                }
+                .tag(1)
+
+                Group {
+                    if mountedTabs.contains(2) { DiscoverView() } else { Color.clear }
+                }
+                .tag(2)
+
+                Group {
+                    if mountedTabs.contains(3) { MeView() } else { Color.clear }
+                }
+                .tag(3)
             }
             .toolbar(.hidden, for: .tabBar)
+            .toolbarBackground(.hidden, for: .tabBar)
+            .background {
+                SystemTabBarHider()
+                    .frame(width: 0, height: 0)
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            .ignoresSafeArea(edges: app.tabBarHidden ? [] : .bottom)
+            .ignoresSafeArea(edges: rootTabBarVisible ? [] : .bottom)
 
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if !app.tabBarHidden {
+                if rootTabBarVisible {
                     NativeTabBar(selection: $tab,
                                  uiVersion: app.uiVersion,
                                  badge: app.showDot("chats", auto: unreadTotal > 0) ? unreadTotal : 0,
@@ -75,7 +88,7 @@ struct MainTabView: View {
             }
 
             .overlay(alignment: .top) {
-                if tab == 0 && !app.tabBarHidden &&
+                if tab == 0 && rootTabBarVisible &&
                    (app.syncing || !app.syncText.isEmpty) {
                     HStack(spacing: 7) {
                         if app.syncing {
@@ -250,6 +263,7 @@ struct MainTabView: View {
             if v { tab = 0; app.wantChatsTab = false }
         }
         .onChange(of: tab) { value in
+            mountedTabs.insert(value)
             musicDock.setForegroundTab(value)
         }
 
@@ -266,6 +280,30 @@ struct MainTabView: View {
         }
 
         .onAppear { CrashCatcher.note("启动", "7 主界面出现") }
+    }
+}
+
+private struct SystemTabBarHider: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            var responder: UIResponder? = uiView
+            while let current = responder {
+                if let tabs = current as? UITabBarController {
+                    tabs.tabBar.isHidden = true
+                    tabs.tabBar.alpha = 0
+                    tabs.tabBar.isUserInteractionEnabled = false
+                    return
+                }
+                responder = current.next
+            }
+        }
     }
 }
 
