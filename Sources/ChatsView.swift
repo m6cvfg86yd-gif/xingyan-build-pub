@@ -126,8 +126,10 @@ struct RowSwipeCatcher: UIViewRepresentable {
         func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
             if let pan = g as? UIPanGestureRecognizer,
                let view = pan.view {
+                let t = pan.translation(in: view)
                 let v = pan.velocity(in: view)
-                return abs(v.x) > abs(v.y) * 1.1
+                return (abs(t.x) >= 3 && abs(t.x) > abs(t.y) * 0.85)
+                    || abs(v.x) > abs(v.y) * 1.1
             }
             true
         }
