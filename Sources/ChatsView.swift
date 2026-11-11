@@ -715,6 +715,7 @@ struct SwipeChatRow: View {
     var onUnread: () -> Void
     var onHide: (Bool) -> Void
     var onDelete: () -> Void
+    var onPin: (Bool) -> Void
     var cardStyle: Bool = false
     var horizontalInset: CGFloat = 0
 
@@ -726,7 +727,7 @@ struct SwipeChatRow: View {
     private var btnW: CGFloat { UIConfig.num("swipeBtnW", 74) }
     private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
     private let actionGap: CGFloat = 4
-    private var fullW: CGFloat { btnW * 3 + actionGap * 2 }
+    private var fullW: CGFloat { btnW }
 
     private var blueBg: Color {
         UIConfig.colorIfSet("swipeUnread") ?? Color(hex: 0x28986C)
@@ -738,6 +739,10 @@ struct SwipeChatRow: View {
 
     private var redBg: Color {
         UIConfig.colorIfSet("swipeDelete") ?? Color(uiColor: .systemRed)
+    }
+
+    private var pinBg: Color {
+        UIConfig.colorIfSet("swipePin") ?? Color(hex: 0x0A84FF)
     }
 
     @State private var crossedOpen = false
@@ -826,6 +831,12 @@ struct SwipeChatRow: View {
                 onEnded: { _, vx in
                     dragging = false
                     dragVelocity = vx
+                    if -offset > fullW * 1.12, vx <= 0 {
+                        ChatSwipeFeedback.selection.notificationOccurred(.success)
+                        onPin(chat.pinned != true)
+                        close()
+                        return
+                    }
                     settle(velocity: vx)
                 }
             )
@@ -851,34 +862,11 @@ struct SwipeChatRow: View {
     }
 
     private var actionButtons: some View {
-        HStack(spacing: actionGap) {
-            switch mode {
-            case .none:
-
-                bar("标为未读", blueBg, btnW) {
-                    onUnread()
-                    close()
-                }
-                bar("不显示", yellowBg, btnW) {
-                    onHide(false)
-                    close()
-                }
-                bar("删除", redBg, btnW) {
-                    onDelete()
-                    close()
-                }
-            case .hideConfirm:
-
-                bar("不显示该聊天", yellowBg, fullW) {
-                    onHide(false)
-                    close()
-                }
-            case .delConfirm:
-
-                bar("清空记录同时不显示聊天", redBg, fullW) {
-                    onDelete()
-                    close()
-                }
+        HStack {
+            bar(chat.pinned == true ? "取消置顶" : "置顶", pinBg, btnW) {
+                ChatSwipeFeedback.selection.selectionChanged()
+                onPin(chat.pinned != true)
+                close()
             }
         }
         .padding(.vertical, 7)
@@ -2031,6 +2019,7 @@ struct ChatsView: View {
                 onUnread: { markUnread(chat) },
                 onHide: { clear in hide(chat, clear: clear) },
                 onDelete: { remove(chat) },
+                onPin: { pinned in togglePin(chat, pinned: pinned) },
                 cardStyle: chatsCardStyle,
                 horizontalInset: chatsCardStyle ? chatsCardInset : chatsContentSideInset
             )
@@ -2524,6 +2513,21 @@ struct ChatsView: View {
             }
             LocalStore.clearChat(chat.id)
             app.dropOptimisticSummary(chat.id)
+            await app.loadChats()
+        }
+    }
+
+    private func togglePin(_ chat: Chat, pinned: Bool) {
+        let previous = chat.pinned == true
+        app.applyPinnedLocally(chatId: chat.id, pinned: pinned)
+        Task { @MainActor in
+            guard let now = await API.shared.setPinned(chatId: chat.id, pinned: pinned) else {
+                app.applyPinnedLocally(chatId: chat.id, pinned: previous)
+                app.show(Tr("置顶设置失败"))
+                return
+            }
+            app.applyPinnedLocally(chatId: chat.id, pinned: now)
+            app.show(now ? Tr("已置顶") : Tr("已取消置顶"))
             await app.loadChats()
         }
     }
