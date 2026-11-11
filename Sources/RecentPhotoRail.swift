@@ -211,7 +211,6 @@ struct ChatRecentPhotoStrip: View {
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundStyle(C.green)
                                 .frame(width: 34, height: 34)
-                                .background(Circle().fill(C.green.opacity(0.12)))
 
                             Text(Tr("最近照片"))
                                 .font(pf(13, .medium))
@@ -227,15 +226,7 @@ struct ChatRecentPhotoStrip: View {
                                 .foregroundColor(C.subLabel.opacity(0.72))
                         }
                         .padding(.horizontal, 12)
-                        .frame(height: 50)
-                        .background {
-                            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                .fill(C.cardBg.opacity(0.94))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                        .stroke(Color.primary.opacity(0.07), lineWidth: 0.6)
-                                }
-                        }
+                        .frame(height: 46)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                     }
@@ -294,7 +285,7 @@ private struct RecentAssetThumbnail: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Color.dyn(0xE9E9E9, 0x242426)
+                Color.clear
             }
         }
         .task(id: asset.localIdentifier) {
