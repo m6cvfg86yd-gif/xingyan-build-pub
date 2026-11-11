@@ -18,7 +18,7 @@ final class SwipeBackCenter: NSObject, UIGestureRecognizerDelegate {
     static let shared = SwipeBackCenter()
 
     private var pages: [SwipeBackPage] = []
-    private weak var pan: UIPanGestureRecognizer?
+    private weak var pan: UIScreenEdgePanGestureRecognizer?
 
     private weak var hostWindow: UIWindow?
 
@@ -26,8 +26,6 @@ final class SwipeBackCenter: NSObject, UIGestureRecognizerDelegate {
 
     private var tracking = false
     private var tracked: SwipeBackPage?
-
-    private let edge: CGFloat = 20
 
     func push(_ p: SwipeBackPage) {
         pages.removeAll { $0 === p }
@@ -70,7 +68,8 @@ final class SwipeBackCenter: NSObject, UIGestureRecognizerDelegate {
             pan = nil
         }
         retries = 0
-        let g = UIPanGestureRecognizer(target: self, action: #selector(handle(_:)))
+        let g = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handle(_:)))
+        g.edges = .left
         g.delegate = self
 
         g.cancelsTouchesInView = true
@@ -91,11 +90,8 @@ final class SwipeBackCenter: NSObject, UIGestureRecognizerDelegate {
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-
         installIfNeeded()
-        guard top != nil else { return false }
-        guard let v = g.view else { return false }
-        return touch.location(in: v).x <= edge
+        return top != nil
     }
 
     func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
@@ -117,8 +113,6 @@ final class SwipeBackCenter: NSObject, UIGestureRecognizerDelegate {
         let t = g.translation(in: v)
         switch g.state {
         case .began:
-
-            if let w = v as? UIWindow { cancelCompeting(in: w, except: g) }
             tracking = true
             tracked?.offset = max(0, t.x)
         case .changed:
@@ -129,16 +123,20 @@ final class SwipeBackCenter: NSObject, UIGestureRecognizerDelegate {
             guard tracking, let p = tracked else { return }
             tracking = false
             tracked = nil
-            let far = p.offset > p.width * 0.28
-            let fast = g.velocity(in: v).x > p.width * 1.1
+            let far = p.offset > p.width * 0.32
+            let fast = g.velocity(in: v).x > 950
             if far || fast {
-                withAnimation(.easeOut(duration: 0.2)) { p.offset = p.width }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+                withAnimation(.interactiveSpring(response: 0.28, dampingFraction: 0.90)) {
+                    p.offset = p.width
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) {
                     if p.offset > 0 { p.onBack() }
                     p.offset = 0
                 }
             } else {
-                withAnimation(.easeOut(duration: 0.22)) { p.offset = 0 }
+                withAnimation(.interactiveSpring(response: 0.28, dampingFraction: 0.90)) {
+                    p.offset = 0
+                }
             }
         default:
 
@@ -148,17 +146,6 @@ final class SwipeBackCenter: NSObject, UIGestureRecognizerDelegate {
         }
     }
 
-    private func cancelCompeting(in view: UIView, except mine: UIGestureRecognizer) {
-        if let list = view.gestureRecognizers {
-            for r in list where r !== mine {
-                guard r.state == .began || r.state == .changed else { continue }
-                let was = r.isEnabled
-                r.isEnabled = false
-                r.isEnabled = was
-            }
-        }
-        for sub in view.subviews { cancelCompeting(in: sub, except: mine) }
-    }
 }
 
 struct SwipeBackModifier: ViewModifier {
