@@ -4,6 +4,7 @@ import UIKit
 struct SwitchAccountView: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
     @ObservedObject private var growth = GrowthStore.shared
 
     @State private var adding = false
@@ -11,84 +12,126 @@ struct SwitchAccountView: View {
     @State private var note = ""
 
     private var me: String { app.me?.username ?? "" }
+    private var pageBackground: Color { Color.dyn(0xF0F2F5, 0x0B141A) }
+    private var sectionBackground: Color { Color.dyn(0xFFFFFF, 0x111B21) }
+    private var primaryInk: Color { Color.dyn(0x111B21, 0xE9EDEF) }
+    private var secondaryInk: Color { Color.dyn(0x667781, 0x8696A0) }
+    private var separatorInk: Color { Color.dyn(0xE9EDEF, 0x1F2C34) }
+    private let switchAccent = Color(hex: 0x25D366)
 
     var body: some View {
         nativeBody
     }
 
     private var nativeBody: some View {
-        List {
-            Section {
-                ForEach(app.accounts) { account in
-                    let current = account.username == me
-                    Button {
-                        guard !current else { return }
-                        tap(account, current: current)
-                    } label: {
-                        nativeAccountRow(account)
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if !current {
-                            Button(role: .destructive) {
-                                remove(account)
-                            } label: {
-                                Label(Tr("从本机移除"), systemImage: "trash")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(Tr("已登录账号"))
+                        .font(pfStyled(size: 13, weight: .semibold))
+                        .foregroundStyle(secondaryInk)
+                    Text(Tr("选择要使用的账号。每个账号的聊天、联系人和资料互相独立。"))
+                        .font(pfStyled(size: 12.5))
+                        .foregroundStyle(secondaryInk.opacity(0.88))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 4)
+
+                VStack(spacing: 0) {
+                    ForEach(Array(app.accounts.enumerated()), id: \.element.id) { index, account in
+                        let current = account.username == me
+                        Button {
+                            guard !current else {
+                                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                                return
                             }
+                            tap(account, current: current)
+                        } label: {
+                            nativeAccountRow(account)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            if !current {
+                                Button(role: .destructive) {
+                                    remove(account)
+                                } label: {
+                                    Label(Tr("从本机移除"), systemImage: "trash")
+                                }
+                            }
+                        }
+
+                        if index < app.accounts.count - 1 {
+                            Rectangle()
+                                .fill(separatorInk)
+                                .frame(height: 0.5)
+                                .padding(.leading, 76)
                         }
                     }
                 }
-            } header: {
-                Text(Tr("已登录账号"))
-            } footer: {
-                Text(Tr("每个账号的聊天和资料相互独立，切换后会恢复到对应账号。"))
-            }
+                .background(sectionBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-            Section {
                 Button {
                     adding = true
                 } label: {
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(Tr("添加新账号"))
-                                .font(pfStyled(size: 17))
-                                .foregroundStyle(C.label)
-                            Text(addSubtitle)
-                                .font(pfStyled(size: 13))
-                                .foregroundStyle(C.subLabel)
-                        }
-                    } icon: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 22, weight: .regular))
-                            .foregroundStyle(OrbitTheme.jade)
-                    }
+                    addAccountRow
                 }
                 .buttonStyle(.plain)
-            }
+                .background(sectionBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-            if !note.isEmpty {
-                Section {
-                    Label(note, systemImage: "exclamationmark.circle.fill")
-                        .font(pfStyled(size: 13))
-                        .foregroundStyle(C.red)
-                        .fixedSize(horizontal: false, vertical: true)
+                if !note.isEmpty {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(C.red)
+                            .padding(.top, 1)
+                        Text(note)
+                            .font(pfStyled(size: 12.5))
+                            .foregroundStyle(C.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(13)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(C.red.opacity(scheme == .dark ? 0.12 : 0.07))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
+
+                HStack(alignment: .top, spacing: 9) {
+                    Image(systemName: "lock.shield.fill")
+                        .font(pfStyled(size: 13))
+                        .foregroundStyle(switchAccent)
+                        .padding(.top, 1)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(Tr("账号只保存在这台设备"))
+                            .font(pfStyled(size: 12.5, weight: .semibold))
+                            .foregroundStyle(secondaryInk)
+                        Text(Tr("登录凭证放入本机钥匙串；切换账号前会结束当前账号的通话。"))
+                            .font(pfStyled(size: 11.5))
+                            .foregroundStyle(secondaryInk.opacity(0.82))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 4)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, max(28, L.safeBottom + 16))
         }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(C.pageBg)
+        .scrollIndicators(.hidden)
+        .background(pageBackground.ignoresSafeArea())
         .navigationTitle(Tr("切换账号"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(pageBackground, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Text("\(app.accounts.count)/\(AccountStore.maxCount)")
-                    .font(.footnote)
+                    .font(pfStyled(size: 12.5, weight: .medium))
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(secondaryInk)
             }
         }
-        .background(C.pageBg.ignoresSafeArea())
         .hidesTabBar()
         .fullScreenCover(isPresented: $adding) {
             HarmonyLoginView()
@@ -104,24 +147,37 @@ struct SwitchAccountView: View {
         let loading = busy == account.username
         let tokenReady = !AccountStore.token(for: account.username).isEmpty
 
-        return HStack(spacing: 12) {
-            Avatar(path: account.avatar, size: 40, radius: 10)
+        return HStack(spacing: 13) {
+            Avatar(path: account.avatar,
+                   size: 50,
+                   radius: 25,
+                   circle: true,
+                   level: levelOf(account))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(displayName(account))
-                    .font(pfStyled(size: 17))
-                    .foregroundStyle(C.label)
+                    .font(pfStyled(size: 17, weight: .regular))
+                    .foregroundStyle(primaryInk)
                     .lineLimit(1)
 
                 Text("@" + account.username)
-                    .font(pfStyled(size: 13))
-                    .foregroundStyle(C.subLabel)
+                    .font(pfStyled(size: 14, weight: .regular))
+                    .foregroundStyle(secondaryInk)
                     .lineLimit(1)
 
-                if !tokenReady && !current {
-                    Text(Tr("登录状态已失效，点击重新登录"))
-                        .font(pfStyled(size: 11))
-                        .foregroundStyle(C.red.opacity(0.86))
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(current ? switchAccent
+                              : (tokenReady ? secondaryInk.opacity(0.55)
+                                 : C.red.opacity(0.76)))
+                        .frame(width: 6, height: 6)
+                    Text(statusText(current: current,
+                                    loading: loading,
+                                    tokenReady: tokenReady))
+                        .font(pfStyled(size: 12.5))
+                        .foregroundStyle(!tokenReady && !current
+                                         ? C.red.opacity(0.84) : secondaryInk)
+                        .lineLimit(1)
                 }
             }
 
@@ -129,20 +185,52 @@ struct SwitchAccountView: View {
 
             if loading {
                 ProgressView()
-                    .tint(OrbitTheme.jade)
+                    .tint(switchAccent)
                     .scaleEffect(0.82)
             } else if current {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(OrbitTheme.jade)
+                    .foregroundStyle(switchAccent)
             } else {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(C.subLabel.opacity(0.72))
+                    .foregroundStyle(secondaryInk.opacity(0.70))
             }
         }
-        .padding(.vertical, 2)
-        .frame(minHeight: 50)
+        .padding(.horizontal, 13)
+        .frame(minHeight: 76)
+        .contentShape(Rectangle())
+    }
+
+    private var addAccountRow: some View {
+        HStack(spacing: 13) {
+            ZStack {
+                Circle()
+                    .fill(switchAccent.opacity(scheme == .dark ? 0.15 : 0.11))
+                    .frame(width: 50, height: 50)
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(switchAccent)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(Tr("添加新账号"))
+                    .font(pfStyled(size: 16.5, weight: .regular))
+                    .foregroundStyle(primaryInk)
+                Text(addSubtitle)
+                    .font(pfStyled(size: 12.5))
+                    .foregroundStyle(secondaryInk)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(secondaryInk.opacity(0.70))
+        }
+        .padding(.horizontal, 13)
+        .frame(minHeight: 76)
         .contentShape(Rectangle())
     }
 
