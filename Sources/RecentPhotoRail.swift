@@ -11,6 +11,7 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
     private let manager = PHCachingImageManager()
     private let thumbCache = NSCache<NSString, UIImage>()
     private var loaded = false
+    private var reloadTask: Task<Void, Never>?
 
     private override init() {
         super.init()
@@ -23,10 +24,10 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         switch status {
         case .authorized, .limited:
-            reloadAssets()
+            await reloadAssets()
         case .notDetermined:
             let next = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-            if next == .authorized || next == .limited { reloadAssets() }
+            if next == .authorized || next == .limited { await reloadAssets() }
         default:
             break
         }
@@ -88,11 +89,24 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
 
     nonisolated func photoLibraryDidChange(_ changeInstance: PHChange) {
         Task { @MainActor in
-            reloadAssets()
+            reloadTask?.cancel()
+            reloadTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 180_000_000)
+                guard !Task.isCancelled else { return }
+                await self?.reloadAssets()
+            }
         }
     }
 
-    private func reloadAssets() {
+    private func reloadAssets() async {
+        let rows = await Task.detached(priority: .userInitiated) {
+            Self.fetchRecentAssets()
+        }.value
+        guard !Task.isCancelled else { return }
+        assets = rows
+    }
+
+    nonisolated private static func fetchRecentAssets() -> [PHAsset] {
         let options = PHFetchOptions()
         options.sortDescriptors = [
             NSSortDescriptor(key: "creationDate", ascending: false)
@@ -105,7 +119,7 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
             rows.append(asset)
             if rows.count >= 60 || index + 1 >= result.count { stop.pointee = true }
         }
-        assets = rows
+        return rows
     }
 }
 
