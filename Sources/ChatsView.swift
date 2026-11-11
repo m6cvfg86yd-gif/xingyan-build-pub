@@ -131,7 +131,7 @@ struct RowSwipeCatcher: UIViewRepresentable {
                 return (abs(t.x) >= 3 && abs(t.x) > abs(t.y) * 0.85)
                     || abs(v.x) > abs(v.y) * 1.1
             }
-            true
+            return true
         }
     }
 
