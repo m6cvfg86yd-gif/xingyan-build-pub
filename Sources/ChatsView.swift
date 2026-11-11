@@ -206,7 +206,7 @@ private struct ConversationScrollFeel: UIViewRepresentable {
                         context.coordinator.offsetObservation = nil
                         context.coordinator.scrollView = scroll
                         context.coordinator.lastZone = -1
-                        scroll.isDirectionalLockEnabled = true
+                        scroll.isDirectionalLockEnabled = false
                         scroll.alwaysBounceVertical = true
                         scroll.alwaysBounceHorizontal = false
                         scroll.bounces = true

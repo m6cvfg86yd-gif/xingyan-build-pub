@@ -128,15 +128,15 @@ struct RecentPhotoRail: View {
     var onPick: (UIImage) -> Void
 
     @State private var loadingId = ""
-    private let tile: CGFloat = 48
+    private let tile: CGFloat = 58
 
     var body: some View {
         if !store.assets.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Text(Tr("最近照片"))
-                        .font(pf(11.5, .semibold))
-                        .foregroundColor(C.subLabel)
+                        .font(pf(13, .semibold))
+                        .foregroundColor(C.label)
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 14)
@@ -177,8 +177,8 @@ struct RecentPhotoRail: View {
                     .padding(.horizontal, 14)
                 }
             }
-            .padding(.top, 12)
-            .padding(.bottom, 9)
+            .padding(.top, 10)
+            .padding(.bottom, 10)
             .task { await store.loadIfNeeded() }
         }
     }

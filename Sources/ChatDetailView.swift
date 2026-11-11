@@ -899,7 +899,6 @@ struct ChatDetailView: View {
 
     @State private var focused = false
     @StateObject private var composerBridge = ChatComposerBridge()
-    @ObservedObject private var recentPhotos = RecentPhotoStore.shared
     @ObservedObject private var realtime = Realtime.shared
     @ObservedObject private var recorder = VoiceRecorder.shared
 
@@ -3693,14 +3692,6 @@ struct ChatDetailView: View {
                 quickBar
             }
 
-            if panel == .plus {
-                ChatRecentPhotoStrip(store: recentPhotos) { image in
-                    stageDraftImages([image])
-                    panel = .none
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-
             HStack(spacing: 6) {
 
                 Button {
@@ -4024,7 +4015,11 @@ struct ChatDetailView: View {
         case .plus:
             PlusPanel(items: plusItems,
                       onTap: { item in handlePlus(item) },
-                      onLongPress: { item in handlePlusLong(item) })
+                      onLongPress: { item in handlePlusLong(item) },
+                      onRecentImage: { image in
+                          stageDraftImages([image])
+                          panel = .none
+                      })
         case .mention:
             MentionPanel(members: mentionMembers,
                          query: $mentionQuery,

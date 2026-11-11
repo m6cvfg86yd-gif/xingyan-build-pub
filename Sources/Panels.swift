@@ -808,8 +808,10 @@ struct PlusPanel: View {
     var onTap: (PlusItem) -> Void
 
     var onLongPress: ((PlusItem) -> Bool)? = nil
+    var onRecentImage: ((UIImage) -> Void)? = nil
 
     @State private var page = 0
+    @ObservedObject private var recentPhotos = RecentPhotoStore.shared
 
     @State private var pressed: String? = nil
     private let perPage = 8
@@ -847,10 +849,14 @@ struct PlusPanel: View {
     private var gridPad: CGFloat { L.v(14, 4.2, 18) }
     private var gridGap: CGFloat { L.v(10, 3.2, 14) }
     private var dotsH: CGFloat { L.v(22, 6, 26) }
+    private var recentRailExtra: CGFloat {
+        (onRecentImage != nil && !recentPhotos.assets.isEmpty) ? 102 : 0
+    }
 
     private var neededH: CGFloat {
         let rows = CGFloat(max(1, Int(ceil(Double(min(items.count, perPage)) / 4.0))))
-        return gridPad * 2 + rows * (tileH + tileGap + 16) + max(0, rows - 1) * gridGap + dotsH
+        return gridPad * 2 + rows * (tileH + tileGap + 28) + max(0, rows - 1) * gridGap
+            + dotsH + recentRailExtra
     }
 
     var body: some View {
@@ -871,6 +877,11 @@ struct PlusPanel: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
 
+            if let onRecentImage {
+                RecentPhotoRail(store: recentPhotos, onPick: onRecentImage)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
             if pages.count > 1 {
                 HStack(spacing: L.v(5, 1.6, 7)) {
                     ForEach(pages.indices, id: \.self) { i in
@@ -888,30 +899,42 @@ struct PlusPanel: View {
         }
         .frame(height: max(panelH, neededH))
         .overlay(alignment: .top) { Rectangle().fill(C.hairline).frame(height: 0.5) }
+        .task { await recentPhotos.loadIfNeeded() }
     }
 
     private func tile(_ item: PlusItem) -> some View {
         return VStack(spacing: tileGap) {
             ZStack {
-                Circle()
-                    .fill(C.green.opacity(0.12))
+                RoundedRectangle(cornerRadius: tileH * 0.30, style: .continuous)
+                    .fill(LinearGradient(colors: tileColors(item.action),
+                                         startPoint: .topLeading,
+                                         endPoint: .bottomTrailing))
                     .frame(width: tileH, height: tileH)
-                Circle()
-                    .stroke(C.green.opacity(0.18), lineWidth: 0.8)
-                    .frame(width: tileH, height: tileH)
+                    .shadow(color: tileColors(item.action).last?.opacity(0.22) ?? .clear,
+                            radius: 4, y: 2)
                 Image(systemName: whatsAppPlusSymbol(item))
                     .font(.system(size: L.v(23, 7, 26), weight: .semibold))
                     .symbolRenderingMode(.monochrome)
-                    .foregroundStyle(C.green)
+                    .foregroundStyle(.white)
             }
             Text(chatEntryLabel(item.label, action: item.action))
-                .font(pf(L.v(11.5, 3.2, 12.5)))
-                .foregroundColor(C.subLabel)
+                .font(pf(L.v(12.5, 3.6, 13.5), .medium))
+                .foregroundColor(C.label)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.78)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.vertical, 7)
+        .padding(.horizontal, 3)
         .frame(maxWidth: .infinity)
+        .background {
+            RoundedRectangle(cornerRadius: L.v(16, 5, 18), style: .continuous)
+                .fill(C.cardBg.opacity(0.92))
+                .overlay {
+                    RoundedRectangle(cornerRadius: L.v(16, 5, 18), style: .continuous)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
+                }
+        }
         .opacity(item.enabled == false ? 0.45 : 1)
 
         .scaleEffect(pressed == item.id ? 0.92 : 1)
