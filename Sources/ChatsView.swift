@@ -97,8 +97,8 @@ struct RowSwipeCatcher: UIViewRepresentable {
             case .changed:
                 if !horizontal {
                     let v = g.velocity(in: g.view)
-                    let xWins = abs(t.x) >= max(4, abs(t.y) + 1.5)
-                        || (abs(v.x) > 80 && abs(v.x) > abs(v.y) * 1.1)
+                    let xWins = abs(t.x) >= max(7, abs(t.y) + 2.5)
+                        || (abs(v.x) > 100 && abs(v.x) > abs(v.y) * 1.15)
                     guard xWins else { return }
                     horizontal = true
                     freezeEnclosingScroll(g.view)
@@ -694,7 +694,7 @@ extension Notification.Name {
 }
 
 private enum ChatSwipeFeedback {
-    static let light = UIImpactFeedbackGenerator(style: .light)
+    static let selection = UISelectionFeedbackGenerator()
 }
 
 struct SwipeChatRow: View {
@@ -744,9 +744,8 @@ struct SwipeChatRow: View {
 
     private func swipeSpringFor(velocity vx: CGFloat) -> Animation {
         let fast = abs(vx) > 700
-        return .interpolatingSpring(mass: fast ? 0.75 : 0.9,
-                                    stiffness: fast ? 420 : 320,
-                                    damping: fast ? 30 : 26)
+        return .interactiveSpring(response: fast ? 0.22 : 0.30,
+                                  dampingFraction: fast ? 0.90 : 0.86)
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
@@ -799,6 +798,7 @@ struct SwipeChatRow: View {
                     startOffset = offset
                     dragVelocity = 0
                     crossedOpen = (-offset > fullW * 0.42)
+                    ChatSwipeFeedback.selection.prepare()
 
                     NotificationCenter.default.post(name: .chrisRowSwipe, object: chat.id)
                 },
@@ -817,7 +817,7 @@ struct SwipeChatRow: View {
                     let nowCrossed = (-offset > fullW * 0.42)
                     if nowCrossed != crossedOpen {
                         crossedOpen = nowCrossed
-                        ChatSwipeFeedback.light.impactOccurred(intensity: nowCrossed ? 0.55 : 0.35)
+                        ChatSwipeFeedback.selection.selectionChanged()
                     }
 
                 },
@@ -891,14 +891,15 @@ struct SwipeChatRow: View {
             return
         }
         let open: Bool
-        if vx <= -420 {
+        let projected = offset + vx * 0.16
+        if vx <= -360 {
             open = true
-        } else if vx >= 420 {
+        } else if vx >= 360 {
             open = false
         } else {
-            open = -offset > fullW * 0.42
+            open = -projected > fullW * 0.42
         }
-        if open { ChatSwipeFeedback.light.impactOccurred() }
+        if open { ChatSwipeFeedback.selection.selectionChanged() }
         withAnimation(swipeSpring) {
             offset = open ? -fullW : 0
             if !open { mode = .none }
