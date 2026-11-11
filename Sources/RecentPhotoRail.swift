@@ -170,6 +170,54 @@ struct RecentPhotoRail: View {
     }
 }
 
+/// 输入框上方的紧凑照片条。只显示照片本身，不再重复标题或玻璃边框。
+struct ChatRecentPhotoStrip: View {
+    @ObservedObject var store: RecentPhotoStore
+    var onPick: (UIImage) -> Void
+
+    @State private var loadingId = ""
+    private let tile: CGFloat = 54
+
+    var body: some View {
+        Group {
+            if !store.assets.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 5) {
+                        ForEach(store.assets, id: \.localIdentifier) { asset in
+                            Button {
+                                guard loadingId.isEmpty else { return }
+                                loadingId = asset.localIdentifier
+                                Task {
+                                    let image = await store.preview(for: asset)
+                                    loadingId = ""
+                                    if let image { onPick(image) }
+                                }
+                            } label: {
+                                ZStack {
+                                    RecentAssetThumbnail(asset: asset, store: store, side: tile)
+                                    if loadingId == asset.localIdentifier {
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .fill(Color.black.opacity(0.34))
+                                        ProgressView().tint(.white)
+                                    }
+                                }
+                                .frame(width: tile, height: tile)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Tr("最近照片"))
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+                .padding(.vertical, 7)
+            }
+        }
+        .task { await store.loadIfNeeded() }
+    }
+}
+
 private struct RecentAssetThumbnail: View {
     let asset: PHAsset
     @ObservedObject var store: RecentPhotoStore

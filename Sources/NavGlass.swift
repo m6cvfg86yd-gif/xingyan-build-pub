@@ -1,5 +1,8 @@
 import SwiftUI
 
+import SwiftUI
+import UIKit
+
 struct TopScrollKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
@@ -33,8 +36,9 @@ struct TopGlassBar: View {
                     fallback
                 } else {
                     ZStack {
-                        NativeChromeMaterial(opacity: max(0, min(1, blur)) * t,
-                                             liquid: true)
+                        NativeGlassHeaderMaterial()
+                            .opacity(max(0.72, min(1, blur)) * t)
+                        fallback.opacity(0.08 * t)
                         if let maskColor = UIConfig.colorIfSet("chatsNavMaskColor") {
                             maskColor.opacity(max(0, min(1, mask)) * t)
                         }
@@ -47,6 +51,51 @@ struct TopGlassBar: View {
         }
     }
 }
+
+#if canImport(UIKit)
+struct NativeGlassHeaderMaterial: UIViewRepresentable {
+    @Environment(\.colorScheme) private var scheme
+
+    final class Coordinator {
+        var token = ""
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        let view = UIVisualEffectView(effect: Self.visualEffect(dark: scheme == .dark))
+        view.isUserInteractionEnabled = false
+        view.contentView.backgroundColor = .clear
+        view.backgroundColor = .clear
+        context.coordinator.token = Self.effectToken(dark: scheme == .dark)
+        return view
+    }
+
+    func updateUIView(_ view: UIVisualEffectView, context: Context) {
+        let token = Self.effectToken(dark: scheme == .dark)
+        guard context.coordinator.token != token else { return }
+        context.coordinator.token = token
+        view.effect = Self.visualEffect(dark: scheme == .dark)
+    }
+
+    private static func visualEffect(dark: Bool) -> UIVisualEffect {
+        if #available(iOS 26.0, *) {
+            let effect = UIGlassEffect(style: .regular)
+            effect.isInteractive = false
+            effect.tintColor = UIColor.white.withAlphaComponent(dark ? 0.025 : 0.055)
+            return effect
+        }
+        return UIBlurEffect(style: dark
+                            ? .systemUltraThinMaterialDark
+                            : .systemUltraThinMaterialLight)
+    }
+
+    private static func effectToken(dark: Bool) -> String {
+        if #available(iOS 26.0, *) { return "glass-\(dark)" }
+        return "material-\(dark)"
+    }
+}
+#endif
 
 struct NativeChromeMaterial: View {
     var opacity: Double = 1
