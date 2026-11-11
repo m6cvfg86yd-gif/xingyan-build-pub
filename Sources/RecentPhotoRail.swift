@@ -11,6 +11,7 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
     private let manager = PHCachingImageManager()
     private let thumbCache = NSCache<NSString, UIImage>()
     private var loaded = false
+    private var loading = false
     private var reloadTask: Task<Void, Never>?
 
     private override init() {
@@ -18,18 +19,25 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
         PHPhotoLibrary.shared().register(self)
     }
 
-    func loadIfNeeded() async {
-        guard !loaded else { return }
-        loaded = true
+    func loadIfNeeded(force: Bool = false) async {
+        guard !loading, force || !loaded else { return }
+        loading = true
+        defer { loading = false }
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         switch status {
         case .authorized, .limited:
             await reloadAssets()
+            loaded = true
         case .notDetermined:
             let next = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-            if next == .authorized || next == .limited { await reloadAssets() }
+            if next == .authorized || next == .limited {
+                await reloadAssets()
+                loaded = true
+            } else {
+                loaded = false
+            }
         default:
-            break
+            loaded = false
         }
     }
 
@@ -187,6 +195,7 @@ struct RecentPhotoRail: View {
 /// 输入框上方的紧凑照片条。只显示照片本身，不再重复标题或玻璃边框。
 struct ChatRecentPhotoStrip: View {
     @ObservedObject var store: RecentPhotoStore
+    var onOpenLibrary: (() -> Void)? = nil
     var onPick: (UIImage) -> Void
 
     @State private var loadingId = ""
@@ -194,7 +203,46 @@ struct ChatRecentPhotoStrip: View {
 
     var body: some View {
         Group {
-            if !store.assets.isEmpty {
+            if store.assets.isEmpty {
+                if let onOpenLibrary {
+                    Button(action: onOpenLibrary) {
+                        HStack(spacing: 9) {
+                            Image(systemName: "photo.stack")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(C.green)
+                                .frame(width: 34, height: 34)
+                                .background(Circle().fill(C.green.opacity(0.12)))
+
+                            Text(Tr("最近照片"))
+                                .font(pf(13, .medium))
+                                .foregroundColor(C.label)
+
+                            Text(Tr("打开相册"))
+                                .font(pf(12))
+                                .foregroundColor(C.subLabel)
+
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(C.subLabel.opacity(0.72))
+                        }
+                        .padding(.horizontal, 12)
+                        .frame(height: 50)
+                        .background {
+                            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                .fill(C.cardBg.opacity(0.94))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                        .stroke(Color.primary.opacity(0.07), lineWidth: 0.6)
+                                }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Tr("打开最近照片"))
+                }
+            } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 5) {
                         ForEach(store.assets, id: \.localIdentifier) { asset in
