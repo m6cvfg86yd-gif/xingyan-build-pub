@@ -204,11 +204,7 @@ struct ChatBackgroundSheet: View {
     }
 
     var body: some View {
-        if modal {
-            immersiveBody
-        } else {
-            standardBody
-        }
+        standardBody
     }
 
     private var standardBody: some View {
@@ -304,6 +300,15 @@ struct ChatBackgroundSheet: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if modal {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .accessibilityLabel(Tr("关闭"))
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(Tr("完成")) { dismiss() }
                 }
