@@ -88,9 +88,12 @@ struct ContactsView: View {
     @State private var starIds: [String] = []
 
     private var listHeadH: CGFloat { max(0, L.navH - 7) }
-    private var contactsCanvas: Color { Color.dyn(0xFFFFFF, 0x000000) }
-    private var contactsField: Color { Color.dyn(0xF0F2F5, 0x0A0A0C) }
-    private var contactsRule: Color { Color.dyn(0xE9EDEF, 0x1C1C20) }
+    private var contactsCanvas: Color { Color.dyn(0xFFFFFF, 0x0B141A) }
+    private var contactsField: Color { Color.dyn(0xF0F2F5, 0x202C33) }
+    private var contactsRule: Color { Color.dyn(0xE9EDEF, 0x1F2C34) }
+    private var contactsLabel: Color { Color.dyn(0x111B21, 0xE9EDEF) }
+    private var contactsSecondary: Color { Color.dyn(0x667781, 0x8696A0) }
+    private var contactsSectionFill: Color { Color.dyn(0xF7F8FA, 0x111B21) }
     private let contactsAccent = Color(hex: 0x25D366)
 
 private var funcs: [(String, String, Color, String)] {
@@ -157,10 +160,10 @@ private var funcs: [(String, String, Color, String)] {
             VStack(alignment: .leading, spacing: 1) {
                 Text(C.tabText1)
                     .font(pfStyled(size: 26, weight: .bold))
-                    .foregroundStyle(C.label)
+                    .foregroundStyle(contactsLabel)
                 Text(contactCountText)
                     .font(pfStyled(size: 12.5, weight: .regular))
-                    .foregroundStyle(C.subLabel)
+                    .foregroundStyle(contactsSecondary)
             }
 
             Spacer(minLength: 8)
@@ -246,12 +249,17 @@ private var funcs: [(String, String, Color, String)] {
                                         HStack(spacing: 0) {
                                             Text(section.letter)
                                                 .font(pfStyled(size: 13, weight: .semibold))
-                                                .foregroundStyle(C.subLabel)
+                                                .foregroundStyle(contactsSecondary)
                                             Spacer(minLength: 0)
                                         }
                                         .padding(.leading, 16)
                                         .frame(height: max(32, L.ctHeadH))
-                                        .background(contactsCanvas)
+                                        .background(contactsSectionFill)
+                                        .overlay(alignment: .bottom) {
+                                            Rectangle()
+                                                .fill(contactsRule)
+                                                .frame(height: 0.5)
+                                        }
                                         .id("letter-\(section.letter)")
                                     }
                                 }
@@ -260,14 +268,14 @@ private var funcs: [(String, String, Color, String)] {
                                     if filtered.isEmpty {
                                         Text(Tr("还没有联系人，点右上角 ＋ 添加"))
                                             .font(pf(16))
-                                            .foregroundColor(OrbitTheme.secondary)
+                                            .foregroundColor(contactsSecondary)
                                             .frame(maxWidth: .infinity)
                                             .padding(.top, 40)
                                     } else {
                                         Text(contactCountText)
 
                                             .font(pfStyled(size: 12.5, weight: .medium))
-                                            .foregroundColor(OrbitTheme.tertiary)
+                                            .foregroundColor(contactsSecondary)
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 20)
                                     }
@@ -416,10 +424,10 @@ private var funcs: [(String, String, Color, String)] {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(C.subLabel)
+                    .foregroundColor(contactsSecondary)
                 Text(Tr("搜索"))
                     .font(pfStyled(size: 16))
-                    .foregroundColor(C.subLabel)
+                    .foregroundColor(contactsSecondary)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
@@ -427,10 +435,6 @@ private var funcs: [(String, String, Color, String)] {
             .frame(height: 44)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(contactsField))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(C.searchBorder, lineWidth: 0.6)
-            }
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -474,7 +478,7 @@ private var funcs: [(String, String, Color, String)] {
 
             Text(item.0)
                 .font(pfStyled(size: 17, weight: .regular))
-                .foregroundColor(C.label)
+                .foregroundColor(contactsLabel)
 
             Spacer(minLength: 8)
 
@@ -508,7 +512,7 @@ private var funcs: [(String, String, Color, String)] {
         VStack(alignment: .leading, spacing: 10) {
             Text(Tr("星标朋友"))
                 .font(pfStyled(size: 14, weight: .semibold))
-                .foregroundStyle(C.subLabel)
+                .foregroundStyle(contactsSecondary)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 15) {
                     ForEach(starUsers) { u in
@@ -528,7 +532,7 @@ private var funcs: [(String, String, Color, String)] {
                                     }
                                 Text(u.name)
                                     .font(pfStyled(size: 12, weight: .regular))
-                                    .foregroundColor(C.subLabel)
+                                    .foregroundColor(contactsSecondary)
                                     .lineLimit(1)
                                     .frame(width: 58)
                             }
@@ -566,7 +570,7 @@ private var funcs: [(String, String, Color, String)] {
                 }
                 Text(item.0)
                     .font(pfStyled(size: 12, weight: .medium))
-                    .foregroundColor(OrbitTheme.ink)
+                    .foregroundColor(contactsLabel)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -607,7 +611,7 @@ private var funcs: [(String, String, Color, String)] {
                 funcIcon(item, size: L.ctIcon)
                 Text(item.0)
                     .font(pf(L.ctNameSize))
-                    .foregroundColor(C.label)
+                    .foregroundColor(contactsLabel)
                 Spacer(minLength: 0)
 
                 if item.3 == "newFriends" && app.showDot("newFriends", auto: app.friendRequests > 0) {
@@ -679,7 +683,7 @@ private var funcs: [(String, String, Color, String)] {
                 HStack(spacing: 5) {
                     Text(user.name)
                         .font(pfStyled(size: 17, weight: .regular))
-                        .foregroundColor(C.label)
+                        .foregroundColor(contactsLabel)
                         .lineLimit(1)
 
                     if (user.qqLevel ?? 0) > 1, GrowthFlags.showInContacts != false {
@@ -698,7 +702,7 @@ private var funcs: [(String, String, Color, String)] {
                 if let subtitle = contactSubtitle(user) {
                     Text(subtitle)
                         .font(pfStyled(size: 14, weight: .regular))
-                        .foregroundColor(C.subLabel)
+                        .foregroundColor(contactsSecondary)
                         .lineLimit(1)
                 }
             }
@@ -746,7 +750,7 @@ private var funcs: [(String, String, Color, String)] {
 
                         .foregroundColor(idxLetter == section.letter
                                          ? .white
-                                         : C.subLabel)
+                                         : contactsSecondary)
                         .frame(width: 22, height: rowH)
                         .background {
                             if idxLetter == section.letter {
