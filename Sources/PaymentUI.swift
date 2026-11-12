@@ -332,17 +332,31 @@ struct PayOfficialView: View {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color(hex: 0x050505), Color(hex: 0x242529)],
+                        colors: [Color(hex: 0x060607), Color(hex: 0x17191C), Color(hex: 0x09090A)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
 
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.08),
+                            .init(color: .white.opacity(0.075), location: 0.46),
+                            .init(color: .clear, location: 0.65)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .blendMode(.screen)
+
             Circle()
-                .fill(.white.opacity(0.045))
+                .fill(.white.opacity(0.030))
                 .frame(width: 260, height: 260)
-                .blur(radius: 52)
-                .offset(x: 165, y: -110)
+                .blur(radius: 62)
+                .offset(x: 176, y: -125)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 11) {
@@ -433,25 +447,42 @@ struct PayOfficialView: View {
                 Spacer(minLength: 16)
 
                 HStack {
-                    Text(XYPay.cardLine)
-                        .font(pfExact(10.5, .semibold))
-                        .tracking(0.8)
-                        .foregroundStyle(.white.opacity(0.44))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(XYPay.cardLine)
+                            .font(pf(10.5, .medium))
+                            .foregroundStyle(.white.opacity(0.46))
+                        Text("STAR PAY")
+                            .font(pfExact(8.5, .bold))
+                            .tracking(1.6)
+                            .foregroundStyle(.white.opacity(0.27))
+                    }
                     Spacer()
                     Image(systemName: "wave.3.right.circle.fill")
-                        .font(.system(size: 21, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.32))
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.30))
                 }
             }
             .padding(22)
         }
-        .frame(height: 212)
+        .frame(height: 220)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(.white.opacity(0.08), lineWidth: 0.8)
+                .stroke(
+                    LinearGradient(
+                        colors: [.white.opacity(0.22), .white.opacity(0.045),
+                                 .white.opacity(0.12)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.9
+                )
         }
-        .shadow(color: .black.opacity(0.20), radius: 18, y: 10)
+        .overlay {
+            RoundedRectangle(cornerRadius: 27.2, style: .continuous)
+                .stroke(.white.opacity(0.035), lineWidth: 0.6)
+        }
+        .shadow(color: .black.opacity(0.28), radius: 22, y: 12)
         .padding(.horizontal, 16)
     }
 
