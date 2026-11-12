@@ -112,6 +112,7 @@ private struct MeCardRowOutline: Shape {
 private struct MeCardRowBackground: View {
     let position: MeCardRowPosition
     var showsOutline = true
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         GeometryReader { proxy in
@@ -119,7 +120,7 @@ private struct MeCardRowBackground: View {
             ZStack {
                 MeCardRowFill(position: position, radius: radius)
                     .fill(C.meCardBg)
-                if showsOutline {
+                if showsOutline && scheme != .dark {
                     MeCardRowOutline(position: position, radius: radius)
                         .stroke(C.hairline, lineWidth: 0.8)
                 }
@@ -179,7 +180,11 @@ struct MeView: View {
                         .foregroundStyle(OrbitTheme.ink)
                         .frame(width: 36, height: 36)
                         .background(Circle().fill(OrbitTheme.field))
-                        .overlay(Circle().stroke(OrbitTheme.divider, lineWidth: 0.6))
+                        .overlay {
+                            if scheme != .dark {
+                                Circle().stroke(OrbitTheme.divider, lineWidth: 0.6)
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Tr("我的二维码"))
@@ -190,7 +195,11 @@ struct MeView: View {
                         .foregroundStyle(OrbitTheme.ink)
                         .frame(width: 36, height: 36)
                         .background(Circle().fill(OrbitTheme.field))
-                        .overlay(Circle().stroke(OrbitTheme.divider, lineWidth: 0.6))
+                        .overlay {
+                            if scheme != .dark {
+                                Circle().stroke(OrbitTheme.divider, lineWidth: 0.6)
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Tr("设置"))
@@ -247,24 +256,28 @@ struct MeView: View {
                 }
                 .buttonStyle(.plain)
 
-                Rectangle().fill(OrbitTheme.divider).frame(height: 0.5)
+                if scheme != .dark {
+                    Rectangle().fill(OrbitTheme.divider).frame(height: 0.5)
+                }
 
                 HStack(spacing: 0) {
                     orbitMeStat(value: "\(friendCount)", title: Tr("朋友")) {
                         app.show(Tr("朋友列表请在通讯录查看"))
                     }
-                    orbitMeDivider
+                    if scheme != .dark { orbitMeDivider }
                     orbitMeStat(value: daysText, title: Tr("活跃天")) {
                         path.append("level")
                     }
-                    orbitMeDivider
+                    if scheme != .dark { orbitMeDivider }
                     orbitMeStat(value: "\(app.me?.momentCount ?? 0)", title: Tr("动态")) {
                         path.append("moments")
                     }
                 }
                 .padding(.vertical, 12)
 
-                Rectangle().fill(OrbitTheme.divider).frame(height: 0.5)
+                if scheme != .dark {
+                    Rectangle().fill(OrbitTheme.divider).frame(height: 0.5)
+                }
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -463,8 +476,7 @@ struct MeView: View {
                             showsOutline: false
                         )
                     )
-                    .listRowSeparator(idx < grouped[gi].count - 1 ? .visible : .hidden)
-                    .listRowSeparatorTint(C.hairline)
+                    .listRowSeparator(.hidden)
                 }
             }
         }
@@ -477,8 +489,7 @@ struct MeView: View {
                                           color: .indigo)
                 }
                 .listRowBackground(MeCardRowBackground(position: .first, showsOutline: false))
-                .listRowSeparator(.visible)
-                .listRowSeparatorTint(C.hairline)
+                .listRowSeparator(.hidden)
 
                 NavigationLink(value: "faces") {
                     nativeSettingsIconRow(Tr("人脸比对"),
@@ -1086,8 +1097,11 @@ struct MeView: View {
         }
     }
 
+    @ViewBuilder
     private var statLine: some View {
-        Rectangle().fill(C.hairline).frame(width: 0.5, height: 26)
+        if scheme != .dark {
+            Rectangle().fill(C.hairline).frame(width: 0.5, height: 26)
+        }
     }
 
     private var memberPill: some View {

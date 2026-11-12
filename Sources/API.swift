@@ -1591,12 +1591,13 @@ final class API {
 
     private(set) var token: String = ""
 
-    private(set) var server: String = "43.242.194.89:8443"
+    private(set) var server: String = "aa.x8iu.com:5443"
 
     private(set) var backups: [String] = API.builtinBackups
 
     static let trustedHosts: Set<String> = [
         "43.242.194.89",
+        "aa.x8iu.com",
         "u.598218.xyz"
     ]
     static func trustedHost(_ s: String) -> Bool {
@@ -1638,8 +1639,10 @@ final class API {
 
     static let builtinBackups: [String] = []
     private static let retiredEndpoints: Set<String> = [
+        "43.242.194.89",
         "43.242.194.89:443",
         "43.242.194.89:5443",
+        "43.242.194.89:8443",
         "u.598218.xyz:443",
         "u.598218.xyz:5443",
         "u.598218.xyz:8443"
