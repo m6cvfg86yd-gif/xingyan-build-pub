@@ -85,22 +85,23 @@ class LegacyShadowRecorder {
     }, 'chat-message:' + (messageId || id), { allowAfterTombstone: true });
   }
 
-  chatUnread(chatId, ownerId, unread) {
+  chatUnread(chatId, ownerId, unread, legacyEventId) {
     const id = String(chatId || '') + '|' + String(ownerId || '');
     return this.submit('chat_read_state', id, 'unread', {
       chatId,
       ownerId,
       unread: unread === true || Number(unread) > 0
-    }, 'chat-unread:' + id + ':' + String(unread));
+    }, 'chat-unread:' + id + ':' + String(unread === true || Number(unread) > 0)
+      + ':' + (legacyEventId || ''));
   }
 
-  chatPinned(chatId, ownerId, pinned) {
+  chatPinned(chatId, ownerId, pinned, legacyEventId) {
     const id = String(chatId || '') + '|' + String(ownerId || '');
     return this.submit('chat_user_state', id, 'pin', {
       chatId,
       ownerId,
       pinned: pinned === true
-    }, 'chat-pin:' + id + ':' + String(pinned === true));
+    }, 'chat-pin:' + id + ':' + String(pinned === true) + ':' + (legacyEventId || ''));
   }
 
   chatMemberRemoved(chatId, userId, reason) {
@@ -139,22 +140,46 @@ class LegacyShadowRecorder {
     }, 'moment-comment:' + momentId + ':' + comment.id);
   }
 
-  momentLiked(momentId, userId, at) {
+  momentLiked(momentId, userId, at, legacyEventId) {
     return this.submit('moment_like', momentId + '|' + userId, 'like', {
       momentId,
       userId,
       at: at || ''
-    }, 'moment-like:' + momentId + ':' + userId);
+    }, 'moment-like:' + momentId + ':' + userId + ':' + (legacyEventId || at || ''),
+    { allowAfterTombstone: true });
   }
 
-  momentCommentLiked(momentId, commentId, userId, at) {
+  momentUnliked(momentId, userId, at, legacyEventId) {
+    return this.submit('moment_like', momentId + '|' + userId, 'unlike', {
+      momentId,
+      userId,
+      at: at || ''
+    }, 'moment-unlike:' + momentId + ':' + userId + ':' + (legacyEventId || at || ''),
+    { deleted: true });
+  }
+
+  momentCommentLiked(momentId, commentId, userId, at, legacyEventId) {
     return this.submit('moment_comment_like', momentId + '|' + commentId + '|' + userId,
       'like', {
         momentId,
         commentId,
         userId,
         at: at || ''
-      }, 'moment-comment-like:' + momentId + ':' + commentId + ':' + userId);
+      }, 'moment-comment-like:' + momentId + ':' + commentId + ':' + userId + ':'
+        + (legacyEventId || at || ''),
+      { allowAfterTombstone: true });
+  }
+
+  momentCommentUnliked(momentId, commentId, userId, at, legacyEventId) {
+    return this.submit('moment_comment_like', momentId + '|' + commentId + '|' + userId,
+      'unlike', {
+        momentId,
+        commentId,
+        userId,
+        at: at || ''
+      }, 'moment-comment-unlike:' + momentId + ':' + commentId + ':' + userId + ':'
+        + (legacyEventId || at || ''),
+      { deleted: true });
   }
 
   transferClaimed(transfer, userId) {
@@ -170,6 +195,15 @@ class LegacyShadowRecorder {
 function compareLegacyState(cluster, legacy) {
   const diffs = [];
   const data = legacy || {};
+  const chatUserStates = new Map(
+    cluster.list('chat_user_state').map((row) => [row.entityId, row])
+  );
+  const chatReadStates = new Map(
+    cluster.list('chat_read_state').map((row) => [row.entityId, row])
+  );
+  const chatVisibilityStates = new Map(
+    cluster.list('chat_visibility').map((row) => [row.entityId, row])
+  );
   for (const friendship of data.friendships || []) {
     if (!friendship || friendship.status !== 'accepted') continue;
     const state = cluster.get('friendship', pairKey(friendship.fromId, friendship.toId));
@@ -183,10 +217,47 @@ function compareLegacyState(cluster, legacy) {
       const state = cluster.get('chat', chat.id);
       if (!state || !state.deleted) diffs.push({ kind: 'chat-dismiss', id: chat.id });
     }
-    for (const ownerId of chat.hiddenFor || []) {
-      const state = cluster.get('chat_visibility', chat.id + '|' + ownerId);
-      if (!state || !state.deleted) {
-        diffs.push({ kind: 'chat-hidden', id: chat.id, ownerId });
+    const visibilityOwners = new Set(chat.hiddenFor || []);
+    for (const row of chatVisibilityStates.values()) {
+      if (row && row.payload && row.payload.chatId === chat.id) {
+        visibilityOwners.add(row.payload.ownerId);
+      }
+    }
+    for (const ownerId of visibilityOwners) {
+      const expectedHidden = (chat.hiddenFor || []).includes(ownerId);
+      const visibilityState = chatVisibilityStates.get(chat.id + '|' + ownerId);
+      const actualHidden = !!(visibilityState && visibilityState.deleted);
+      if (actualHidden !== expectedHidden) {
+        diffs.push({
+          kind: 'chat-hidden',
+          id: chat.id,
+          ownerId,
+          expected: expectedHidden
+        });
+      }
+    }
+    const stateOwners = new Set(chat.pinnedFor || []);
+    for (const ownerId of chat.flaggedUnread || []) stateOwners.add(ownerId);
+    for (const row of chatUserStates.values()) {
+      if (row && row.payload && row.payload.chatId === chat.id) stateOwners.add(row.payload.ownerId);
+    }
+    for (const row of chatReadStates.values()) {
+      if (row && row.payload && row.payload.chatId === chat.id) stateOwners.add(row.payload.ownerId);
+    }
+    for (const ownerId of stateOwners) {
+      const expectedPinned = (chat.pinnedFor || []).includes(ownerId);
+      const pinState = chatUserStates.get(chat.id + '|' + ownerId);
+      const actualPinned = !!(pinState && !pinState.deleted
+        && pinState.payload && pinState.payload.pinned === true);
+      if (actualPinned !== expectedPinned) {
+        diffs.push({ kind: 'chat-pin', id: chat.id, ownerId, expected: expectedPinned });
+      }
+      const expectedUnread = (chat.flaggedUnread || []).includes(ownerId);
+      const readState = chatReadStates.get(chat.id + '|' + ownerId);
+      const actualUnread = !!(readState && !readState.deleted
+        && readState.payload && readState.payload.unread === true);
+      if (actualUnread !== expectedUnread) {
+        diffs.push({ kind: 'chat-unread', id: chat.id, ownerId, expected: expectedUnread });
       }
     }
   }
@@ -197,6 +268,19 @@ function compareLegacyState(cluster, legacy) {
     for (const comment of moment.comments || []) {
       const row = cluster.get('moment_comment', moment.id + '|' + comment.id);
       if (!row || row.deleted) diffs.push({ kind: 'moment-comment', id: comment.id });
+      for (const like of comment.likes || []) {
+        const likeRow = cluster.get(
+          'moment_comment_like',
+          moment.id + '|' + comment.id + '|' + like.userId
+        );
+        if (!likeRow || likeRow.deleted) {
+          diffs.push({
+            kind: 'moment-comment-like',
+            id: comment.id,
+            userId: like.userId
+          });
+        }
+      }
     }
     for (const like of moment.likes || []) {
       const row = cluster.get('moment_like', moment.id + '|' + like.userId);

@@ -8,7 +8,7 @@
       "family": "friendship",
       "entityTypes": ["friendship", "friend_visibility"],
       "events": ["read"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "friends.request",
@@ -17,7 +17,7 @@
       "family": "friendship",
       "entityTypes": ["friendship"],
       "events": ["request", "accept"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "friends.respond",
@@ -26,7 +26,7 @@
       "family": "friendship",
       "entityTypes": ["friendship"],
       "events": ["accept", "reject"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "friends.remove",
@@ -35,7 +35,7 @@
       "family": "friendship",
       "entityTypes": ["friendship", "friend_visibility"],
       "events": ["delete"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "friends.clear",
@@ -44,7 +44,7 @@
       "family": "friendship",
       "entityTypes": ["friendship", "friend_visibility"],
       "events": ["delete"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "users.search",
@@ -53,7 +53,7 @@
       "family": "friendship",
       "entityTypes": ["friendship", "friend_visibility"],
       "events": ["read"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "chats.list",
@@ -62,7 +62,7 @@
       "family": "chat",
       "entityTypes": ["chat", "chat_visibility"],
       "events": ["read"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "chats.hide",
@@ -71,7 +71,7 @@
       "family": "chat",
       "entityTypes": ["chat_visibility"],
       "events": ["hide"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "chats.messages.create",
@@ -80,7 +80,7 @@
       "family": "chat",
       "entityTypes": ["friendship", "chat_visibility", "chat"],
       "events": ["send", "show"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "chats.unread",
@@ -89,7 +89,7 @@
       "family": "chat",
       "entityTypes": ["chat_read_state"],
       "events": ["unread"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "chats.pin",
@@ -98,7 +98,7 @@
       "family": "chat",
       "entityTypes": ["chat_user_state"],
       "events": ["pin"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "chats.kick",
@@ -107,7 +107,7 @@
       "family": "chat",
       "entityTypes": ["chat_membership"],
       "events": ["remove-member"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "chats.leave",
@@ -116,7 +116,7 @@
       "family": "chat",
       "entityTypes": ["chat_membership"],
       "events": ["leave"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "chats.dismiss",
@@ -125,7 +125,7 @@
       "family": "chat",
       "entityTypes": ["chat"],
       "events": ["dismiss"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "moments.list",
@@ -134,7 +134,7 @@
       "family": "moment",
       "entityTypes": ["moment", "moment_comment", "moment_like"],
       "events": ["read"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "moments.publish",
@@ -143,7 +143,7 @@
       "family": "moment",
       "entityTypes": ["moment"],
       "events": ["publish"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "moments.comment",
@@ -152,7 +152,7 @@
       "family": "moment",
       "entityTypes": ["moment", "moment_comment"],
       "events": ["comment"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "moments.like",
@@ -161,7 +161,7 @@
       "family": "moment",
       "entityTypes": ["moment", "moment_like"],
       "events": ["like"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "moments.comment-like",
@@ -170,7 +170,7 @@
       "family": "moment",
       "entityTypes": ["moment_comment", "moment_comment_like"],
       "events": ["like"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "moments.notices",
@@ -179,7 +179,7 @@
       "family": "moment",
       "entityTypes": ["moment", "moment_comment", "moment_like"],
       "events": ["read"],
-      "status": "pending"
+      "status": "shadow"
     },
     {
       "id": "transfers.claim",
@@ -188,7 +188,7 @@
       "family": "payment",
       "entityTypes": ["transfer"],
       "events": ["claim"],
-      "status": "pending"
+      "status": "shadow"
     }
   ]
 }

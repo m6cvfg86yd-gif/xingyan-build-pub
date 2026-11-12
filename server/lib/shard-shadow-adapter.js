@@ -32,9 +32,9 @@ class ShadowAdapter {
         return (data.recipientIds || []).map((ownerId) =>
           this.recorder.chatMessageShown(data.chatId, ownerId, data.messageId));
       case 'chats.unread':
-        return this.recorder.chatUnread(data.chatId, data.ownerId, data.unread);
+        return this.recorder.chatUnread(data.chatId, data.ownerId, data.unread, data.eventId);
       case 'chats.pin':
-        return this.recorder.chatPinned(data.chatId, data.ownerId, data.pinned);
+        return this.recorder.chatPinned(data.chatId, data.ownerId, data.pinned, data.eventId);
       case 'chats.kick':
         return this.recorder.chatMemberRemoved(data.chatId, data.userId, 'kick');
       case 'chats.leave':
@@ -46,10 +46,15 @@ class ShadowAdapter {
       case 'moments.comment':
         return this.recorder.momentCommented(data.momentId, data.comment);
       case 'moments.like':
-        return this.recorder.momentLiked(data.momentId, data.userId, data.at);
+        return data.liked === false
+          ? this.recorder.momentUnliked(data.momentId, data.userId, data.at, data.eventId)
+          : this.recorder.momentLiked(data.momentId, data.userId, data.at, data.eventId);
       case 'moments.comment-like':
-        return this.recorder.momentCommentLiked(
-          data.momentId, data.commentId, data.userId, data.at);
+        return data.liked === false
+          ? this.recorder.momentCommentUnliked(
+            data.momentId, data.commentId, data.userId, data.at, data.eventId)
+          : this.recorder.momentCommentLiked(
+            data.momentId, data.commentId, data.userId, data.at, data.eventId);
       case 'transfers.claim':
         return this.recorder.transferClaimed(data.transfer, data.userId);
       default:

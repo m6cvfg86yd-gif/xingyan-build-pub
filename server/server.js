@@ -22,6 +22,7 @@ const zlib = require('zlib');
 const ws = require('./lib/ws');
 const { PaymentLedger, cents: ledgerCents, money: ledgerMoney } = require('./payment-ledger');
 const { AmlEngine } = require('./aml');
+const { createShardShadowService } = require('./lib/shard-shadow-service');
 const {
   isOpsUser,
   isOpsWebAuthPath,
@@ -33,6 +34,12 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, 'data');
 const MSG_DIR = path.join(DATA_DIR, 'messages');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+let shardShadow = null;
+
+function observeShardShadow(routeId, payload) {
+  if (!shardShadow || !shardShadow.enabled) return;
+  shardShadow.observe(routeId, payload);
+}
 
 const PORT = Number(process.env.PORT || 5180);
 /* 内置 TURN（通话中转）的端口和账号：局域网内部用，保持简单 */
@@ -16970,6 +16977,7 @@ async function handleApi(req, res, pathname, query) {
     if (tr.status === 'received') {
       /* 多设备/弱网重试时状态可能已经落库，但确认页还没刷新。
          这里按幂等成功返回当前结果，避免用户点“确认收款”像没反应。 */
+      observeShardShadow('transfers.claim', { transfer: tr, userId: user.id });
       ok(res, { balance: user.balance, transfer: JSON.parse(transferSnapshot(tr)), alreadyReceived: true });
       return;
     }
@@ -16992,6 +17000,7 @@ async function handleApi(req, res, pathname, query) {
        两种情况都会记一条收款流水（后台「经营账户查账」看的就是它） */
     bizCollect(user, tr.amount, payer.nickname || payer.username || '好友', tr.fromId, 'transfer', tr.note || '');
     saveTransfers();
+    observeShardShadow('transfers.claim', { transfer: tr, userId: user.id });
     amlComplete(aml, true, { externalRef: tr.id });
     sendTo(user.id, { type: 'balance', balance: user.balance });
     broadcastTransfer(tr, 'received');
@@ -18453,7 +18462,10 @@ async function handleApi(req, res, pathname, query) {
 
   if (parts[0] === 'users' && method === 'GET') {
     const q = str(query.get('q'), 24).toLowerCase();
-    if (!q) return ok(res, { users: [] });            // 空搜索不再把全站用户吐出来
+    if (!q) {
+      observeShardShadow('users.search', { userId: user.id, query: q });
+      return ok(res, { users: [] });            // 空搜索不再把全站用户吐出来
+    }
     if (!searchRateAllow(user.id)) return fail(res, 429, '搜索太频繁了，歇一下再搜');
     refreshFriendshipsFromDisk(false);
     const online = onlineUserIds();
@@ -18481,6 +18493,7 @@ async function handleApi(req, res, pathname, query) {
           online: online.includes(u.id)
         });
       });
+    observeShardShadow('users.search', { userId: user.id, query: q, count: list.length });
     ok(res, { users: list });
     return;
   }
@@ -18537,6 +18550,12 @@ async function handleApi(req, res, pathname, query) {
           publicUserBrief(u, user.id));
       })
       .filter(Boolean);
+    observeShardShadow('contacts.list', {
+      userId: user.id,
+      friends: friends.length,
+      incoming: incoming.length,
+      outgoing: outgoing.length
+    });
     ok(res, { friends, incoming, outgoing, added });
     return;
   }
@@ -18565,6 +18584,7 @@ async function handleApi(req, res, pathname, query) {
       clearFriendRemoved(exist.fromId, exist.toId);
       forgetFriendSetCache(exist.fromId, exist.toId);
       clearStrangerMessagesBetween(exist.fromId, exist.toId);
+      observeShardShadow('friends.request', { friendship: exist, accept: true });
       /* 互相加好友（对方先加过我）：同样立刻在两个人的「微信」首页开出会话 */
       const c2 = openChatForFriendship(exist.fromId, exist.toId);
       sendTo(target.id, { type: 'friend', action: 'accepted', user: publicUser(user) });
@@ -18582,6 +18602,7 @@ async function handleApi(req, res, pathname, query) {
       clearFriendRemoved(target.id, user.id);
       forgetFriendSetCache(target.id, user.id);
       clearStrangerMessagesBetween(target.id, user.id);
+      observeShardShadow('friends.request', { friendship: auto, accept: true });
       const c0 = openChatForFriendship(target.id, user.id);
       sendTo(target.id, { type: 'friend', action: 'accepted', user: publicUser(user) });
       sendTo(user.id, { type: 'chat', chatId: c0 ? c0.id : '' });
@@ -18594,6 +18615,7 @@ async function handleApi(req, res, pathname, query) {
       note: str(body.message, 60) };
     db.friendships.push(f);
     saveFriendships();
+    observeShardShadow('friends.request', { friendship: f, accept: false });
     sendTo(target.id, { type: 'friend', action: 'request', requestId: f.id, user: publicUser(user) });
     /* 对方手机没连着 → 推一条「新的朋友」 */
     pushToUser(target.id, {
@@ -18709,6 +18731,11 @@ async function handleApi(req, res, pathname, query) {
       saveChats();
       saveReads();
       if (metaChanged) saveFriendMeta();
+      observeShardShadow('friends.clear', {
+        actorId: user.id,
+        targets: Array.from(removeIds),
+        eventId: 'friends-clear:' + user.id + ':' + now()
+      });
     }
     ok(res, { removed: removeIds.size });
     return;
@@ -18755,6 +18782,11 @@ async function handleApi(req, res, pathname, query) {
     sendTo(user.id, { type: 'friend', action: 'removed', userId: target.id });
     /* 对端也立即刷新，不再等客户端每 10 秒拉通讯录。 */
     sendTo(target.id, { type: 'friend', action: 'removed', userId: user.id });
+    observeShardShadow('friends.remove', {
+      actorId: user.id,
+      targetId: target.id,
+      eventId: 'friend-remove:' + user.id + ':' + target.id + ':' + now()
+    });
     ok(res, { removed: true, alreadyRemoved: !removedRelationship });
     return;
   }
@@ -18794,6 +18826,7 @@ async function handleApi(req, res, pathname, query) {
         }
       } catch (e) { /* 提示加不上不影响通过 */ }
       sendTo(f.fromId, { type: 'friend', action: 'accepted', user: publicUser(user) });
+      observeShardShadow('friends.respond', { friendship: f, accept: true });
       sendTo(f.fromId, { type: 'chat', chatId: newChat ? newChat.id : '' });
       sendTo(f.toId, { type: 'chat', chatId: newChat ? newChat.id : '' });
       ok(res, { accepted: true, friend: publicUser(findUser(f.fromId)), pending: pendingLeft(),
@@ -18801,6 +18834,7 @@ async function handleApi(req, res, pathname, query) {
     } else {
       db.friendships = db.friendships.filter((x) => x.id !== f.id);
       saveFriendships();
+      observeShardShadow('friends.respond', { friendship: f, accept: false });
       forgetFriendSetCache(user.id, f.fromId);
       ok(res, { rejected: true, pending: pendingLeft() });
     }
@@ -18836,6 +18870,7 @@ async function handleApi(req, res, pathname, query) {
           senderAvatar: (findUser(m.senderId) || {}).avatar || ''
         }))
       }));
+      observeShardShadow('chats.list', { userId: user.id, count: list.length, withMessages: true });
       ok(res, { chats: list, sync: { chats: batch, syncedAt: now() } });
       return;
     }
@@ -18847,6 +18882,7 @@ async function handleApi(req, res, pathname, query) {
         if (ra !== rb) return ra - rb;                            // 贾维斯AI 固定第一，其次其它机器人
         return String(b.updatedAt).localeCompare(String(a.updatedAt));
       });
+    observeShardShadow('chats.list', { userId: user.id, count: list.length, withMessages: false });
     ok(res, { chats: list });
     return;
   }
@@ -18996,6 +19032,12 @@ async function handleApi(req, res, pathname, query) {
     }
     chat.pinnedFor = Array.from(set);
     saveChats();
+    observeShardShadow('chats.pin', {
+      chatId: chat.id,
+      ownerId: user.id,
+      pinned: chat.pinnedFor.includes(user.id),
+      eventId: uid('sh-pin')
+    });
     ok(res, { pinned: chat.pinnedFor.includes(user.id), forced: hasBot });
     return;
   }
@@ -19028,12 +19070,14 @@ async function handleApi(req, res, pathname, query) {
       chat.pinnedFor = (chat.pinnedFor || []).filter((id) => id !== user.id);
       saveChats();
       sendTo(user.id, { type: 'chat', action: 'removed', chatId: chat.id });
+      observeShardShadow('chats.hide', { chatId: chat.id, ownerId: user.id, eventId: 'hide:' + user.id + ':' + chat.id });
       ok(res, { hidden: true, chatId: chat.id, bot: true, cleared: clearedSeq });
       return;
     }
     chat.hiddenFor = Array.from(new Set((chat.hiddenFor || []).concat([user.id])));
     saveChats();
     sendTo(user.id, { type: 'chat', action: 'removed', chatId: chat.id });
+    observeShardShadow('chats.hide', { chatId: chat.id, ownerId: user.id, eventId: 'hide:' + user.id + ':' + chat.id });
     ok(res, { hidden: true, chatId: chat.id, cleared: clearedSeq });
     return;
   }
@@ -19344,6 +19388,12 @@ async function handleApi(req, res, pathname, query) {
         sent = Object.assign({}, sent, { senderName: groupNameFor(c, user.id, user) });
       }
     }
+    const shadowChat = db.chats.find((c) => c.id === parts[1]);
+    observeShardShadow('chats.messages.create', {
+      chatId: parts[1],
+      messageId: sent ? sent.id : '',
+      recipientIds: shadowChat ? shadowChat.memberIds.filter((id) => id !== user.id) : []
+    });
     ok(res, { message: sent });
     return;
   }
@@ -19378,6 +19428,12 @@ async function handleApi(req, res, pathname, query) {
       saveChats();
     }
     sendToChat(chat, { type: 'read', chatId: chat.id, userId: user.id, seq: lastSeq }, user.id);
+    observeShardShadow('chats.unread', {
+      chatId: chat.id,
+      ownerId: user.id,
+      unread: false,
+      eventId: uid('sh-read')
+    });
     ok(res, { seq: lastSeq });
     return;
   }
@@ -19755,6 +19811,7 @@ async function handleApi(req, res, pathname, query) {
     chat.memberIds.forEach((id) => sendTo(id, { type: 'message', message: sys, chat: chatSummary(chat, id), clientId: null }));
     sendTo(target.id, { type: 'chat', action: 'removed', chatId: chat.id });
     saveChats();
+    observeShardShadow('chats.kick', { chatId: chat.id, userId: target.id });
     ok(res, { memberCount: chat.memberIds.length });
     return;
   }
@@ -19782,6 +19839,7 @@ async function handleApi(req, res, pathname, query) {
     others.forEach((id) => sendTo(id, { type: 'message', message: sys, chat: chatSummary(chat, id), clientId: null }));
     sendTo(user.id, { type: 'chat', action: 'removed', chatId: chat.id });
     saveChats();
+    observeShardShadow('chats.leave', { chatId: chat.id, userId: user.id });
     ok(res, { left: true, ownerId: chat.ownerId });
     return;
   }
@@ -19799,6 +19857,10 @@ async function handleApi(req, res, pathname, query) {
     chat.memberIds = [];
     chat.dismissed = true;
     saveChats();
+    observeShardShadow('chats.dismiss', {
+      chatId: chat.id,
+      eventId: 'dismiss:' + chat.id + ':' + now()
+    });
     members.forEach((id) => sendTo(id, { type: 'chat', action: 'removed', chatId: chat.id }));
     members.forEach((id) => sendTo(id, { type: 'message', message: sys, chat: chatSummary(chat, id), clientId: null }));
     ok(res, { dismissed: true });
@@ -19858,6 +19920,12 @@ async function handleApi(req, res, pathname, query) {
     saveReads();
     chat.flaggedUnread = Array.from(new Set((chat.flaggedUnread || []).concat([user.id])));
     saveChats();
+    observeShardShadow('chats.unread', {
+      chatId: chat.id,
+      ownerId: user.id,
+      unread: true,
+      eventId: uid('sh-unread')
+    });
     ok(res, { unread: unreadCount(user.id, chat) });
     return;
   }
@@ -20089,6 +20157,7 @@ async function handleApi(req, res, pathname, query) {
     const rows = mine.slice(-limit).reverse()
       .filter((r) => db.moments.some((m) => m.id === r.momentId))
       .map((r) => publicMomentNotice(r, user.id));
+    observeShardShadow('moments.notices', { userId: user.id, count: rows.length });
     ok(res, { items: rows, unread: momentNoticeUnread(user.id), total: mine.length });
     return;
   }
@@ -20157,6 +20226,11 @@ async function handleApi(req, res, pathname, query) {
     }
     const slice = list.slice(0, limit);
     const target = onlyUser ? memberProfile(findUser(onlyUser), user.id) : null;
+    observeShardShadow('moments.list', {
+      userId: user.id,
+      count: slice.length,
+      onlyUser
+    });
     ok(res, {
       moments: slice.map((m) => visibleMoment(m, user.id)),
       hasMore: list.length > slice.length,
@@ -20232,6 +20306,7 @@ async function handleApi(req, res, pathname, query) {
     broadcastMoment(user.id, {
       type: 'moment', action: 'new', authorId: user.id, moment: visibleMoment(moment, user.id)
     });
+    observeShardShadow('moments.publish', { moment });
     ok(res, { moment: visibleMoment(moment, user.id) });
     return;
   }
@@ -20247,6 +20322,13 @@ async function handleApi(req, res, pathname, query) {
     if (liked) m.likes.push({ userId: user.id, at: now() });
     else m.likes.splice(idx, 1);
     saveMoments();
+    observeShardShadow('moments.like', {
+      momentId: m.id,
+      userId: user.id,
+      liked,
+      at: now(),
+      eventId: uid('sh-like')
+    });
     broadcastMoment(m.authorId, {
       type: 'moment', action: 'like', momentId: m.id, authorId: m.authorId, userId: user.id, liked
     });
@@ -20321,6 +20403,14 @@ async function handleApi(req, res, pathname, query) {
     if (liked) comment.likes.push({ userId: user.id, at: now() });
     else comment.likes.splice(at, 1);
     saveMoments();
+    observeShardShadow('moments.comment-like', {
+      momentId: m.id,
+      commentId: comment.id,
+      userId: user.id,
+      liked,
+      at: now(),
+      eventId: uid('sh-comment-like')
+    });
 
     const views = visibleMoment(m, user.id);
     const visibleComment = (views.comments || []).find((c) => c.id === comment.id);
@@ -20352,6 +20442,11 @@ async function handleApi(req, res, pathname, query) {
     if (!m.comments) m.comments = [];
     m.comments.push({ id: uid('cm'), userId: user.id, content, replyTo, at: now(), likes: [] });
     saveMoments();
+    const shadowComment = m.comments[m.comments.length - 1];
+    observeShardShadow('moments.comment', {
+      momentId: m.id,
+      comment: shadowComment
+    });
     /* 朋友圈消息列表：评论了谁的动态就通知谁；回复某人的评论，被回复的人也收一条 */
     const newCommentId = m.comments[m.comments.length - 1].id;
     pushMomentNotice(m.authorId, user.id, 'comment', m.id, content, { commentId: newCommentId });
@@ -20993,6 +21088,25 @@ function serveStatic(req, res, pathname) {
 /* ------------------------------------------------------------------ 启动 */
 
 loadStore();
+try {
+  shardShadow = createShardShadowService({
+    enabled: process.env.SHARD_SHADOW_ENABLED || '0',
+    dataDir: DATA_DIR,
+    shardCount: Number(process.env.SHARD_COUNT) || 6,
+    uid,
+    now,
+    legacy: {
+      friendships: db.friendships,
+      chats: db.chats,
+      moments: db.moments,
+      transfers: db.transfers
+    }
+  });
+  if (shardShadow.enabled) console.log('[分片影子] 已启用，仅记录和比对，不参与线上返回');
+} catch (error) {
+  shardShadow = null;
+  console.log('[分片影子] 初始化失败，已自动关闭：' + String(error && error.message || error));
+}
 /* 反洗钱状态与证据链必须在敏感数据密钥加载完成后再初始化。 */
 try {
   migrateSecureJsonl(AML_JOURNAL);
@@ -21054,6 +21168,14 @@ setTimeout(() => {
     /* 一次性补齐：所有还没有机器人会话的用户（含之前注册的），都给他们开好欢迎会话 */
     db.users.filter((u) => !u.bot).forEach((u) => { try { attachBotsFor(u); } catch (e) { } try { ensureSysChat(u); } catch (e) { } });
     welcomeBots();       // 给主要账号开个「欢迎」会话，一打开就能看到机器人
+    if (shardShadow && shardShadow.enabled && typeof shardShadow.reconcile === 'function') {
+      shardShadow.reconcile({
+        friendships: db.friendships,
+        chats: db.chats,
+        moments: db.moments,
+        transfers: db.transfers
+      });
+    }
   } catch (e) {
     console.log('[bots] 启动异常：' + e.message);
   }

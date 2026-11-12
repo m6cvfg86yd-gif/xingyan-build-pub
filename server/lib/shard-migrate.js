@@ -18,6 +18,9 @@ function migrateLegacyState(options) {
   const counts = {
     friendships: 0,
     chatVisibility: 0,
+    chatPins: 0,
+    chatReads: 0,
+    chatMemberships: 0,
     groupsDissolved: 0,
     moments: 0,
     comments: 0,
@@ -63,6 +66,30 @@ function migrateLegacyState(options) {
         ownerId
       }, { deleted: true });
       counts.chatVisibility += 1;
+    }
+    for (const ownerId of chat.pinnedFor || []) {
+      apply(cluster, 'chat_user_state', chat.id + '|' + ownerId, 1, 'pin', {
+        chatId: chat.id,
+        ownerId,
+        pinned: true
+      });
+      counts.chatPins += 1;
+    }
+    for (const ownerId of chat.flaggedUnread || []) {
+      apply(cluster, 'chat_read_state', chat.id + '|' + ownerId, 1, 'unread', {
+        chatId: chat.id,
+        ownerId,
+        unread: true
+      });
+      counts.chatReads += 1;
+    }
+    for (const memberId of chat.memberIds || []) {
+      apply(cluster, 'chat_membership', chat.id + '|' + memberId, 1, 'join', {
+        chatId: chat.id,
+        userId: memberId,
+        active: true
+      });
+      counts.chatMemberships += 1;
     }
   }
 

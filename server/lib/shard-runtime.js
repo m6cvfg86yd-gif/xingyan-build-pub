@@ -286,6 +286,14 @@ class ShardCluster {
     return this.log(this.ownerShard(entityType, entityId)).get(entityType, entityId);
   }
 
+  list(entityType) {
+    const rows = [];
+    for (let shard = 0; shard < this.shardCount; shard += 1) {
+      rows.push(...this.log(shard).list(entityType));
+    }
+    return rows;
+  }
+
   event(entityType, entityId, eventId) {
     return this.log(this.ownerShard(entityType, entityId)).event(eventId);
   }
