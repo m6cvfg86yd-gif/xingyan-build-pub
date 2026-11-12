@@ -88,7 +88,9 @@ struct ContactsView: View {
     @State private var starIds: [String] = []
 
     private var listHeadH: CGFloat { max(0, L.navH - 7) }
-    private var contactsCanvas: Color { Color.dyn(0xFFFFFF, 0x0B141A) }
+    private var contactsCanvas: Color {
+        UIConfig.colorIfSet("contactsBg") ?? Color.dyn(0xFFFFFF, 0x0B141A)
+    }
     private var contactsField: Color { Color.dyn(0xF0F2F5, 0x202C33) }
     private var contactsRule: Color { Color.dyn(0xE9EDEF, 0x1F2C34) }
     private var contactsLabel: Color { Color.dyn(0x111B21, 0xE9EDEF) }

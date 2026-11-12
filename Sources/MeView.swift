@@ -245,10 +245,10 @@ struct MeView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(worldAndMeCanvasColor().ignoresSafeArea())
+        .background(mePageCanvasColor.ignoresSafeArea())
         .navigationTitle(Tr("我的"))
         .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(worldAndMeCanvasColor(), for: .navigationBar)
+        .toolbarBackground(mePageCanvasColor, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .refreshable {
             app.me = try? await API.shared.me()
@@ -269,6 +269,10 @@ struct MeView: View {
                 .accessibilityLabel(Tr("设置"))
             }
         }
+    }
+
+    private var mePageCanvasColor: Color {
+        UIConfig.colorIfSet("pageBg") ?? worldAndMeCanvasColor()
     }
 
     private func nativeStat(value: String, title: String,

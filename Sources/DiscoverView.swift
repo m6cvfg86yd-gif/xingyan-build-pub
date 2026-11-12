@@ -315,7 +315,7 @@ struct DiscoverView: View {
     }
 
     private var worldCanvas: Color {
-        worldAndMeCanvasColor()
+        UIConfig.colorIfSet("discoverBg") ?? worldAndMeCanvasColor()
     }
 
     private var worldPageBackground: some View {

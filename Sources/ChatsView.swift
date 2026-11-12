@@ -1081,9 +1081,9 @@ struct ChatsView: View {
     private var chatsCardInset: CGFloat { max(8, UIConfig.num("chatsOrbitInset", 12)) }
     private var chatsCardRadius: CGFloat { max(16, UIConfig.num("chatsOrbitRadius", 22)) }
     private var chatsPageFill: Color {
-        Color.dyn(0xFFFFFF, 0x0B141A)
+        UIConfig.colorIfSet("chatsPageBg") ?? Color.dyn(0xFFFFFF, 0x0B141A)
     }
-    private var chatsCardFill: Color { Color.dyn(0xFFFFFF, 0x0B141A) }
+    private var chatsCardFill: Color { chatsPageFill }
 
     @State private var scrolled: CGFloat = 0
     @State private var filterHidden = false

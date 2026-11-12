@@ -8,6 +8,12 @@ struct ManageData: Decodable {
     var apps: [MiniApp]?
 }
 
+private struct DarkPagePreset: Identifiable {
+    let id: String
+    let name: String
+    let hex: UInt32
+}
+
 struct UserManageView: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
@@ -75,6 +81,15 @@ struct UserManageView: View {
     @State private var meLayout = Int(UIConfig.num("meLayout", 0))
 
     @State private var multiDevice = UIConfig.num("multiDevice", 0) > 0
+
+    @State private var activeDarkPagePreset = ""
+    private let darkPagePresets: [DarkPagePreset] = [
+        DarkPagePreset(id: "whatsapp", name: "墨蓝黑", hex: 0x0B141A),
+        DarkPagePreset(id: "obsidian", name: "曜石黑", hex: 0x090A0C),
+        DarkPagePreset(id: "pure", name: "纯黑", hex: 0x000000),
+        DarkPagePreset(id: "graphite", name: "石墨灰", hex: 0x121417),
+        DarkPagePreset(id: "forest", name: "深林青", hex: 0x07120F)
+    ]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -698,6 +713,81 @@ struct UserManageView: View {
                     .labelsHidden().tint(C.green)
             }
             .padding(.horizontal, 16).frame(height: 62)
+
+            HairLine(inset: 16)
+            darkPageColorSection
+        }
+    }
+
+    private var darkPageColorSection: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(Tr("四个主页深色底色"))
+                    .font(pf(16))
+                    .foregroundColor(C.label)
+                Text(Tr("聊天、通讯录、世界、我的同步换色；浅色模式仍保持白色"))
+                    .font(pf(12))
+                    .foregroundColor(C.subLabel)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(darkPagePresets) { preset in
+                        Button {
+                            Task { await applyDarkPagePreset(preset) }
+                        } label: {
+                            VStack(spacing: 7) {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color(hex: preset.hex))
+                                    .frame(width: 62, height: 62)
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(
+                                                activeDarkPagePreset == preset.id
+                                                ? C.green : C.hairline,
+                                                lineWidth: activeDarkPagePreset == preset.id ? 2.2 : 0.7
+                                            )
+                                    }
+                                    .overlay {
+                                        if activeDarkPagePreset == preset.id {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 17, weight: .semibold))
+                                                .foregroundStyle(.white)
+                                                .shadow(color: .black.opacity(0.35),
+                                                        radius: 3, y: 1)
+                                        }
+                                    }
+
+                                Text(Tr(preset.name))
+                                    .font(pf(11.5, .medium))
+                                    .foregroundColor(C.label)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+    }
+
+    private func applyDarkPagePreset(_ preset: DarkPagePreset) async {
+        let value = "FFFFFF|" + String(preset.hex, radix: 16).uppercased()
+        let keys = ["chatsPageBg", "contactsBg", "discoverBg", "pageBg"]
+        var allOK = true
+        for key in keys {
+            let ok = await API.shared.opsSetUIKey(key, value)
+            allOK = allOK && ok
+        }
+        if allOK {
+            activeDarkPagePreset = preset.id
+            await app.refreshUI(force: true)
+            UISelectionFeedbackGenerator().selectionChanged()
+            msg = Tr("四个主页颜色已切换为") + preset.name
+        } else {
+            msg = Tr("深色页面配色保存失败")
         }
     }
 
