@@ -3242,25 +3242,27 @@ function idemSave() {
 function moneySelfCheck() {
   let bad = 0;
   try {
-    const st = readSecureJsonStore(MONEY_STATE, { users: {} });
-    const users = (st && st.users) || {};
     db.users.forEach((u) => {
-      const rec = users[u.id];
-      if (!rec) return;                       // 这个账号没有总账记录（新账号 / 老数据），跳过
+      /* money-state 是并发写入的“便捷快照”，多分片同时扣款时可能被旧写覆盖，
+         不能拿它判定资金是否一致。真正的唯一事实源是链式总账 journal。 */
+      const latest = paymentLedger.entriesForUser(u.id, 1)[0];
+      if (!latest) return;                    // 这个账号没有总账记录（新账号 / 老数据），跳过
+      const ledgerBalance = moneyRound(latest.after);
       const now = moneyRound(u.balance) || 0;
-      if (Math.abs(now - (Number(rec.balance) || 0)) > 0.005) {
+      if (Math.abs(now - ledgerBalance) > 0.005) {
         bad += 1;
         console.log('[钱的自检] 余额和总账对不上：' + (u.nickname || u.username || u.id)
-          + ' 账上 ' + now.toFixed(2) + ' / 总账 ' + (Number(rec.balance) || 0).toFixed(2));
+          + ' 用户余额 ' + now.toFixed(2) + ' / 链式总账 ' + ledgerBalance.toFixed(2));
       }
       /* 开了经营账户的，经营账户那份也要对得上 */
-      const brec = users['biz:' + u.id];
-      if (brec) {
+      const bizLatest = paymentLedger.entriesForUser('biz:' + u.id, 1)[0];
+      if (bizLatest) {
         const bizBal = moneyRound(bizOf(u.id, false).balance) || 0;
-        if (Math.abs(bizBal - (Number(brec.balance) || 0)) > 0.005) {
+        const bizLedger = moneyRound(bizLatest.after);
+        if (Math.abs(bizBal - bizLedger) > 0.005) {
           bad += 1;
           console.log('[钱的自检] 经营账户和总账对不上：' + (u.nickname || u.username || u.id)
-            + ' 账上 ' + bizBal.toFixed(2) + ' / 总账 ' + (Number(brec.balance) || 0).toFixed(2));
+            + ' 经营余额 ' + bizBal.toFixed(2) + ' / 链式总账 ' + bizLedger.toFixed(2));
         }
       }
     });
@@ -20790,6 +20792,13 @@ scheduleReminderTick();// 管家的定时提醒
    而违规检查用的 opsStore 在文件更下面才定义。原来在启动时就调用，会报
    「Cannot access 'opsStore' before initialization」——日志刷屏、欢迎语也发不出去。 */
 setTimeout(() => {
+  /* 生产库里机器人早已存在。旧逻辑每次启动都会遍历全部用户、
+     补好友和会话，数据量上来后会长时间占住事件循环，健康接口看似“启动失败”。
+     已有机器人时跳过批量补建；新注册账号仍会在注册/登录路径按需 attachBotsFor。 */
+  if (db.users.some((u) => u && u.bot)) {
+    try { dropSysFriendships(); } catch (e) {}
+    return;
+  }
   try {
     ensureBots();        // 建「AI 助手 / 管家 / 星联世界」几个机器人账号，并和所有人加好友
     try { dropSysFriendships(); } catch (e) {}   // 「星言团队」不是好友，只占会话列表一条
