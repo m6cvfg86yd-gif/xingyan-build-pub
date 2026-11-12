@@ -4,7 +4,13 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { stableShard, ShardDirectory, VersionedEntityLog, ShardCluster } = require('../lib/shard-runtime');
+const {
+  stableShard,
+  ShardDirectory,
+  VersionedEntityLog,
+  ShardCluster
+} = require('../lib/shard-runtime');
+const { ShardEventBus } = require('../lib/shard-event-bus');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xingyan-shard-runtime-'));
 const logFile = path.join(dir, 'events.jsonl');
@@ -110,6 +116,20 @@ try {
     assert.strictEqual(reopenedCluster.get('user', userId).version, 1);
     assert.strictEqual(reopenedCluster.get('chat', chatId).version, 1);
   }
+
+  const bus = new ShardEventBus({ dataDir: clusterDir, shardCount: 6 });
+  bus.publish({
+    eventId: 'moment-event-1',
+    entityType: 'moment',
+    entityId: 'moment-1',
+    version: 1,
+    payload: { content: 'hello' }
+  });
+  let replay = bus.replayInto(reopenedCluster);
+  assert.strictEqual(replay.replayed, 1);
+  assert.strictEqual(reopenedCluster.get('moment', 'moment-1').payload.content, 'hello');
+  replay = bus.replayInto(reopenedCluster);
+  assert.strictEqual(replay.replayed, 0);
 
   console.log('shard-runtime: passed');
 } finally {

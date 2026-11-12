@@ -28,3 +28,13 @@ It is intentionally stricter than the current shared-JSON implementation.
 
 Production deployment is forbidden until every gate above passes in the isolated
 six-shard harness.
+
+## Migration order
+
+1. Route every new friend/chat/moment/payment mutation through the owner shard.
+2. Mirror existing JSON records into versioned events at the migration boundary.
+3. Move reads to owner-shard APIs while keeping a bounded local read cache.
+4. Replace whole-file rewrites with append-only commands.
+5. Enable outbox/inbox delivery and cache invalidation.
+6. Run shadow traffic against the legacy state and compare every response.
+7. Switch one internal test account, then one shard, then the remaining shards.
