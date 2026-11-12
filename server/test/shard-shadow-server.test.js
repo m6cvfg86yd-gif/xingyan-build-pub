@@ -86,6 +86,12 @@ async function login(base, username) {
   return { cookie, user: response.data.user };
 }
 
+async function currentBalance(base, cookie) {
+  const response = await call(base, 'GET', '/api/me', undefined, cookie);
+  assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+  return Number(response.data.user.balance) || 0;
+}
+
 async function waitForHealth(base, child, logs) {
   for (let i = 0; i < 160; i += 1) {
     if (child.exitCode !== null) throw new Error('测试服务提前退出：\n' + logs.join(''));
@@ -251,11 +257,25 @@ async function main() {
     }, alice.cookie);
     assert.strictEqual(response.status, 200, JSON.stringify(response.data));
     const transferId = response.data.transfer.id;
+    const beforeClaim = await currentBalance(base, bob.cookie);
     response = await call(base, 'POST', '/api/transfers/' + transferId + '/claim', {}, bob.cookie);
     assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    const afterFirstClaim = Number(response.data.balance) || 0;
+    assert.strictEqual(afterFirstClaim, beforeClaim + 1, 'first claim must credit exactly once');
     response = await call(base, 'POST', '/api/transfers/' + transferId + '/claim', {}, bob.cookie);
     assert.strictEqual(response.status, 200, JSON.stringify(response.data));
     assert.strictEqual(response.data.alreadyReceived, true);
+    assert.strictEqual(Number(response.data.balance) || 0, afterFirstClaim,
+      'repeated claim must not credit the wallet twice');
+    assert.strictEqual(await currentBalance(base, bob.cookie), afterFirstClaim);
+    response = await call(base, 'GET', '/api/bills/ledger?limit=100', undefined, bob.cookie);
+    assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    assert.strictEqual(response.data.verified, true, 'wallet and authoritative ledger must match');
+    const transferEntries = (response.data.entries || [])
+      .filter((entry) => entry.ref === transferId);
+    assert.strictEqual(transferEntries.length, 1, 'one claim must create exactly one ledger fact');
+    assert.strictEqual(transferEntries[0].direction, 'in');
+    assert.strictEqual(Number(transferEntries[0].delta), 1);
 
     response = await call(base, 'POST', '/api/chats/group', {
       name: 'shadow group',
@@ -292,6 +312,10 @@ async function main() {
     assert.ok(commentLikeRow && !commentLikeRow.deleted, 'comment re-like must restore the shadow row');
     const transferRow = cluster.get('transfer', transferId);
     assert.strictEqual(transferRow && transferRow.payload.state, 'claimed');
+    assert.strictEqual(transferRow.payload.authority, 'payment-ledger');
+    assert.strictEqual(transferRow.payload.fromId, alice.user.id);
+    assert.strictEqual(transferRow.payload.toId, bob.user.id);
+    assert.strictEqual(Number(transferRow.payload.amount), 1);
     const groupRow = cluster.get('chat', groupId);
     assert.strictEqual(groupRow && groupRow.deleted, true);
 

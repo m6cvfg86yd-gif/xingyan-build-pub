@@ -122,7 +122,13 @@ try {
     assert.strictEqual(result.status, 'applied', routeId + ': ' + eventId);
   }
 
-  const transfer = { id: 'shadow-transfer-1', toId: 'shadow-bob', status: 'received' };
+  const transfer = {
+    id: 'shadow-transfer-1',
+    fromId: 'shadow-alice',
+    toId: 'shadow-bob',
+    amount: 1.25,
+    status: 'received'
+  };
   assert.strictEqual(service.observe('transfers.claim', {
     transfer,
     userId: transfer.toId
@@ -157,6 +163,21 @@ try {
   const comparison = service.compare(legacy);
   assert.strictEqual(comparison.ok, true, JSON.stringify(comparison.diffs));
   assert.strictEqual(service.cluster.verify().ok, true);
+  const report = service.audit(legacy);
+  assert.strictEqual(report.ok, true, JSON.stringify(report.diffs));
+  const storedReport = JSON.parse(fs.readFileSync(service.reportFile, 'utf8'));
+  assert.strictEqual(storedReport.ok, true);
+  assert.strictEqual(Number.isInteger(storedReport.migration.friendships), true);
+  const divergentLegacy = JSON.parse(JSON.stringify(legacy));
+  divergentLegacy.friendships.push({
+    id: 'shadow-missing-friend',
+    fromId: 'missing-a',
+    toId: 'missing-b',
+    status: 'accepted'
+  });
+  const divergence = service.audit(divergentLegacy);
+  assert.strictEqual(divergence.ok, false);
+  assert.ok(fs.existsSync(service.diffHistoryFile));
 
   const reopened = createShardShadowService({
     enabled: '1',

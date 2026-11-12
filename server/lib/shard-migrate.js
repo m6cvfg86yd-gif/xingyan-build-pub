@@ -158,7 +158,11 @@ function migrateLegacyState(options) {
       apply(cluster, 'transfer', transfer.id, 1, 'claim', {
         transferId: transfer.id,
         userId: transfer.toId || '',
+        fromId: transfer.fromId || '',
+        toId: transfer.toId || '',
+        amount: transfer.amount,
         state: 'claimed',
+        authority: 'payment-ledger',
         legacyStatus: transfer.status
       });
       counts.transfers += 1;
@@ -166,7 +170,11 @@ function migrateLegacyState(options) {
       apply(cluster, 'transfer', transfer.id, 1, transfer.status, {
         transferId: transfer.id,
         userId: transfer.toId || '',
+        fromId: transfer.fromId || '',
+        toId: transfer.toId || '',
+        amount: transfer.amount,
         state: transfer.status,
+        authority: 'payment-ledger',
         legacyStatus: transfer.status
       });
       counts.transfers += 1;

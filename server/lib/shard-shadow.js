@@ -187,7 +187,11 @@ class LegacyShadowRecorder {
     return this.submit('transfer', transfer.id, 'claim', {
       transferId: transfer.id,
       userId: userId || transfer.toId || '',
-      state: 'claimed'
+      fromId: transfer.fromId || '',
+      toId: transfer.toId || '',
+      amount: transfer.amount,
+      state: 'claimed',
+      authority: 'payment-ledger'
     }, 'transfer-claim:' + transfer.id);
   }
 }
@@ -290,8 +294,15 @@ function compareLegacyState(cluster, legacy) {
   for (const transfer of data.transfers || []) {
     if (!transfer || transfer.status !== 'received') continue;
     const state = cluster.get('transfer', transfer.id);
-    if (!state || state.payload.state !== 'claimed') {
-      diffs.push({ kind: 'transfer-claim', id: transfer.id });
+    const payload = state && !state.deleted ? state.payload || {} : {};
+    const mismatches = [];
+    if (payload.state !== 'claimed') mismatches.push('state');
+    if (payload.authority !== 'payment-ledger') mismatches.push('authority');
+    if (String(payload.fromId || '') !== String(transfer.fromId || '')) mismatches.push('fromId');
+    if (String(payload.toId || '') !== String(transfer.toId || '')) mismatches.push('toId');
+    if (Number(payload.amount) !== Number(transfer.amount)) mismatches.push('amount');
+    if (mismatches.length) {
+      diffs.push({ kind: 'transfer-claim', id: transfer.id, fields: mismatches });
     }
   }
   return { ok: diffs.length === 0, checked: {

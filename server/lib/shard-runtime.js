@@ -10,6 +10,24 @@ function stableShard(key, shardCount) {
   return digest.readUInt32BE(0) % count;
 }
 
+function routingKey(entityType, entityId) {
+  const type = String(entityType || '');
+  const id = String(entityId || '');
+  if (type === 'friend_visibility') {
+    return id.split('|')[0] || id;
+  }
+  if (type === 'chat_visibility' || type === 'chat_user_state' || type === 'chat_read_state'
+      || type === 'chat_membership') {
+    const parts = id.split('|');
+    return (parts.length > 1 ? parts[parts.length - 1] : '') || id;
+  }
+  if (type === 'moment_comment' || type === 'moment_like'
+      || type === 'moment_comment_like') {
+    return id.split('|')[0] || id;
+  }
+  return id;
+}
+
 function clone(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
@@ -269,7 +287,9 @@ class ShardCluster {
   }
 
   ownerShard(entityType, entityId) {
-    return this.directory.shardFor(entityType, entityId);
+    /* 资金事实固定落支付分片，不能随社交实体哈希漂移。 */
+    if (String(entityType || '') === 'transfer') return 0;
+    return this.directory.shardFor(entityType, routingKey(entityType, entityId));
   }
 
   apply(entityType, entityId, event) {
@@ -310,4 +330,10 @@ class ShardCluster {
   }
 }
 
-module.exports = { stableShard, ShardDirectory, VersionedEntityLog, ShardCluster };
+module.exports = {
+  stableShard,
+  routingKey,
+  ShardDirectory,
+  VersionedEntityLog,
+  ShardCluster
+};

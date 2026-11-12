@@ -35,10 +35,35 @@ const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : pat
 const MSG_DIR = path.join(DATA_DIR, 'messages');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 let shardShadow = null;
+let shardShadowAuditTimer = null;
 
 function observeShardShadow(routeId, payload) {
   if (!shardShadow || !shardShadow.enabled) return;
   shardShadow.observe(routeId, payload);
+}
+
+function shardShadowLegacySnapshot() {
+  return {
+    friendships: db.friendships,
+    chats: db.chats,
+    moments: db.moments,
+    transfers: db.transfers
+  };
+}
+
+function auditShardShadow() {
+  if (!shardShadow || !shardShadow.enabled || typeof shardShadow.audit !== 'function') return null;
+  try {
+    const report = shardShadow.audit(shardShadowLegacySnapshot());
+    if (!report.ok) {
+      console.log('[分片影子] 状态差异 ' + report.diffs.length + ' 项，已写入 '
+        + shardShadow.reportFile);
+    }
+    return report;
+  } catch (error) {
+    console.log('[分片影子] 审计失败：' + String(error && error.message || error));
+    return null;
+  }
 }
 
 const PORT = Number(process.env.PORT || 5180);
@@ -4004,8 +4029,9 @@ function payRateAllow(userId) {
   return r.n <= 20;
 }
 
-function bizCollect(user, amount, fromName, fromId, kind, note, reason) {
+function bizCollect(user, amount, fromName, fromId, kind, note, reason, auditRef) {
   const acc = bizOf(user.id, false);
+  const ledgerRef = auditRef || fromId || '';
   const toBiz = !!(acc.enabled && acc.settings.arrival === 'biz');
   const counterAccount = kind === 'redpacket'
     ? 'system:pending-redpacket'
@@ -4020,7 +4046,7 @@ function bizCollect(user, amount, fromName, fromId, kind, note, reason) {
       delta: moneyRound(amount), before: beforeBiz, after: afterBiz,
       counterAccount,
       reason: (kind === 'redpacket' ? '抢红包' : (kind === 'transfer' ? '收转账' : '收款')) + '（经营账户）',
-      ref: fromId || ''
+      ref: ledgerRef
     });
     a.balance = afterBiz;
     saveBizAll();
@@ -4028,7 +4054,7 @@ function bizCollect(user, amount, fromName, fromId, kind, note, reason) {
     /* 钱一律走 applyMoney：统一四舍五入到分 + 记总账（接真钱靠这本账对） */
     applyMoney(user, amount, {
       reason: reason || (kind === 'redpacket' ? '抢红包' : (kind === 'transfer' ? '收转账' : '收款')),
-      ref: fromId || '',
+      ref: ledgerRef,
       counterAccount
     });
     saveUsers();
@@ -16998,7 +17024,16 @@ async function handleApi(req, res, pathname, query) {
     tr.receivedAt = now();
     /* 收到的钱：开了经营账户且选了「到账经营账户」就进经营账户，否则照旧进零钱；
        两种情况都会记一条收款流水（后台「经营账户查账」看的就是它） */
-    bizCollect(user, tr.amount, payer.nickname || payer.username || '好友', tr.fromId, 'transfer', tr.note || '');
+    bizCollect(
+      user,
+      tr.amount,
+      payer.nickname || payer.username || '好友',
+      tr.fromId,
+      'transfer',
+      tr.note || '',
+      '',
+      tr.id
+    );
     saveTransfers();
     observeShardShadow('transfers.claim', { transfer: tr, userId: user.id });
     amlComplete(aml, true, { externalRef: tr.id });
@@ -17470,7 +17505,16 @@ async function handleApi(req, res, pathname, query) {
       at: now()
     });
     /* 抢到的红包钱：和收转账一样走「收款流水」（开了经营账户就进经营账户余额） */
-    bizCollect(user, amount, rpSender.nickname || rpSender.username || '好友', rp.fromId, 'redpacket', rp.note || '红包');
+    bizCollect(
+      user,
+      amount,
+      rpSender.nickname || rpSender.username || '好友',
+      rp.fromId,
+      'redpacket',
+      rp.note || '红包',
+      '',
+      rp.id
+    );
     if (rp.claims.length >= (Number(rp.count) || 1)) rp.status = 'done';
     saveRedPackets();
     amlComplete(aml, true, { externalRef: rp.id });
@@ -21095,14 +21139,17 @@ try {
     shardCount: Number(process.env.SHARD_COUNT) || 6,
     uid,
     now,
-    legacy: {
-      friendships: db.friendships,
-      chats: db.chats,
-      moments: db.moments,
-      transfers: db.transfers
-    }
+    legacy: shardShadowLegacySnapshot()
   });
-  if (shardShadow.enabled) console.log('[分片影子] 已启用，仅记录和比对，不参与线上返回');
+  if (shardShadow.enabled) {
+    console.log('[分片影子] 已启用，仅记录和比对，不参与线上返回');
+    const auditMs = Math.max(1000, Number(process.env.SHARD_SHADOW_AUDIT_MS) || 60000);
+    setTimeout(() => {
+      auditShardShadow();
+      shardShadowAuditTimer = setInterval(auditShardShadow, auditMs);
+      shardShadowAuditTimer.unref();
+    }, Math.min(auditMs, 5000)).unref();
+  }
 } catch (error) {
   shardShadow = null;
   console.log('[分片影子] 初始化失败，已自动关闭：' + String(error && error.message || error));
@@ -21169,12 +21216,7 @@ setTimeout(() => {
     db.users.filter((u) => !u.bot).forEach((u) => { try { attachBotsFor(u); } catch (e) { } try { ensureSysChat(u); } catch (e) { } });
     welcomeBots();       // 给主要账号开个「欢迎」会话，一打开就能看到机器人
     if (shardShadow && shardShadow.enabled && typeof shardShadow.reconcile === 'function') {
-      shardShadow.reconcile({
-        friendships: db.friendships,
-        chats: db.chats,
-        moments: db.moments,
-        transfers: db.transfers
-      });
+      shardShadow.reconcile(shardShadowLegacySnapshot());
     }
   } catch (e) {
     console.log('[bots] 启动异常：' + e.message);

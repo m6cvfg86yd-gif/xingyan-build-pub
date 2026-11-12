@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const {
   stableShard,
+  routingKey,
   ShardDirectory,
   VersionedEntityLog,
   ShardCluster
@@ -26,6 +27,11 @@ try {
     assert.strictEqual(stableShard(key, 6), stableShard(key, 6));
   }
   assert.ok(stableShard('u1', 6) >= 0 && stableShard('u1', 6) < 6);
+  assert.strictEqual(routingKey('friend_visibility', 'actor|target'), 'actor');
+  assert.strictEqual(routingKey('chat_visibility', 'chat|owner'), 'owner');
+  assert.strictEqual(routingKey('chat_user_state', 'chat|owner'), 'owner');
+  assert.strictEqual(routingKey('chat_membership', 'chat|member'), 'member');
+  assert.strictEqual(routingKey('moment_comment', 'moment|comment'), 'moment');
 
   const readJson = (file, fallback) => {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) { return fallback; }
@@ -88,6 +94,8 @@ try {
     readJson,
     writeJson
   });
+  assert.strictEqual(cluster.ownerShard('transfer', 'payment-1'), 0);
+  assert.strictEqual(cluster.ownerShard('transfer', 'payment-2'), 0);
   const routed = new Map();
   for (let i = 0; i < 120; i += 1) {
     const userId = 'user-' + i;
@@ -322,7 +330,13 @@ try {
       likes: [{ userId: 's2' }],
       comments: [{ id: 'scm1', userId: 's2', content: 'shadow comment' }]
     }],
-    transfers: [{ id: 'str1', status: 'received', toId: 's2' }]
+    transfers: [{
+      id: 'str1',
+      status: 'received',
+      fromId: 's1',
+      toId: 's2',
+      amount: 10
+    }]
   };
   shadow.friendAccepted(legacy.friendships[0]);
   shadow.chatHidden('sc1', 's1', 'legacy-chat-hide');
