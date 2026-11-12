@@ -781,9 +781,10 @@ struct SwipeChatRow: View {
     }
 
     private func swipeSpringFor(velocity vx: CGFloat) -> Animation {
-        let fast = abs(vx) > 700
-        return .interactiveSpring(response: fast ? 0.22 : 0.30,
-                                  dampingFraction: fast ? 0.90 : 0.86)
+        let speed = min(1, max(0, abs(vx) / 1_300))
+        return .interactiveSpring(response: 0.32 - speed * 0.10,
+                                  dampingFraction: 0.88 - speed * 0.07,
+                                  blendDuration: 0.08)
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
@@ -850,10 +851,14 @@ struct SwipeChatRow: View {
                     var x = startOffset + dx
                     if x > 0 {
                         if x > leadingFullW {
-                            x = leadingFullW + min(86, (x - leadingFullW) * 0.28)
+                            let extra = x - leadingFullW
+                            x = leadingFullW
+                                + min(86, CGFloat(pow(Double(extra), 0.72)) * 1.25)
                         }
                     } else if x < -fullW {
-                        x = -(fullW + min(92, (-x - fullW) * 0.30))
+                        let extra = -x - fullW
+                        x = -(fullW
+                              + min(92, CGFloat(pow(Double(extra), 0.72)) * 1.30))
                     }
                     offset = x
 
@@ -869,7 +874,8 @@ struct SwipeChatRow: View {
                 onEnded: { _, vx in
                     dragging = false
                     dragVelocity = vx
-                    if -offset > fullW * 1.04, vx <= 0 {
+                    let projected = offset + vx * 0.14
+                    if projected < -fullW * 1.06, vx <= 0 {
                         ChatSwipeFeedback.notification.notificationOccurred(.success)
                         onPin(chat.pinned != true)
                         close()
@@ -967,7 +973,7 @@ struct SwipeChatRow: View {
             return
         }
         if offset >= 0 {
-            let projected = offset + vx * 0.16
+            let projected = offset + vx * 0.14
             let open: Bool
             if vx <= -360 {
                 open = true
@@ -984,10 +990,10 @@ struct SwipeChatRow: View {
             return
         }
         let open: Bool
-        let projected = offset + vx * 0.16
-        if vx <= -360 {
+        let projected = offset + vx * 0.14
+        if vx <= -320 {
             open = true
-        } else if vx >= 360 {
+        } else if vx >= 320 {
             open = false
         } else {
             open = -projected > fullW * 0.42
