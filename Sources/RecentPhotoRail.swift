@@ -264,9 +264,11 @@ struct ChatRecentPhotoStrip: View {
                     }
                     .padding(.horizontal, 12)
                 }
-                .padding(.vertical, 7)
+                .frame(height: tile + 14)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: tile + 14)
         .task { await store.loadIfNeeded() }
     }
 }
