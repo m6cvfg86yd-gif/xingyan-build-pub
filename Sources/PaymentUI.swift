@@ -61,6 +61,89 @@ struct CardLightSweep: View {
     }
 }
 
+struct PayCheckoutWalletCard: View {
+    var title: String = "星言钱包"
+    var subtitle: String = "STAR PAY"
+    var tail: String = "0000"
+    var holder: String = ""
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0x050506), Color(hex: 0x1A1B1F), Color(hex: 0x080809)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 10) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 26, height: 26)
+                        .background(
+                            LinearGradient(colors: [Color(hex: 0xFFE7B0), Color(hex: 0xD9A94A)],
+                                           startPoint: .top, endPoint: .bottom),
+                            in: Circle()
+                        )
+                    Text(title)
+                        .font(pf(13.5, .semibold))
+                        .foregroundStyle(.white)
+                    Spacer(minLength: 0)
+                    Image(systemName: "wave.3.right.circle.fill")
+                        .font(.system(size: 21, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.34))
+                }
+
+                Spacer(minLength: 0)
+
+                Text("••••  ••••  ••••  " + tail)
+                    .font(Font(UIFont.monospacedDigitSystemFont(ofSize: 16, weight: .semibold)))
+                    .tracking(0.8)
+                    .foregroundStyle(.white.opacity(0.96))
+
+                HStack(alignment: .bottom, spacing: 8) {
+                    Text(holder.isEmpty ? subtitle : holder)
+                        .font(pf(11.5, .medium))
+                        .foregroundStyle(.white.opacity(0.62))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Text(subtitle)
+                        .font(pfExact(9, .bold))
+                        .tracking(1.3)
+                        .foregroundStyle(.white.opacity(0.32))
+                }
+                .padding(.top, 8)
+            }
+            .padding(17)
+        }
+        .frame(height: 164)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay { CardLightSweep(cornerRadius: 22) }
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [.white.opacity(0.22), .white.opacity(0.04), .white.opacity(0.12)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.8
+                )
+        }
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(.white, PayVisual.tint)
+                .padding(14)
+        }
+        .shadow(color: .black.opacity(0.28), radius: 18, y: 9)
+    }
+}
+
 struct StarPayAmount: View {
     enum Role {
         case hero, metric, row, detail, sheet

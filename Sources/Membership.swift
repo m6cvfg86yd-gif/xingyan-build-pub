@@ -152,6 +152,7 @@ struct MemberPaySheet: View {
     let pay: (String) async -> String?
     let onDone: () -> Void
 
+    @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var pwd = ""
     @State private var busy = false
@@ -161,73 +162,118 @@ struct MemberPaySheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Tr("收银台"))
+                        .font(pf(17, .semibold))
+                        .foregroundColor(C.label)
+                    Text(XYPay.name)
+                        .font(pf(11.5, .medium))
+                        .foregroundColor(PayVisual.secondaryInk)
+                }
+                Spacer(minLength: 0)
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(C.label)
+                        .foregroundColor(PayVisual.secondaryInk)
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
-                Spacer(minLength: 0)
             }
-
-            Text(purpose)
-                .font(pf(15))
-                .foregroundColor(C.subLabel)
-            Text("¥\(moneyFmt(amount))")
-                .font(pfMoney(32, .medium))
-                .foregroundColor(C.label)
-                .padding(.top, 6)
-
-            HStack(spacing: 6) {
-                Text(Tr("支付方式"))
-                Text(Tr("零钱")).foregroundColor(C.label)
-            }
-            .font(pf(12.5))
-            .foregroundColor(C.subLabel)
+            .padding(.horizontal, 16)
             .padding(.top, 8)
+            .padding(.bottom, 8)
+            .overlay(HairLine(), alignment: .bottom)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    VStack(spacing: 7) {
+                        Text(purpose)
+                            .font(pf(14.5, .medium))
+                            .foregroundColor(PayVisual.secondaryInk)
+                        StarPayAmount(value: amount, role: .detail, color: C.label)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    PayCheckoutWalletCard(
+                        title: XYPay.cardLine,
+                        subtitle: XYPay.sub,
+                        tail: XYPay.tail(app.me?.id ?? app.me?.username ?? "xingyan"),
+                        holder: app.me?.nickname ?? app.me?.username ?? ""
+                    )
+
+                    PayGroupCard {
+                        VStack(spacing: 0) {
+                            checkoutRow(Tr("收款方"), purpose)
+                            HairLine(inset: 16)
+                            checkoutRow(Tr("付款方式"), XYPay.name)
+                            HairLine(inset: 16)
+                            checkoutRow(Tr("安全验证"), Tr("支付密码"))
+                        }
+                    }
+
+                    if hasPassword {
+                        VStack(spacing: 12) {
+                            PayDotField(count: pwd.count, shake: shake, busy: busy)
+                            Text(Tr("输入 6 位支付密码完成付款"))
+                                .font(pf(12.5))
+                                .foregroundColor(PayVisual.secondaryInk)
+                        }
+                    } else {
+                        VStack(spacing: 9) {
+                            Image(systemName: "lock.shield.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(PayVisual.warning)
+                            Text(Tr("还没设置支付密码"))
+                                .font(pf(16, .semibold))
+                                .foregroundColor(C.label)
+                            Text(Tr("为了安全，付款前要先设一个 6 位支付密码\n（我 → 设置 → 账号与安全 → 支付密码）"))
+                                .font(pf(13.5))
+                                .foregroundColor(PayVisual.secondaryInk)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, 26)
+                        .padding(.vertical, 14)
+                    }
+
+                    if !tip.isEmpty {
+                        Text(tip)
+                            .font(pf(13))
+                            .foregroundColor(PayVisual.danger)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+                .padding(.bottom, 10)
+            }
 
             if hasPassword {
-                PayDotField(count: pwd.count, shake: shake, busy: busy)
-                    .padding(.top, 16)
-
                 PayKeypadView(busy: busy) { tapKey($0) }
-                    .padding(.top, 16)
-            } else {
-
-                VStack(spacing: 8) {
-                    Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 22))
-                        .foregroundColor(C.green)
-                    Text("还没设置支付密码")
-                        .font(pf(16, .medium))
-                        .foregroundColor(C.label)
-                    Text("为了安全，付款前要先设一个 6 位支付密码\n（我 → 设置 → 账号与安全 → 支付密码）")
-                        .font(pf(13.5))
-                        .foregroundColor(C.subLabel)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal, 26)
-                .padding(.top, 22)
             }
-
-            if !tip.isEmpty {
-                Text(tip)
-                    .font(pf(13))
-                    .foregroundColor(C.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-            }
-            Spacer(minLength: 0)
         }
 
         .overlay {
             if busy { PayBusyOverlay(text: "正在开通会员") }
         }
         .animation(.easeOut(duration: 0.15), value: busy)
-        .background(C.pageBg.ignoresSafeArea())
+        .background(PayVisual.canvas.ignoresSafeArea())
+    }
+
+    private func checkoutRow(_ title: String, _ value: String) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(pf(13.5))
+                .foregroundColor(PayVisual.secondaryInk)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(pf(13.5, .medium))
+                .foregroundColor(C.label)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 44)
     }
 
     private func tapKey(_ key: String) {

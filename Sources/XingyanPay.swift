@@ -41,16 +41,18 @@ struct XYPaySheet: View {
         VStack(spacing: 0) {
             bar
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 14) {
-                    cardFace
+                VStack(spacing: 18) {
+                    merchantHeader
                     amountBlock
+                    cardFace
+                    detailsCard
                     if stage == 2 { successBlock }
                     else if stage == 1 { pwdBlock }
                     else { verifyBlock }
-                    Spacer().frame(height: 4)
+                    Spacer().frame(height: 12)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
             }
         }
         .background(PayVisual.canvas.ignoresSafeArea())
@@ -61,8 +63,15 @@ struct XYPaySheet: View {
     }
 
     private var bar: some View {
-        HStack(spacing: 8) {
-            Text(XYPay.name).font(pf(17, .semibold)).foregroundColor(C.label)
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Tr("收银台"))
+                    .font(pf(17, .semibold))
+                    .foregroundColor(C.label)
+                Text(XYPay.name)
+                    .font(pf(11.5, .medium))
+                    .foregroundColor(PayVisual.secondaryInk)
+            }
             Spacer(minLength: 0)
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
@@ -74,14 +83,47 @@ struct XYPaySheet: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 6)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
         .overlay(HairLine(), alignment: .bottom)
+    }
+
+    private var merchantHeader: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(PayVisual.card)
+                Image(systemName: "bag.fill")
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(C.label)
+            }
+            .frame(width: 54, height: 54)
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(PayVisual.separator, lineWidth: 0.7)
+            }
+
+            Text(target.isEmpty ? XYPay.name : target)
+                .font(pf(17, .semibold))
+                .foregroundColor(C.label)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .padding(.horizontal, 18)
+
+            HStack(spacing: 5) {
+                Image(systemName: "checkmark.seal.fill")
+                Text(Tr("已验证的付款请求"))
+            }
+            .font(pf(11.5, .medium))
+            .foregroundColor(PayVisual.secondaryInk)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var cardFace: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(LinearGradient(colors: [Color(hex: 0x1C1E26), Color(hex: 0x30354A)],
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(LinearGradient(colors: [Color(hex: 0x050506), Color(hex: 0x1A1B1F), Color(hex: 0x080809)],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 8) {
@@ -116,24 +158,74 @@ struct XYPaySheet: View {
             }
             .padding(14)
         }
-        .frame(height: 138)
-        .shadow(color: .black.opacity(0.16), radius: 12, y: 6)
+        .frame(height: 164)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            CardLightSweep(cornerRadius: 22)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [.white.opacity(0.22), .white.opacity(0.04), .white.opacity(0.12)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.8
+                )
+        }
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(.white, PayVisual.tint)
+                .padding(14)
+        }
+        .shadow(color: .black.opacity(0.28), radius: 18, y: 9)
     }
 
     private var amountBlock: some View {
-        VStack(spacing: 6) {
-            Text(Tr("付款金额")).font(pf(12.5)).foregroundColor(C.subLabel)
-            StarPayAmount(value: amount, role: .sheet, color: C.label)
-            if !target.isEmpty {
-                Text(target).font(pf(13)).foregroundColor(C.subLabel)
-                    .multilineTextAlignment(.center).lineLimit(2)
+        VStack(spacing: 5) {
+            Text(Tr("付款金额"))
+                .font(pf(12.5, .medium))
+                .foregroundColor(PayVisual.secondaryInk)
+            StarPayAmount(value: amount, role: .detail, color: C.label)
+            if !note.isEmpty {
+                Text(note)
+                    .font(pf(12))
+                    .foregroundColor(PayVisual.secondaryInk)
+                    .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
-            if !note.isEmpty {
-                Text(note).font(pf(11.5)).foregroundColor(C.subLabel.opacity(0.85))
-            }
         }
-        .padding(.top, 4)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var detailsCard: some View {
+        PayGroupCard {
+            VStack(spacing: 0) {
+                checkoutRow(Tr("付款方式"), XYPay.cardLine)
+                HairLine(inset: 16)
+                checkoutRow(Tr("账户"), "•••• " + tail)
+                HairLine(inset: 16)
+                checkoutRow(Tr("安全验证"), Biometrics.available ? Biometrics.label : Tr("支付密码"))
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private func checkoutRow(_ title: String, _ value: String) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(pf(13.5))
+                .foregroundColor(PayVisual.secondaryInk)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(pf(13.5, .medium))
+                .foregroundColor(C.label)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 44)
     }
 
     private var verifyBlock: some View {
