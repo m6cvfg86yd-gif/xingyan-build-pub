@@ -13,6 +13,7 @@ const {
 const { ShardEventBus } = require('../lib/shard-event-bus');
 const { ShardDomain } = require('../lib/shard-domain');
 const { migrateLegacyState } = require('../lib/shard-migrate');
+const { ShardMutationGateway } = require('../lib/shard-gateway');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xingyan-shard-runtime-'));
 const logFile = path.join(dir, 'events.jsonl');
@@ -206,6 +207,58 @@ try {
   assert.strictEqual(migrationCluster.get('chat', 'g1').deleted, true);
   assert.strictEqual(migrationCluster.get('moment_comment', 'mo1|cm1').payload.content, 'legacy comment');
   assert.strictEqual(migrationCluster.get('transfer', 'tr1').payload.state, 'claimed');
+
+  let gatewayId = 0;
+  const gateway = new ShardMutationGateway({
+    cluster: reopenedCluster,
+    bus,
+    uid: (prefix) => prefix + '-gateway-' + (++gatewayId),
+    now: () => '2026-11-13T00:00:00.000Z'
+  });
+  let write = gateway.submit({
+    entityType: 'profile',
+    entityId: 'alice',
+    operation: 'update',
+    payload: { nickname: 'Alice A' },
+    eventId: 'profile-event-1'
+  });
+  assert.strictEqual(write.status, 'applied');
+  assert.strictEqual(write.version, 1);
+  write = gateway.submit({
+    entityType: 'profile',
+    entityId: 'alice',
+    operation: 'update',
+    payload: { nickname: 'Alice A' },
+    eventId: 'profile-event-1'
+  });
+  assert.strictEqual(write.status, 'duplicate');
+  write = gateway.submit({
+    entityType: 'profile',
+    entityId: 'alice',
+    operation: 'update',
+    payload: { nickname: 'Different payload' },
+    eventId: 'profile-event-1'
+  });
+  assert.strictEqual(write.status, 'idempotency-conflict');
+  write = gateway.submit({
+    entityType: 'profile',
+    entityId: 'alice',
+    operation: 'update',
+    payload: { nickname: 'Alice B' },
+    eventId: 'profile-event-2',
+    expectedVersion: 0
+  });
+  assert.strictEqual(write.status, 'version-conflict');
+  write = gateway.submit({
+    entityType: 'profile',
+    entityId: 'alice',
+    operation: 'update',
+    payload: { nickname: 'Alice B' },
+    eventId: 'profile-event-2',
+    expectedVersion: 1
+  });
+  assert.strictEqual(write.status, 'applied');
+  assert.strictEqual(write.version, 2);
 
   console.log('shard-runtime: passed');
 } finally {

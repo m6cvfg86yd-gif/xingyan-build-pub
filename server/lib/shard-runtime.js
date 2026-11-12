@@ -67,6 +67,7 @@ class VersionedEntityLog {
     this.fsync = !options || options.fsync !== false;
     this.entities = new Map();
     this.eventIds = new Set();
+    this.eventsById = new Map();
     if (!this.file) throw new Error('entity log file is required');
     this.load();
   }
@@ -102,6 +103,7 @@ class VersionedEntityLog {
     const { eventId } = this.validate(event);
     const key = this.entityKey(event.entityType, event.entityId);
     this.eventIds.add(eventId);
+    this.eventsById.set(eventId, clone(event));
     this.entities.set(key, {
       entityType: event.entityType,
       entityId: event.entityId,
@@ -157,6 +159,7 @@ class VersionedEntityLog {
     };
     this.entities.set(key, state);
     this.eventIds.add(identity.eventId);
+    this.eventsById.set(identity.eventId, clone(event));
     return { status: 'applied', state: clone(state) };
   }
 
@@ -169,6 +172,10 @@ class VersionedEntityLog {
     return Array.from(this.entities.values())
       .filter((state) => state.entityType === entityType)
       .map((state) => clone(state));
+  }
+
+  event(eventId) {
+    return this.eventsById.get(String(eventId || '')) || null;
   }
 }
 
@@ -216,6 +223,10 @@ class ShardCluster {
 
   get(entityType, entityId) {
     return this.log(this.ownerShard(entityType, entityId)).get(entityType, entityId);
+  }
+
+  event(entityType, entityId, eventId) {
+    return this.log(this.ownerShard(entityType, entityId)).event(eventId);
   }
 }
 
