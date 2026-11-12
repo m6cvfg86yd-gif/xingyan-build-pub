@@ -14,6 +14,14 @@ on:
         options:
           - build
           - typecheck
+      scope:
+        description: "typecheck scope"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - base
   push:
     branches:
       - main
@@ -296,8 +304,11 @@ jobs:
         run: |
           set -o pipefail
           SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          FLAGS=""
+          if [ "${{ github.event.inputs.scope }}" = "base" ]; then FLAGS="-D AML_TYPECHECK_BASE"; fi
           xcrun --sdk iphoneos swiftc \
             -typecheck \
+            $FLAGS \
             -sdk "$SDK" \
             -target arm64-apple-ios16.0 \
             -swift-version 5 \

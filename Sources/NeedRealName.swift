@@ -1,5 +1,11 @@
 import SwiftUI
 
+#if AML_TYPECHECK_BASE
+struct NeedRealNameView: View {
+    init(onClose: @escaping () -> Void, onVerified: @escaping () -> Void = {}) {}
+    var body: some View { EmptyView() }
+}
+#else
 struct NeedRealNameView: View {
     var onClose: () -> Void
     var onVerified: () -> Void
@@ -150,3 +156,4 @@ struct NeedRealNameView: View {
         .frame(minHeight: 64)
     }
 }
+#endif
