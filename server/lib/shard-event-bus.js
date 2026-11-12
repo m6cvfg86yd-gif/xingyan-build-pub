@@ -121,6 +121,37 @@ class ShardEventBus {
     fs.renameSync(temporary, cursorFile);
     return { replayed, cursors };
   }
+
+  syncFromCluster(cluster) {
+    if (!cluster || cluster.topologyId !== this.topologyId
+        || Number(cluster.shardCount) !== this.shardCount) {
+      throw new Error('event bus and cluster topology do not match');
+    }
+    const clusterIds = new Set();
+    const busIds = new Set();
+    for (let shard = 0; shard < this.shardCount; shard += 1) {
+      for (const eventId of cluster.log(shard).eventsById.keys()) clusterIds.add(eventId);
+      for (const event of this.read(0, shard)) busIds.add(event.eventId);
+    }
+    for (const eventId of busIds) {
+      if (!clusterIds.has(eventId)) {
+        throw new Error('event bus contains an event missing from cluster facts: ' + eventId);
+      }
+    }
+    let repaired = 0;
+    for (let shard = 0; shard < this.shardCount; shard += 1) {
+      for (const event of cluster.log(shard).eventsById.values()) {
+        if (busIds.has(event.eventId)) continue;
+        this.publish(Object.assign({}, event, {
+          writerShard: shard,
+          topologyId: this.topologyId
+        }));
+        busIds.add(event.eventId);
+        repaired += 1;
+      }
+    }
+    return { repaired, events: busIds.size };
+  }
 }
 
 module.exports = { ShardEventBus };

@@ -221,6 +221,38 @@ try {
   replay = bus.replayInto(reopenedCluster);
   assert.strictEqual(replay.replayed, 1);
   assert.strictEqual(reopenedCluster.get('moment', 'moment-2').payload.content, 'sharded bus');
+  const repairDir = path.join(dir, 'bus-repair');
+  const repairCluster = new ShardCluster({
+    dataDir: repairDir,
+    shardCount: 6
+  });
+  repairCluster.apply('profile', 'cluster-only-profile', {
+    eventId: 'cluster-only-event',
+    version: 1,
+    operation: 'create',
+    payload: { direct: true }
+  });
+  const repairBus = new ShardEventBus({ dataDir: repairDir, shardCount: 6 });
+  const repair = repairBus.syncFromCluster(repairCluster);
+  assert.strictEqual(repair.repaired, 1);
+  assert.strictEqual(repairBus.syncFromCluster(repairCluster).repaired, 0);
+  const orphanBus = new ShardEventBus({
+    dataDir: path.join(dir, 'orphan-bus'),
+    shardCount: 6
+  });
+  orphanBus.publish({
+    eventId: 'orphan-event',
+    entityType: 'profile',
+    entityId: 'orphan-user',
+    version: 1,
+    payload: {}
+  });
+  const orphanCluster = new ShardCluster({
+    dataDir: path.join(dir, 'orphan-cluster'),
+    shardCount: 6
+  });
+  assert.throws(() => orphanBus.syncFromCluster(orphanCluster),
+    /missing from cluster facts/);
 
   const corruptBusDir = path.join(dir, 'corrupt-bus');
   const corruptBus = new ShardEventBus({ dataDir: corruptBusDir, shardCount: 6 });

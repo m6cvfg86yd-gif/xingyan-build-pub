@@ -111,6 +111,7 @@ function createShardShadowService(options) {
     topologyId
   });
   const bus = new ShardEventBus({ dataDir, shardCount, topologyId });
+  const busRepair = bus.syncFromCluster(cluster);
   const gateway = new ShardMutationGateway({
     cluster,
     bus,
@@ -219,6 +220,7 @@ function createShardShadowService(options) {
     close,
     ownerId,
     topologyId,
+    busRepair,
     writerLockFile: writerLock.file
   };
   } catch (error) {

@@ -9,6 +9,7 @@ const { createShardShadowService } = require('../lib/shard-shadow-service');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xingyan-shard-shadow-service-'));
 let service = null;
 let reopened = null;
+let sevenShardService = null;
 
 try {
   const disabled = createShardShadowService({
@@ -197,6 +198,25 @@ try {
   });
   assert.strictEqual(reopened.compare(legacy).ok, true);
 
+  sevenShardService = createShardShadowService({
+    enabled: '1',
+    dataDir: path.join(root, 'enabled-7'),
+    shardCount: 7,
+    topologyId: 'server-b-shards-7',
+    uid: (prefix) => prefix + '-seven-' + (++uidCounter),
+    now: () => new Date(1700000200000 + (++clock)).toISOString()
+  });
+  assert.strictEqual(sevenShardService.topologyId, 'server-b-shards-7');
+  assert.strictEqual(sevenShardService.observe('friends.request', {
+    friendship: {
+      id: 'seven-friend',
+      fromId: 'seven-a',
+      toId: 'seven-b',
+      status: 'pending'
+    }
+  }).status, 'applied');
+  assert.strictEqual(sevenShardService.cluster.verify().ok, true);
+
   assert.deepStrictEqual(service.observe('contacts.list', {}), {
     status: 'read-observed',
     routeId: 'contacts.list'
@@ -205,6 +225,7 @@ try {
 
   console.log('shard-shadow-service: passed');
 } finally {
+  if (sevenShardService && typeof sevenShardService.close === 'function') sevenShardService.close();
   if (reopened && typeof reopened.close === 'function') reopened.close();
   if (service && typeof service.close === 'function') service.close();
   fs.rmSync(root, { recursive: true, force: true });
