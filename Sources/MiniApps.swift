@@ -183,12 +183,15 @@ struct MiniAppCardBubble: View {
 
 struct MiniAppsView: View {
     @EnvironmentObject var app: AppState
+    @Environment(\.dismiss) private var dismiss
     @State private var items: [MiniApp] = []
     @State private var loading = true
     @State private var search = ""
     @State private var category = ""
     @State private var favoriteIds: Set<String> = []
     @State private var recentIds: [String] = []
+
+    var modal: Bool = false
 
     private let favKey = "mini.favorites"
     private let recentKey = "mini.recent"
@@ -285,6 +288,17 @@ struct MiniAppsView: View {
         )
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
+            if modal {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .medium))
+                    }
+                    .accessibilityLabel(Tr("返回"))
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 categoryMenu
             }

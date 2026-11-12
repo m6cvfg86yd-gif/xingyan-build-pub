@@ -664,9 +664,12 @@ struct NewsFeedView: View {
 
 struct NewsView: View {
     @EnvironmentObject private var app: AppState
+    @Environment(\.dismiss) private var dismiss
     @State private var refreshToken = 0
     @State private var official: API.OfficialAccount?
     @State private var editingOfficial: API.OfficialAccount?
+
+    var modal: Bool = false
 
     var body: some View {
         NewsFeedView(refreshToken: refreshToken)
@@ -676,6 +679,17 @@ struct NewsView: View {
         .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
+            if modal {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .medium))
+                    }
+                    .accessibilityLabel(Tr("返回"))
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button { refreshToken += 1 } label: {
