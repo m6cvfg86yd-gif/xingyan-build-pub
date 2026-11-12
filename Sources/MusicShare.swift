@@ -1120,6 +1120,17 @@ struct ListenView: View {
     }
 
     var body: some View {
+        if sendMode {
+            libraryBody
+        } else {
+            MusicPlayingView(onExit: leaveListen,
+                             onModeChange: selectCopyMode)
+                .background(Color.black.ignoresSafeArea())
+                .task { await refreshTracks(force: true) }
+        }
+    }
+
+    private var libraryBody: some View {
         ZStack(alignment: .top) {
             if !sendMode && tab == 0 {
                 immersiveMusicBackdrop
@@ -1258,7 +1269,7 @@ struct ListenView: View {
     }
 
     private func autoPlayCurrentModeIfNeeded() {
-        guard !sendMode, !isAdmin, player.current == nil else { return }
+        guard !sendMode, player.current == nil else { return }
         switch copyVoice.mode {
         case .standard:
             MusicPlayer.shared.playMode = 0
@@ -3771,9 +3782,11 @@ struct MusicPlayingView: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject private var player = MusicPlayer.shared
     @ObservedObject private var sheet = MusicSheet.shared
+    @ObservedObject private var copyVoice = CopyVoiceStore.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     var onExit: (() -> Void)? = nil
+    var onModeChange: ((CopyMode) -> Void)? = nil
     @State private var dragging = false
     @State private var dragValue: Double = 0
 
@@ -4280,8 +4293,60 @@ struct MusicPlayingView: View {
             .shadow(color: .black.opacity(0.24), radius: 5, y: 2)
     }
 
+    private var playerModeMenu: some View {
+        Menu {
+            Section(Tr("推荐模式")) {
+                ForEach(CopyMode.allCases) { mode in
+                    Button {
+                        choosePlayerMode(mode)
+                    } label: {
+                        Label(
+                            (copyVoice.mode == mode ? "✓ " : "") + mode.name,
+                            systemImage: mode.symbol
+                        )
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: copyVoice.mode.symbol)
+                    .font(.system(size: 9.5, weight: .semibold))
+                Text(copyVoice.mode.name)
+                    .font(pf(10.5, .semibold))
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 7, weight: .bold))
+                    .opacity(0.68)
+            }
+            .foregroundStyle(.white.opacity(0.92))
+            .padding(.horizontal, 8)
+            .frame(height: 23)
+            .background(.white.opacity(0.10), in: Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Tr("推荐模式"))
+        .accessibilityValue(copyVoice.mode.name)
+    }
+
+    private func choosePlayerMode(_ mode: CopyMode) {
+        if let onModeChange {
+            onModeChange(mode)
+            return
+        }
+        MusicPlayer.shared.recordPlaybackOutcome()
+        copyVoice.mode = mode
+        switch mode {
+        case .standard, .familiar:
+            MusicPlayer.shared.playMode = 0
+        case .fresh:
+            MusicPlayer.shared.playMode = 2
+        }
+    }
+
     private func playerTopBar(landscape: Bool) -> some View {
-        HStack(spacing: 10) {
+        let artist = (t?.artistText ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return HStack(spacing: 10) {
             Button {
                 closeMe()
             } label: {
@@ -4292,7 +4357,25 @@ struct MusicPlayingView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("关闭"))
 
-            Spacer(minLength: 8)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(t?.title ?? Tr("听一听"))
+                    .font(pf(15.5, .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                HStack(spacing: 5) {
+                    if !artist.isEmpty {
+                        Text(artist)
+                            .font(pf(11.5, .regular))
+                            .foregroundStyle(.white.opacity(0.62))
+                            .lineLimit(1)
+                    }
+
+                    playerModeMenu
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if landscape {
                 Button {
@@ -4316,7 +4399,7 @@ struct MusicPlayingView: View {
                 .contentShape(Circle())
                 .shadow(color: .black.opacity(0.24), radius: 5, y: 2)
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
         .padding(.top, 6)
         .padding(.bottom, 6)
         .background {
