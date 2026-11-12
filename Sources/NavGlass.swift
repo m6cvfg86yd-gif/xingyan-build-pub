@@ -19,6 +19,7 @@ struct TopGlassBar: View {
 
     var always: Bool = false
     var matchFallback: Bool = false
+    var matchDarkBackground: Bool = false
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -32,7 +33,7 @@ struct TopGlassBar: View {
         if t > 0.01 {
 
             Group {
-                if matchFallback {
+                if matchFallback || (matchDarkBackground && scheme == .dark) {
                     fallback
                 } else {
                     ZStack {

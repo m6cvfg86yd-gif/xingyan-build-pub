@@ -1819,7 +1819,8 @@ struct ChatsView: View {
         TopGlassBar(scrolled: scrolled,
                     fallback: chatsPageFill,
                     offset: 9,
-                    always: true)
+                    always: true,
+                    matchDarkBackground: true)
         .ignoresSafeArea(edges: .top)
         .allowsHitTesting(false)
     }

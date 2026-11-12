@@ -514,7 +514,8 @@ struct DiscoverView: View {
                     .background {
                         TopGlassBar(scrolled: navScrolled,
                                     fallback: worldCanvas,
-                                    always: true)
+                                    always: true,
+                                    matchDarkBackground: true)
                     }
                     .overlay(alignment: .bottom) { TopGlassLine(scrolled: navScrolled) }
                     .zIndex(1)

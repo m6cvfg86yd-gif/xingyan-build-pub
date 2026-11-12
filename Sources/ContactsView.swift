@@ -197,7 +197,8 @@ private var funcs: [(String, String, Color, String)] {
                     .background {
                         TopGlassBar(scrolled: navScrolled,
                                     fallback: contactsCanvas,
-                                    always: true)
+                                    always: true,
+                                    matchDarkBackground: true)
                     }
                     .overlay(alignment: .bottom) {
                         TopGlassLine(scrolled: navScrolled)
