@@ -224,6 +224,11 @@ async function main() {
       userId: bob.user.id
     });
     assert.equal(response.status, 200, JSON.stringify(response.data));
+    response = await call(base, alice.cookie, 'POST', '/api/friends/remove', {
+      userId: bob.user.id
+    });
+    assert.equal(response.status, 200, '重复删除好友必须保持幂等：' + JSON.stringify(response.data));
+    assert.equal(response.data.alreadyRemoved, true);
     response = await call(base, alice.cookie, 'GET', '/api/contacts');
     assert.equal(response.status, 200, JSON.stringify(response.data));
     assert.ok(!(response.data.friends || []).some((friend) => friend.id === bob.user.id),

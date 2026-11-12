@@ -18793,9 +18793,13 @@ async function handleApi(req, res, pathname, query) {
     const target = findUser(str(body.userId, 40));
     if (!target) return fail(res, 404, '用户不存在');
     const f = friendshipBetween(user.id, target.id);
-    if (!f) return fail(res, 404, '你们还不是好友');
-    db.friendships = db.friendships.filter((x) => x.id !== f.id);
-    saveFriendships();
+    /* 删除必须幂等：多设备或实时事件已经删掉关系时，再点一次仍按成功处理，
+       并继续清理本机可见的会话/备注，避免客户端乐观删除后又整页回滚。 */
+    const removedRelationship = !!f;
+    if (removedRelationship) {
+      db.friendships = db.friendships.filter((x) => x.id !== f.id);
+      saveFriendships();
+    }
     forgetFriendSetCache(user.id, target.id);
     /* 只动我这边：把会话从我的列表里藏掉（对方那边不受影响，微信就是这样） */
     const chat = db.chats.find((c) => c.type === 'direct' && c.memberIds.includes(user.id) && c.memberIds.includes(target.id));
@@ -18821,7 +18825,7 @@ async function handleApi(req, res, pathname, query) {
     sendTo(user.id, { type: 'friend', action: 'removed', userId: target.id });
     /* 对端也立即刷新，不再等客户端每 10 秒拉通讯录。 */
     sendTo(target.id, { type: 'friend', action: 'removed', userId: user.id });
-    ok(res, { removed: true });
+    ok(res, { removed: true, alreadyRemoved: !removedRelationship });
     return;
   }
 

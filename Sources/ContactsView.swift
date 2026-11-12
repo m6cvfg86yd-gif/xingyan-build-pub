@@ -904,9 +904,11 @@ struct ContactCardView: View {
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
-        .confirmationDialog(Tr("删除好友？"), isPresented: $confirmDelete, titleVisibility: .visible) {
+        .alert(Tr("删除好友？"), isPresented: $confirmDelete) {
             Button(Tr("删除"), role: .destructive) { removeFriend() }
             Button(Tr("取消"), role: .cancel) { }
+        } message: {
+            Text(Tr("删除后，这位联系人会从通讯录中移除；重新添加后才能再次聊天。"))
         }
 
         .navigationDestination(isPresented: $showRemark) {
@@ -1160,7 +1162,7 @@ struct ContactCardView: View {
 
     private func closeMore(_ then: @escaping () -> Void) {
         showMore = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { then() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { then() }
     }
 
     private var nav: some View {
