@@ -106,7 +106,6 @@ struct StarPayAmount: View {
                 .tracking(role.tracking * 0.5)
         }
         .foregroundStyle(color)
-        .monospacedDigit()
         .lineLimit(1)
         .minimumScaleFactor(0.62)
         .accessibilityElement(children: .ignore)
