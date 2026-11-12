@@ -28,56 +28,46 @@ struct StarPayAmount: View {
 
         var size: CGFloat {
             switch self {
-            case .hero: return 43
-            case .metric: return 15.5
-            case .row: return 16.5
-            case .detail: return 34
-            case .sheet: return 40
+            case .hero: return 46
+            case .metric: return 16
+            case .row: return 17
+            case .detail: return 36
+            case .sheet: return 42
             }
         }
 
         var symbolSize: CGFloat {
-            switch self {
-            case .hero: return 17
-            case .metric: return 8.5
-            case .row: return 9
-            case .detail: return 14
-            case .sheet: return 17
-            }
+            (size * 0.48).rounded()
         }
 
         var fractionSize: CGFloat {
-            switch self {
-            case .hero: return 23
-            case .metric: return 10.5
-            case .row: return 11
-            case .detail: return 18
-            case .sheet: return 22
-            }
+            (size * 0.72).rounded()
         }
 
         var weight: Font.Weight {
             switch self {
-            case .hero, .detail, .sheet: return .bold
+            case .hero, .detail, .sheet: return .semibold
             case .metric, .row: return .semibold
             }
         }
 
         var tracking: CGFloat {
             switch self {
-            case .hero: return -1.2
-            case .detail, .sheet: return -0.8
-            default: return -0.15
+            case .hero, .detail, .sheet: return -0.55
+            default: return 0
             }
         }
 
         var symbolLift: CGFloat {
-            switch self {
-            case .hero: return 13
-            case .metric: return 5
-            case .row: return 5
-            case .detail: return 10
-            case .sheet: return 12
+            ((size - symbolSize) * 0.62).rounded()
+        }
+
+        var uiWeight: UIFont.Weight {
+            switch weight {
+            case .medium: return .medium
+            case .semibold: return .semibold
+            case .bold: return .bold
+            default: return .regular
             }
         }
     }
@@ -92,17 +82,25 @@ struct StarPayAmount: View {
         let parts = text.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
         let integer = parts.first.map(String.init) ?? "0"
         let fraction = parts.count > 1 ? String(parts[1]) : "00"
+        let scale = max(0.85, fontScale)
 
         HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(sign + "¥")
-                .font(moneySymbolFont(role.symbolSize, role.weight))
+                .font(.system(size: max(9, (role.symbolSize * scale).rounded()),
+                              weight: role.weight))
                 .baselineOffset(role.symbolLift)
             Text(integer)
-                .font(pfMoney(role.size, role.weight))
+                .font(Font(UIFont.monospacedDigitSystemFont(
+                    ofSize: max(9, (role.size * scale).rounded()),
+                    weight: role.uiWeight
+                )))
                 .tracking(role.tracking)
                 .layoutPriority(1)
             Text("." + fraction)
-                .font(pfMoney(role.fractionSize, role.weight))
+                .font(Font(UIFont.monospacedDigitSystemFont(
+                    ofSize: max(9, (role.fractionSize * scale).rounded()),
+                    weight: role.uiWeight
+                )))
                 .tracking(role.tracking * 0.5)
         }
         .foregroundStyle(color)
