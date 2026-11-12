@@ -18,13 +18,11 @@ private struct WorldGroupCard<Content: View>: View {
         content
             .padding(8)
             .background {
-                shape.fill(Color.dyn(0xFFFFFF, 0x191A19))
+                shape.fill(C.cardBg)
             }
             .overlay {
                 shape.stroke(
-                    scheme == .dark
-                        ? Color.white.opacity(0.075)
-                        : Color.black.opacity(0.055),
+                    scheme == .dark ? C.hairline : Color.black.opacity(0.055),
                     lineWidth: 0.7
                 )
             }
@@ -327,15 +325,11 @@ struct DiscoverView: View {
     }
 
     private var worldSectionFill: Color {
-        scheme == .dark
-            ? worldCanvas
-            : .white
+        scheme == .dark ? C.cardBg : .white
     }
 
     private var worldRowFill: Color {
-        scheme == .dark
-            ? worldCanvas
-            : .white
+        scheme == .dark ? C.cardBg : .white
     }
 
     private var worldHairline: Color {
