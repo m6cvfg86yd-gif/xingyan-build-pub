@@ -375,6 +375,8 @@ struct BillDetailView: View {
                 }
             } catch {
                 busy = false
+                await refreshTransfer()
+                if let fresh = try? await API.shared.me() { app.me = fresh }
                 app.show((error as? APIError)?.errorDescription ?? Tr("收款失败，稍后再试"))
             }
         }
