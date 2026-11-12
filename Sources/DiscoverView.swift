@@ -315,7 +315,7 @@ struct DiscoverView: View {
     }
 
     private var worldCanvas: Color {
-        Color.dyn(0xFFFFFF, 0x000000)
+        worldAndMeCanvasColor()
     }
 
     private var worldPageBackground: some View {

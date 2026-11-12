@@ -244,8 +244,12 @@ struct MeView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(worldAndMeCanvasColor().ignoresSafeArea())
         .navigationTitle(Tr("我的"))
         .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(worldAndMeCanvasColor(), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .refreshable {
             app.me = try? await API.shared.me()
             await app.loadContacts()

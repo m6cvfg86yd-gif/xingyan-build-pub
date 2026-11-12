@@ -44,6 +44,10 @@ func defaultChatCanvasColor() -> Color {
     Color.dyn(0xEFEAE2, 0x000000)
 }
 
+func worldAndMeCanvasColor() -> Color {
+    Color.dyn(0xFFFFFF, 0x0B141A)
+}
+
 func effectiveDefaultChatBackground(_ path: String) -> String {
     let normalized = normalizedChatBackground(path)
     return normalized == "solid:white" ? "" : normalized
