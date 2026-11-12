@@ -182,68 +182,84 @@ struct MeView: View {
     private var nativeMeList: some View {
         List {
             Section {
-                HStack(spacing: 8) {
-                    NavigationLink(value: "profile") {
-                        HStack(spacing: 12) {
-                            Avatar(path: app.me?.avatarPath ?? "", size: 58, radius: 18,
-                                   level: growth.shownLevel)
+                meGroupCard {
+                    HStack(spacing: 8) {
+                        NavigationLink(value: "profile") {
+                            HStack(spacing: 12) {
+                                Avatar(path: app.me?.avatarPath ?? "", size: 58, radius: 18,
+                                       level: growth.shownLevel)
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 6) {
-                                    Text(app.me?.name ?? Tr("星言用户"))
-                                        .font(pfStyled(size: 17, weight: .semibold))
-                                        .foregroundStyle(.primary)
-                                        .lineLimit(1)
-                                    if growthShow {
-                                        QQLevelBadge(level: growth.shownLevel, size: 14, maxIcons: 2)
-                                            .fixedSize()
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 6) {
+                                        Text(app.me?.name ?? Tr("星言用户"))
+                                            .font(pfStyled(size: 17, weight: .semibold))
+                                            .foregroundStyle(.primary)
+                                            .lineLimit(1)
+                                        if growthShow {
+                                            QQLevelBadge(level: growth.shownLevel, size: 14, maxIcons: 2)
+                                                .fixedSize()
+                                        }
                                     }
+                                    Text(Tr("星言号") + "：" + (app.me?.username ?? "-"))
+                                        .font(pfStyled(size: 12))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    let bio = (app.me?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                                    Text(bio.isEmpty ? Tr("点击编辑个人资料") : bio)
+                                        .font(pfStyled(size: 12))
+                                        .foregroundStyle(.tertiary)
+                                        .lineLimit(1)
                                 }
-                                Text(Tr("星言号") + "：" + (app.me?.username ?? "-"))
-                                    .font(pfStyled(size: 12))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                                let bio = (app.me?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                                Text(bio.isEmpty ? Tr("点击编辑个人资料") : bio)
-                                    .font(pfStyled(size: 12))
-                                    .foregroundStyle(.tertiary)
-                                    .lineLimit(1)
                             }
                         }
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
                 }
-                .padding(.vertical, 3)
             }
-            .listRowBackground(C.meCardBg)
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
 
             ForEach(grouped.indices, id: \.self) { gi in
                 Section {
-                    ForEach(grouped[gi]) { item in
-                        NavigationLink(value: routeKey(for: item)) {
-                            nativeMeItemRow(item)
+                    meGroupCard {
+                        ForEach(Array(grouped[gi].enumerated()), id: \.element.id) { idx, item in
+                            NavigationLink(value: routeKey(for: item)) {
+                                nativeMeItemRow(item)
+                            }
+                            if idx < grouped[gi].count - 1 {
+                                HairLine(inset: 16)
+                            }
                         }
                     }
                 }
-                .listRowBackground(C.meCardBg)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
 
             if app.me?.ops == true {
                 Section(header: Text(Tr("管理"))) {
-                    NavigationLink(value: "manage") {
-                        nativeSettingsIconRow(Tr("用户管理"),
-                                              symbol: "person.2.badge.gearshape.fill",
-                                              color: .indigo)
-                    }
-                    NavigationLink(value: "faces") {
-                        nativeSettingsIconRow(Tr("人脸比对"),
-                                              symbol: "face.smiling",
-                                              color: C.green)
+                    meGroupCard {
+                        NavigationLink(value: "manage") {
+                            nativeSettingsIconRow(Tr("用户管理"),
+                                                  symbol: "person.2.badge.gearshape.fill",
+                                                  color: .indigo)
+                        }
+                        HairLine(inset: 16)
+                        NavigationLink(value: "faces") {
+                            nativeSettingsIconRow(Tr("人脸比对"),
+                                                  symbol: "face.smiling",
+                                                  color: C.green)
+                        }
                     }
                 }
-                .listRowBackground(C.meCardBg)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
         }
         .listStyle(.insetGrouped)
@@ -276,6 +292,19 @@ struct MeView: View {
 
     private var mePageCanvasColor: Color {
         UIConfig.colorIfSet("pageBg") ?? worldAndMeCanvasColor()
+    }
+
+    private func meGroupCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) {
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(C.meCardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(C.hairline, lineWidth: 0.8)
+        }
     }
 
     private func nativeStat(value: String, title: String,
