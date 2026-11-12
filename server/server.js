@@ -24,6 +24,8 @@ const { PaymentLedger, cents: ledgerCents, money: ledgerMoney } = require('./pay
 const { AmlEngine } = require('./aml');
 const { createShardShadowService } = require('./lib/shard-shadow-service');
 const { resolveTopology } = require('./lib/shard-topology');
+const { PaymentTokenVault } = require('./lib/payment-token-vault');
+const { PaymentDeviceEnrollment } = require('./lib/payment-device-enrollment');
 const {
   isOpsUser,
   isOpsWebAuthPath,
@@ -37,6 +39,7 @@ const MSG_DIR = path.join(DATA_DIR, 'messages');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 let shardShadow = null;
 let shardShadowAuditTimer = null;
+let paymentDeviceEnrollment = null;
 
 function observeShardShadow(routeId, payload) {
   if (!shardShadow || !shardShadow.enabled) return;
@@ -16780,6 +16783,84 @@ async function handleApi(req, res, pathname, query) {
      付款方要过支付密码 / 额度 / 余额三道检查，钱当时就到对方账上（商家收款即时到账），
      同时往两个人的会话里落一条转账记录（账单、经营账户查账都看得到）。 */
 
+  /* 支付设备绑定：私钥只在设备安全区，服务端保存公钥并验证一次性挑战。 */
+  if (parts[0] === 'payment' && parts[1] === 'devices'
+      && parts[2] === 'challenge' && method === 'POST') {
+    if (!paymentDeviceEnrollment) return fail(res, 503, '支付设备绑定暂时不可用');
+    if (!payRateAllow(user.id)) return fail(res, 429, '操作太频繁，稍后再试');
+    const body = await readBody(req);
+    const deviceId = str(body.deviceId, 120);
+    const publicKey = str(body.publicKey, 4096);
+    if (!/^[A-Za-z0-9._:-]{6,120}$/.test(deviceId)) {
+      return fail(res, 422, '设备标识不合法');
+    }
+    try {
+      const started = paymentDeviceEnrollment.begin({
+        userId: user.id,
+        deviceId,
+        publicKey
+      });
+      recordSecurity(user.id, req, 'payment-device-challenge', {
+        note: '申请支付设备绑定挑战'
+      });
+      ok(res, started);
+      return;
+    } catch (error) {
+      return fail(res, 422, String(error && error.message || error));
+    }
+  }
+
+  if (parts[0] === 'payment' && parts[1] === 'devices'
+      && parts[2] === 'enroll' && method === 'POST') {
+    if (!paymentDeviceEnrollment) return fail(res, 503, '支付设备绑定暂时不可用');
+    if (!payRateAllow(user.id)) return fail(res, 429, '操作太频繁，稍后再试');
+    const body = await readBody(req);
+    try {
+      const token = paymentDeviceEnrollment.finish({
+        challenge: str(body.challenge, 200),
+        signature: str(body.signature, 4096),
+        last4: str(body.last4, 8)
+      });
+      if (token.userId !== user.id) return fail(res, 403, '支付设备不属于当前账号');
+      recordSecurity(user.id, req, 'payment-device-enroll', {
+        note: '绑定支付设备 ' + token.deviceId
+      });
+      audit(req, { username: user.username, name: user.nickname, role: '用户本人' },
+        '绑定支付设备', user.username, token.tokenId + ' · ' + token.deviceId);
+      ok(res, {
+        tokenId: token.tokenId,
+        deviceId: token.deviceId,
+        last4: token.last4,
+        status: token.status
+      });
+      return;
+    } catch (error) {
+      recordSecurity(user.id, req, 'payment-device-enroll-fail', {
+        note: String(error && error.message || error)
+      });
+      return fail(res, 401, String(error && error.message || error));
+    }
+  }
+
+  if (parts[0] === 'payment' && parts[1] === 'devices'
+      && parts[2] === 'revoke' && method === 'POST') {
+    if (!paymentDeviceEnrollment) return fail(res, 503, '支付设备绑定暂时不可用');
+    const body = await readBody(req);
+    try {
+      const token = paymentDeviceEnrollment.revoke(
+        str(body.tokenId, 128),
+        user.id
+      );
+      recordSecurity(user.id, req, 'payment-device-revoke', {
+        note: '撤销支付设备 ' + token.deviceId
+      });
+      ok(res, { tokenId: token.tokenId, status: token.status });
+      return;
+    } catch (error) {
+      return fail(res, 404, String(error && error.message || error));
+    }
+  }
+
   if (parts[0] === 'pay' && parts[1] === 'code' && method === 'POST') {
     if (blockedByRealName(res, user)) return;
     const code = newPayCode(user.id);
@@ -21186,6 +21267,22 @@ function serveStatic(req, res, pathname) {
 /* ------------------------------------------------------------------ 启动 */
 
 loadStore();
+try {
+  const paymentTokens = new PaymentTokenVault({
+    file: path.join(DATA_DIR, 'payment-token-vault.json'),
+    now
+  });
+  paymentDeviceEnrollment = new PaymentDeviceEnrollment({
+    tokens: paymentTokens,
+    uid,
+    now,
+    ttlMs: 2 * 60 * 1000
+  });
+} catch (error) {
+  paymentDeviceEnrollment = null;
+  console.log('[支付设备] 初始化失败，设备绑定已关闭：'
+    + String(error && error.message || error));
+}
 try {
   const shadowTopology = process.env.SHARD_TOPOLOGY_ID
     ? resolveTopology(path.join(ROOT, 'shard-topologies.json'), process.env.SHARD_TOPOLOGY_ID)

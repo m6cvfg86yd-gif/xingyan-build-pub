@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { canonical } = require('./shard-snapshot');
+const { verifyDeviceSignature } = require('./payment-device-enrollment');
 
 class PaymentTokenVault {
   constructor(options) {
@@ -84,13 +84,7 @@ class PaymentTokenVault {
     if (token.userId !== expected.userId || token.deviceId !== expected.deviceId) {
       return { ok: false, reason: 'device-binding-mismatch' };
     }
-    const key = crypto.createPublicKey(token.publicKey);
-    const valid = crypto.verify(
-      null,
-      Buffer.from(canonical(expected), 'utf8'),
-      key,
-      Buffer.from(String(signature || ''), 'base64')
-    );
+    const valid = verifyDeviceSignature(token.publicKey, expected, signature);
     return valid ? { ok: true, token } : { ok: false, reason: 'invalid-device-signature' };
   }
 }
