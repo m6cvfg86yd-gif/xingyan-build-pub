@@ -6214,6 +6214,7 @@ function openChatForFriendship(aId, bId) {
   if (exist) {
     exist.hiddenFor = (exist.hiddenFor || []).filter((id) => id !== aId && id !== bId);
     exist.dismissed = false;
+    delete exist.friendshipRemovedAt;
     rememberDirectPeerProfiles(exist);
     chatsDirty = true;
     return exist;
@@ -8294,6 +8295,9 @@ function directFriendMessageError(user, chatId) {
   const chat = db.chats.find((c) => c.id === chatId);
   if (!chat || chat.type !== 'direct') return '';
   if (chat.bot || chat.oaId) return '';
+  if (chat.friendshipRemovedAt) {
+    return '你们已经不是好友，重新添加好友并通过验证后才能继续聊天';
+  }
   const peerId = chat.memberIds.find((id) => id !== user.id);
   if (chat.friendshipRemovedAt || (peerId && friendPairWasRemoved(user.id, peerId))) {
     return '你们已经不是好友，重新添加好友并通过验证后才能继续聊天';
@@ -18555,18 +18559,19 @@ async function handleApi(req, res, pathname, query) {
         if (chat) {
           if (!Array.isArray(chat.hiddenFor)) chat.hiddenFor = [];
           if (!chat.hiddenFor.includes(user.id)) chat.hiddenFor.push(user.id);
+          chat.friendshipRemovedAt = now();
           const messages = loadMessages(chat.id);
           const clearedSeq = messages.length ? messages[messages.length - 1].seq : 0;
           if (!db.cleared[user.id]) db.cleared[user.id] = {};
           db.cleared[user.id][chat.id] = clearedSeq;
           if (!db.reads[user.id]) db.reads[user.id] = {};
           db.reads[user.id][chat.id] = clearedSeq;
-          chatsDirty = true;
           sendTo(user.id, { type: 'chat', action: 'deleted', chatId: chat.id });
         }
         sendTo(user.id, { type: 'friend', action: 'removed', userId: targetId });
         sendTo(targetId, { type: 'friend', action: 'removed', userId: user.id });
       });
+      saveChats();
       saveReads();
       if (metaChanged) saveFriendMeta();
     }
@@ -18595,6 +18600,7 @@ async function handleApi(req, res, pathname, query) {
     if (chat) {
       if (!Array.isArray(chat.hiddenFor)) chat.hiddenFor = [];
       if (!chat.hiddenFor.includes(user.id)) chat.hiddenFor.push(user.id);
+      chat.friendshipRemovedAt = now();
       const messages = loadMessages(chat.id);
       const clearedSeq = messages.length ? messages[messages.length - 1].seq : 0;
       if (!db.cleared[user.id]) db.cleared[user.id] = {};
@@ -18602,7 +18608,7 @@ async function handleApi(req, res, pathname, query) {
       if (!db.reads[user.id]) db.reads[user.id] = {};
       db.reads[user.id][chat.id] = clearedSeq;
       saveReads();
-      chatsDirty = true;
+      saveChats();
       sendTo(user.id, { type: 'chat', action: 'deleted', chatId: chat.id });
     }
     /* 备注之类的一并清掉 */
