@@ -639,9 +639,16 @@ struct DiscoverView: View {
             ScannerView { text in handleScanned(text, app: app) }
         }
         .fullScreenCover(item: $presentedWorldRoute) { route in
-            NavigationStack {
-                worldDestination(route.key)
-                    .environmentObject(app)
+            if route.key == "music" {
+                ListenView(onLeave: {
+                    presentedWorldRoute = nil
+                })
+                .environmentObject(app)
+            } else {
+                NavigationStack {
+                    worldDestination(route.key)
+                        .environmentObject(app)
+                }
             }
         }
                 .environmentObject(app)
