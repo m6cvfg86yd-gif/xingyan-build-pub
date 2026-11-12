@@ -151,6 +151,10 @@ class PaymentLedger {
     return { duplicate: false, record };
   }
 
+  recordForRef(ref) {
+    return this.references.get(String(ref || '')) || null;
+  }
+
   indexReferences() {
     this.references = new Map();
     for (const record of this.readEntries()) {

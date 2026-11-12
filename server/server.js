@@ -26,6 +26,8 @@ const { createShardShadowService } = require('./lib/shard-shadow-service');
 const { resolveTopology } = require('./lib/shard-topology');
 const { PaymentTokenVault } = require('./lib/payment-token-vault');
 const { PaymentDeviceEnrollment } = require('./lib/payment-device-enrollment');
+const { PaymentKeyRing } = require('./lib/payment-keyring');
+const { PaymentIntentEngine } = require('./lib/payment-intent-engine');
 const {
   isOpsUser,
   isOpsWebAuthPath,
@@ -40,6 +42,14 @@ const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 let shardShadow = null;
 let shardShadowAuditTimer = null;
 let paymentDeviceEnrollment = null;
+let paymentTokenVault = null;
+let paymentIntentEngine = null;
+const paymentIntentChallenges = new Map();
+const paymentCoreMode = ['off', 'shadow', 'enforce'].includes(
+  String(process.env.PAYMENT_REAL_MONEY_MODE || 'off').toLowerCase()
+)
+  ? String(process.env.PAYMENT_REAL_MONEY_MODE || 'off').toLowerCase()
+  : 'off';
 
 function observeShardShadow(routeId, payload) {
   if (!shardShadow || !shardShadow.enabled) return;
@@ -3192,6 +3202,21 @@ function applyMoney(user, delta, meta) {
       };
     }
   }
+  if (meta && meta.idempotent === true && meta.ref) {
+    const existing = paymentLedger.recordForRef(meta.ref);
+    if (existing) {
+      if (existing.userId !== user.id) {
+        return { error: '幂等账本引用属于其它账号' };
+      }
+      user.balance = Number(existing.after) || 0;
+      return {
+        balance: user.balance,
+        before: Number(existing.before) || 0,
+        delta: Number(existing.delta) || 0,
+        duplicate: true
+      };
+    }
+  }
   if (d === 0) return { balance: before, before: before, delta: 0 };
   let autoAml = null;
   if (d < 0 && !(meta && (meta.amlChecked || meta.skipAml))) {
@@ -3314,6 +3339,102 @@ function amlComplete(result, success, detail) {
   } catch (error) {
     console.log('[AML] 交易结果留痕失败：' + String(error && error.message || error));
   }
+}
+
+function paymentIntentView(intent) {
+  if (!intent) return null;
+  return {
+    id: intent.id,
+    userId: intent.userId,
+    merchantId: intent.merchantId,
+    deviceId: intent.deviceId,
+    amountCents: intent.amountCents,
+    currency: intent.currency,
+    status: intent.status,
+    metadata: intent.metadata || {},
+    refundedCents: intent.refundedCents || 0,
+    createdAt: intent.createdAt,
+    authorizedAt: intent.authorizedAt || '',
+    capturedAt: intent.capturedAt || ''
+  };
+}
+
+function executeIntentTransfer(user, intent, chat, amount, note, useBalance) {
+  let transfer = (db.transfers || []).find((row) =>
+    row && row.paymentIntentId === intent.id && row.fromId === user.id);
+  if (transfer && transfer.status === 'pending') {
+    return {
+      existing: true,
+      balance: Number(user.balance) || 0,
+      transfer
+    };
+  }
+  if (transfer && transfer.status === 'failed') return { error: '这笔支付已失败' };
+  const lim = walletLimitCheck(user, amount);
+  if (lim.error) return { error: lim.error };
+  if (!transfer) {
+    const peerId = chat.memberIds.find((id) => id !== user.id) || '';
+    transfer = {
+      id: uid('tr'),
+      paymentIntentId: intent.id,
+      chatId: chat.id,
+      fromId: user.id,
+      toId: peerId,
+      amount,
+      note: note || '',
+      method: useBalance ? 'balance' : 'card',
+      status: 'processing',
+      createdAt: now(),
+      expiresAt: Date.now() + TRANSFER_TTL_MS,
+      receivedAt: '',
+      refundedAt: '',
+      messageId: ''
+    };
+    db.transfers.unshift(transfer);
+    if (db.transfers.length > 800) db.transfers.length = 800;
+    saveTransfers();
+  }
+  const charge = applyMoney(user, -amount, {
+    reason: '转账',
+    ref: 'payment-intent:' + intent.id,
+    counterAccount: 'system:pending-transfer',
+    requestId: intent.id,
+    skipAml: true,
+    idempotent: true
+  });
+  if (charge.error) return { error: charge.error };
+  const sent = deliverMessage(
+    user,
+    chat.id,
+    'transfer',
+    transferSnapshot(transfer),
+    'payment-intent-' + intent.id
+  );
+  if (sent.error) {
+    transfer.status = 'failed';
+    transfer.failedAt = now();
+    saveTransfers();
+    applyMoney(user, amount, {
+      reason: '转账发不出去退回',
+      ref: 'payment-intent-rollback:' + intent.id,
+      counterAccount: 'system:pending-transfer',
+      skipAml: true,
+      idempotent: true
+    });
+    saveUsers();
+    return { error: sent.error };
+  }
+  transfer.status = 'pending';
+  transfer.messageId = sent.message.id;
+  syncTransferMessage(transfer);
+  saveUsers();
+  saveTransfers();
+  sendTo(user.id, { type: 'balance', balance: charge.balance });
+  return {
+    existing: false,
+    balance: charge.balance,
+    transfer
+  };
 }
 
 /* ---------------------------------------------------------------- 星言虚拟卡
@@ -16861,6 +16982,147 @@ async function handleApi(req, res, pathname, query) {
     }
   }
 
+  if (parts[0] === 'payment' && parts[1] === 'intents'
+      && parts.length === 2 && method === 'POST') {
+    if (!paymentIntentEngine) return fail(res, 503, '支付意图服务暂时不可用');
+    if (blockedByRealName(res, user)) return;
+    const body = await readBody(req);
+    const requestId = str(body.requestId, 120);
+    if (!requestId) return fail(res, 422, '缺少支付请求号');
+    const chat = db.chats.find((row) => row.id === str(body.chatId, 60));
+    if (!chat || !chat.memberIds.includes(user.id) || chat.type !== 'direct') {
+      return fail(res, 404, '只能向单聊好友发起支付');
+    }
+    const amount = Math.round((Number(body.amount) || 0) * 100) / 100;
+    const amountCents = Number.isInteger(Number(body.amountCents))
+      ? Number(body.amountCents)
+      : Math.round(amount * 100);
+    if (!(amountCents > 0) || amountCents !== Math.round(amountCents)) {
+      return fail(res, 422, '支付金额不合法');
+    }
+    if (amountCents > 20000000) return fail(res, 422, '单笔最多 200000');
+    const peerId = chat.memberIds.find((id) => id !== user.id) || '';
+    if (!peerId) return fail(res, 422, '收款人不存在');
+    const limit = user.transferLimit === undefined ? 20000 : Number(user.transferLimit) || 0;
+    if (limit > 0 && amountCents > Math.round(limit * 100)) {
+      return fail(res, 422, '超过单笔转账限额 ¥' + limit.toFixed(2));
+    }
+    const intentId = uid('pi');
+    try {
+      const intent = paymentIntentEngine.create({
+        intentId,
+        commandId: 'create:' + user.id + ':' + requestId,
+        userId: user.id,
+        merchantId: 'peer:' + peerId,
+        deviceId: str(body.deviceId || req.headers['x-device-id'], 120),
+        amountCents,
+        currency: 'CNY',
+        metadata: {
+          kind: 'transfer',
+          chatId: chat.id,
+          toUserId: peerId,
+          note: str(body.note, 60)
+        }
+      });
+      recordSecurity(user.id, req, 'payment-intent-create', {
+        note: '创建支付意图 ' + intent.id
+      });
+      ok(res, { intent: paymentIntentView(intent) });
+      return;
+    } catch (error) {
+      return fail(res, 422, String(error && error.message || error));
+    }
+  }
+
+  if (parts[0] === 'payment' && parts[1] === 'intents'
+      && parts.length === 3 && method === 'GET') {
+    if (!paymentIntentEngine) return fail(res, 503, '支付意图服务暂时不可用');
+    const intent = paymentIntentEngine.cloneIntent(str(parts[2], 128));
+    if (!intent || intent.userId !== user.id) return fail(res, 404, '支付意图不存在');
+    ok(res, { intent: paymentIntentView(intent) });
+    return;
+  }
+
+  if (parts[0] === 'payment' && parts[1] === 'intents'
+      && parts.length === 4 && parts[3] === 'challenge' && method === 'POST') {
+    if (!paymentIntentEngine || !paymentTokenVault) {
+      return fail(res, 503, '支付意图服务暂时不可用');
+    }
+    const intent = paymentIntentEngine.cloneIntent(str(parts[2], 128));
+    if (!intent || intent.userId !== user.id) return fail(res, 404, '支付意图不存在');
+    if (intent.status !== 'created') return fail(res, 409, '支付意图已经开始授权');
+    const body = await readBody(req);
+    const tokenId = str(body.tokenId, 128);
+    const token = paymentTokenVault.get(tokenId);
+    if (!token || token.userId !== user.id || token.status !== 'active') {
+      return fail(res, 403, '支付设备未绑定或已撤销');
+    }
+    if (token.deviceId !== intent.deviceId) return fail(res, 403, '支付设备与订单不一致');
+    const nonce = crypto.randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+    const signPayload = {
+      intentId: intent.id,
+      userId: intent.userId,
+      merchantId: intent.merchantId,
+      deviceId: intent.deviceId,
+      amountCents: intent.amountCents,
+      currency: intent.currency,
+      nonce,
+      expiresAt
+    };
+    paymentIntentChallenges.set(intent.id + '|' + user.id, {
+      tokenId,
+      nonce,
+      expiresAt,
+      expiresAtMs: Date.parse(expiresAt),
+      signPayload
+    });
+    ok(res, {
+      tokenId,
+      nonce,
+      expiresAt,
+      payload: signPayload
+    });
+    return;
+  }
+
+  if (parts[0] === 'payment' && parts[1] === 'intents'
+      && parts.length === 4 && parts[3] === 'authorize' && method === 'POST') {
+    if (!paymentIntentEngine) return fail(res, 503, '支付意图服务暂时不可用');
+    const intent = paymentIntentEngine.cloneIntent(str(parts[2], 128));
+    if (!intent || intent.userId !== user.id) return fail(res, 404, '支付意图不存在');
+    const body = await readBody(req);
+    const challenge = paymentIntentChallenges.get(intent.id + '|' + user.id);
+    if (!challenge || challenge.expiresAtMs <= Date.now()) {
+      paymentIntentChallenges.delete(intent.id + '|' + user.id);
+      return fail(res, 409, '支付授权已过期，请重新验证');
+    }
+    if (str(body.tokenId, 128) !== challenge.tokenId) {
+      return fail(res, 403, '支付设备与授权挑战不一致');
+    }
+    try {
+      const authorized = paymentIntentEngine.authorize({
+        intentId: intent.id,
+        commandId: 'authorize:' + intent.id,
+        tokenId: challenge.tokenId,
+        nonce: challenge.nonce,
+        expiresAt: challenge.expiresAt,
+        signature: str(body.signature, 8192)
+      });
+      paymentIntentChallenges.delete(intent.id + '|' + user.id);
+      recordSecurity(user.id, req, 'payment-intent-authorize', {
+        note: '支付意图授权 ' + intent.id
+      });
+      ok(res, { intent: paymentIntentView(authorized) });
+      return;
+    } catch (error) {
+      recordSecurity(user.id, req, 'payment-intent-authorize-fail', {
+        note: String(error && error.message || error)
+      });
+      return fail(res, 401, String(error && error.message || error));
+    }
+  }
+
   if (parts[0] === 'pay' && parts[1] === 'code' && method === 'POST') {
     if (blockedByRealName(res, user)) return;
     const code = newPayCode(user.id);
@@ -17026,6 +17288,72 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'pay' && parts[1] === 'transfer' && method === 'POST') {
     if (blockedByRealName(res, user)) return;
     const body = await readBody(req);
+    if (paymentCoreMode === 'enforce') {
+      if (!paymentIntentEngine) return fail(res, 503, '真钱支付核心未就绪，交易已暂停');
+      const intentId = str(body.paymentIntentId, 128);
+      const intent = paymentIntentEngine.cloneIntent(intentId);
+      if (!intent || intent.userId !== user.id) return fail(res, 404, '支付意图不存在');
+      if (!['authorized', 'capture_pending', 'captured'].includes(intent.status)) {
+        return fail(res, 409, '支付意图尚未完成设备授权');
+      }
+      const chat = db.chats.find((row) => row.id === str(intent.metadata && intent.metadata.chatId, 60));
+      if (!chat || chat.type !== 'direct' || !chat.memberIds.includes(user.id)) {
+        return fail(res, 409, '支付会话已失效');
+      }
+      const peerId = chat.memberIds.find((id) => id !== user.id) || '';
+      if (!peerId || peerId !== str(intent.metadata && intent.metadata.toUserId, 60)) {
+        return fail(res, 409, '支付收款人已变化');
+      }
+      const amount = moneyRound(intent.amountCents / 100);
+      const note = str(intent.metadata && intent.metadata.note, 60);
+      if (body.amount !== undefined && moneyRound(body.amount) !== amount) {
+        return fail(res, 409, '支付金额与已授权意图不一致');
+      }
+      try {
+        const captured = paymentIntentEngine.capture({
+          intentId: intent.id,
+          commandId: 'capture:' + intent.id,
+          settle: () => {
+            const executed = executeIntentTransfer(
+              user,
+              intent,
+              chat,
+              amount,
+              note,
+              body.method !== 'card'
+            );
+            if (executed.error) throw new Error(executed.error);
+            return {
+              ok: true,
+              reference: 'transfer:' + executed.transfer.id
+            };
+          }
+        });
+        const transfer = db.transfers.find((row) =>
+          row.paymentIntentId === intent.id && row.fromId === user.id);
+        if (!transfer) throw new Error('settled transfer record is missing');
+        observeShardShadow('chats.messages.create', {
+          chatId: transfer.chatId,
+          messageId: transfer.messageId,
+          recipientIds: [transfer.toId]
+        });
+        ok(res, {
+          balance: Number(user.balance) || 0,
+          amount,
+          method: transfer.method,
+          deducted: amount,
+          transfer: JSON.parse(transferSnapshot(transfer)),
+          paymentIntent: paymentIntentView(captured)
+        });
+        return;
+      } catch (error) {
+        recordSecurity(user.id, req, 'payment-intent-capture-fail', {
+          note: String(error && error.message || error)
+        });
+        return fail(res, 503, '支付结算未确认，请重试同一笔支付：'
+          + String(error && error.message || error));
+      }
+    }
     if (requirePaymentRequestId(req, res, body, '转账')) return;
     /* 幂等：同一笔（同一个 requestId）只处理一次 —— 超时重发、连点都不会扣两次 */
     const idem = idemBegin(user, body, 'transfer');
@@ -21268,20 +21596,47 @@ function serveStatic(req, res, pathname) {
 
 loadStore();
 try {
-  const paymentTokens = new PaymentTokenVault({
+  paymentTokenVault = new PaymentTokenVault({
     file: path.join(DATA_DIR, 'payment-token-vault.json'),
     now
   });
   paymentDeviceEnrollment = new PaymentDeviceEnrollment({
-    tokens: paymentTokens,
+    tokens: paymentTokenVault,
     uid,
     now,
     ttlMs: 2 * 60 * 1000
   });
+  const configuredKeys = process.env.PAYMENT_KEYS_JSON
+    ? JSON.parse(process.env.PAYMENT_KEYS_JSON)
+    : [{
+      id: process.env.PAYMENT_KEY_ID || '',
+      secret: process.env.PAYMENT_KEY_BASE64 || '',
+      active: true
+    }];
+  if (Array.isArray(configuredKeys) && configuredKeys.length
+      && configuredKeys.every((row) => row && row.id && row.secret)) {
+    const keyring = new PaymentKeyRing({
+      activeKeyId: process.env.PAYMENT_ACTIVE_KEY_ID
+        || configuredKeys.find((row) => row.active)?.id
+        || configuredKeys[0].id,
+      keys: configuredKeys
+    });
+    paymentIntentEngine = new PaymentIntentEngine({
+      file: path.join(DATA_DIR, 'payment-intents.jsonl'),
+      keyring,
+      tokens: paymentTokenVault,
+      now
+    });
+  }
 } catch (error) {
   paymentDeviceEnrollment = null;
+  paymentIntentEngine = null;
   console.log('[支付设备] 初始化失败，设备绑定已关闭：'
     + String(error && error.message || error));
+}
+if (paymentCoreMode !== 'off' && !paymentIntentEngine) {
+  console.log('[支付核心] 缺少 PAYMENT_KEY_ID / PAYMENT_KEY_BASE64，'
+    + paymentCoreMode + ' 模式不会处理资金');
 }
 try {
   const shadowTopology = process.env.SHARD_TOPOLOGY_ID

@@ -167,6 +167,51 @@ try {
     commandId: 'void-001'
   }).status, 'voided');
 
+  engine.create({
+    intentId: 'intent-payment-003',
+    commandId: 'create-003',
+    userId: 'user-1',
+    merchantId: 'merchant-3',
+    deviceId: 'iphone-1',
+    amountCents: 200,
+    currency: 'CNY'
+  });
+  const retryAuthorization = {
+    intentId: 'intent-payment-003',
+    userId: 'user-1',
+    merchantId: 'merchant-3',
+    deviceId: 'iphone-1',
+    amountCents: 200,
+    currency: 'CNY',
+    nonce: 'nonce-retry-abcdefghij',
+    expiresAt: '2026-11-13T01:04:00.000Z'
+  };
+  const retrySignature = crypto.sign(
+    null,
+    Buffer.from(canonical(retryAuthorization)),
+    device.privateKey
+  ).toString('base64');
+  engine.authorize({
+    intentId: retryAuthorization.intentId,
+    commandId: 'authorize-003',
+    tokenId: 'xingyan-token-001',
+    nonce: retryAuthorization.nonce,
+    expiresAt: retryAuthorization.expiresAt,
+    signature: retrySignature
+  });
+  assert.throws(() => engine.capture({
+    intentId: 'intent-payment-003',
+    commandId: 'capture-003',
+    settle: () => { throw new Error('simulated crash'); }
+  }), /ledger settlement failed/);
+  assert.strictEqual(engine.cloneIntent('intent-payment-003').status, 'capture_pending');
+  const retryCaptured = engine.capture({
+    intentId: 'intent-payment-003',
+    commandId: 'capture-003',
+    settle: () => ({ ok: true, reference: 'ledger:retry-capture' })
+  });
+  assert.strictEqual(retryCaptured.status, 'captured');
+
   assert.throws(() => engine.create({
     intentId: 'bad-intent',
     commandId: 'bad-create',

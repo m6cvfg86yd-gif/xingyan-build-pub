@@ -53,3 +53,23 @@ recovered by retrying the same ledger reference.
 
 Until all gates pass, the new payment engine remains a tested internal
 foundation even if the local tests pass.
+
+## Rollout modes
+
+- `PAYMENT_REAL_MONEY_MODE=off` is the default. Existing payment behaviour is
+  unchanged.
+- `PAYMENT_REAL_MONEY_MODE=shadow` keeps the legacy path and is reserved for
+  intent/audit comparison.
+- `PAYMENT_REAL_MONEY_MODE=enforce` rejects the legacy unsigned transfer path.
+  A transfer must first create a server payment intent, bind a device token,
+  sign the returned challenge and authorize that intent.
+
+`enforce` requires `PAYMENT_KEY_ID` and `PAYMENT_KEY_BASE64`, or a complete
+`PAYMENT_KEYS_JSON` key set. Missing keys fail closed. Production must load
+these values from an HSM/KMS-backed secret manager, not source control or a
+shell history file.
+
+The enforced transfer path writes a durable processing transfer before debit,
+uses the intent ID as the ledger idempotency reference and uses a deterministic
+message client ID. A retry after a crash can therefore resume without a second
+debit or duplicate transfer card.

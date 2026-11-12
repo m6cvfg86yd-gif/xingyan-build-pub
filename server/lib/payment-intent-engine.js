@@ -89,6 +89,12 @@ class PaymentIntentEngine {
       throw new Error('amountCents must be a positive integer');
     }
     if (!/^[A-Z]{3}$/.test(String(row.currency || ''))) throw new Error('currency is required');
+    const metadata = row.metadata && typeof row.metadata === 'object'
+      ? JSON.parse(JSON.stringify(row.metadata))
+      : {};
+    if (Buffer.byteLength(JSON.stringify(metadata), 'utf8') > 4096) {
+      throw new Error('payment metadata is too large');
+    }
     if (this.intents.has(intentId)) throw new Error('payment intent already exists');
     return this.append({
       eventId: this.eventId(intentId, commandId),
@@ -101,6 +107,7 @@ class PaymentIntentEngine {
       deviceId: String(row.deviceId),
       amountCents,
       currency: String(row.currency),
+      metadata,
       createdAt: this.now()
     });
   }
@@ -310,6 +317,7 @@ class PaymentIntentEngine {
         deviceId: event.deviceId,
         amountCents: event.amountCents,
         currency: event.currency,
+        metadata: event.metadata || {},
         refundedCents: 0,
         status: 'created',
         version: event.version,
