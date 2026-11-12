@@ -75,6 +75,7 @@ enum L10n {
         "查看电子凭证": "View receipt",
         "退还这笔转账": "Return this transfer",
         "请验证支付密码完成付款": "Verify your payment password to continue",
+        "确认发红包": "Confirm red packet",
         "支付过程由设备安全验证保护": "Payment is protected by device authentication",
         "待处理": "Pending",
         "密码只以加密哈希保存，仅异常注册才需要安全验证": "Passwords are stored as encrypted hashes. Security verification appears only for unusual registrations.",

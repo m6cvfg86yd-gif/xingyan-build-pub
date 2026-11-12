@@ -461,14 +461,12 @@ struct RedPacketSendView: View {
             VStack(spacing: 0) {
                 HStack {
                     HStack(spacing: 6) {
-                        Image(systemName: "sparkles")
+                        Image(systemName: "seal.fill")
+                            .font(.system(size: 10.5, weight: .semibold))
                         Text(Tr("星焰红包"))
                     }
                     .font(pf(11.5, .semibold))
-                    .foregroundStyle(.white.opacity(0.88))
-                    .padding(.horizontal, 9)
-                    .frame(height: 26)
-                    .background(.white.opacity(0.12), in: Capsule())
+                    .foregroundStyle(.white.opacity(0.92))
 
                     Spacer()
 
@@ -484,61 +482,73 @@ struct RedPacketSendView: View {
                         }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
-                        .frame(height: 28)
-                        .background(.black.opacity(0.20), in: Capsule())
+                        .frame(height: 30)
+                        .background(.black.opacity(0.18), in: Capsule())
+                        .overlay(Capsule().stroke(.white.opacity(0.13), lineWidth: 0.6))
                     }
                     .buttonStyle(.plain)
                 }
 
-                Spacer(minLength: 16)
+                Spacer(minLength: 12)
 
                 Text(Tr("恭喜发财 · 大吉大利"))
-                    .font(pf(12.5, .medium))
-                    .tracking(1.2)
-                    .foregroundStyle(.white.opacity(0.80))
+                    .font(pf(11.5, .medium))
+                    .tracking(1.1)
+                    .foregroundStyle(.white.opacity(0.72))
 
                 HStack(alignment: .firstTextBaseline, spacing: 3) {
                     Text("¥")
-                        .font(pf(25, .semibold))
+                        .font(.system(size: 23, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.95))
+                        .baselineOffset(12)
 
                     TextField("0.00", text: $amountText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
-                        .font(pfMoney(50, .semibold))
+                        .font(Font(UIFont.monospacedDigitSystemFont(ofSize: 52,
+                                                                    weight: .semibold)))
                         .foregroundStyle(.white)
                         .tint(.white)
-                        .frame(maxWidth: 230)
+                        .tracking(-0.5)
+                        .textFieldStyle(.plain)
+                        .frame(maxWidth: 250)
                 }
-                .padding(.top, 4)
+                .padding(.top, 2)
 
-                Spacer(minLength: 16)
+                Spacer(minLength: 12)
 
-                HStack(spacing: 6) {
-                    Image(systemName: "wallet.pass.fill")
-                        .font(.system(size: 10.5))
-                    Text(Tr("零钱余额") + " ¥\(moneyFmt(myBalance))")
-                        .font(pf(12, .medium))
+                HStack {
+                    HStack(spacing: 6) {
+                        Image(systemName: "wallet.bifold.fill")
+                            .font(.system(size: 11, weight: .medium))
+                        Text(Tr("零钱余额") + " ¥\(moneyFmt(myBalance))")
+                            .font(pf(11.5, .medium))
+                    }
+                    .foregroundStyle(.white.opacity(0.78))
+                    Spacer()
+                    Image(systemName: "wave.3.right")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.42))
                 }
-                .foregroundStyle(.white.opacity(0.88))
             }
-            .padding(16)
+            .padding(20)
         }
-        .frame(height: 258)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .frame(height: 244)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(
                     LinearGradient(
-                        colors: [.white.opacity(0.34), .white.opacity(0.04)],
+                        colors: [.white.opacity(0.28), .white.opacity(0.055),
+                                 .white.opacity(0.12)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 0.8
+                    lineWidth: 0.9
                 )
         }
-        .shadow(color: Color(hex: 0xB91712).opacity(0.24),
-                radius: 18, y: 10)
+        .shadow(color: Color(hex: 0xB91712).opacity(0.26),
+                radius: 20, y: 11)
     }
 
     private var quickAmounts: some View {
@@ -992,25 +1002,65 @@ struct RedPacketSendView: View {
 
     private var payPanel: some View {
         VStack(spacing: 0) {
-            HStack {
+            Capsule()
+                .fill(C.subLabel.opacity(0.30))
+                .frame(width: 38, height: 5)
+                .padding(.top, 8)
+
+            HStack(spacing: 10) {
                 Button { paying = false; pwd = ""; payTip = "" } label: {
                     Image(systemName: "xmark").font(.system(size: 14, weight: .semibold))
                         .foregroundColor(C.label).frame(width: 40, height: 40)
                 }
                 .buttonStyle(.plain)
-                Spacer(minLength: 0)
+                Text(Tr("确认发红包"))
+                    .font(pf(17, .semibold))
+                    .foregroundColor(C.label)
+                    .frame(maxWidth: .infinity)
+                Color.clear.frame(width: 40, height: 40)
             }
-            Text(Tr("请输入支付密码"))
-                .font(pf(14)).foregroundColor(C.subLabel)
-            Text("¥" + moneyFmt(amount))
-                .font(pfMoney(28, .medium)).foregroundColor(C.label)
+            .padding(.horizontal, 14)
+
+            Text(chat.name ?? Tr("对方"))
+                .font(pf(12.5, .medium))
+                .foregroundColor(PayVisual.secondaryInk)
                 .padding(.top, 4)
 
+            StarPayAmount(value: amount, role: .sheet, color: C.label)
+                .padding(.top, 3)
+                .padding(.bottom, 12)
+
+            PayGroupCard {
+                HStack(spacing: 12) {
+                    Image(systemName: "wallet.bifold.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(PayVisual.success,
+                                    in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(Tr("付款方式"))
+                            .font(pf(11.5, .medium))
+                            .foregroundColor(PayVisual.secondaryInk)
+                        Text(Tr("星言零钱") + " · ¥" + moneyFmt(myBalance))
+                            .font(pf(14.5, .medium))
+                            .foregroundColor(C.label)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(PayVisual.tint)
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 64)
+            }
+            .padding(.horizontal, 20)
+
             PayDotField(count: pwd.count, shake: payShakeValue, busy: busy)
-                .padding(.top, 14)
+                .padding(.top, 18)
 
             PayKeypadView(busy: busy) { tapKey($0) }
-                .padding(.top, 14)
+                .padding(.top, 10)
 
             if !payTip.isEmpty {
                 Text(payTip).font(pf(13)).foregroundColor(C.red)
@@ -1033,6 +1083,8 @@ struct RedPacketSendView: View {
         }
         .frame(maxWidth: .infinity)
         .background(C.cardBg)
+        .clipShape(TopRounded(radius: 28))
+        .shadow(color: .black.opacity(0.22), radius: 22, y: -6)
         .transition(.move(edge: .bottom))
     }
 
