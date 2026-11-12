@@ -219,10 +219,9 @@ class PaymentLedger {
   }
 
   accountBalance(account) {
-    const raw = Number(this.state.accounts[account] || 0);
-    /* 经营账户与零钱同为用户资金，但内部划转时一方记贷、一方记借。
-       对外展示/核对经营余额时使用其正常余额方向。 */
-    return money(String(account).startsWith('user:biz:') ? -raw : raw);
+    /* 零钱和经营账户都是用户资产账户，统一采用「借增贷减」的正向余额。
+       经营账户收入记正数，提到零钱时经营账户记负数、零钱记正数。 */
+    return money(this.state.accounts[account] || 0);
   }
 
   verifyIntegrity() {

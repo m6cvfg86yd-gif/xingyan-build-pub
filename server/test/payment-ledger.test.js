@@ -35,6 +35,19 @@ ledger.apply({
   counterAccount: 'system:shop-clearing'
 }, -30, '小店下单', 'sku');
 
+ledger.apply({
+  userId: 'biz:u1',
+  before: 0,
+  after: 20,
+  counterAccount: 'system:paycode-clearing'
+}, 20, '收款（经营账户）', 'paycode');
+
+assert.strictEqual(
+  ledger.accountBalance('user:biz:u1'),
+  20,
+  'business income must retain its positive asset balance'
+);
+
 ledger.record({
   userId: 'u1',
   before: 70,
@@ -48,7 +61,7 @@ ledger.record({
 
 const reconciled = ledger.reconcile(
   [{ id: 'u1', username: 'tester', balance: 90 }],
-  () => ({ enabled: true, balance: 20 })
+  () => ({ enabled: true, balance: 0 })
 );
 
 assert.strictEqual(reconciled.ok, true,
@@ -56,6 +69,11 @@ assert.strictEqual(reconciled.ok, true,
 assert.strictEqual(reconciled.integrity.ok, true, 'ledger integrity should pass');
 assert.strictEqual(reconciled.ledgerTotalCents, 0, 'double-entry ledger must balance to zero');
 assert.strictEqual(ledger.accountBalance('user:u1'), 90, 'wallet balance should match postings');
+assert.strictEqual(
+  ledger.accountBalance('user:biz:u1'),
+  0,
+  'business balance should be zero after moving all funds to wallet'
+);
 assert.strictEqual(ledger.entriesForUser('u1', 10).length, 3, 'user statement should include own entries');
 
 const journal = path.join(dir, 'money-journal.jsonl');

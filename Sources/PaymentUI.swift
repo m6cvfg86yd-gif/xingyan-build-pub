@@ -173,6 +173,12 @@ struct PaySecondaryButtonStyle: ButtonStyle {
 }
 
 struct PayOfficialView: View {
+    private struct LedgerDayGroup: Identifiable {
+        let day: String
+        let entries: [LedgerBillEntry]
+        var id: String { day }
+    }
+
     let name: String
     let subtitle: String
     let avatar: String
@@ -355,7 +361,7 @@ struct PayOfficialView: View {
     private var transactionFeed: some View {
         if let entries = ledger?.entries, !entries.isEmpty {
             LazyVStack(spacing: 12, pinnedViews: [.sectionHeaders]) {
-                ForEach(ledgerDays(entries), id: \.day) { group in
+                ForEach(ledgerDays(entries)) { group in
                     Section {
                         ForEach(group.entries) { entry in
                             transactionCard(entry)
@@ -499,7 +505,7 @@ struct PayOfficialView: View {
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private func ledgerDays(_ entries: [LedgerBillEntry]) -> [(day: String, entries: [LedgerBillEntry])] {
+    private func ledgerDays(_ entries: [LedgerBillEntry]) -> [LedgerDayGroup] {
         var order: [String] = []
         var map: [String: [LedgerBillEntry]] = [:]
         for entry in entries {
@@ -507,7 +513,7 @@ struct PayOfficialView: View {
             if map[day] == nil { order.append(day) }
             map[day, default: []].append(entry)
         }
-        return order.map { (day: $0, entries: map[$0] ?? []) }
+        return order.map { LedgerDayGroup(day: $0, entries: map[$0] ?? []) }
     }
 
     private func dayTitle(_ day: String) -> String {
