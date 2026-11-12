@@ -164,6 +164,10 @@ struct MyFilesPickerView: View {
             return
         }
         let name = MyFilesPickerView.previewName(f.fileName, path: p)
+        if let local = RemoteFileCache.localFile(path: p, preferredName: name) {
+            preview = FilePreviewData(name: local.name, local: local.local)
+            return
+        }
         openingId = f.id
         Task {
             defer { openingId = "" }

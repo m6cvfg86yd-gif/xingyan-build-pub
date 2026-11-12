@@ -368,7 +368,10 @@ struct FavoritesView: View {
             return
         }
         let name = MyFilesPickerView.previewName(f.name, path: f.url)
-        app.show(Tr("正在打开…"))
+        if let local = RemoteFileCache.localFile(path: f.url, preferredName: name) {
+            favoriteFilePreview = FilePreviewData(name: local.name, local: local.local)
+            return
+        }
         Task {
             do {
                 let file = try await RemoteFileCache.shared.file(path: f.url,

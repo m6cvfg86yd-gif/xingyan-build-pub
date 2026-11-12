@@ -4993,7 +4993,12 @@ struct ChatDetailView: View {
         let raw = (o["name"] as? String) ?? "文件"
 
         let name = MyFilesPickerView.previewName(raw, path: path)
-        app.show(Tr("正在打开…"))
+        if let local = RemoteFileCache.localFile(path: path, preferredName: name) {
+            filePreview = FilePreviewData(name: local.name, local: local.local,
+                                          favoriteTitle: chat.name,
+                                          favoriteFrom: "聊天文件")
+            return
+        }
         Task {
             do {
                 let file = try await RemoteFileCache.shared.file(path: path,
