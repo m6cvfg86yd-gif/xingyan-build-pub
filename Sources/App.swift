@@ -1272,8 +1272,10 @@ final class AppState: ObservableObject {
         case "file": return "[文件]"
         case "location": return "[位置]"
         case "card": return "[名片]"
-        case "transfer": return "[转账]"
-        case "redpacket": return "[红包]"
+        case "transfer":
+            return message.moneyCardAmount.map { "[转账] ¥" + moneyFmt($0) } ?? "[转账]"
+        case "redpacket":
+            return message.moneyCardAmount.map { "[红包] ¥" + moneyFmt($0) } ?? "[红包]"
         case "call", "voicecall": return "[语音通话]"
         case "videocall": return "[视频通话]"
         default: return message.body.isEmpty ? "[消息]" : message.body
@@ -1529,8 +1531,10 @@ final class AppState: ObservableObject {
         case "music": return "[音乐]"
         case "location": return "[位置]"
         case "card": return "[名片]"
-        case "transfer": return "[转账]"
-        case "redpacket": return "[红包]"
+        case "transfer":
+            return message.moneyCardAmount.map { "[转账] ¥" + moneyFmt($0) } ?? "[转账]"
+        case "redpacket":
+            return message.moneyCardAmount.map { "[红包] ¥" + moneyFmt($0) } ?? "[红包]"
         case "gift": return "[礼物]"
         case "miniapp", "mini", "app", "mall": return "[小程序]"
         case "channels", "channel", "feed", "shortvideo": return "[视频号]"

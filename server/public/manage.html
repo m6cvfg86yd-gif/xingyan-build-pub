@@ -524,6 +524,7 @@ const MENUS = [
   { key: 'autoreply', icon: '🤖', name: '自动回复', perm: 'support', group: '其它' },
   { key: 'feedback', icon: '📮', name: '用户反馈', perm: 'users', group: '其它' },
   { key: 'biz', icon: '🏪', name: '经营账户查账', perm: 'users', group: '其它' },
+  { key: 'aml', icon: '🛡️', name: '反洗钱 AML', perm: 'payments', group: '金融风控' },
   { key: 'payments', icon: '💰', name: '支付风控', perm: 'payments', group: '其它' },
   { key: 'wallet', icon: '💳', name: '充值提现', perm: 'ops', superOnly: true, group: '其它' },
 
@@ -1611,6 +1612,326 @@ PAGES.payments = async () => {
         PAGES.payments();
       } catch (err) { toast(err.message); }
     });
+  });
+};
+
+/* ---------------- 反洗钱 AML（名单 / 实时监控 / 案件 / 报送）---------------- */
+
+async function amlConfirm(message, action) {
+  if (!confirm(message)) return null;
+  const password = prompt('请输入你自己的后台密码确认此 AML 操作');
+  if (!password) return null;
+  const body = { confirmPassword: password };
+  if (STATE.aml && STATE.aml.dualReview
+      && ['restrict', 'release', 'close_report', 'submit'].indexOf(action) >= 0) {
+    const second = prompt('已开启双人复核：请输入另一个管理员的用户名');
+    if (!second) return null;
+    body.secondReviewer = second.trim();
+  }
+  return body;
+}
+
+async function showAmlCase(id) {
+  try {
+    const d = await api('/aml/cases/' + encodeURIComponent(id));
+    const c = d.case, t = d.transaction || {}, p = d.profile || {};
+    const reasonRows = (c.reasons || []).map((r) => '<div class="kv"><b>'
+      + esc(r.label) + '</b><span>' + esc(r.evidence || '—')
+      + ' · ' + esc(r.severity) + ' · ' + Number(r.score || 0) + ' 分</span></div>').join('');
+    const reviews = (c.reviewers || []).map((r) => '<div class="kv"><b>'
+      + fmtTime(r.at) + ' · ' + esc(r.actor) + '</b><span>' + esc(r.action)
+      + ' · ' + esc(r.note || '—') + '</span></div>').join('');
+    openModal(
+      '<h3>AML 案件 <span class="hint">' + esc(c.id) + '</span></h3>'
+      + '<div class="kv"><b>状态</b><span>' + esc(c.status) + ' · ' + esc(c.severity) + '</span></div>'
+      + '<div class="kv"><b>客户</b><span>' + esc(c.nickname || c.username || c.userId)
+      + ' <span class="hint">' + esc(c.userId) + '</span></span></div>'
+      + '<div class="kv"><b>风险评分</b><span>' + Number(c.score || 0) + ' 分 · '
+      + esc(p.riskLevelName || '') + '</span></div>'
+      + '<div class="kv"><b>交易</b><span>' + esc(t.channel || '—') + ' · '
+      + esc(t.direction || '') + ' · ' + money(t.amount || c.amount) + ' · '
+      + esc(t.status || '') + '</span></div>'
+      + '<div class="kv"><b>对手方</b><span>' + esc(t.counterpartyName || t.counterpartyId || '—') + '</span></div>'
+      + '<div class="kv"><b>交易时间</b><span>' + fmtTime(t.at || c.createdAt) + '</span></div>'
+      + '<div class="kv"><b>事件编号</b><span><code>' + esc(t.id || c.transactionId) + '</code></span></div>'
+      + '<h4>命中指标</h4>' + (reasonRows || '<div class="hint">没有指标明细</div>')
+      + '<h4>客户画像</h4>'
+      + '<div class="kv"><b>KYC</b><span>' + esc(p.kycStatusName || '未实名')
+      + ' · 制裁 ' + (p.sanctioned ? '命中' : '未命中')
+      + ' · 疑似制裁 ' + (p.sanctionPotential ? '待排除' : '无')
+      + ' · PEP ' + (p.pep ? '命中' : '未命中') + '</span></div>'
+      + '<div class="kv"><b>支付限制</b><span>'
+      + (p.restricted && p.restricted.moneyOut
+        ? '限制转出 · ' + esc(p.restricted.reason || '') : '无') + '</span></div>'
+      + '<h4>复核记录</h4>' + (reviews || '<div class="hint">还没有复核记录</div>')
+      + '<div class="row" style="margin-top:18px">'
+      + '<button class="btn" data-aml-review="assign">接手复核</button>'
+      + '<button class="btn" data-aml-review="escalate">升级高危</button>'
+      + '<button class="btn red" data-aml-review="restrict">限制转出</button>'
+      + '<button class="btn main" data-aml-review="release">解除限制</button>'
+      + '<button class="btn" data-aml-review="report">生成可疑报告</button>'
+      + '<button class="btn ghost" id="amlCaseClose">关闭</button></div>'
+      + '<div class="hint" style="margin-top:8px">命中有效制裁名单时不能直接解除；必须先处理名单或完成重新筛查。'
+      + (c.reportId ? ' 本案件报告：' + esc(c.reportId) : '') + '</div>'
+    );
+    $('amlCaseClose').addEventListener('click', closeModal);
+    $('sheet').querySelectorAll('[data-aml-review]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const action = b.getAttribute('data-aml-review');
+        const labels = {
+          assign: '填写接手说明', escalate: '填写升级理由', restrict: '填写限制转出理由',
+          release: '填写解除限制的复核依据', report: '填写可疑交易类型与复核依据'
+        };
+        const note = prompt(labels[action] || '填写复核意见', '');
+        if (!note) return;
+        const body = await amlConfirm('确认执行 AML 处置「' + action + '」？', action);
+        if (!body) return;
+        body.action = action;
+        body.note = note;
+        if (action === 'restrict') {
+          const hours = prompt('限制多少小时？填 0 表示长期，直到人工解除', '24');
+          if (hours === null) return;
+          body.hours = Math.max(0, Number(hours) || 0);
+        }
+        if (action === 'report') body.typology = prompt('可疑交易类型', '可疑交易') || '可疑交易';
+        try {
+          await api('/aml/cases/' + encodeURIComponent(id) + '/review', { method: 'POST', body });
+          toast(action === 'report' ? '报告草稿已生成' : '案件已更新');
+          closeModal();
+          PAGES.aml();
+        } catch (e) { toast(e.message); }
+      });
+    });
+  } catch (e) { toast(e.message); }
+}
+
+PAGES.aml = async () => {
+  const st = STATE.aml = STATE.aml || { tab: 'cases', status: 'open', q: '' };
+  const overview = await api('/aml');
+  st.dualReview = !!overview.dualReview;
+  const s = overview.stats;
+  const tabs = [
+    ['cases', '案件队列'], ['profiles', '客户风险'], ['lists', '名单库'],
+    ['reports', '可疑报告'], ['rules', '监控规则']
+  ];
+  let bodyHtml = '';
+  let records = null;
+  if (st.tab === 'cases') {
+    records = await api('/aml/cases?status=' + encodeURIComponent(st.status)
+      + '&q=' + encodeURIComponent(st.q) + '&limit=300');
+    bodyHtml = '<div class="panel"><div class="body"><div class="filters">'
+      + '<input class="wide" id="amlQ" placeholder="客户 / 案件号 / 交易号 / 指标" value="' + esc(st.q) + '">'
+      + '<select id="amlStatus">' + [['', '全部状态'], ['open', '待复核'], ['reviewing', '复核中'],
+        ['escalated', '已升级'], ['closed', '已结案']].map((x) =>
+        '<option value="' + x[0] + '"' + (x[0] === st.status ? ' selected' : '') + '>' + x[1] + '</option>').join('')
+      + '</select><button class="btn main" id="amlFind">筛选</button></div></div></div>'
+      + '<div class="panel"><h3>案件队列 <span class="hint">先冻结或限制，再完成复核和报告</span></h3><table>'
+      + '<tr><th>时间</th><th>客户</th><th>级别</th><th>金额</th><th>渠道</th><th>命中</th><th>状态</th><th></th></tr>'
+      + (records.cases.length ? records.cases.map((c) =>
+        '<tr class="clickable" data-aml-case="' + esc(c.id) + '"><td>' + fmtTime(c.createdAt) + '</td>'
+        + '<td>' + esc(c.nickname || c.username || c.userId) + '</td>'
+        + '<td>' + badge(c.severity, c.severity === 'critical' ? 'r' : 'gy') + '</td>'
+        + '<td>' + money(c.amount) + '</td><td>' + esc(c.channel) + '</td>'
+        + '<td>' + esc((c.reasonCodes || []).join(', ')) + '</td>'
+        + '<td>' + esc(c.status) + '</td><td><button class="btn sm">查看</button></td></tr>').join('')
+        : '<tr><td colspan="8"><div class="empty">没有符合条件的 AML 案件</div></td></tr>')
+      + '</table></div>';
+  } else if (st.tab === 'profiles') {
+    records = await api('/aml/profiles?q=' + encodeURIComponent(st.q) + '&limit=300');
+    bodyHtml = '<div class="panel"><div class="body"><div class="filters">'
+      + '<input class="wide" id="amlQ" placeholder="用户名 / 昵称 / 国家" value="' + esc(st.q) + '">'
+      + '<button class="btn main" id="amlFind">筛选</button>'
+      + '<button class="btn" id="amlSweep">批量重新筛查</button></div></div></div>'
+      + '<div class="panel"><h3>客户风险画像</h3><table>'
+      + '<tr><th>客户</th><th>KYC</th><th>风险等级</th><th>名单</th><th>限制</th><th>最近筛查</th><th></th></tr>'
+      + (records.profiles.length ? records.profiles.map((p) =>
+        '<tr data-aml-profile="' + esc(p.userId) + '"><td>' + esc(p.nickname || p.username || p.userId)
+        + ' <span class="hint">' + esc(p.username) + '</span></td>'
+        + '<td>' + esc(p.kycStatusName) + '</td><td>' + esc(p.riskLevelName) + '</td>'
+        + '<td>' + (p.sanctioned ? badge('制裁', 'r') : '')
+        + (p.sanctionPotential ? badge('疑似制裁', 'r') : '')
+        + (p.pep ? badge('PEP', 'gy') : '') + (p.adverseMedia ? badge('舆情', 'gy') : '') + '</td>'
+        + '<td>' + (p.restricted && p.restricted.moneyOut ? badge('限制转出', 'r') : '正常') + '</td>'
+        + '<td>' + fmtTime(p.lastScreenedAt) + '</td>'
+        + '<td><button class="btn sm" data-aml-screen="' + esc(p.userId) + '">重筛</button></td></tr>').join('')
+        : '<tr><td colspan="7"><div class="empty">还没有客户 AML 画像</div></td></tr>')
+      + '</table></div>';
+  } else if (st.tab === 'lists') {
+    records = await api('/aml/lists?q=' + encodeURIComponent(st.q) + '&limit=1000');
+    bodyHtml = '<div class="panel"><h3>导入名单 <span class="hint">制裁 / PEP / 负面新闻 / 内部黑名单</span></h3>'
+      + '<div class="body"><textarea id="amlListText" rows="8" style="width:100%" '
+      + 'placeholder="type,name,aliases,idHashes,country,dob,source,sourceRef&#10;'
+      + 'sanctions,Zhang San,Zhang S.|ZS,,CN,1980-01-01,OFAC,SDN-0001"></textarea>'
+      + '<div class="filters" style="margin-top:10px"><input class="wide" id="amlListSource" placeholder="来源与版本，例如 OFAC SDN 2026-11-12">'
+      + '<button class="btn main" id="amlImport">导入名单</button></div>'
+      + '<div class="hint">同一姓名 + 来源版本会去重；停用是保留证据，不删除历史。</div></div></div>'
+      + '<div class="panel"><div class="body"><div class="filters">'
+      + '<input class="wide" id="amlQ" placeholder="姓名 / 别名 / 来源" value="' + esc(st.q) + '">'
+      + '<button class="btn main" id="amlFind">筛选</button></div></div><table>'
+      + '<tr><th>类型</th><th>姓名</th><th>国家</th><th>来源</th><th>状态</th><th>导入时间</th><th></th></tr>'
+      + (records.lists.length ? records.lists.map((x) =>
+        '<tr><td>' + esc(x.type) + '</td><td>' + esc(x.name) + '<div class="hint">'
+        + esc((x.aliases || []).join(' / ')) + '</div></td><td>' + esc(x.country || '—') + '</td>'
+        + '<td>' + esc(x.source) + '<div class="hint">' + esc(x.sourceRef || '') + '</div></td>'
+        + '<td>' + (x.active ? badge('有效', 'g') : badge('已停用', 'gy')) + '</td>'
+        + '<td>' + fmtTime(x.createdAt) + '</td><td>'
+        + (x.active ? '<button class="btn sm red" data-aml-disable="' + esc(x.id) + '">停用</button>' : '')
+        + '</td></tr>').join('')
+        : '<tr><td colspan="7"><div class="empty">名单库为空，请先导入有效名单</div></td></tr>')
+      + '</table></div>';
+  } else if (st.tab === 'reports') {
+    records = await api('/aml/reports?limit=300');
+    bodyHtml = '<div class="panel"><h3>可疑交易报告 <span class="hint">系统只生成报告证据包，报送必须人工完成</span></h3><table>'
+      + '<tr><th>创建时间</th><th>案件</th><th>主体</th><th>类型</th><th>金额</th><th>状态</th><th>回执号</th><th></th></tr>'
+      + (records.reports.length ? records.reports.map((r) =>
+        '<tr><td>' + fmtTime(r.createdAt) + '</td><td>' + esc(r.caseId) + '</td>'
+        + '<td>' + esc(r.subject) + '</td><td>' + esc(r.typology) + '</td><td>' + money(r.amount) + '</td>'
+        + '<td>' + esc(r.status) + '</td><td>' + esc(r.authorityRef || '—') + '</td><td>'
+        + '<button class="btn sm" data-aml-export="' + esc(r.id) + '">导出</button>'
+        + (r.status !== 'submitted' ? '<button class="btn sm main" data-aml-submit="' + esc(r.id) + '">登记回执</button>' : '')
+        + '</td></tr>').join('')
+        : '<tr><td colspan="8"><div class="empty">还没有报告草稿</div></td></tr>')
+      + '</table></div>';
+  } else {
+    const rules = overview.rules;
+    const ruleFields = [
+      ['singleReviewAmount', '单笔审核阈值'], ['singleBlockAmount', '单笔强制拦截阈值'],
+      ['rollingDayReviewAmount', '24 小时累计审核阈值'], ['rollingDayBlockAmount', '24 小时累计强制拦截阈值'],
+      ['highRiskReviewAmount', '高风险客户审核金额'], ['newAccountDays', '新账号观察天数'],
+      ['newAccountReviewAmount', '新账号审核金额'], ['velocityWindowMinutes', '频率窗口（分钟）'],
+      ['velocityReviewCount', '频率审核笔数'], ['pairWindowHours', '同对手方窗口（小时）'],
+      ['pairReviewCount', '同对手方审核笔数'], ['structuringWindowHours', '拆分窗口（小时）'],
+      ['structuringRatio', '接近阈值比例'], ['structuringReviewCount', '拆分审核笔数'],
+      ['rapidFlowWindowHours', '快进快出窗口（小时）'], ['rapidFlowRatio', '快进快出比例'],
+      ['reviewScore', '进入人工审核分数'], ['blockScore', '自动拦截分数'],
+      ['rescreenHours', '名单重筛间隔（小时）'], ['retentionYears', '审计保留年限']
+    ];
+    bodyHtml = '<div class="panel"><h3>实时监控规则</h3><div class="body"><div class="cards">'
+      + ruleFields.map((x) => '<div class="card" style="min-width:180px"><div class="k">' + esc(x[1])
+        + '</div><input data-aml-rule="' + x[0] + '" type="number" step="0.01" value="'
+        + esc(rules[x[0]]) + '"></div>').join('')
+      + '</div><div class="row" style="margin-top:16px">'
+      + '<label><input type="checkbox" id="amlRuleEnabled"' + (rules.enabled ? ' checked' : '') + '> 开启 AML</label>'
+      + '<label><input type="checkbox" id="amlRuleFailClosed" checked disabled> 故障时暂停交易（强制）</label>'
+      + '<label><input type="checkbox" id="amlRuleKyc"' + (rules.kycRequiredForOutgoing ? ' checked' : '') + '> 转出必须实名</label>'
+      + '</div><div class="filters" style="margin-top:14px"><input class="wide" id="amlCountries" '
+      + 'value="' + esc((rules.highRiskCountries || []).join(',')) + '" placeholder="高风险国家代码，逗号分隔">'
+      + '<button class="btn main" id="amlSaveRules">保存规则</button></div></div></div>';
+  }
+  $('content').innerHTML =
+    '<div class="alarmbar">'
+    + '<div class="alarm' + (s.criticalCases ? ' hot' : '') + '"><div class="k">待处理案件</div><div class="v">' + s.openCases + '</div></div>'
+    + '<div class="alarm' + (s.criticalCases ? ' hot' : '') + '"><div class="k">严重案件</div><div class="v">' + s.criticalCases + '</div></div>'
+    + '<div class="alarm"><div class="k">高风险客户</div><div class="v">' + s.highRiskProfiles + '</div></div>'
+    + '<div class="alarm"><div class="k">限制转出</div><div class="v">' + s.restrictedProfiles + '</div></div>'
+    + '<div class="alarm"><div class="k">有效名单</div><div class="v">' + s.activeListEntries + '</div></div>'
+    + '</div>'
+    + '<div class="panel"><div class="body"><div class="filters">'
+    + tabs.map((x) => '<button class="btn ' + (st.tab === x[0] ? 'main' : 'ghost') + '" data-aml-tab="' + x[0] + '">'
+      + x[1] + '</button>').join('')
+    + '<span class="hint">AML 状态：' + (overview.rules.enabled ? '监控中' : '已停用')
+    + ' · ' + (st.dualReview ? '双人复核已开启' : '双人复核未开启')
+    + ' · 证据事件链 ' + s.transactions24h + ' 笔/24h'
+    + ' · 真钱通道：未开启</span></div></div></div>'
+    + bodyHtml;
+
+  $('content').querySelectorAll('[data-aml-tab]').forEach((b) => {
+    b.addEventListener('click', () => { st.tab = b.getAttribute('data-aml-tab'); PAGES.aml(); });
+  });
+  if ($('amlFind')) {
+    const find = () => { st.q = $('amlQ').value.trim(); PAGES.aml(); };
+    $('amlFind').addEventListener('click', find);
+    $('amlQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') find(); });
+  }
+  if ($('amlStatus')) $('amlStatus').addEventListener('change', () => {
+    st.status = $('amlStatus').value; PAGES.aml();
+  });
+  $('content').querySelectorAll('[data-aml-case]').forEach((el) => {
+    el.addEventListener('click', () => showAmlCase(el.getAttribute('data-aml-case')));
+  });
+  $('content').querySelectorAll('[data-aml-screen]').forEach((b) => {
+    b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await api('/aml/screening/run', { method: 'POST', body: { userId: b.getAttribute('data-aml-screen') } });
+        toast('重新筛查完成'); PAGES.aml();
+      } catch (err) { toast(err.message); }
+    });
+  });
+  if ($('amlSweep')) $('amlSweep').addEventListener('click', async () => {
+    try {
+      const r = await api('/aml/screening/run', { method: 'POST', body: { limit: 1000 } });
+      toast('已筛查 ' + r.screened + ' 人'); PAGES.aml();
+    } catch (e) { toast(e.message); }
+  });
+  if ($('amlImport')) $('amlImport').addEventListener('click', async () => {
+    const text = $('amlListText').value.trim();
+    if (!text) return toast('先粘贴名单 CSV / JSON');
+    const body = await amlConfirm('导入后会立即参与全量交易筛查，确认导入？', 'import');
+    if (!body) return;
+    body.text = text;
+    body.source = $('amlListSource').value.trim();
+    try {
+      const r = await api('/aml/lists/import', { method: 'POST', body });
+      toast('导入 ' + r.added + ' 条，跳过 ' + r.skipped + ' 条'); PAGES.aml();
+    } catch (e) { toast(e.message); }
+  });
+  $('content').querySelectorAll('[data-aml-disable]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      const reason = prompt('停用名单原因', '名单版本更新');
+      if (!reason) return;
+      const body = await amlConfirm('确认停用这条名单？历史证据会保留。', 'disable');
+      if (!body) return;
+      body.id = b.getAttribute('data-aml-disable');
+      body.reason = reason;
+      try { await api('/aml/lists/disable', { method: 'POST', body }); PAGES.aml(); }
+      catch (e) { toast(e.message); }
+    });
+  });
+  $('content').querySelectorAll('[data-aml-export]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      try {
+        const d = await api('/aml/report/' + encodeURIComponent(b.getAttribute('data-aml-export')));
+        const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'xingyan-aml-' + d.report.id + '.json';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      } catch (e) { toast(e.message); }
+    });
+  });
+  $('content').querySelectorAll('[data-aml-submit]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      const ref = prompt('填写监管或受理机构回执编号');
+      if (!ref) return;
+      const note = prompt('报送说明（选填）', '') || '';
+      const body = await amlConfirm('确认这些内容已经由人工正式报送，并登记回执？', 'submit');
+      if (!body) return;
+      body.authorityRef = ref;
+      body.note = note;
+      try {
+        await api('/aml/reports/' + encodeURIComponent(b.getAttribute('data-aml-submit')) + '/submit', {
+          method: 'POST', body
+        });
+        toast('报送回执已登记'); PAGES.aml();
+      } catch (e) { toast(e.message); }
+    });
+  });
+  if ($('amlSaveRules')) $('amlSaveRules').addEventListener('click', async () => {
+    const rules = {};
+    $('content').querySelectorAll('[data-aml-rule]').forEach((el) => {
+      rules[el.getAttribute('data-aml-rule')] = Number(el.value);
+    });
+    rules.enabled = $('amlRuleEnabled').checked;
+    rules.failClosed = $('amlRuleFailClosed').checked;
+    rules.kycRequiredForOutgoing = $('amlRuleKyc').checked;
+    rules.highRiskCountries = $('amlCountries').value.split(/[,\s|;]+/).filter(Boolean);
+    const body = await amlConfirm('保存后立即用于真实资金交易，确认这些阈值？', 'rules');
+    if (!body) return;
+    body.rules = rules;
+    try { await api('/aml/rules', { method: 'POST', body }); toast('AML 规则已保存'); PAGES.aml(); }
+    catch (e) { toast(e.message); }
   });
 };
 

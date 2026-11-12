@@ -1332,7 +1332,11 @@
           : (m.kind === 'image' ? '[图片]' : (m.kind === 'audio' ? '[语音]'
             : (m.kind === 'gift' ? ('[礼物] ' + giftInfo(m.content).name)
               : (m.kind === 'transfer' ? ('[转账] ¥' + (transferInfo(m.content).amount || 0).toFixed(2))
-                : (m.kind === 'location' ? '[位置]' : '[文件]')))));
+                : (m.kind === 'redpacket' ? ('[红包] ¥' + (function () {
+                    try { return Number(JSON.parse(m.content || '{}').total || 0).toFixed(2); }
+                    catch (e) { return '0.00'; }
+                  })())
+                  : (m.kind === 'location' ? '[位置]' : '[文件]'))))));
         if (!dndOn()) toast((msg.chat ? msg.chat.title : '新消息') + '：' + preview);
         notifyDesktop(msg.chat ? msg.chat.title : '新消息', preview);
       }

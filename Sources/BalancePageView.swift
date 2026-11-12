@@ -72,7 +72,13 @@ struct BalancePageView: View {
 
         .overlay {
             if needReal {
-                NeedRealNameView { dismiss() }
+                NeedRealNameView(
+                    onClose: { dismiss() },
+                    onVerified: {
+                        needReal = false
+                        Task { await load() }
+                    }
+                )
                     .environmentObject(app)
             }
         }
@@ -111,8 +117,7 @@ struct BalancePageView: View {
 
             if cfg?.isLocked ?? false {
                 Button {
-                    app.show(Tr("请先完成实名认证"))
-                    RealNameGate.shared.prompt()
+                    needReal = true
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "person.crop.circle.badge.checkmark")

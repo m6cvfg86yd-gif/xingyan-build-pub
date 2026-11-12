@@ -42,7 +42,13 @@ struct WalletView: View {
 
     var body: some View {
         if needReal {
-            NeedRealNameView { dismiss() }
+            NeedRealNameView(
+                onClose: { dismiss() },
+                onVerified: {
+                    needReal = false
+                    Task { await load() }
+                }
+            )
         } else {
         VStack(spacing: 0) {
             NavBar(title: cfg?.title ?? "钱包", back: { dismiss() }) {
@@ -67,7 +73,7 @@ struct WalletView: View {
 
                     if cfg?.isLocked ?? false {
                         Button {
-                            RealNameGate.shared.prompt()
+                            needReal = true
                         } label: {
                             HStack(spacing: 6) {
                                 Text("⚠️").font(pf(14))

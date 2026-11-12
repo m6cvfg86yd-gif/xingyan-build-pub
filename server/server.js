@@ -21,6 +21,7 @@ const { spawnSync, spawn } = require('child_process');
 const zlib = require('zlib');
 const ws = require('./lib/ws');
 const { PaymentLedger, cents: ledgerCents, money: ledgerMoney } = require('./payment-ledger');
+const { AmlEngine } = require('./aml');
 const {
   isOpsUser,
   isOpsWebAuthPath,
@@ -2893,6 +2894,7 @@ const TRANSFER_TTL_MS = 24 * 60 * 60 * 1000;
 const MONEY_JOURNAL = 'money-journal.jsonl';
 const MONEY_STATE = 'money-state.json';
 const IDEM_FILE = 'idem.json';
+const AML_JOURNAL = 'aml-events.jsonl';
 
 const paymentLedger = new PaymentLedger({
   dataDir: DATA_DIR,
@@ -2908,6 +2910,8 @@ const paymentLedger = new PaymentLedger({
   now
 });
 let paymentLedgerHealthy = true;
+let amlEngine = null;
+let amlEngineHealthy = false;
 
 /** 统一四舍五入到「分」：钱一律走这个，别各处自己 Math.round */
 function moneyRound(v) {
@@ -2959,7 +2963,46 @@ function applyMoney(user, delta, meta) {
   if (!allowNeg && after < 0) {
     return { error: '余额不足（当前 ¥' + before.toFixed(2) + '，需要 ¥' + Math.abs(d).toFixed(2) + '）' };
   }
+  if (d < 0 && amlEngine && !(meta && meta.allowAmlRestricted)) {
+    const restricted = amlEngine.isMoneyOutRestricted(user.id);
+    if (restricted) {
+      return {
+        error: '账号处于反洗钱审查限制中，暂不能转出资金'
+          + (restricted.caseId ? '（案件 ' + restricted.caseId + '）' : '')
+      };
+    }
+  }
   if (d === 0) return { balance: before, before: before, delta: 0 };
+  let autoAml = null;
+  if (d < 0 && !(meta && (meta.amlChecked || meta.skipAml))) {
+    if (!amlEngineHealthy || !amlEngine) {
+      return { error: '反洗钱风控暂时不可用，交易已安全暂停' };
+    }
+    try {
+      autoAml = amlEngine.authorize(user, {
+        channel: (meta && (meta.amlChannel || meta.reason)) || 'wallet',
+        direction: 'out',
+        amount: Math.abs(d),
+        counterpartyId: (meta && meta.counterpartyId) || '',
+        counterpartyName: (meta && meta.counterpartyName) || '',
+        note: (meta && meta.reason) || '',
+        requestId: (meta && (meta.requestId || meta.ref)) || ''
+      }, {
+        actor: user.id,
+        source: 'money-engine'
+      });
+      if (!autoAml.allowed) {
+        return {
+          error: autoAml.decision === 'review'
+            ? '交易已进入反洗钱人工审核，审核完成前不会扣款'
+            : '交易被反洗钱风控安全拦截，如有疑问请联系客服',
+          aml: autoAml
+        };
+      }
+    } catch (error) {
+      return { error: '反洗钱风控校验失败，交易已安全暂停' };
+    }
+  }
   user.balance = after;
   try {
     journalMoney({
@@ -2971,9 +3014,86 @@ function applyMoney(user, delta, meta) {
   } catch (error) {
     user.balance = before;
     saveUsers();
+    if (autoAml) amlComplete(autoAml, false, { note: String(error.message || error) });
     return { error: '账本落账失败，交易已取消：' + String(error.message || error) };
   }
+  if (autoAml) amlComplete(autoAml, true, { externalRef: (meta && meta.ref) || '' });
   return { balance: after, before: before, delta: d };
+}
+
+/** AML 只追加证据日志：AES-GCM 加密落盘，并 fsync 后才返回。 */
+function appendAmlJournal(row) {
+  const file = path.join(DATA_DIR, AML_JOURNAL);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const sealed = sealSecureStoreValue(AML_JOURNAL, row);
+  const fd = fs.openSync(file, 'a');
+  try {
+    fs.writeSync(fd, JSON.stringify(sealed) + '\n', null, 'utf8');
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+function readAmlJournal(limit) {
+  const file = path.join(DATA_DIR, AML_JOURNAL);
+  if (!fs.existsSync(file)) return [];
+  const rows = [];
+  fs.readFileSync(file, 'utf8').split('\n').forEach((line) => {
+    if (!line.trim()) return;
+    try {
+      rows.push(openSecureStoreValue(AML_JOURNAL, JSON.parse(line)));
+    } catch (error) {
+      rows.push({ corrupt: true, error: String(error && error.message || error) });
+    }
+  });
+  const max = Math.max(0, Number(limit) || 0);
+  return max ? rows.slice(-max) : rows;
+}
+
+/**
+ * 所有资金入口的统一 AML 闸门。
+ * 返回 null 表示已经给客户端回了拒绝响应；返回对象则表示可以继续扣款/入账。
+ */
+function amlGateOrReject(res, req, user, transaction) {
+  if (!amlEngineHealthy || !amlEngine) {
+    fail(res, 503, '反洗钱风控暂时不可用，交易已安全暂停', { amlPaused: true });
+    return null;
+  }
+  try {
+    const info = clientInfo(req);
+    const result = amlEngine.authorize(user, transaction, {
+      actor: user && user.id,
+      ip: info.ip,
+      device: info.device,
+      source: String(req.headers && req.headers['x-app-build'] || '')
+    });
+    if (result.allowed) return result;
+    const review = result.decision === 'review';
+    fail(res, 403,
+      review
+        ? '交易已进入反洗钱人工审核，审核完成前不会扣款'
+        : '交易被反洗钱风控安全拦截，如有疑问请联系客服',
+      {
+        needAmlReview: review,
+        amlBlocked: !review,
+        caseId: result.caseId || ''
+      });
+    return null;
+  } catch (error) {
+    console.log('[AML] 交易决策失败，已按 fail-closed 拦截：' + String(error && error.message || error));
+    fail(res, 503, '反洗钱风控校验失败，交易已安全暂停', { amlPaused: true });
+    return null;
+  }
+}
+
+function amlComplete(result, success, detail) {
+  if (!result || !result.id || !amlEngine) return;
+  try {
+    amlEngine.complete(result.id, !!success, detail || {});
+  } catch (error) {
+    console.log('[AML] 交易结果留痕失败：' + String(error && error.message || error));
+  }
 }
 
 /* ---------------- ② 幂等 ---------------- */
@@ -3002,6 +3122,12 @@ function idemFinish(key, payload) {
   if (!key) return;
   idemStore.items[key] = { at: Date.now(), payload: payload || {} };
   idemPrune();
+  idemSave();
+}
+
+function idemAbort(key) {
+  if (!key) return;
+  delete idemStore.items[key];
   idemSave();
 }
 
@@ -6020,6 +6146,16 @@ function previewTextOf(m) {
   }
   if (!m) return '';
   if (m.recalled) return '[消息已撤回]';
+  const cardMoney = (keys) => {
+    try {
+      const o = JSON.parse(String(m.content || '{}'));
+      for (const key of keys) {
+        const n = Number(o[key]);
+        if (Number.isFinite(n) && n > 0) return ' ¥' + n.toFixed(2);
+      }
+    } catch (err) { }
+    return '';
+  };
   /* 会话列表里非文字消息统一显示成 [xx]（和微信一致） */
   switch (m.kind) {
     /* 引用别人的消息：微信的会话列表写着「[引用] 正文」 */
@@ -6059,8 +6195,11 @@ function previewTextOf(m) {
     case 'system': return previewTextSlice(callRecordTextOf(String(m.content || '')), 40);
     /* 拍一拍：会话列表里微信显示的就是「拍了拍」 */
     case 'pat': return '拍了拍';
-    case 'transfer': return '[转账]';
-    case 'gift': return '[礼物]' + (giftNameOf(m.content) ? ' ' + giftNameOf(m.content) : '');
+    case 'transfer': return '[转账]' + cardMoney(['amount']);
+    case 'redpacket': return '[红包]' + cardMoney(['total', 'amount']);
+    case 'gift':
+      return '[礼物]' + (giftNameOf(m.content) ? ' ' + giftNameOf(m.content) : '')
+        + cardMoney(['amount', 'price', 'value']);
     case 'location': return '[位置]';
     /* 名片：会话列表里显示「[名片] 名字」（微信就是这样） */
     case 'card': {
@@ -11290,7 +11429,8 @@ async function handleAdmin(req, res, parts, query) {
         reason: '后台直接改余额',
         ref: (admin && admin.username) || '',
         allowNegative: true,
-        counterAccount: 'system:admin-adjustment'
+        counterAccount: 'system:admin-adjustment',
+        skipAml: true
       });
       sendTo(target.id, { type: 'balance', balance: target.balance });      // 在线的话余额立刻刷新
     }
@@ -11321,7 +11461,11 @@ async function handleAdmin(req, res, parts, query) {
     if (!(amount > 0)) return fail(res, 422, '充值金额要大于 0');
     if (amount > 1000000) return fail(res, 422, '单次充值不能超过 1000000');
     const before = Number(target.balance) || 0;
-    applyMoney(target, amount, { reason: '后台充值', ref: (admin && admin.username) || '' });
+    applyMoney(target, amount, {
+      reason: '后台充值',
+      ref: (admin && admin.username) || '',
+      skipAml: true
+    });
     saveUsers();
     sendTo(target.id, { type: 'balance', balance: target.balance });      // 在线的话余额立刻刷新
     ok(res, { id: target.id, username: target.username, nickname: target.nickname, recharged: amount, balanceBefore: before, balance: target.balance });
@@ -15814,10 +15958,22 @@ async function handleApi(req, res, pathname, query) {
     if (amount > acc.balance + 0.001) return fail(res, 422, '最多只能提 ¥' + acc.balance.toFixed(2));
     /* 经营账户提现也要支付密码（钱出去的口子一个都不能漏） */
     if (payPasswordGate(req, res, user, body, '经营账户提现')) return;
+    const aml = amlGateOrReject(res, req, user, {
+      channel: 'business_withdraw',
+      direction: 'out',
+      amount,
+      note: '经营账户提现到零钱',
+      requestId: str(body.requestId, 100)
+    });
+    if (!aml) return;
     const moved = moveBusinessToWallet(user, amount, body.requestId || '');
-    if (moved.error) return fail(res, 402, moved.error);
+    if (moved.error) {
+      amlComplete(aml, false, { note: moved.error });
+      return fail(res, 402, moved.error);
+    }
     bizPush(user.id, { kind: 'withdraw', amount, note: '提现到零钱', method: 'balance' });
     saveBizAll();
+    amlComplete(aml, true, { externalRef: str(body.requestId, 100) });
     sendTo(user.id, { type: 'balance', balance: user.balance });
     ok(res, { balance: user.balance, bizBalance: acc.balance, amount });
     return;
@@ -15935,6 +16091,16 @@ async function handleApi(req, res, pathname, query) {
     if (body.occupation !== undefined) user.occupation = str(body.occupation, 20);
     if (body.address !== undefined) user.address = str(body.address, 60);
     saveUsers();
+    try {
+      if (amlEngineHealthy && amlEngine) {
+        amlEngine.syncUser(user, {
+          occupation: user.occupation || '',
+          sourceOfFunds: body.sourceOfFunds
+        }, user.username);
+      }
+    } catch (error) {
+      console.log('[AML] 身份资料同步失败：' + String(error && error.message || error));
+    }
     ok(res, { saved: true, idValid: user.idValid || '', occupation: user.occupation || '', address: user.address || '' });
     return;
   }
@@ -16059,6 +16225,11 @@ async function handleApi(req, res, pathname, query) {
     if (!bankCount) return fail(res, 422, '先绑一张银行卡（只记末四位）');
     user.walletUpgradedAt = now();
     saveUsers();
+    try {
+      if (amlEngineHealthy && amlEngine) amlEngine.syncUser(user, {}, user.username);
+    } catch (error) {
+      console.log('[AML] 账户升级后筛查失败：' + String(error && error.message || error));
+    }
     recordSecurity(user.id, req, 'wallet-upgrade');
     const info = walletLevelInfo(user);
     ok(res, { level: info.level, levelName: info.name, single: info.single, day: info.day });
@@ -16125,6 +16296,11 @@ async function handleApi(req, res, pathname, query) {
     user.idCardVerifiedAt = now();
     user.realNameVerified = true;
     saveUsers();
+    try {
+      if (amlEngineHealthy && amlEngine) amlEngine.syncUser(user, {}, user.username);
+    } catch (error) {
+      console.log('[AML] 实名后名单筛查失败：' + String(error && error.message || error));
+    }
     recordSecurity(user.id, req, 'realname');
     audit(req, { username: user.username, name: user.nickname, role: '用户本人' },
       '实名认证', user.username, name + ' · ' + maskIdCard(idc));
@@ -16300,12 +16476,30 @@ async function handleApi(req, res, pathname, query) {
       db.chats.push(chat);
       sendTo(target.id, { type: 'chat', action: 'created', chat: chatSummary(chat, target.id) });
     }
+    const aml = amlGateOrReject(res, req, user, {
+      channel: 'paycode',
+      direction: 'out',
+      amount,
+      counterpartyId: target.id,
+      counterpartyName: target.nickname || target.username || '',
+      note: str(body.note, 40) || (found.kind === 'pay' ? '扫码付款' : '收款码付款'),
+      requestId: idem.key
+    });
+    if (!aml) {
+      idemAbort(idem.key);
+      return;
+    }
     const paidMoney = applyMoney(user, -amount, {
       reason: '扫码付款',
       ref: target.id,
-      counterAccount: 'system:paycode-clearing'
+      counterAccount: 'system:paycode-clearing',
+      amlChecked: true
     });
-    if (paidMoney.error) return fail(res, 402, paidMoney.error);
+    if (paidMoney.error) {
+      amlComplete(aml, false, { note: paidMoney.error });
+      idemAbort(idem.key);
+      return fail(res, 402, paidMoney.error);
+    }
     balance = paidMoney.balance;
     const note = str(body.note, 40) || (found.kind === 'pay' ? '扫码付款' : '收款码付款');
     const transfer = {
@@ -16324,6 +16518,8 @@ async function handleApi(req, res, pathname, query) {
         counterAccount: 'system:paycode-clearing'
       });
       saveUsers();
+      amlComplete(aml, false, { note: sent.error });
+      idemAbort(idem.key);
       return fail(res, 400, sent.error);
     }
     transfer.messageId = sent.message.id;
@@ -16332,6 +16528,7 @@ async function handleApi(req, res, pathname, query) {
     bizCollect(target, amount, user.nickname || user.username || '好友', user.id, 'paycode', note);
     saveUsers();
     saveTransfers();
+    amlComplete(aml, true, { externalRef: transfer.id });
     broadcastTransfer(transfer, 'received');
     sendTo(user.id, { type: 'balance', balance: balance });
     /* 付款码是一次性的：用过就作废（微信也是刷一次就换） */
@@ -16380,15 +16577,35 @@ async function handleApi(req, res, pathname, query) {
     const lim = walletLimitCheck(user, amount);
     if (lim.error) return fail(res, 403, lim.error);
 
+    const peerId = chat.type === 'direct' ? chat.memberIds.filter((id) => id !== user.id)[0] : '';
+    const peer = peerId ? findUser(peerId) : null;
+    const aml = amlGateOrReject(res, req, user, {
+      channel: 'transfer',
+      direction: 'out',
+      amount,
+      counterpartyId: peerId,
+      counterpartyName: peer ? (peer.nickname || peer.username || '') : '',
+      note,
+      requestId: idem.key
+    });
+    if (!aml) {
+      idemAbort(idem.key);
+      return;
+    }
+
     // 不管选的是余额还是银行卡，钱都从余额里扣：用多少扣多少，没余额就付不了
     const charge = applyMoney(user, -amount, {
       reason: '转账',
       ref: chat.id,
-      counterAccount: 'system:pending-transfer'
+      counterAccount: 'system:pending-transfer',
+      amlChecked: true
     });
-    if (charge.error) return fail(res, 402, charge.error);
+    if (charge.error) {
+      amlComplete(aml, false, { note: charge.error });
+      idemAbort(idem.key);
+      return fail(res, 402, charge.error);
+    }
     let balance = charge.balance;
-    const peerId = chat.type === 'direct' ? chat.memberIds.filter((id) => id !== user.id)[0] : '';
     // 转账单：钱先挂着，对方点了「收钱」才进他余额；24 小时没人收自动退回
     const transfer = {
       id: uid('tr'),
@@ -16416,12 +16633,15 @@ async function handleApi(req, res, pathname, query) {
         counterAccount: 'system:pending-transfer'
       });   // 发不出去就把钱还回去
       saveUsers();
+      amlComplete(aml, false, { note: sent.error });
+      idemAbort(idem.key);
       return fail(res, 400, sent.error);
     }
     transfer.messageId = sent.message.id;
     syncTransferMessage(transfer);
     saveUsers();
     saveTransfers();
+    amlComplete(aml, true, { externalRef: transfer.id });
     sendTo(user.id, { type: 'balance', balance: balance });         // 自己余额实时减
     const payload = {
       balance, amount,
@@ -16442,13 +16662,24 @@ async function handleApi(req, res, pathname, query) {
     if (tr.status === 'received') return fail(res, 409, '这笔钱已经收过了');
     if (tr.status === 'refunded') return fail(res, 409, '超过 24 小时没收，钱已退回对方');
     if (tr.expiresAt <= Date.now()) { expireTransfers(); return fail(res, 409, '超过 24 小时没收，钱已退回对方'); }
+    const payer = findUser(tr.fromId) || {};
+    const aml = amlGateOrReject(res, req, user, {
+      channel: 'transfer_claim',
+      direction: 'in',
+      amount: tr.amount,
+      counterpartyId: tr.fromId,
+      counterpartyName: payer.nickname || payer.username || '',
+      note: tr.note || '',
+      requestId: tr.id
+    });
+    if (!aml) return;
     tr.status = 'received';
     tr.receivedAt = now();
     /* 收到的钱：开了经营账户且选了「到账经营账户」就进经营账户，否则照旧进零钱；
        两种情况都会记一条收款流水（后台「经营账户查账」看的就是它） */
-    const payer = findUser(tr.fromId) || {};
     bizCollect(user, tr.amount, payer.nickname || payer.username || '好友', tr.fromId, 'transfer', tr.note || '');
     saveTransfers();
+    amlComplete(aml, true, { externalRef: tr.id });
     sendTo(user.id, { type: 'balance', balance: user.balance });
     broadcastTransfer(tr, 'received');
     ok(res, { balance: user.balance, transfer: JSON.parse(transferSnapshot(tr)) });
@@ -16596,15 +16827,36 @@ async function handleApi(req, res, pathname, query) {
 
     let balance = Number(user.balance) || 0;
     if (balance < total) return fail(res, 402, '余额不足，先充值再来');
+    const rpPeerId = chat.type === 'direct'
+      ? (chat.memberIds.filter((id) => id !== user.id)[0] || '') : ('group:' + chat.id);
+    const rpPeer = chat.type === 'direct' ? findUser(rpPeerId) : null;
+    const aml = amlGateOrReject(res, req, user, {
+      channel: chat.type === 'group' ? 'redpacket_group' : 'redpacket',
+      direction: 'out',
+      amount: total,
+      counterpartyId: rpPeerId,
+      counterpartyName: rpPeer ? (rpPeer.nickname || rpPeer.username || '') : (chat.name || '群聊红包'),
+      note,
+      requestId: idem.key
+    });
+    if (!aml) {
+      idemAbort(idem.key);
+      return;
+    }
     const rpPay = applyMoney(user, -total, {
       reason: '发红包',
       ref: chat.id + ':' + (body.count || 1),
-      counterAccount: 'system:pending-redpacket'
+      counterAccount: 'system:pending-redpacket',
+      amlChecked: true
     });
-    if (rpPay.error) return fail(res, 402, rpPay.error);
+    if (rpPay.error) {
+      amlComplete(aml, false, { note: rpPay.error });
+      idemAbort(idem.key);
+      return fail(res, 402, rpPay.error);
+    }
     balance = rpPay.balance;
 
-    const peerId = chat.type === 'direct' ? (chat.memberIds.filter((id) => id !== user.id)[0] || '') : '';
+    const peerId = chat.type === 'direct' ? rpPeerId : '';
     const rp = {
       id: uid('rp'),
       chatId: chat.id,
@@ -16638,12 +16890,15 @@ async function handleApi(req, res, pathname, query) {
         counterAccount: 'system:pending-redpacket'
       });   // 发不出去就把钱还回去
       saveUsers();
+      amlComplete(aml, false, { note: sent.error });
+      idemAbort(idem.key);
       return fail(res, 400, sent.error);
     }
     rp.messageId = sent.message.id;
     syncRedPacketMessage(rp);
     saveUsers();
     saveRedPackets();
+    amlComplete(aml, true, { externalRef: rp.id });
     sendTo(user.id, { type: 'balance', balance: user.balance });
     const rpPayload = {
       balance: user.balance, amount: total, count, type,
@@ -16874,6 +17129,17 @@ async function handleApi(req, res, pathname, query) {
     if (rp.status !== 'pending') return fail(res, 409, '手慢了，红包已经被抢完了');
     const amount = drawRedPacketAmount(rp);
     if (!(amount > 0)) { expireRedPackets(); return fail(res, 409, '红包已经过期了'); }
+    const rpSender = findUser(rp.fromId) || {};
+    const aml = amlGateOrReject(res, req, user, {
+      channel: 'redpacket_claim',
+      direction: 'in',
+      amount,
+      counterpartyId: rp.fromId,
+      counterpartyName: rpSender.nickname || rpSender.username || '',
+      note: rp.note || '',
+      requestId: rp.id + ':' + user.id
+    });
+    if (!aml) return;
     if (!Array.isArray(rp.claims)) rp.claims = [];
     rp.claims.push({
       userId: user.id,
@@ -16882,10 +17148,10 @@ async function handleApi(req, res, pathname, query) {
       at: now()
     });
     /* 抢到的红包钱：和收转账一样走「收款流水」（开了经营账户就进经营账户余额） */
-    const rpSender = findUser(rp.fromId) || {};
     bizCollect(user, amount, rpSender.nickname || rpSender.username || '好友', rp.fromId, 'redpacket', rp.note || '红包');
     if (rp.claims.length >= (Number(rp.count) || 1)) rp.status = 'done';
     saveRedPackets();
+    amlComplete(aml, true, { externalRef: rp.id });
     broadcastRedPacket(rp, 'claim');
     /* 群聊里抢红包会多一条灰条（微信就是这样），单聊不刷屏 */
     if (chat.type === 'group') {
@@ -16935,6 +17201,11 @@ async function handleApi(req, res, pathname, query) {
     };
     list.push(row);
     saveUsers();
+    try {
+      if (amlEngineHealthy && amlEngine) amlEngine.syncUser(user, {}, user.username);
+    } catch (error) {
+      console.log('[AML] 绑卡后持续尽调同步失败：' + String(error && error.message || error));
+    }
     recordSecurity(user.id, req, 'bank-add', { note: row.bank + ' 尾号' + row.tail });
     ok(res, { bank: row, banks: list });
     return;
@@ -16975,12 +17246,30 @@ async function handleApi(req, res, pathname, query) {
     const list = userBanks(user);
     const bank = list.find((b) => b.id === str(body.bankId, 40)) || list.find((b) => b.isDefault) || list[0] || null;
     const before = Number(user.balance) || 0;
-    applyMoney(user, amount, {
+    const aml = amlGateOrReject(res, req, user, {
+      channel: 'wallet_recharge',
+      direction: 'in',
+      amount,
+      counterpartyName: bank ? (bank.bank + '（' + bank.tail + '）') : '银行卡',
+      note: '充值到零钱',
+      requestId: idem.key
+    });
+    if (!aml) {
+      idemAbort(idem.key);
+      return;
+    }
+    const credited = applyMoney(user, amount, {
       reason: '充值到零钱',
       ref: bank ? bank.tail : '',
       counterAccount: 'system:external-settlement'
     });
+    if (credited.error) {
+      amlComplete(aml, false, { note: credited.error });
+      idemAbort(idem.key);
+      return fail(res, 402, credited.error);
+    }
     saveUsers();
+    amlComplete(aml, true, { externalRef: bank ? bank.tail : '' });
     const op = pushWalletOp({
       id: uid('wop'), userId: user.id, kind: 'recharge', amount,
       bankText: bank ? (bank.bank + '（' + bank.tail + '）') : '银行卡',
@@ -17024,15 +17313,33 @@ async function handleApi(req, res, pathname, query) {
     const before = Number(user.balance) || 0;
     if (before < amount + fee) {
       return fail(res, 402, '零钱不够：要提 ¥' + amount.toFixed(2) + '，手续费 ¥' + fee.toFixed(2)
-        + '，当前零钱 ¥' + before.toFixed(2));
+          + '，当前零钱 ¥' + before.toFixed(2));
+    }
+    const aml = amlGateOrReject(res, req, user, {
+      channel: 'wallet_withdraw',
+      direction: 'out',
+      amount: amount + fee,
+      counterpartyName: bank.bank + '（' + bank.tail + '）',
+      note: '提现（含手续费 ¥' + fee.toFixed(2) + '）',
+      requestId: idem.key
+    });
+    if (!aml) {
+      idemAbort(idem.key);
+      return;
     }
     const wd = applyMoney(user, -(amount + fee), {
       reason: '提现（含手续费 ¥' + fee.toFixed(2) + '）',
       ref: bank.tail,
-      counterAccount: 'system:external-settlement'
+      counterAccount: 'system:external-settlement',
+      amlChecked: true
     });
-    if (wd.error) return fail(res, 402, wd.error);
+    if (wd.error) {
+      amlComplete(aml, false, { note: wd.error });
+      idemAbort(idem.key);
+      return fail(res, 402, wd.error);
+    }
     saveUsers();
+    amlComplete(aml, true, { externalRef: bank.tail });
     const op = pushWalletOp({
       id: uid('wop'), userId: user.id, kind: 'withdraw', amount, fee,
       bankText: bank.bank + '（' + bank.tail + '）', bankId: bank.id,
@@ -17072,11 +17379,24 @@ async function handleApi(req, res, pathname, query) {
     const amount = Math.round((Number(body.amount) || 0) * 100) / 100;
     if (!(amount > 0)) return fail(res, 422, '充值金额要大于 0');
     if (amount > 1000000) return fail(res, 422, '单次充值不能超过 1000000');
+    const aml = amlGateOrReject(res, req, user, {
+      channel: 'self_recharge',
+      direction: 'in',
+      amount,
+      note: '自助充值',
+      requestId: str(body.requestId, 100)
+    });
+    if (!aml) return;
     const before = Number(user.balance) || 0;
-    applyMoney(user, amount, {
+    const credited = applyMoney(user, amount, {
       reason: '自助充值',
       counterAccount: 'system:external-settlement'
     });
+    if (credited.error) {
+      amlComplete(aml, false, { note: credited.error });
+      return fail(res, 402, credited.error);
+    }
+    amlComplete(aml, true);
     saveUsers();
     recordSecurity(user.id, req, 'recharge', { note: '充值 ' + amount });
     ok(res, { recharged: amount, balanceBefore: before, balance: user.balance });
@@ -20267,6 +20587,43 @@ function serveStatic(req, res, pathname) {
 /* ------------------------------------------------------------------ 启动 */
 
 loadStore();
+/* 反洗钱状态与证据链必须在敏感数据密钥加载完成后再初始化。 */
+try {
+  migrateSecureJsonl(AML_JOURNAL);
+  amlEngine = new AmlEngine({
+    dataDir: DATA_DIR,
+    readState: readSecureJsonStore,
+    writeState: writeSecureJsonStore,
+    appendJournal: appendAmlJournal,
+    readJournal: readAmlJournal,
+    hmac: (payload) => crypto.createHmac('sha256', String(db.secret || 'chris'))
+      .update('aml|' + payload).digest('hex'),
+    uid,
+    now
+  });
+  amlEngineHealthy = true;
+  console.log('[AML] 已加载：客户画像 ' + Object.keys(amlEngine.state.profiles || {}).length
+    + '，案件 ' + (amlEngine.state.cases || []).length
+    + '，有效名单 ' + (amlEngine.state.lists || []).filter((x) => x.active).length);
+} catch (error) {
+  amlEngine = null;
+  amlEngineHealthy = false;
+  console.log('[AML] 初始化失败，所有资金转出已暂停：' + String(error && error.message || error));
+}
+setTimeout(() => {
+  if (!amlEngineHealthy || !amlEngine) return;
+  try {
+    const result = amlEngine.sweep(db.users, { limit: 500 });
+    if (result.screened) console.log('[AML] 启动持续尽调筛查 ' + result.screened + ' 人');
+  } catch (error) {
+    console.log('[AML] 启动筛查失败：' + String(error && error.message || error));
+  }
+}, 8000).unref();
+setInterval(() => {
+  if (!amlEngineHealthy || !amlEngine) return;
+  try { amlEngine.sweep(db.users, { limit: 500 }); }
+  catch (error) { console.log('[AML] 定时筛查失败：' + String(error && error.message || error)); }
+}, 30 * 60 * 1000).unref();
 loadSecurityState();   // 恢复「登录失败计数 / IP 封禁」（重启也不会被清掉）
 /* 支付账本以追加日志为唯一事实源，启动时从日志重建账户索引。 */
 try { paymentLedger.rebuild(); } catch (error) {
@@ -22617,9 +22974,9 @@ async function handleOps(req, res, parts, query) {
        幂等 / 对账」这几条当场跑一遍。返回 ok:false 的那条就是有问题。 */
     if (query && query.get('selftest') === '1') {
       const scratch = { id: 'selftest_' + Date.now(), balance: 100, nickname: '自检' };
-      const r1 = applyMoney(scratch, 50, { reason: '自检（不是真钱）' });
-      const r2 = applyMoney(scratch, -500, { reason: '自检（不是真钱）' });        // 应该被拒
-      const r3 = applyMoney(scratch, -30.005, { reason: '自检（不是真钱）' });      // 应该只扣 30.01 或 30
+      const r1 = applyMoney(scratch, 50, { reason: '自检（不是真钱）', skipAml: true });
+      const r2 = applyMoney(scratch, -500, { reason: '自检（不是真钱）', skipAml: true });        // 应该被拒
+      const r3 = applyMoney(scratch, -30.005, { reason: '自检（不是真钱）', skipAml: true });      // 应该只扣 30.01 或 30
       const k = 'selftest:' + Date.now();
       const a = idemBegin(scratch, { requestId: k }, 'selftest');
       const b = idemBegin(scratch, { requestId: k }, 'selftest');       // 应该 dup + inflight
@@ -23612,6 +23969,251 @@ async function handleOps(req, res, parts, query) {
     audit(req, admin, '删除朋友圈动态', removed.id, String(removed.content || '').slice(0, 60));
     ok(res, { deleted: true });
     return;
+  }
+
+  /* ---------------- 反洗钱（AML）----------------
+     GET  /api/ops/aml                  总览
+     GET  /api/ops/aml/profiles         客户风险画像
+     GET  /api/ops/aml/profile?uid=     单个客户
+     GET  /api/ops/aml/lists            名单库
+     GET  /api/ops/aml/cases            案件队列
+     GET  /api/ops/aml/cases/:id        案件证据
+     GET  /api/ops/aml/reports          可疑交易报告
+     GET  /api/ops/aml/report/:id       报告导出数据
+     GET  /api/ops/aml/events           证据事件流
+     GET  /api/ops/aml/integrity        证据链校验
+     POST /api/ops/aml/rules            修改监控规则
+     POST /api/ops/aml/lists/import     导入制裁 / PEP / 舆情 / 内部名单
+     POST /api/ops/aml/lists/disable    停用过期或错误名单
+     POST /api/ops/aml/profile          更新客户尽调信息
+     POST /api/ops/aml/screening/run    立即重新筛查
+     POST /api/ops/aml/cases/:id/review 案件复核与处置
+     POST /api/ops/aml/reports/:id/submit 登记人工报送回执
+     所有处置写独立链式哈希证据流，不提供删除接口。 */
+  if (sub === 'aml') {
+    if (!can(admin, 'payments')) return fail(res, 403, '你的角色没有 AML 权限');
+    if (!amlEngineHealthy || !amlEngine) return fail(res, 503, 'AML 服务未就绪，资金交易已暂停');
+
+    if (parts.length === 2 && method === 'GET') {
+      ok(res, Object.assign(amlEngine.overview(), {
+        dualReview: !!opsStore.dualReview,
+        productionReady: false,
+        realMoneyEnabled: false,
+        productionBlockers: [
+          '真实支付通道和持牌结算对账尚未接入',
+          '名单数据尚未接入正式供应商与更新契约',
+          '资金状态仍需迁移到数据库事务 / outbox 架构',
+          '报送模板、辖区规则和合规责任人仍需法务验收'
+        ]
+      }));
+      return;
+    }
+    if (parts[2] === 'profiles' && method === 'GET') {
+      ok(res, {
+        profiles: amlEngine.listProfiles({
+          q: String(query.get('q') || ''),
+          risk: String(query.get('risk') || ''),
+          limit: Number(query.get('limit')) || 200
+        })
+      });
+      return;
+    }
+    if (parts[2] === 'profile' && method === 'GET') {
+      const userId = str(query.get('uid'), 80);
+      const profile = amlEngine.state.profiles[userId];
+      if (!profile) return fail(res, 404, 'AML 用户画像不存在；先对该用户执行重新筛查');
+      const cases = amlEngine.listCases({ q: userId, limit: 100 });
+      ok(res, { profile: amlEngine.publicProfile(profile), cases });
+      return;
+    }
+    if (parts[2] === 'lists' && method === 'GET') {
+      const activeRaw = String(query.get('active') || '');
+      ok(res, {
+        lists: amlEngine.listLists({
+          q: String(query.get('q') || ''),
+          type: String(query.get('type') || ''),
+          active: activeRaw === '' ? undefined : activeRaw === '1' || activeRaw === 'true',
+          limit: Number(query.get('limit')) || 500
+        })
+      });
+      return;
+    }
+    if (parts[2] === 'cases' && parts.length === 3 && method === 'GET') {
+      ok(res, {
+        cases: amlEngine.listCases({
+          status: String(query.get('status') || ''),
+          severity: String(query.get('severity') || ''),
+          q: String(query.get('q') || ''),
+          limit: Number(query.get('limit')) || 200
+        })
+      });
+      return;
+    }
+    if (parts[2] === 'cases' && parts[3] && method === 'GET') {
+      const detail = amlEngine.caseDetail(parts[3]);
+      if (!detail) return fail(res, 404, 'AML 案件不存在');
+      audit(req, admin, '查看 AML 案件', parts[3], '用户 ' + detail.case.userId);
+      ok(res, detail);
+      return;
+    }
+    if (parts[2] === 'reports' && method === 'GET') {
+      const status = String(query.get('status') || '');
+      ok(res, {
+        reports: amlEngine.state.reports
+          .filter((x) => !status || x.status === status)
+          .slice(0, Math.min(1000, Number(query.get('limit')) || 200))
+      });
+      return;
+    }
+    if (parts[2] === 'report' && parts[3] && method === 'GET') {
+      try {
+        const report = amlEngine.exportReport(parts[3]);
+        audit(req, admin, '导出 AML 报告', parts[3], report.report.caseId);
+        ok(res, report);
+      } catch (error) {
+        return fail(res, 404, String(error.message || error));
+      }
+      return;
+    }
+    if (parts[2] === 'events' && method === 'GET') {
+      ok(res, { events: amlEngine.events(Math.min(2000, Number(query.get('limit')) || 200)) });
+      return;
+    }
+    if (parts[2] === 'integrity' && method === 'GET') {
+      const result = amlEngine.verifyEvents();
+      audit(req, admin, '校验 AML 证据链', 'integrity',
+        result.ok ? '通过 ' + result.checked + ' 条' : '失败 ' + result.failures.length + ' 条');
+      ok(res, result);
+      return;
+    }
+
+    if (method !== 'POST') return fail(res, 405, 'AML 接口不支持这个请求方法');
+    const body = await readBody(req);
+    const sensitiveAction = !(parts[2] === 'screening' && parts[3] === 'run');
+    if (sensitiveAction && !opsConfirmOk(admin, body)) {
+      audit(req, admin, 'AML 操作被拦（密码未确认）', parts.slice(2).join('/'), '');
+      return fail(res, 428, 'AML 处置属于高危操作，请再输入一次你自己的后台密码确认');
+    }
+    let secondReviewerId = '';
+    if (opsStore.dualReview && body.secondReviewer) {
+      const reviewer = opsStore.admins.find((a) => !a.disabled
+        && (a.id === String(body.secondReviewer) || a.username === String(body.secondReviewer)));
+      if (!reviewer) return fail(res, 422, '二次复核管理员不存在或已停用');
+      if (reviewer.id === admin.id) return fail(res, 422, '二次复核不能由提交人自己完成');
+      secondReviewerId = reviewer.id;
+    }
+
+    if (parts[2] === 'rules') {
+      try {
+        const rules = amlEngine.updateRules(body.rules || body, admin.username);
+        audit(req, admin, '修改 AML 监控规则', 'rules', JSON.stringify(rules).slice(0, 500));
+        ok(res, { rules });
+      } catch (error) {
+        return fail(res, 422, String(error.message || error));
+      }
+      return;
+    }
+    if (parts[2] === 'lists' && parts[3] === 'import') {
+      try {
+        const result = amlEngine.importLists(body.items || body.text, {
+          actor: admin.username,
+          source: str(body.source, 120)
+        });
+        audit(req, admin, '导入 AML 名单', str(body.source, 120) || '人工导入',
+          '新增 ' + result.added.length + '，跳过 ' + result.skipped.length);
+        ok(res, {
+          added: result.added.length,
+          skipped: result.skipped.length,
+          total: result.total,
+          skippedRows: result.skipped.slice(0, 30)
+        });
+      } catch (error) {
+        return fail(res, 422, String(error.message || error));
+      }
+      return;
+    }
+    if (parts[2] === 'lists' && parts[3] === 'disable') {
+      const ids = Array.isArray(body.ids) ? body.ids : [body.id];
+      const changed = [];
+      try {
+        ids.filter(Boolean).slice(0, 500).forEach((id) => {
+          changed.push(amlEngine.disableList(String(id), admin.username,
+            str(body.reason, 300) || '名单停用'));
+        });
+        audit(req, admin, '停用 AML 名单', changed.map((x) => x.id).join(','),
+          str(body.reason, 300));
+        ok(res, { disabled: changed.length });
+      } catch (error) {
+        return fail(res, 422, String(error.message || error));
+      }
+      return;
+    }
+    if (parts[2] === 'profile') {
+      try {
+        const profile = amlEngine.updateProfile(str(body.userId, 80), body, admin.username);
+        audit(req, admin, '更新 AML 客户尽调', profile.userId, profile.riskLevelName);
+        ok(res, { profile });
+      } catch (error) {
+        return fail(res, 422, String(error.message || error));
+      }
+      return;
+    }
+    if (parts[2] === 'screening' && parts[3] === 'run') {
+      try {
+        const userId = str(body.userId, 80);
+        if (userId) {
+          const user = findUser(userId);
+          if (!user) return fail(res, 404, '用户不存在');
+          const result = amlEngine.syncUser(user, {
+            country: body.country,
+            nationality: body.nationality,
+            occupation: body.occupation,
+            sourceOfFunds: body.sourceOfFunds
+          }, admin.username);
+          audit(req, admin, '重新筛查 AML 客户', user.username,
+            '命中 ' + result.screening.matches.length + ' 条');
+          ok(res, result);
+        } else {
+          const result = amlEngine.sweep(db.users, { limit: Math.min(1000, Number(body.limit) || 500) });
+          audit(req, admin, '批量重新筛查 AML 客户', 'all', '筛查 ' + result.screened + ' 人');
+          ok(res, result);
+        }
+      } catch (error) {
+        return fail(res, 422, String(error.message || error));
+      }
+      return;
+    }
+    if (parts[2] === 'cases' && parts[3] && parts[4] === 'review') {
+      try {
+        const detail = amlEngine.reviewCase(parts[3], str(body.action, 40), body, {
+          actor: admin.username,
+          dualReview: !!opsStore.dualReview,
+          secondReviewerId
+        });
+        audit(req, admin, '复核 AML 案件', parts[3],
+          str(body.action, 40) + ' · ' + str(body.note || body.resolution, 300));
+        ok(res, detail);
+      } catch (error) {
+        return fail(res, 409, String(error.message || error));
+      }
+      return;
+    }
+    if (parts[2] === 'reports' && parts[3] && parts[4] === 'submit') {
+      try {
+        const report = amlEngine.submitReport(parts[3], body, {
+          actor: admin.username,
+          dualReview: !!opsStore.dualReview,
+          secondReviewerId
+        });
+        audit(req, admin, '登记 AML 报告报送回执', report.id,
+          report.authorityRef + ' · ' + report.caseId);
+        ok(res, { report });
+      } catch (error) {
+        return fail(res, 409, String(error.message || error));
+      }
+      return;
+    }
+    return fail(res, 404, 'AML 操作不存在');
   }
 
   /* ---------------- 支付风控 ---------------- */
@@ -24722,7 +25324,8 @@ async function handleOps(req, res, parts, query) {
       reason: amount > 0 ? '后台充值' : '后台扣减',
       ref: admin.username,
       allowNegative: amount < 0,
-      counterAccount: 'system:admin-adjustment'
+      counterAccount: 'system:admin-adjustment',
+      skipAml: true
     });
     if (r.error) return fail(res, 402, r.error);
     saveUsers();

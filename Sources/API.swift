@@ -281,6 +281,14 @@ struct Message: Codable, Identifiable, Hashable {
     var body: String { content ?? "" }
     var isRecalled: Bool { recalled ?? false }
     var imagePath: String { imageRefPath(body) }
+    var moneyCardAmount: Double? {
+        switch kindName {
+        case "transfer": return jsonMoneyAmount(body, keys: ["amount"])
+        case "redpacket": return jsonMoneyAmount(body, keys: ["total", "amount"])
+        case "gift": return jsonMoneyAmount(body, keys: ["amount", "price", "value"])
+        default: return nil
+        }
+    }
 
     var imagePixelSize: CGSize? {
         if let w = imgW, let h = imgH, w > 1, h > 1 { return CGSize(width: CGFloat(w), height: CGFloat(h)) }
@@ -1980,7 +1988,6 @@ final class API {
             }
 
             if let det = dict["details"] as? [String: Any], (det["needRealName"] as? Bool) == true {
-                RealNameGate.shared.prompt()
                 throw APIError.needRealName
             }
 

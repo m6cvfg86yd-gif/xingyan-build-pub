@@ -16,8 +16,6 @@ struct MainTabView: View {
 
     @ObservedObject private var mallSheet = MallSheet.shared
 
-    @ObservedObject private var realNameGate = RealNameGate.shared
-
     private var unreadTotal: Int {
 
         app.chats.reduce(0) { $0 + (($1.muted == true) ? 0 : ($1.unread ?? 0)) }
@@ -191,16 +189,6 @@ struct MainTabView: View {
         .fullScreenCover(item: $app.nearbyDropInvite) { invite in
             FaceToFaceFileSheet(rows: [], avatar: "", name: invite.name, mode: .join(invite))
                 .environmentObject(app)
-        }
-
-        .alert(Tr("根据国家规定"), isPresented: $realNameGate.alert) {
-            Button(Tr("去实名认证")) { realNameGate.openPage = true }
-            Button(Tr("取消"), role: .cancel) { }
-        } message: {
-            Text(Tr("请先完成实名认证，之后才能使用转账、红包、收付款、零钱等功能。聊天不受影响。"))
-        }
-        .sheet(isPresented: $realNameGate.openPage) {
-            RealNameView().environmentObject(app)
         }
 
         .overlay {

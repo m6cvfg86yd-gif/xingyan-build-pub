@@ -504,7 +504,15 @@ private final class CarPlayCoordinator {
             return Tr("发起过通话")
         case "card":
             return Tr("分享了一张名片")
+        case "transfer":
+            if let amount = jsonMoneyAmount(raw ?? "", keys: ["amount"]) {
+                return Tr("转账") + " ¥" + moneyFmt(amount)
+            }
+            return Tr("发起了一笔转账")
         case "redpacket":
+            if let amount = jsonMoneyAmount(raw ?? "", keys: ["total", "amount"]) {
+                return Tr("发来一个红包") + " ¥" + moneyFmt(amount)
+            }
             return Tr("发来一个红包")
         case "pat":
             return Tr("拍了拍你")

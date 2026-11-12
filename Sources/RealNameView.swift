@@ -14,6 +14,7 @@ struct RealNameView: View {
     @State private var showFace = false
 
     @State private var faceOK = false
+    private let onVerified: (() -> Void)?
     @FocusState private var focus: Field?
 
     private enum Field: Hashable { case name, id }
@@ -24,6 +25,10 @@ struct RealNameView: View {
     private var ink: Color { scheme == .dark ? Color(hex: 0xEDEDED) : Color(hex: 0x1A1A1A) }
     private var gray: Color { scheme == .dark ? Color(hex: 0x8E8E93) : Color(hex: 0x737373) }
     private var line: Color { scheme == .dark ? Color(white: 1, opacity: 0.09) : Color(hex: 0xE6E6E6) }
+
+    init(onVerified: (() -> Void)? = nil) {
+        self.onVerified = onVerified
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -248,6 +253,10 @@ struct RealNameView: View {
                 info = r
                 app.me = try? await API.shared.me()
                 app.show(Tr("实名认证通过 ✅"))
+                if let onVerified {
+                    onVerified()
+                    dismiss()
+                }
             } catch {
                 self.error = (error as? APIError)?.errorDescription ?? "认证失败，检查一下再试"
             }

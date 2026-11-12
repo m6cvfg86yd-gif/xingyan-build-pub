@@ -718,6 +718,23 @@ private let moneyFmtter: NumberFormatter = {
     return f
 }()
 
+func jsonMoneyAmount(_ json: String, keys: [String]) -> Double? {
+    guard let data = json.data(using: .utf8),
+          let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        return nil
+    }
+    for key in keys {
+        let value: Double?
+        if let n = object[key] as? NSNumber { value = n.doubleValue }
+        else if let n = object[key] as? Double { value = n }
+        else if let n = object[key] as? Int { value = Double(n) }
+        else if let s = object[key] as? String { value = Double(s) }
+        else { value = nil }
+        if let value, value.isFinite, value > 0 { return value }
+    }
+    return nil
+}
+
 func moneyFmt(_ v: Double) -> String {
     let n = v.isFinite ? v : 0
     return moneyFmtter.string(from: NSNumber(value: n)) ?? String(format: "%.2f", n)
