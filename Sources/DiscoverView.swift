@@ -199,6 +199,7 @@ struct DiscoverView: View {
     @State private var lastRouteOpenAt = Date.distantPast
 
     @State private var showScan = false
+    @State private var showMomentsPage = false
     @ObservedObject private var realtime = Realtime.shared
 
     private var latestThumb: String {
@@ -633,6 +634,10 @@ struct DiscoverView: View {
         }
         .fullScreenCover(isPresented: $showScan) {
             ScannerView { text in handleScanned(text, app: app) }
+        }
+        .fullScreenCover(isPresented: $showMomentsPage) {
+            MomentsView()
+                .environmentObject(app)
         }
     }
 
@@ -1122,11 +1127,15 @@ struct DiscoverView: View {
     }
 
     private func open(_ item: DiscoverItem) {
+        if item.action == "moments" {
+            showMomentsPage = true
+            return
+        }
         let now = Date()
         guard now.timeIntervalSince(lastRouteOpenAt) > 0.45 else { return }
         lastRouteOpenAt = now
         switch item.action ?? "soon" {
-        case "moments": path.append("moments")
+        case "moments": break
         case "news": path.append("news")
         case "nearby": path.append("nearby")
         case "shake": path.append("shake")
