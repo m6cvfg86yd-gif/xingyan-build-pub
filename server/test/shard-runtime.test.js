@@ -12,6 +12,7 @@ const {
 } = require('../lib/shard-runtime');
 const { ShardEventBus } = require('../lib/shard-event-bus');
 const { ShardDomain } = require('../lib/shard-domain');
+const { migrateLegacyState } = require('../lib/shard-migrate');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xingyan-shard-runtime-'));
 const logFile = path.join(dir, 'events.jsonl');
@@ -161,6 +162,50 @@ try {
     'already-claimed');
   assert.strictEqual(domain.claimTransfer('transfer-1', 'bob', 2, claimEvent).status,
     'already-claimed');
+
+  const migrationDir = path.join(dir, 'migration');
+  const migrationCluster = new ShardCluster({
+    dataDir: migrationDir,
+    shardCount: 6,
+    readJson,
+    writeJson
+  });
+  const counts = migrateLegacyState({
+    cluster: migrationCluster,
+    friendships: [{ id: 'f1', fromId: 'm1', toId: 'm2', status: 'accepted' }],
+    chats: [
+      { id: 'c1', type: 'direct', memberIds: ['m1', 'm2'], hiddenFor: ['m1'] },
+      { id: 'g1', type: 'group', memberIds: ['m1', 'm2'], ownerId: 'm1', dismissed: true }
+    ],
+    moments: [{
+      id: 'mo1',
+      authorId: 'm1',
+      content: 'legacy',
+      likes: [{ userId: 'm2', at: 'now' }],
+      comments: [{
+        id: 'cm1',
+        userId: 'm2',
+        content: 'legacy comment',
+        likes: [{ userId: 'm1', at: 'now' }]
+      }]
+    }],
+    transfers: [
+      { id: 'tr1', toId: 'm2', status: 'received' },
+      { id: 'tr2', toId: 'm2', status: 'pending' }
+    ]
+  });
+  assert.strictEqual(counts.friendships, 1);
+  assert.strictEqual(counts.chatVisibility, 1);
+  assert.strictEqual(counts.groupsDissolved, 1);
+  assert.strictEqual(counts.moments, 1);
+  assert.strictEqual(counts.comments, 1);
+  assert.strictEqual(counts.likes, 2);
+  assert.strictEqual(counts.transfers, 2);
+  assert.strictEqual(migrationCluster.get('friendship', 'm1|m2').payload.status, 'accepted');
+  assert.strictEqual(migrationCluster.get('chat_visibility', 'c1|m1').deleted, true);
+  assert.strictEqual(migrationCluster.get('chat', 'g1').deleted, true);
+  assert.strictEqual(migrationCluster.get('moment_comment', 'mo1|cm1').payload.content, 'legacy comment');
+  assert.strictEqual(migrationCluster.get('transfer', 'tr1').payload.state, 'claimed');
 
   console.log('shard-runtime: passed');
 } finally {
