@@ -117,7 +117,7 @@ private struct MeCardRowBackground: View {
             let radius = min(18, proxy.size.height / 2)
             ZStack {
                 MeCardRowFill(position: position, radius: radius)
-                    .fill(C.meCardBg)
+                    .fill(C.cardBg)
                 MeCardRowOutline(position: position, radius: radius)
                     .stroke(C.hairline, lineWidth: 0.8)
             }

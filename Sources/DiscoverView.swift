@@ -328,13 +328,13 @@ struct DiscoverView: View {
 
     private var worldSectionFill: Color {
         scheme == .dark
-            ? (UIConfig.colorIfSet("discoverCardBg") ?? Color.black.opacity(0.58))
+            ? C.cardBg
             : .white
     }
 
     private var worldRowFill: Color {
         scheme == .dark
-            ? (UIConfig.colorIfSet("discoverCardBg") ?? Color.black.opacity(0.70))
+            ? C.cardBg
             : .white
     }
 
@@ -842,7 +842,9 @@ struct DiscoverView: View {
             open(item)
         } label: {
             ZStack(alignment: .bottomLeading) {
-                if latestThumb.isEmpty {
+                if scheme == .dark {
+                    worldRowFill
+                } else if latestThumb.isEmpty {
                     LinearGradient(
                         colors: [Color(hex: 0x10271F), Color(hex: 0x275F4E), Color(hex: 0x0F1B17)],
                         startPoint: .topLeading,
@@ -854,15 +856,17 @@ struct DiscoverView: View {
                         .clipped()
                 }
 
-                LinearGradient(
-                    stops: [
-                        .init(color: .black.opacity(0.05), location: 0),
-                        .init(color: .black.opacity(0.18), location: 0.38),
-                        .init(color: .black.opacity(0.88), location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                if scheme != .dark {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black.opacity(0.05), location: 0),
+                            .init(color: .black.opacity(0.18), location: 0.38),
+                            .init(color: .black.opacity(0.88), location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
 
                 Circle()
                     .stroke(Color.white.opacity(0.10), lineWidth: 0.8)
@@ -986,7 +990,9 @@ struct DiscoverView: View {
             open(item)
         } label: {
             ZStack(alignment: .bottomLeading) {
-                if artwork.isEmpty {
+                if scheme == .dark {
+                    worldRowFill
+                } else if artwork.isEmpty {
                     LinearGradient(
                         colors: [
                             accent.opacity(0.96),
@@ -1002,15 +1008,17 @@ struct DiscoverView: View {
                         .clipped()
                 }
 
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(artwork.isEmpty ? 0.02 : 0.05),
-                        Color.black.opacity(artwork.isEmpty ? 0.08 : 0.25),
-                        Color.black.opacity(artwork.isEmpty ? 0.42 : 0.68)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                if scheme != .dark {
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(artwork.isEmpty ? 0.02 : 0.05),
+                            Color.black.opacity(artwork.isEmpty ? 0.08 : 0.25),
+                            Color.black.opacity(artwork.isEmpty ? 0.42 : 0.68)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
 
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
@@ -1069,11 +1077,15 @@ struct DiscoverView: View {
             open(item)
         } label: {
             ZStack(alignment: .leading) {
-                LinearGradient(
-                    colors: [Color(hex: 0xA51612), Color(hex: 0xD72A20)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                if scheme == .dark {
+                    worldRowFill
+                } else {
+                    LinearGradient(
+                        colors: [Color(hex: 0xA51612), Color(hex: 0xD72A20)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
 
                 Circle()
                     .fill(Color.white.opacity(0.055))
