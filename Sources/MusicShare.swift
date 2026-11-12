@@ -4359,8 +4359,8 @@ struct MusicPlayingView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(t?.title ?? Tr("听一听"))
-                    .font(pf(15.5, .semibold))
-                    .foregroundStyle(.white)
+                    .font(pf(14.5, .semibold))
+                    .foregroundStyle(.white.opacity(0.90))
                     .lineLimit(1)
                     .truncationMode(.tail)
 
@@ -4416,17 +4416,18 @@ struct MusicPlayingView: View {
     }
 
     private var titleBlock: some View {
-        VStack(spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(t?.title ?? "")
-                .font(pfStyled(size: 26, weight: .semibold, design: .rounded))
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+                .font(pfStyled(size: 22, weight: .semibold, design: .rounded))
+                .multilineTextAlignment(.leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
             Text(t?.artistText ?? "")
-                .font(pfStyled(size: 17, weight: .regular))
+                .font(pfStyled(size: 13.5, weight: .regular))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var compactTitleBlock: some View {
@@ -4547,7 +4548,7 @@ struct MusicPlayingView: View {
                         .fill(OrbitTheme.jade)
                         .frame(width: playSize, height: playSize)
                         .shadow(color: OrbitTheme.jade.opacity(0.30),
-                                radius: 18, y: 8)
+                                radius: 14, y: 6)
                     if player.loadingId == (t?.id ?? "") {
                         ProgressView().tint(.white)
                     } else {
@@ -4617,27 +4618,27 @@ struct MusicPlayingView: View {
     }
 
     private func controlDock(compact: Bool) -> some View {
-        VStack(spacing: compact ? 8 : 11) {
+        VStack(spacing: compact ? 7 : 9) {
             progressBlock(compact: compact)
 
             transportControls(
-                playSize: compact ? 58 : 72,
-                iconSize: compact ? 23 : 28,
-                spacing: compact ? 34 : 40
+                playSize: compact ? 56 : 64,
+                iconSize: compact ? 21 : 23,
+                spacing: compact ? 30 : 34
             )
             .frame(maxWidth: .infinity)
 
-            playerActions(compact: compact)
+            playerActions(compact: true)
         }
-        .padding(.horizontal, compact ? 14 : 16)
-        .padding(.vertical, compact ? 11 : 14)
+        .padding(.horizontal, compact ? 14 : 18)
+        .padding(.vertical, compact ? 9 : 10)
     }
 
     private func portraitPlayer(size: CGSize) -> some View {
-        let lyricHeight = min(168, max(104, size.height * 0.25))
-        let coverSide = max(160, min(size.width - 40,
-                                     size.height - lyricHeight - 98))
-        return VStack(spacing: 12) {
+        let lyricHeight = min(152, max(96, size.height * 0.23))
+        let coverSide = max(160, min(size.width - 44,
+                                     size.height - lyricHeight - 108))
+        return VStack(spacing: 10) {
             artworkPanel(side: coverSide)
                 .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .onTapGesture {
@@ -4647,11 +4648,12 @@ struct MusicPlayingView: View {
                 }
 
             titleBlock
+                .padding(.horizontal, 2)
 
             lyricsViewport
                 .frame(height: lyricHeight)
         }
-        .padding(.horizontal, 22)
+        .padding(.horizontal, 24)
         .padding(.top, 4)
         .padding(.bottom, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
