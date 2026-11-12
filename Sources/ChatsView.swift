@@ -782,12 +782,18 @@ struct SwipeChatRow: View {
 
     private func swipeSpringFor(velocity vx: CGFloat) -> Animation {
         let speed = min(1, max(0, abs(vx) / 1_300))
-        return .interactiveSpring(response: 0.32 - speed * 0.10,
-                                  dampingFraction: 0.88 - speed * 0.07,
-                                  blendDuration: 0.08)
+        return .interactiveSpring(response: 0.38 - speed * 0.12,
+                                  dampingFraction: 0.92 - speed * 0.05,
+                                  blendDuration: 0.12)
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
+    private var pinReveal: CGFloat {
+        max(0, min(1, offset / fullW))
+    }
+    private var actionReveal: CGFloat {
+        max(0, min(1, -offset / leadingFullW))
+    }
     private var rowBg: Color {
         if cardStyle { return .clear }
         return UIConfig.colorIfSet("chatsRowBg")
@@ -799,6 +805,9 @@ struct SwipeChatRow: View {
         ZStack(alignment: .trailing) {
             pinActionButtons
                 .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
+                .opacity(0.34 + 0.66 * pinReveal)
+                .scaleEffect(0.97 + 0.03 * pinReveal, anchor: .leading)
+                .offset(x: -8 * (1 - pinReveal))
                 .allowsHitTesting(offset > 0)
                 .zIndex(0)
 
@@ -822,6 +831,9 @@ struct SwipeChatRow: View {
                 .zIndex(1)
 
             chatActionButtons
+                .opacity(0.26 + 0.74 * actionReveal)
+                .scaleEffect(0.96 + 0.04 * actionReveal, anchor: .trailing)
+                .offset(x: 10 * (1 - actionReveal))
                 .allowsHitTesting(offset < 0)
                 .zIndex(0)
         }
