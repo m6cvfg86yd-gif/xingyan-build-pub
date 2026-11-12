@@ -508,6 +508,67 @@ private struct XingyanTabDotBadge: View {
     }
 }
 
+private struct XingyanWorldBadge: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            Color(hex: 0xFF7A78).opacity(0.92),
+                            Color(hex: 0xD71935).opacity(0.30),
+                            Color(hex: 0xFF6470).opacity(0.82),
+                            Color(hex: 0xFF7A78).opacity(0.92)
+                        ],
+                        center: .center,
+                        angle: .degrees(18)
+                    ),
+                    lineWidth: 1.2
+                )
+                .frame(width: 20, height: 20)
+                .rotationEffect(.degrees(-24))
+                .shadow(color: Color(hex: 0xD71935).opacity(0.28),
+                        radius: 5, y: 1.5)
+
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(hex: 0xFF7B83),
+                            Color(hex: 0xE6223C),
+                            Color(hex: 0xB70E2B)
+                        ],
+                        center: UnitPoint(x: 0.34, y: 0.28),
+                        startRadius: 0,
+                        endRadius: 9
+                    )
+                )
+                .frame(width: 13, height: 13)
+                .overlay {
+                    Circle()
+                        .stroke(Color.dyn(0xFFFFFF, 0x0B141A).opacity(0.92),
+                                lineWidth: 1.5)
+                        .padding(-1.5)
+                }
+
+            Image(systemName: "sparkle")
+                .font(.system(size: 5.6, weight: .bold))
+                .foregroundStyle(.white.opacity(0.96))
+                .offset(x: -0.3, y: -0.2)
+
+            Circle()
+                .fill(Color.white.opacity(0.34))
+                .frame(width: 2.4, height: 2.4)
+                .offset(x: 7.4, y: -7.2)
+        }
+        .frame(width: 20, height: 20)
+        .offset(x: 6, y: -4)
+        .accessibilityHidden(true)
+    }
+}
+
 struct TabBar: View {
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
@@ -726,7 +787,7 @@ struct TabBar: View {
                             }
 
                             if i == 2 && momentsDot {
-                                XingyanTabDotBadge()
+                                XingyanWorldBadge()
                             }
 
                             if i == 1 && contactsDot {
