@@ -3180,9 +3180,13 @@ function supRows() {
   return list.map((t) => {
     const st = t.status === 'done' ? '<span class="hint">已结单</span>'
       : (t.status === 'replied' ? '已回复' : '<b style="color:#ffb020">待处理</b>');
+    const finance = t.kind === 'finance'
+      ? '<b style="color:#0A84FF">金融</b> ' + (t.priority === 'critical' ? 'P0 '
+        : t.priority === 'high' ? 'P1 ' : 'P2 ')
+      : '';
     return '<tr><td>' + esc(String(t.createdAt || '').slice(5, 16)) + '</td>'
       + '<td>' + esc(t.nickname || t.username || t.userId) + (t.online ? ' <span class="hint">在线</span>' : '') + '</td>'
-      + '<td>' + esc(t.category || '') + '</td>'
+      + '<td>' + finance + esc(t.category || '') + '</td>'
       + '<td style="max-width:360px">' + esc(t.content || '') + '</td>'
       + '<td>' + st + '</td>'
       + '<td style="max-width:260px">' + esc(t.reply || '') + '</td>'
@@ -3249,7 +3253,7 @@ function drawSupport() {
     + (cats || '<div class="hint" style="margin-top:10px">还没有分类</div>')
     + '</div>'
     + '<div class="panel" style="margin-top:14px"><h3>工单（待处理 ' + (SUP._pending || 0) + ' 条）</h3>'
-    + '<div class="hint">点「回复」＝ 在「在线客服」会话里给对方发一条消息（用户会在聊天里收到），同时记在这条工单里。</div>'
+    + '<div class="hint">点「回复」＝ 在对应客服会话里给对方发消息。金融工单会加密留痕，并标记 P0 / P1 优先级；回复会同步进入用户的金融客服会话。</div>'
     + '<table class="tbl" style="margin-top:10px"><thead><tr><th>时间</th><th>用户</th><th>分类</th><th>问题</th><th>状态</th><th>回复</th><th>操作</th></tr></thead><tbody>'
     + supRows() + '</tbody></table></div>';
 

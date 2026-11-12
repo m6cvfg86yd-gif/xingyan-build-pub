@@ -187,7 +187,8 @@ async function main() {
         PORT: String(port),
         TURN_PORT: String(turnPort),
         ADMIN_PASSWORD,
-        CHRIS_LOCAL_ONLY: '1'
+        CHRIS_LOCAL_ONLY: '1',
+        AML_LEGACY_GRANDFATHER: '0'
       }),
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true

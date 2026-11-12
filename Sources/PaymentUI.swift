@@ -8,18 +8,12 @@ enum PayVisual {
     static let danger = Color(hex: 0xFF453A)
     static let gold = Color(hex: 0xD9A441)
 
-    static var canvas: Color { Color.dyn(0xF2F2F7, 0x000000) }
-    static var card: Color { Color.dyn(0xFFFFFF, 0x1C1C1E) }
-    static var raised: Color { Color.dyn(0xFFFFFF, 0x2C2C2E) }
-    static var inset: Color { Color.dyn(0xF2F2F7, 0x2C2C2E) }
-    static var separator: Color {
-        Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark
-                ? UIColor(white: 1, alpha: 0.10)
-                : UIColor(white: 0, alpha: 0.08)
-        })
-    }
-    static var secondaryInk: Color { Color.dyn(0x6C6C70, 0x98989F) }
+    static var canvas: Color { UIConfig.color("payPageBg", 0xF2F2F7, 0x090A0C) }
+    static var card: Color { UIConfig.color("payCardBg", 0xFFFFFF, 0x121316) }
+    static var raised: Color { UIConfig.color("payRaisedBg", 0xFFFFFF, 0x121316) }
+    static var inset: Color { UIConfig.color("payInsetBg", 0xF2F2F7, 0x090A0C) }
+    static var separator: Color { UIConfig.color("payLineColor", 0xE5E5EA, 0x26282D) }
+    static var secondaryInk: Color { Color.dyn(0x6C6C70, 0xA2A5AC) }
 }
 
 struct StarPayAmount: View {

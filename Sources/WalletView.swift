@@ -112,7 +112,7 @@ struct WalletView: View {
         .navigationDestination(isPresented: $showCards) { BankCardsView() }
         .navigationDestination(isPresented: $showBiz) { BizAccountView() }
         .navigationDestination(isPresented: $showScore) { SecurityScoreView() }
-        .sheet(isPresented: $showSupport) { SupportView().environmentObject(app) }
+        .sheet(isPresented: $showSupport) { FinanceSupportView().environmentObject(app) }
         .sheet(isPresented: $showIdentity) { IdentityView().environmentObject(app) }
         .sheet(isPresented: $showPaySettings) { PaySettingsView().environmentObject(app) }
         .sheet(isPresented: $showPayScore) { PayScoreView().environmentObject(app) }

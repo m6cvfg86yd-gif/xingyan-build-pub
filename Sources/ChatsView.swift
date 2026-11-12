@@ -1159,6 +1159,8 @@ struct ChatsView: View {
     @State private var showPayOfficialAdminEditor = false
     @State private var showPayOfficialIconPicker = false
     @State private var localPayOfficialAvatar = ""
+    @State private var payLatestPreview = ""
+    @State private var payLatestAt = ""
     @State private var showWeatherConversation = false
     @State private var showWeatherAdminEditor = false
     @State private var showWeatherIconPicker = false
@@ -2059,6 +2061,7 @@ struct ChatsView: View {
     }
 
     private var payOfficialRowSubtitle: String {
+        if !payLatestPreview.isEmpty { return payLatestPreview }
         let fallback = Tr("收付款、账单与支付安全")
         let custom = UIConfig.text("payOfficialRowSubtitle", "").trimmingCharacters(in: .whitespacesAndNewlines)
         return custom.isEmpty ? fallback : custom
@@ -2110,6 +2113,12 @@ struct ChatsView: View {
                             .lineLimit(1)
                     }
                     Spacer(minLength: 8)
+                    if !payLatestAt.isEmpty {
+                        Text(TimeFmt.listApple(payLatestAt))
+                            .font(pf(11.5, .medium))
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                    }
                     if app.me?.ops != true {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .semibold))
@@ -2490,6 +2499,9 @@ struct ChatsView: View {
                 localWeatherRowAvatar = UserDefaults.standard.string(forKey: "chris.accountIcon.weatherRowAvatar") ?? ""
             }
             .onChange(of: app.chats) { _ in cachedSnapshot = chatSnapshot() }
+            .onChange(of: app.me?.balance) { _ in
+                Task { await refreshPayPreview() }
+            }
             .onChange(of: chatFilter) { _ in cachedSnapshot = chatSnapshot() }
             .onChange(of: keyword) { _ in cachedSnapshot = chatSnapshot() }
 
@@ -2666,11 +2678,23 @@ struct ChatsView: View {
 
             while !Task.isCancelled {
                 await app.loadChats()
+                await refreshPayPreview()
                 let pollSeconds: UInt64 = Realtime.shared.connected ? 60 : 4
                 try? await Task.sleep(nanoseconds: pollSeconds * 1_000_000_000)
             }
         }
 
+    }
+
+    private func refreshPayPreview() async {
+        guard let recent = try? await API.shared.ledgerBills(limit: 3),
+              let latest = recent.entries.first else { return }
+        let sign = latest.direction == "in" ? "+" : "-"
+        let title = latest.reason.isEmpty
+            ? (latest.direction == "in" ? Tr("收款") : Tr("付款"))
+            : latest.reason
+        payLatestPreview = title + " " + sign + "¥" + moneyFmt(abs(latest.delta))
+        payLatestAt = latest.at
     }
 
     private func saveAccountIcon(_ image: UIImage, key: String, success: String) async {

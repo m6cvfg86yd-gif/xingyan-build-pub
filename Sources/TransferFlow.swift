@@ -780,7 +780,10 @@ struct TransferView: View {
                     method: method, password: password, face: face)
                 receipt = result
                 doneAmount = result.amount ?? amount
-                app.me = try? await API.shared.me()
+                if let balance = result.balance, var me = app.me {
+                    me.balance = balance
+                    app.me = me
+                }
                 password = ""
                 busy = false
                 withAnimation(.easeOut(duration: 0.22)) {
@@ -789,8 +792,11 @@ struct TransferView: View {
                 }
 
                 onPaid()
-                await app.loadChats()
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
+                Task {
+                    await app.loadChats()
+                    if let fresh = try? await API.shared.me() { app.me = fresh }
+                }
             } catch {
                 let msg = (error as? APIError)?.errorDescription ?? "转账失败"
                 password = ""

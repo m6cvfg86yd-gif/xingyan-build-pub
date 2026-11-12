@@ -33,6 +33,21 @@ struct TransferInfo {
         refundedBy = (o["refundedBy"] as? String) ?? ""
     }
 
+    init(payment: API.TransferPayment) {
+        id = payment.id
+        amount = payment.amount ?? 0
+        note = payment.note ?? ""
+        status = payment.status ?? "pending"
+        method = payment.method ?? "balance"
+        fromId = payment.fromId ?? ""
+        toId = payment.toId ?? ""
+        createdAt = payment.createdAt ?? ""
+        expiresAt = payment.expiresAt ?? 0
+        receivedAt = payment.receivedAt ?? ""
+        refundedAt = payment.refundedAt ?? ""
+        refundedBy = ""
+    }
+
     var methodName: String { method == "card" ? "建设银行储蓄卡(2125)" : "零钱" }
 
     var refundClosed: Bool {
@@ -157,7 +172,9 @@ struct BillDetailView: View {
         }
 
         .sheet(isPresented: $showKefu) {
-            KefuPage().environmentObject(app)
+            FinanceSupportView(transactionId: t.id,
+                               transactionLabel: Tr("转账 ¥") + money(t.amount))
+                .environmentObject(app)
         }
 
         .confirmationDialog("退还 ¥" + money(t.amount) + " 给" + who + "？",
@@ -341,12 +358,25 @@ struct BillDetailView: View {
         guard !busy else { return }
         busy = true
         Task {
-
-            let err = await API.shared.claimTransfer(t.id)
-            await refreshTransfer()
-            app.me = try? await API.shared.me()
-            busy = false
-            app.show(err ?? Tr("已收款"))
+            do {
+                let receipt = try await API.shared.claimTransfer(t.id)
+                if let payment = receipt.transfer {
+                    live = TransferInfo(payment: payment)
+                }
+                if let balance = receipt.balance, var me = app.me {
+                    me.balance = balance
+                    app.me = me
+                }
+                busy = false
+                app.show(Tr("已收款"))
+                Task {
+                    await refreshTransfer()
+                    if let fresh = try? await API.shared.me() { app.me = fresh }
+                }
+            } catch {
+                busy = false
+                app.show((error as? APIError)?.errorDescription ?? Tr("收款失败，稍后再试"))
+            }
         }
     }
 
@@ -456,7 +486,9 @@ struct BillReceiptView: View {
         .swipeBack { dismiss() }
 
         .sheet(isPresented: $showKefu) {
-            KefuPage().environmentObject(app)
+            FinanceSupportView(transactionId: info.id,
+                               transactionLabel: Tr("转账 ¥") + money(info.amount))
+                .environmentObject(app)
         }
     }
 

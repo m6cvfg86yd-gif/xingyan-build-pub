@@ -861,7 +861,9 @@ struct UserManageView: View {
             ("contactsBg", 0xFFFFFF),
             ("discoverBg", 0xEDEDED),
             ("discoverPageBg", 0xEDEDED),
-            ("pageBg", 0xEDEDED)
+            ("pageBg", 0xEDEDED),
+            ("payPageBg", 0xF2F2F7),
+            ("payInsetBg", 0xF2F2F7)
         ]
         for (key, light) in canvasKeys {
             values[key] = value(key, light: light, darkHex: preset.hex)
@@ -877,7 +879,9 @@ struct UserManageView: View {
             ("pinnedBg", 0xFFFFFF),
             ("chatTimeBg", 0xE5E5E5),
             ("searchBg", 0xF2F2F2),
-            ("fieldBg", 0xF2F2F2)
+            ("fieldBg", 0xF2F2F2),
+            ("payCardBg", 0xFFFFFF),
+            ("payRaisedBg", 0xFFFFFF)
         ]
         for (key, light) in surfaceKeys {
             values[key] = value(key, light: light, darkHex: preset.surface)
@@ -885,6 +889,7 @@ struct UserManageView: View {
 
         values["lineColor"] = value("lineColor", light: 0xE5E5E5, darkHex: preset.line)
         values["navLineColor"] = value("navLineColor", light: 0xE8E8E8, darkHex: preset.line)
+        values["payLineColor"] = value("payLineColor", light: 0xE5E5EA, darkHex: preset.line)
         return values
     }
 

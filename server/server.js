@@ -21,7 +21,15 @@ const { spawnSync, spawn } = require('child_process');
 const zlib = require('zlib');
 const ws = require('./lib/ws');
 const { PaymentLedger, cents: ledgerCents, money: ledgerMoney } = require('./payment-ledger');
+const { PaymentAudit } = require('./payment-audit');
 const { AmlEngine } = require('./aml');
+const {
+  FINANCE_CATEGORIES,
+  FinanceSupportStore,
+  classifyFinanceIssue,
+  financeReply,
+  sanitizeReference
+} = require('./finance-support');
 const {
   isOpsUser,
   isOpsWebAuthPath,
@@ -119,6 +127,7 @@ const LIVE_LOCATION_TTL = 2 * 60 * 60 * 1000;
    ============================================================ */
 const SUPPORT_FILE = 'support.json';
 const SUPPORT_TICKETS = 'support-tickets.jsonl';
+const FINANCE_SUPPORT_EVENTS = 'finance-support-events.jsonl';
 let supportCache = null;
 const DEFAULT_SUPPORT = {
   title: '客服中心',
@@ -158,6 +167,15 @@ const DEFAULT_SUPPORT = {
   ]
 };
 
+const DEFAULT_FINANCE_SUPPORT = {
+  title: '星言金融客服',
+  searchHint: '描述资金问题，例如「转账一直没到账」',
+  workTime: '金融客服 09:00 - 22:00',
+  greet: '你好，这里是星言金融客服。请说明涉及的交易时间、金额和问题；不要发送验证码、支付密码或完整银行卡号。',
+  ticketHint: '涉及扣款、到账、退款、争议或账户限制时，系统会建立加密工单并转金融客服人工处理。',
+  categories: FINANCE_CATEGORIES
+};
+
 /** 现在是不是「人工下班了」（按北京时间算，值班时段在后台「客服中心」里配） */
 function supportOffDuty() {
   const cfg = readSupport();
@@ -177,6 +195,16 @@ function readSupport() {
   const cfg = Object.assign({}, DEFAULT_SUPPORT, raw && typeof raw === 'object' ? raw : {});
   if (!Array.isArray(cfg.categories) || !cfg.categories.length) cfg.categories = DEFAULT_SUPPORT.categories;
   supportCache = cfg;
+  return cfg;
+}
+
+function readFinanceSupport() {
+  const base = readSupport();
+  const raw = base.finance && typeof base.finance === 'object' ? base.finance : {};
+  const cfg = Object.assign({}, DEFAULT_FINANCE_SUPPORT, raw);
+  if (!Array.isArray(cfg.categories) || !cfg.categories.length) {
+    cfg.categories = FINANCE_CATEGORIES;
+  }
   return cfg;
 }
 
@@ -207,23 +235,69 @@ function supportAgent() {
   return u;
 }
 
+/** 金融客服是独立服务账号：普通客服会话和资金工单不能混在一起。 */
+function financeSupportAgent() {
+  let u = db.users.find((x) => x.username === 'finance_kefu');
+  if (u) {
+    let dirty = false;
+    if (!u.service) { u.service = true; dirty = true; }
+    if (!u.bot) { u.bot = true; dirty = true; }
+    if (!u.financeSupport) { u.financeSupport = true; dirty = true; }
+    if (u.nickname !== '星言金融客服') { u.nickname = '星言金融客服'; dirty = true; }
+    if (dirty) saveUsers();
+    return u;
+  }
+  u = {
+    id: uid('u'),
+    username: 'finance_kefu',
+    nickname: '星言金融客服',
+    avatar: '/uploads/bot-kefu.png',
+    bio: '资金安全、账单争议与支付问题',
+    salt: crypto.randomBytes(16).toString('hex'),
+    createdAt: now(),
+    bot: true,
+    service: true,
+    financeSupport: true
+  };
+  db.users.push(u);
+  saveUsers();
+  return u;
+}
+
+const financeSupportStore = new FinanceSupportStore({
+  dataDir: DATA_DIR,
+  fileName: FINANCE_SUPPORT_EVENTS,
+  sealValue: sealSecureStoreValue,
+  openSealed: openSecureStoreValue,
+  uid,
+  now
+});
+
 function supportTicketCount(userId) {
+  let financeCount = 0;
+  try { financeCount = financeSupportStore.tickets(500, userId).length; } catch (e) { financeCount = 0; }
   try {
-    return fs.readFileSync(path.join(DATA_DIR, SUPPORT_TICKETS), 'utf8')
+    return financeCount + fs.readFileSync(path.join(DATA_DIR, SUPPORT_TICKETS), 'utf8')
       .trim().split('\n').filter(Boolean)
       .map((l) => { try { return JSON.parse(l); } catch (e) { return null; } })
       .filter((t) => t && (!userId || t.userId === userId)).length;
-  } catch (e) { return 0; }
+  } catch (e) { return financeCount; }
 }
 
 function readSupportTickets(limit, userId) {
+  let rows = [];
   try {
-    const rows = fs.readFileSync(path.join(DATA_DIR, SUPPORT_TICKETS), 'utf8')
+    rows = fs.readFileSync(path.join(DATA_DIR, SUPPORT_TICKETS), 'utf8')
       .trim().split('\n').filter(Boolean)
       .map((l) => { try { return JSON.parse(l); } catch (e) { return null; } })
       .filter((t) => t && (!userId || t.userId === userId));
-    return rows.slice(-limit).reverse();
-  } catch (e) { return []; }
+  } catch (e) { rows = []; }
+  try {
+    rows = rows.concat(financeSupportStore.tickets(1000, userId));
+  } catch (e) { /* 加密工单读不到时，普通工单仍然可用 */ }
+  rows.sort((a, b) => String(b.updatedAt || b.createdAt || '')
+    .localeCompare(String(a.updatedAt || a.createdAt || '')));
+  return rows.slice(0, Math.max(1, Number(limit) || 50));
 }
 
 /* 工单：一行一条追加（和聊天记录一样的存法，不怕写坏） */
@@ -234,6 +308,14 @@ function appendSupportTicket(t) {
 
 /* 改一条工单（回复 / 结单）：整文件重写，行数不多，无所谓 */
 function updateSupportTicket(id, patch) {
+  if (String(id || '').startsWith('ftk')) {
+    const current = financeSupportStore.find(id);
+    if (!current) return null;
+    const type = patch && patch.status === 'done'
+      ? 'closed'
+      : (patch && patch.reply ? 'human_reply' : (patch && patch.status === 'pending' ? 'reopened' : 'updated'));
+    return financeSupportStore.touch(current, patch || {}, type, 'support');
+  }
   let rows = [];
   try {
     rows = fs.readFileSync(path.join(DATA_DIR, SUPPORT_TICKETS), 'utf8')
@@ -255,11 +337,49 @@ function updateSupportTicket(id, patch) {
 }
 
 /* 客服和某个用户的单聊（在线客服/工单回复都往这里发消息） */
-function supportChatFor(userId) {
-  const agent = supportAgent();
+function supportChatFor(userId, scope) {
+  const agent = scope === 'finance' ? financeSupportAgent() : supportAgent();
   /* 客服和用户是好友关系：这样手机端「打开会话」走的还是普通单聊那一套（和机器人一样） */
   ensureSupportFriend(userId, agent);
   return openChatForFriendship(userId, agent.id);
+}
+
+function financeSupportChatFor(userId) {
+  return supportChatFor(userId, 'finance');
+}
+
+function financeTicketForMessage(user, chat, text, reference) {
+  const body = String(text || '').trim().slice(0, 1000);
+  const issue = classifyFinanceIssue(body);
+  let ticket = financeSupportStore.tickets(200, user.id)
+    .find((row) => row.status !== 'done'
+      && Date.now() - Date.parse(row.updatedAt || row.createdAt || 0) < 24 * 60 * 60 * 1000);
+  const priorityRank = { normal: 1, high: 2, critical: 3 };
+  if (!ticket) {
+    ticket = financeSupportStore.ensure(user, {
+      category: issue.category,
+      title: issue.category,
+      content: body,
+      reference: sanitizeReference(reference),
+      source: 'finance_chat',
+      chatId: chat && chat.id
+    });
+    return { ticket, issue };
+  }
+  const escalated = (priorityRank[issue.priority] || 1) > (priorityRank[ticket.priority] || 1);
+  ticket = financeSupportStore.touch(ticket, {
+    content: body,
+    category: escalated ? issue.category : (ticket.category || issue.category),
+    title: escalated ? issue.category : (ticket.title || issue.category),
+    reference: sanitizeReference(reference) || ticket.reference || '',
+    priority: escalated ? issue.priority : (ticket.priority || issue.priority),
+    slaMinutes: escalated ? issue.slaMinutes : (ticket.slaMinutes || issue.slaMinutes),
+    humanRequested: true,
+    status: ticket.status === 'replied' ? 'pending' : (ticket.status || 'pending'),
+    chatId: chat && chat.id,
+    lastCustomerMessageAt: now()
+  }, 'customer_message', 'customer');
+  return { ticket, issue };
 }
 
 function ensureSupportFriend(userId, agent) {
@@ -1366,6 +1486,52 @@ function ensureGenders() {
   });
   if (changed) { try { saveUsers(); } catch (err) { /* 忽略 */ } }
   return changed;
+}
+
+const AML_LEGACY_POLICY = 'aml-legacy-policy.json';
+
+/**
+ * 老客户 AML 豁免只做一次：
+ * - 首次部署时记录截止时间；
+ * - 截止前已经存在的普通用户标记 amlExempt；
+ * - 截止后注册的新用户不享受豁免；
+ * - 截止时间最先落盘，再改用户，进程中途退出也不会误伤下一代新用户。
+ */
+function applyLegacyAmlPolicy() {
+  const file = path.join(DATA_DIR, AML_LEGACY_POLICY);
+  if (process.env.AML_LEGACY_GRANDFATHER === '0') {
+    return { version: 1, disabled: true, cutoffAt: '', appliedAt: '' };
+  }
+  let policy = readJson(file, null);
+  if (!policy || !policy.cutoffAt) {
+    policy = {
+      version: 1,
+      cutoffAt: new Date().toISOString(),
+      reason: 'legacy-customers-before-aml-rollout',
+      appliedAt: ''
+    };
+    writeJson(file, policy);
+  }
+  const cutoff = Date.parse(policy.cutoffAt || '');
+  let changed = 0;
+  db.users.forEach((user) => {
+    if (!user || !user.id || user.bot || user.service) return;
+    const created = Date.parse(user.createdAt || '');
+    const isLegacy = !Number.isFinite(created) || (Number.isFinite(cutoff) && created <= cutoff);
+    if (isLegacy && !user.amlExempt) {
+      user.amlExempt = true;
+      user.amlExemptReason = 'legacy-before-aml-rollout';
+      user.amlExemptAt = policy.cutoffAt;
+      changed += 1;
+    }
+  });
+  if (changed) saveUsers();
+  if (changed || !policy.appliedAt) {
+    policy.appliedAt = new Date().toISOString();
+    policy.exempted = db.users.filter((user) => user && user.amlExempt).length;
+    writeJson(file, policy);
+  }
+  return policy;
 }
 
 /* ------------------------------------------------------------------ 存储 */
@@ -2683,6 +2849,7 @@ if (fs.existsSync(adminFile)) {
     });
   });
   if (bankCardsMigrated) saveUsers();
+  applyLegacyAmlPolicy();
 
   db.transfers = (readSecureJsonStore('transfers.json', { transfers: [] }).transfers || []);
   const secureRedPackets = readSecureJsonStore('redpackets.json', { redpackets: [] });
@@ -2910,6 +3077,7 @@ const paymentLedger = new PaymentLedger({
   now
 });
 let paymentLedgerHealthy = true;
+let paymentAuditIntegrityHealthy = true;
 let amlEngine = null;
 let amlEngineHealthy = false;
 
@@ -2935,6 +3103,7 @@ function payRuleNum(key, def) {
 function journalMoney(row) {
   /* 双边账本先落盘。写不进去必须抛错，由 applyMoney 回滚余额，不能出现「钱扣了但没账」。 */
   if (!paymentLedgerHealthy) throw new Error('支付账本未通过启动校验，交易已暂停');
+  if (!paymentAuditIntegrityHealthy) throw new Error('支付账本完整性审计失败，交易已安全暂停');
   paymentLedger.apply(row, row.delta, row.reason, row.ref);
   try {
     const st = readSecureJsonStore(MONEY_STATE, { users: {} });
@@ -2963,7 +3132,7 @@ function applyMoney(user, delta, meta) {
   if (!allowNeg && after < 0) {
     return { error: '余额不足（当前 ¥' + before.toFixed(2) + '，需要 ¥' + Math.abs(d).toFixed(2) + '）' };
   }
-  if (d < 0 && amlEngine && !(meta && meta.allowAmlRestricted)) {
+  if (d < 0 && amlEngine && !user.amlExempt && !(meta && meta.allowAmlRestricted)) {
     const restricted = amlEngine.isMoneyOutRestricted(user.id);
     if (restricted) {
       return {
@@ -2974,7 +3143,7 @@ function applyMoney(user, delta, meta) {
   }
   if (d === 0) return { balance: before, before: before, delta: 0 };
   let autoAml = null;
-  if (d < 0 && !(meta && (meta.amlChecked || meta.skipAml))) {
+  if (d < 0 && !user.amlExempt && !(meta && (meta.amlChecked || meta.skipAml))) {
     if (!amlEngineHealthy || !amlEngine) {
       return { error: '反洗钱风控暂时不可用，交易已安全暂停' };
     }
@@ -3056,6 +3225,9 @@ function readAmlJournal(limit) {
  * 返回 null 表示已经给客户端回了拒绝响应；返回对象则表示可以继续扣款/入账。
  */
 function amlGateOrReject(res, req, user, transaction) {
+  if (user && user.amlExempt) {
+    return { id: '', decision: 'allow', allowed: true, exempt: true, score: 0, reasons: [] };
+  }
   if (!amlEngineHealthy || !amlEngine) {
     fail(res, 503, '反洗钱风控暂时不可用，交易已安全暂停', { amlPaused: true });
     return null;
@@ -8459,7 +8631,34 @@ function deliverMessage(user, chatId, kind, content, clientId, mentionHint, medi
   try { pushForMessage(user, chat, message); } catch (e) { }
   /* 发给「AI 助手 / 管家」→ 机器人自动回一句（异步，不卡发送方） */
   const bot = botInChat(chat, user.id);
-  if (bot && bot.username === 'kefu') {
+  if (bot && bot.username === 'finance_kefu') {
+    if (type === 'text') {
+      try {
+        const referenceMatch = String(body || '').match(/\b(?:tr|led|rp|tk)_[A-Za-z0-9_-]{3,88}\b/);
+        const financeCase = financeTicketForMessage(user, chat, body, referenceMatch ? referenceMatch[0] : '');
+        const cfg = readFinanceSupport();
+        const reply = financeReply({
+          category: financeCase.issue.category,
+          priority: financeCase.issue.priority,
+          needsHuman: financeCase.issue.needsHuman,
+          ticketId: financeCase.ticket.id,
+          offDuty: supportOffDuty(),
+          workTime: cfg.workTime,
+          text: body
+        });
+        const delivered = deliverMessage(bot, chat.id, 'text', reply, null);
+        if (!delivered || !delivered.error) {
+          financeSupportStore.appendEvent('agent_reply', financeCase.ticket.id, 'finance_agent', {
+            reply,
+            priority: financeCase.issue.priority,
+            category: financeCase.issue.category
+          });
+        }
+      } catch (error) {
+        console.error('[金融客服] ' + String(error && error.message || error));
+      }
+    }
+  } else if (bot && bot.username === 'kefu') {
     /* 客服：人工在后台「客服中心」回。没人在的时候先按知识库自动答一轮 */
     const sc = readSupport();
     const ac = readAiCfg();
@@ -12945,19 +13144,22 @@ async function handleApi(req, res, pathname, query) {
       ['chatsNavMaskColor', 0xEDEDED], ['chatsBottomMaskColor', 0xF7F7F7],
       ['hbChatsBottomMaskColor', 0xFFFFFF], ['hbChatsTabBg', 0xFFFFFF],
       ['hbChatsListBg', 0xFFFFFF], ['contactsBg', 0xFFFFFF],
-      ['discoverBg', 0xEDEDED], ['discoverPageBg', 0xEDEDED], ['pageBg', 0xEDEDED]
+      ['discoverBg', 0xEDEDED], ['discoverPageBg', 0xEDEDED], ['pageBg', 0xEDEDED],
+      ['payPageBg', 0xF2F2F7], ['payInsetBg', 0xF2F2F7]
     ];
     const surfaceKeys = [
       ['cardBg', 0xFFFFFF], ['chatsRowBg', 0xFFFFFF], ['chatRowBg', 0xFFFFFF],
       ['hbChatsRowBg', 0xFFFFFF], ['discoverCardBg', 0xFFFFFF],
       ['meCardBg', 0xFFFFFF], ['pinnedBg', 0xFFFFFF], ['chatTimeBg', 0xE5E5E5],
-      ['searchBg', 0xF2F2F2], ['fieldBg', 0xF2F2F2]
+      ['searchBg', 0xF2F2F2], ['fieldBg', 0xF2F2F2],
+      ['payCardBg', 0xFFFFFF], ['payRaisedBg', 0xFFFFFF]
     ];
     const values = { darkThemeId: id };
     for (const [key, light] of canvasKeys) values[key] = pair(key, light, preset.canvas);
     for (const [key, light] of surfaceKeys) values[key] = pair(key, light, preset.surface);
     values.lineColor = pair('lineColor', 0xE5E5E5, preset.line);
     values.navLineColor = pair('navLineColor', 0xE8E8E8, preset.line);
+    values.payLineColor = pair('payLineColor', 0xE5E5EA, preset.line);
     try { fs.copyFileSync(file, file + '.bak-theme' + Date.now().toString().slice(-6)); } catch (e) { }
     Object.assign(ui, values);
     writeJson(file, ui);
@@ -13305,6 +13507,93 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
 
+  /* ------------------------------------------------ 金融客服（用户侧）
+     和普通客服隔离：独立服务账号、加密工单证据、交易上下文、专属 SLA。 */
+  if (parts[0] === 'support' && parts[1] === 'finance' && parts.length === 2 && method === 'GET') {
+    const me = currentUser(req);
+    const cfg = readFinanceSupport();
+    const agent = financeSupportAgent();
+    const tickets = readSupportTickets(80, me.id).filter((t) => t.kind === 'finance');
+    const recentTransactions = paymentLedger.entriesForUser(me.id, 8).map((row) => ({
+      id: row.id,
+      at: row.at,
+      delta: row.delta,
+      direction: row.direction,
+      reason: row.reason,
+      ref: row.ref
+    }));
+    ok(res, {
+      title: cfg.title,
+      searchHint: cfg.searchHint,
+      workTime: cfg.workTime,
+      greet: cfg.greet,
+      ticketHint: cfg.ticketHint,
+      categories: cfg.categories,
+      human: 1,
+      ticketOn: 1,
+      agent: { id: agent.id, nickname: agent.nickname || '星言金融客服', avatar: agent.avatar || '' },
+      balance: moneyRound(me.balance) || 0,
+      recentTransactions,
+      tickets,
+      queue: {
+        pending: tickets.filter((t) => t.status !== 'done').length,
+        critical: tickets.filter((t) => t.status !== 'done' && t.priority === 'critical').length,
+        offDuty: supportOffDuty()
+      }
+    });
+    return;
+  }
+
+  if (parts[0] === 'support' && parts[1] === 'finance' && parts[2] === 'human' && method === 'POST') {
+    const me = currentUser(req);
+    const cfg = readFinanceSupport();
+    const agent = financeSupportAgent();
+    const chat = financeSupportChatFor(me.id);
+    let msgs = [];
+    try { msgs = loadMessages(chat.id); } catch (e) { msgs = []; }
+    if (!msgs.length && cfg.greet) {
+      try { deliverMessage(agent, chat.id, 'text', cfg.greet, null); } catch (e) { }
+    }
+    ok(res, {
+      chatId: chat.id,
+      agent: { id: agent.id, nickname: agent.nickname || '星言金融客服', avatar: agent.avatar || '' }
+    });
+    return;
+  }
+
+  if (parts[0] === 'support' && parts[1] === 'finance' && parts[2] === 'ticket' && method === 'POST') {
+    const me = currentUser(req);
+    const body = await readBody(req);
+    const content = str(body.content, 1000).trim();
+    if (!content) return fail(res, 422, '请先说明遇到的资金问题');
+    try {
+      const existing = financeSupportStore.tickets(200, me.id)
+        .find((ticket) => ticket.status !== 'done'
+          && Date.now() - Date.parse(ticket.updatedAt || ticket.createdAt || 0) < 24 * 60 * 60 * 1000);
+      const ticket = existing
+        ? financeSupportStore.touch(existing, {
+          content,
+          category: str(body.category, 40) || existing.category || '支付咨询',
+          reference: sanitizeReference(body.reference) || existing.reference || '',
+          humanRequested: true,
+          status: 'pending',
+          lastCustomerMessageAt: now()
+        }, 'customer_ticket_update', 'customer')
+        : financeSupportStore.ensure(me, {
+          content,
+          category: str(body.category, 40),
+          title: str(body.title, 80),
+          contact: str(body.contact, 80),
+          reference: body.reference,
+          source: 'finance_ticket'
+        });
+      ok(res, { ticket, tickets: financeSupportStore.tickets(50, me.id) });
+    } catch (error) {
+      fail(res, 500, '金融工单暂时无法建立，请稍后重试');
+    }
+    return;
+  }
+
   /* ------------------------------------------------ 客服中心（用户侧）
      App「设置 → 帮助与反馈 → 客服中心」用：常见问题（后台可改）+ 在线客服（转人工）+ 我的工单 */
   if (parts[0] === 'support' && method === 'GET') {
@@ -13328,7 +13617,7 @@ async function handleApi(req, res, pathname, query) {
         items: (c.items || []).filter((it) => it && it.q).map((it) => ({ q: it.q, a: it.a || '' }))
       })).filter((c) => c.items.length),
       agent: { id: agent.id, nickname: agent.nickname || '在线客服', avatar: agent.avatar || '' },
-      tickets: readSupportTickets(50, me.id)
+      tickets: readSupportTickets(80, me.id).filter((t) => t.kind !== 'finance')
     });
     return;
   }
@@ -20763,7 +21052,7 @@ try {
 setTimeout(() => {
   if (!amlEngineHealthy || !amlEngine) return;
   try {
-    const result = amlEngine.sweep(db.users, { limit: 500 });
+    const result = amlEngine.sweep(db.users.filter((u) => !u.amlExempt), { limit: 500 });
     if (result.screened) console.log('[AML] 启动持续尽调筛查 ' + result.screened + ' 人');
   } catch (error) {
     console.log('[AML] 启动筛查失败：' + String(error && error.message || error));
@@ -20771,7 +21060,7 @@ setTimeout(() => {
 }, 8000).unref();
 setInterval(() => {
   if (!amlEngineHealthy || !amlEngine) return;
-  try { amlEngine.sweep(db.users, { limit: 500 }); }
+  try { amlEngine.sweep(db.users.filter((u) => !u.amlExempt), { limit: 500 }); }
   catch (error) { console.log('[AML] 定时筛查失败：' + String(error && error.message || error)); }
 }, 30 * 60 * 1000).unref();
 loadSecurityState();   // 恢复「登录失败计数 / IP 封禁」（重启也不会被清掉）
@@ -24331,7 +24620,8 @@ async function handleOps(req, res, parts, query) {
             '命中 ' + result.screening.matches.length + ' 条');
           ok(res, result);
         } else {
-          const result = amlEngine.sweep(db.users, { limit: Math.min(1000, Number(body.limit) || 500) });
+          const result = amlEngine.sweep(db.users.filter((u) => !u.amlExempt),
+            { limit: Math.min(1000, Number(body.limit) || 500) });
           audit(req, admin, '批量重新筛查 AML 客户', 'all', '筛查 ' + result.screened + ' 人');
           ok(res, result);
         }
@@ -24414,6 +24704,21 @@ async function handleOps(req, res, parts, query) {
       today: allToday.length,
       todayVolume: Math.round(allToday.reduce((a, t) => a + (Number(t.amount) || 0), 0) * 100) / 100
     });
+    return;
+  }
+
+  if (sub === 'payments' && parts[2] === 'audit' && method === 'GET') {
+    if (!can(admin, 'payments')) return fail(res, 403, '你的角色没有查看支付审计的权限');
+    ok(res, paymentAudit.summary());
+    return;
+  }
+  if (sub === 'payments' && parts[2] === 'audit' && parts[3] === 'run' && method === 'POST') {
+    if (!can(admin, 'payments.write')) return fail(res, 403, '你的角色不能手动运行支付审计');
+    const row = runPaymentAuditNow('manual');
+    if (!row) return fail(res, 409, '自动审计正在运行，请稍后查看结果');
+    audit(req, admin, '手动运行支付自动审计', row.id,
+      '差异=' + row.differences + ', 链=' + (row.integrityOk ? '正常' : '损坏'));
+    ok(res, Object.assign({ run: row }, paymentAudit.summary()));
     return;
   }
 
@@ -25269,9 +25574,11 @@ async function handleOps(req, res, parts, query) {
     let chatId = '';
     if (action === 'reply' && reply) {
       if (!u) return fail(res, 404, '提工单的用户不在了');
-      const chat = supportChatFor(u.id);
+      const financeTicket = t.kind === 'finance';
+      const chat = supportChatFor(u.id, financeTicket ? 'finance' : 'general');
       chatId = chat.id;
-      const r = deliverMessage(supportAgent(), chat.id, 'text', reply, null);
+      const r = deliverMessage(financeTicket ? financeSupportAgent() : supportAgent(),
+        chat.id, 'text', reply, null);
       if (r && r.error) return fail(res, 422, r.error);
     }
     const patch = {};
@@ -25280,7 +25587,8 @@ async function handleOps(req, res, parts, query) {
     if (action === 'close') { patch.status = 'done'; patch.doneAt = now(); }
     if (action === 'reopen') { patch.status = 'pending'; patch.doneAt = ''; }
     const savedTicket = updateSupportTicket(id, patch);
-    audit(req, admin, 'support.ticket.' + action, t.userId, (reply || '').slice(0, 80));
+    audit(req, admin, (t.kind === 'finance' ? 'finance-support.' : 'support.ticket.') + action,
+      t.userId, (reply || '').slice(0, 80));
     ok(res, { ticket: savedTicket, chatId });
     return;
   }
@@ -25841,6 +26149,91 @@ async function handleOps(req, res, parts, query) {
 }
 
 loadOps();
+
+/* ---------------------------------------------------------------- 支付自动审计
+   每 10 分钟自动做一次完整对账：用户余额 / 经营账户余额 vs 双边链式总账，
+   同时校验 HMAC 链和借方总额。发现差异只建工单和告警，绝不自动改钱。
+   完整性链损坏时立即暂停新的资金写入，避免事故继续扩大。 */
+function writePaymentAuditAlert(row, tickets) {
+  const text = '[支付自动审计] '
+    + (row.ok ? '通过' : '发现异常')
+    + ' · 用户 ' + row.usersChecked
+    + ' · 差异 ' + row.differences
+    + ' · 链校验 ' + (row.integrityOk ? '正常' : '失败')
+    + ' · 耗时 ' + row.durationMs + 'ms';
+  const file = path.join(DATA_DIR, 'monitor-alerts.log');
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.appendFileSync(file, JSON.stringify({
+      at: row.at,
+      level: row.ok ? 'info' : 'critical',
+      source: 'payment-audit',
+      text,
+      runId: row.id,
+      openTickets: tickets.length
+    }) + '\n', 'utf8');
+  } catch (_) { /* 告警日志写不了，下面的 webhook 仍然尝试。 */ }
+  try {
+    const alerts = imAdminCfg().alerts || {};
+    const webhookUrl = String(alerts.webhookUrl || '').trim();
+    if (/^https?:\/\//i.test(webhookUrl)) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      timer.unref();
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'payment.audit.alert',
+          text,
+          at: row.at,
+          runId: row.id,
+          openTickets: tickets.map((ticket) => ({
+            id: ticket.id,
+            kind: ticket.kind,
+            severity: ticket.severity,
+            firstSeenAt: ticket.firstSeenAt,
+            occurrences: ticket.occurrences
+          }))
+        }),
+        signal: controller.signal
+      }).catch(() => {}).finally(() => clearTimeout(timer));
+    }
+  } catch (_) { /* 告警通道故障不影响审计证据落盘。 */ }
+}
+
+const paymentAudit = new PaymentAudit({
+  ledger: paymentLedger,
+  readState: readSecureJsonStore,
+  writeState: writeSecureJsonStore,
+  uid,
+  now,
+  onAlert: writePaymentAuditAlert
+});
+let paymentAuditRunning = false;
+
+function runPaymentAuditNow(kind) {
+  if (paymentAuditRunning) return null;
+  paymentAuditRunning = true;
+  try {
+    const row = paymentAudit.run(kind, db.users, (id) => bizOf(id, false));
+    paymentAuditIntegrityHealthy = !!row.integrityOk;
+    if (!row.ok) {
+      console.log('[支付自动审计] ' + (row.integrityOk ? '余额差异 ' : '账本链损坏 ')
+        + row.differences + ' 条，已建工单，未自动改钱');
+    }
+    return row;
+  } catch (error) {
+    console.log('[支付自动审计] 运行失败：' + String(error && error.message || error));
+    return null;
+  } finally {
+    paymentAuditRunning = false;
+  }
+}
+
+setTimeout(() => runPaymentAuditNow('startup'), 60 * 1000).unref();
+setInterval(() => runPaymentAuditNow('scheduled'), 10 * 60 * 1000).unref();
+
 /* ---------------------------------------------------------------- 地图
    位置搜索可以走高德（后台填一个「Web 服务」Key 即可，免费申请）。
    没填 Key 时接口返回 503，客户端自动退回系统地图搜索。

@@ -3492,14 +3492,20 @@ private struct StarredPayload: Decodable {
     }
     struct SupportTicket: Decodable, Identifiable {
         var id: String
+        var kind: String?
         var category: String?
         var title: String?
         var content: String?
         var status: String?
         var reply: String?
+        var priority: String?
+        var reference: String?
+        var dueAt: String?
         var createdAt: String?
+        var updatedAt: String?
         var repliedAt: String?
         var doneAt: String?
+        var humanRequested: Bool?
     }
     struct SupportPayload: Decodable {
         var title: String?
@@ -3524,6 +3530,35 @@ private struct StarredPayload: Decodable {
         var tickets: [SupportTicket]?
     }
 
+    struct FinanceSupportTransaction: Decodable, Identifiable {
+        var id: String
+        var at: String?
+        var delta: Double?
+        var direction: String?
+        var reason: String?
+        var ref: String?
+    }
+
+    struct FinanceSupportQueue: Decodable {
+        var pending: Int?
+        var critical: Int?
+        var offDuty: Bool?
+    }
+
+    struct FinanceSupportPayload: Decodable {
+        var title: String?
+        var searchHint: String?
+        var workTime: String?
+        var greet: String?
+        var ticketHint: String?
+        var categories: [SupportCategory]?
+        var agent: SupportAgent?
+        var balance: Double?
+        var recentTransactions: [FinanceSupportTransaction]?
+        var tickets: [SupportTicket]?
+        var queue: FinanceSupportQueue?
+    }
+
     func support() async throws -> SupportPayload {
         try await get("/api/support", as: SupportPayload.self)
     }
@@ -3537,6 +3572,21 @@ private struct StarredPayload: Decodable {
             ["category": category, "content": content, "contact": contact],
             as: SupportTicketResult.self)
         return payload.tickets ?? []
+    }
+
+    func financeSupport() async throws -> FinanceSupportPayload {
+        try await get("/api/support/finance", as: FinanceSupportPayload.self)
+    }
+
+    func financeSupportHuman() async throws -> SupportHuman {
+        try await post("/api/support/finance/human", [:], as: SupportHuman.self)
+    }
+
+    func financeSupportTicket(category: String, content: String,
+                              reference: String = "") async throws -> SupportTicketResult {
+        try await post("/api/support/finance/ticket",
+            ["category": category, "content": content, "reference": reference],
+            as: SupportTicketResult.self)
     }
 
     struct LiveStart: Decodable { var sessionId: String; var joined: Bool? }
@@ -4820,14 +4870,8 @@ private struct StarredPayload: Decodable {
         return payload.balance ?? 0
     }
 
-    @discardableResult
-    func claimTransfer(_ id: String) async -> String? {
-        do {
-            _ = try await request("POST", "/api/transfers/\(id)/claim", body: [:])
-            return nil
-        } catch {
-            return (error as? APIError)?.errorDescription ?? "收款失败，稍后再试"
-        }
+    func claimTransfer(_ id: String) async throws -> TransferReceipt {
+        try await post("/api/transfers/\(id)/claim", [:], as: TransferReceipt.self)
     }
 
     @discardableResult

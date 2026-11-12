@@ -502,6 +502,9 @@ class AmlEngine {
   }
 
   syncUser(user, extra, actor) {
+    if (user && user.amlExempt) {
+      return { profile: null, screening: { matches: [] }, skipped: 'legacy-customer-exempt' };
+    }
     const profile = this.ensureProfile(user, extra);
     const screening = this.screen({
       name: profile.name,
@@ -653,6 +656,18 @@ class AmlEngine {
 
   authorize(user, transaction, context) {
     const tx = transaction || {};
+    if (user && user.amlExempt) {
+      return {
+        id: '',
+        decision: 'allow',
+        allowed: true,
+        score: 0,
+        reasons: [],
+        profile: null,
+        bypassed: true,
+        exempt: true
+      };
+    }
     const rules = this.rules();
     if (!rules.enabled) {
       return {
@@ -1293,7 +1308,7 @@ class AmlEngine {
     const limit = Math.max(1, Math.min(2000, Number(options && options.limit) || 200));
     let screened = 0;
     for (const user of list.slice(0, limit)) {
-      if (!user || !user.id || user.bot) continue;
+      if (!user || !user.id || user.bot || user.amlExempt) continue;
       const profile = this.ensureProfile(user);
       const due = !profile.lastScreenedAt
         || Date.parse(profile.lastScreenedAt || '') <= this.clockMs() - this.rules().rescreenHours * 3600000;
