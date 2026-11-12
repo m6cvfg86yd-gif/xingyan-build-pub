@@ -34,6 +34,7 @@ class ShardDirectory {
 
   save() {
     if (!this.file || typeof this.writeJson !== 'function') return;
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
     this.writeJson(this.file, { assignments: this.assignments });
   }
 
@@ -171,4 +172,51 @@ class VersionedEntityLog {
   }
 }
 
-module.exports = { stableShard, ShardDirectory, VersionedEntityLog };
+class ShardCluster {
+  constructor(options) {
+    const opts = options || {};
+    this.shardCount = Math.max(1, Math.floor(Number(opts.shardCount) || 1));
+    this.dataDir = String(opts.dataDir || '');
+    if (!this.dataDir) throw new Error('cluster dataDir is required');
+    this.directory = opts.directory || new ShardDirectory({
+      shardCount: this.shardCount,
+      file: path.join(this.dataDir, 'shard-assignments.json'),
+      readJson: opts.readJson,
+      writeJson: opts.writeJson
+    });
+    this.readJson = opts.readJson;
+    this.writeJson = opts.writeJson;
+    this.logs = new Map();
+  }
+
+  log(shard) {
+    const index = Number(shard);
+    if (!this.logs.has(index)) {
+      this.logs.set(index, new VersionedEntityLog({
+        file: path.join(this.dataDir, 'shard-' + index + '-events.jsonl'),
+        fsync: true
+      }));
+    }
+    return this.logs.get(index);
+  }
+
+  ownerShard(entityType, entityId) {
+    return this.directory.shardFor(entityType, entityId);
+  }
+
+  apply(entityType, entityId, event) {
+    const owner = this.ownerShard(entityType, entityId);
+    const next = Object.assign({}, event, {
+      entityType,
+      entityId,
+      writerShard: owner
+    });
+    return this.log(owner).apply(next, { expectedShard: owner });
+  }
+
+  get(entityType, entityId) {
+    return this.log(this.ownerShard(entityType, entityId)).get(entityType, entityId);
+  }
+}
+
+module.exports = { stableShard, ShardDirectory, VersionedEntityLog, ShardCluster };

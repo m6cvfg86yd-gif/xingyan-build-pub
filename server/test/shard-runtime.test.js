@@ -4,7 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { stableShard, ShardDirectory, VersionedEntityLog } = require('../lib/shard-runtime');
+const { stableShard, ShardDirectory, VersionedEntityLog, ShardCluster } = require('../lib/shard-runtime');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xingyan-shard-runtime-'));
 const logFile = path.join(dir, 'events.jsonl');
@@ -69,6 +69,47 @@ try {
   assert.strictEqual(reopened.get('friendship', 'u1|u2').payload.status, 're-added');
   result = reopened.apply(Object.assign({}, base, { eventId: 'e1', version: 1 }));
   assert.strictEqual(result.status, 'duplicate');
+
+  const clusterDir = path.join(dir, 'cluster');
+  const cluster = new ShardCluster({
+    dataDir: clusterDir,
+    shardCount: 6,
+    readJson,
+    writeJson
+  });
+  const routed = new Map();
+  for (let i = 0; i < 120; i += 1) {
+    const userId = 'user-' + i;
+    const chatId = 'chat-' + i;
+    const userShard = cluster.ownerShard('user', userId);
+    const chatShard = cluster.ownerShard('chat', chatId);
+    assert.ok(userShard >= 0 && userShard < 6);
+    assert.ok(chatShard >= 0 && chatShard < 6);
+    routed.set(userId, userShard);
+    cluster.apply('user', userId, {
+      eventId: 'user-event-' + i,
+      version: 1,
+      payload: { active: true }
+    });
+    cluster.apply('chat', chatId, {
+      eventId: 'chat-event-' + i,
+      version: 1,
+      payload: { active: true }
+    });
+  }
+  const reopenedCluster = new ShardCluster({
+    dataDir: clusterDir,
+    shardCount: 6,
+    readJson,
+    writeJson
+  });
+  for (let i = 0; i < 120; i += 1) {
+    const userId = 'user-' + i;
+    const chatId = 'chat-' + i;
+    assert.strictEqual(reopenedCluster.ownerShard('user', userId), routed.get(userId));
+    assert.strictEqual(reopenedCluster.get('user', userId).version, 1);
+    assert.strictEqual(reopenedCluster.get('chat', chatId).version, 1);
+  }
 
   console.log('shard-runtime: passed');
 } finally {
