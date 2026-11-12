@@ -3668,6 +3668,18 @@ struct ChatDetailView: View {
         min(19.5, composerInputHeight / 2)
     }
 
+    private var composerFieldFill: Color {
+        composerUsesLightInk
+            ? Color(hex: 0x202C33).opacity(0.96)
+            : Color.white.opacity(0.96)
+    }
+
+    private var composerFieldBorder: Color {
+        composerUsesLightInk
+            ? Color.white.opacity(0.07)
+            : Color.black.opacity(0.055)
+    }
+
     private var draftImagesBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 7) {
@@ -3964,12 +3976,18 @@ struct ChatDetailView: View {
                 .padding(.horizontal, 6)
                 .frame(height: composerInputHeight)
                 .background {
-                    if recorder.recording {
-                        RoundedRectangle(cornerRadius: composerFieldRadius, style: .continuous)
-                            .fill(recorder.willCancel
-                                  ? Color.dyn(0xFFF1F1, 0x3A2A2A)
-                                  : Color.dyn(0xF2F2F2, 0x242427))
-                    }
+                    RoundedRectangle(cornerRadius: composerFieldRadius,
+                                     style: .continuous)
+                        .fill(recorder.recording
+                              ? (recorder.willCancel
+                                 ? Color.dyn(0xFFF1F1, 0x3A2A2A)
+                                 : Color.dyn(0xF2F2F2, 0x242427))
+                              : composerFieldFill)
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: composerFieldRadius,
+                                     style: .continuous)
+                        .stroke(composerFieldBorder, lineWidth: 0.6)
                 }
                 if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && draftImages.isEmpty {
 
@@ -4051,35 +4069,7 @@ struct ChatDetailView: View {
                     }
                 }
             }
-            .padding(.horizontal, 2)
-            .background {
-                ZStack {
-                    if composerNeedsLightLift {
-                        Capsule(style: .continuous)
-                            .fill(Color.white)
-                    } else {
-                        Capsule(style: .continuous)
-                            .fill(.thinMaterial)
-                        Capsule(style: .continuous)
-                            .fill(composerUsesLightInk
-                                  ? Color.black.opacity(0.20)
-                                  : Color.white.opacity(0.12))
-                    }
-                }
-            }
-            .overlay {
-                Capsule(style: .continuous)
-                    .stroke(composerNeedsLightLift
-                            ? Color.black.opacity(0.12)
-                            : (composerUsesLightInk
-                               ? Color.white.opacity(0.10)
-                               : Color.black.opacity(0.035)),
-                            lineWidth: composerNeedsLightLift ? 0.8 : 0.5)
-            }
-            .shadow(color: composerNeedsLightLift
-                    ? Color.black.opacity(0.08) : Color.clear,
-                    radius: 3, y: 1)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .animation(.spring(response: 0.24, dampingFraction: 0.82),
                        value: input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && draftImages.isEmpty)
