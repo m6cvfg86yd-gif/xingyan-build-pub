@@ -1,11 +1,6 @@
 import SwiftUI
 import UIKit
 
-#if AML_TYPECHECK_BASE
-struct VirtualCardView: View {
-    var body: some View { EmptyView() }
-}
-#else
 struct VirtualCardView: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
@@ -361,4 +356,3 @@ private func groupedVirtualCardNumber(_ number: String) -> String {
     }
     return parts.joined(separator: "  ")
 }
-#endif

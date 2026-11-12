@@ -5,23 +5,6 @@ permissions:
 
 on:
   workflow_dispatch:
-    inputs:
-      mode:
-        description: "build or fast Swift typecheck"
-        required: false
-        default: "build"
-        type: choice
-        options:
-          - build
-          - typecheck
-      scope:
-        description: "typecheck scope"
-        required: false
-        default: "all"
-        type: choice
-        options:
-          - all
-          - base
   push:
     branches:
       - main
@@ -30,7 +13,6 @@ on:
 
 jobs:
   build:
-    if: ${{ github.event.inputs.mode != 'typecheck' }}
     runs-on: macos-15-intel
 
     steps:
@@ -273,57 +255,3 @@ jobs:
           path: build-error.txt
           if-no-files-found: ignore
           retention-days: 3
-
-  typecheck:
-    if: ${{ github.event.inputs.mode == 'typecheck' }}
-    runs-on: macos-15-intel
-    steps:
-      - uses: actions/checkout@v4
-      - name: Select Xcode
-        run: |
-          PICK="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"
-          [ -n "$PICK" ] || PICK="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
-          sudo xcode-select -s "$PICK"
-          xcodebuild -version
-      - name: Download frameworks
-        run: |
-          set -e
-          curl -L --fail --retry 2 -o /tmp/webrtc.zip \
-            https://github.com/stasel/WebRTC/releases/download/153.0.0/WebRTC-M153.xcframework.zip
-          rm -rf WebRTCKit && mkdir -p WebRTCKit
-          unzip -q /tmp/webrtc.zip -d WebRTCKit
-          curl -L --fail -o /tmp/trtc.zip \
-            https://liteav.sdk.qcloud.com/download/latest/TXLiteAVSDK_TRTC_iOS_latest.zip
-          rm -rf /tmp/trtc-x TRTCKit && mkdir -p /tmp/trtc-x TRTCKit
-          unzip -q /tmp/trtc.zip -d /tmp/trtc-x
-          for NAME in TXLiteAVSDK_TRTC TXFFmpeg TXSoundTouch; do
-            FW="$(find /tmp/trtc-x -type d -name "$NAME.framework" -path '*ios-arm64_armv7*' | head -1)"
-            cp -R "$FW" TRTCKit/
-          done
-      - name: Fast typecheck
-        run: |
-          set -o pipefail
-          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
-          FLAGS=""
-          if [ "${{ github.event.inputs.scope }}" = "base" ]; then FLAGS="-D AML_TYPECHECK_BASE"; fi
-          xcrun --sdk iphoneos swiftc \
-            -typecheck \
-            $FLAGS \
-            -sdk "$SDK" \
-            -target arm64-apple-ios16.0 \
-            -swift-version 5 \
-            -parse-as-library \
-            -F "$SDK/System/Library/Frameworks" \
-            -F WebRTCKit/WebRTC.xcframework/ios-arm64 \
-            -F TRTCKit \
-            Sources/*.swift \
-            -framework SwiftUI -framework UIKit -framework Foundation \
-            -framework LocalAuthentication -framework AVFoundation \
-            -framework WebRTC -framework TXLiteAVSDK_TRTC \
-            -framework AudioToolbox -framework CoreTelephony -framework CoreMedia \
-            -framework MediaPlayer -framework MessageUI -framework CarPlay \
-            -framework CoreVideo -framework VideoToolbox -framework MetalKit -framework Metal \
-            -framework Accelerate -framework SystemConfiguration -framework ReplayKit \
-            -framework MultipeerConnectivity -framework Contacts \
-            -framework CoreGraphics -framework QuartzCore -framework OpenGLES \
-            -framework Security -framework CryptoKit 2>&1 | tee /tmp/typecheck.log
