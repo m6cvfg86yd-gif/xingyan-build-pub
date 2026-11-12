@@ -3,8 +3,8 @@
   "files": [
     {
       "path": "Sources/API.swift",
-      "size": 204968,
-      "sha256": "1c044571a2098e5efa00e46c7e45a1f89b319eeae2dd6bc48a7388619d6ed918"
+      "size": 204892,
+      "sha256": "5bca01497acd946cd6eef6424307a335f65dff788b07d654e5c4af54b38a74c7"
     },
     {
       "path": "Sources/App.swift",
