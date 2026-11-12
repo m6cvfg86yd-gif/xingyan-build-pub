@@ -292,6 +292,7 @@ struct DiscoverView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(OrbitTheme.ink)
                     .frame(width: 42, height: 42)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("搜索"))
@@ -303,6 +304,7 @@ struct DiscoverView: View {
                     .font(.system(size: 19, weight: .semibold))
                     .foregroundStyle(OrbitTheme.jadeDeep)
                     .frame(width: 42, height: 42)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("扫一扫"))
@@ -506,19 +508,7 @@ struct DiscoverView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            VStack(spacing: 0) {
-
-                discoverTopHeader
-                    .measure("discover.nav")
-
-                    .background {
-                        TopGlassBar(scrolled: navScrolled,
-                                    fallback: worldCanvas,
-                                    always: true,
-                                    matchDarkBackground: true)
-                    }
-                    .overlay(alignment: .bottom) { TopGlassLine(scrolled: navScrolled) }
-                    .zIndex(1)
+            ZStack(alignment: .top) {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         TopScrollProbe(space: "discoverScroll")
@@ -556,6 +546,20 @@ struct DiscoverView: View {
 
                 .padding(.top, -L.navH)
                 .background(Color.clear)
+
+                discoverTopHeader
+                    .measure("discover.nav")
+                    .background {
+                        TopGlassBar(scrolled: navScrolled,
+                                    fallback: worldCanvas,
+                                    always: true,
+                                    matchDarkBackground: true)
+                    }
+                    .overlay(alignment: .bottom) {
+                        TopGlassLine(scrolled: navScrolled)
+                    }
+                    .contentShape(Rectangle())
+                    .zIndex(10)
             }
             .background(worldPageBackground.ignoresSafeArea(edges: .bottom))
 
