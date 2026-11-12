@@ -341,6 +341,7 @@ struct BillDetailView: View {
         guard !busy else { return }
         busy = true
         Task {
+
             let err = await API.shared.claimTransfer(t.id)
             await refreshTransfer()
             app.me = try? await API.shared.me()
