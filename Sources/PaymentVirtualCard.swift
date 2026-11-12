@@ -16,53 +16,24 @@ struct VirtualCardView: View {
     private var exists: Bool { info?.exists == true }
 
     var body: some View {
+        screen
+    }
+
+    private var screen: some View {
         VStack(spacing: 0) {
             NavBar(title: Tr("虚拟卡号"), back: { dismiss() })
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
                     cardFace
-
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle.fill")
-                            .foregroundStyle(PayVisual.warning)
-                        Text(Tr(info?.notice ?? "星言内部虚拟卡号，不是 Visa / Mastercard，不能在外部商户使用"))
-                            .font(pf(12.5))
-                            .foregroundStyle(PayVisual.secondaryInk)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(14)
-                    .background(PayVisual.warning.opacity(0.10),
-                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
+                    noticeBlock
                     if exists {
                         details
                         actions
                     } else {
-                        VStack(spacing: 12) {
-                            Text(Tr("生成一张仅在星言支付系统内使用的设备虚拟卡号"))
-                                .font(pf(14))
-                                .foregroundStyle(PayVisual.secondaryInk)
-                                .multilineTextAlignment(.center)
-                            Button {
-                                run("issue")
-                            } label: {
-                                Text(busy ? Tr("正在生成…") : Tr("生成虚拟卡号"))
-                            }
-                            .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint, enabled: !busy))
-                            .disabled(busy)
-                        }
-                        .padding(.horizontal, 16)
+                        issueBlock
                     }
-
-                    if !error.isEmpty {
-                        Text(error)
-                            .font(pf(12.5))
-                            .foregroundStyle(PayVisual.danger)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
-                    }
-
+                    errorBlock
                     Color.clear.frame(height: max(24, L.safeBottom + 12))
                 }
                 .padding(.horizontal, 16)
@@ -96,79 +67,57 @@ struct VirtualCardView: View {
         }
     }
 
+    private var noticeBlock: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "info.circle.fill")
+                .foregroundStyle(PayVisual.warning)
+            Text(Tr(info?.notice ?? "星言内部虚拟卡号，不是 Visa / Mastercard，不能在外部商户使用"))
+                .font(pf(12.5))
+                .foregroundStyle(PayVisual.secondaryInk)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .background(PayVisual.warning.opacity(0.10),
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var issueBlock: some View {
+        VStack(spacing: 12) {
+            Text(Tr("生成一张仅在星言支付系统内使用的设备虚拟卡号"))
+                .font(pf(14))
+                .foregroundStyle(PayVisual.secondaryInk)
+                .multilineTextAlignment(.center)
+            Button {
+                run("issue")
+            } label: {
+                Text(busy ? Tr("正在生成…") : Tr("生成虚拟卡号"))
+            }
+            .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint, enabled: !busy))
+            .disabled(busy)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    @ViewBuilder
+    private var errorBlock: some View {
+        if !error.isEmpty {
+            Text(error)
+                .font(pf(12.5))
+                .foregroundStyle(PayVisual.danger)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
+        }
+    }
+
     private var cardFace: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(LinearGradient(
-                    colors: [Color(hex: 0x050506), Color(hex: 0x1A1B1F), Color(hex: 0x080809)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0.06),
-                        .init(color: .white.opacity(0.10), location: 0.47),
-                        .init(color: .clear, location: 0.66)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-                .blendMode(.screen)
-
-            Circle()
-                .fill(.white.opacity(0.04))
-                .frame(width: 240, height: 240)
-                .blur(radius: 54)
-                .offset(x: 170, y: -135)
-
+            cardBackground
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(Tr("星言虚拟卡"))
-                            .font(pf(15, .semibold))
-                            .foregroundStyle(.white)
-                        Text("STAR PAY · DEVICE CARD")
-                            .font(pfExact(8.5, .bold))
-                            .tracking(1.4)
-                            .foregroundStyle(.white.opacity(0.45))
-                    }
-                    Spacer()
-                    Image(systemName: "wave.3.right.circle.fill")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.42))
-                }
-
+                cardHeader
                 Spacer(minLength: 24)
-
-                Text(numberText)
-                    .font(Font(UIFont.monospacedDigitSystemFont(ofSize: 18, weight: .semibold)))
-                    .tracking(1.1)
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-
+                cardNumber
                 Spacer(minLength: 20)
-
-                HStack(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(Tr("持卡人"))
-                            .font(pfExact(8.5, .medium))
-                            .foregroundStyle(.white.opacity(0.38))
-                        Text((app.me?.nickname ?? app.me?.username ?? "STAR PAY").uppercased())
-                            .font(pfExact(10.5, .semibold))
-                            .foregroundStyle(.white.opacity(0.78))
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 8)
-                    if exists {
-                        cardMetric(Tr("有效期"), expiryText)
-                        if revealed {
-                            cardMetric(Tr("安全码"), info?.cvv ?? "•••")
-                        }
-                    }
-                }
+                cardFooter
             }
             .padding(22)
         }
@@ -199,14 +148,87 @@ struct VirtualCardView: View {
         }
     }
 
+    @ViewBuilder
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 26, style: .continuous)
+            .fill(LinearGradient(
+                colors: [Color(hex: 0x050506), Color(hex: 0x1A1B1F), Color(hex: 0x080809)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ))
+        RoundedRectangle(cornerRadius: 26, style: .continuous)
+            .fill(LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0.06),
+                    .init(color: .white.opacity(0.10), location: 0.47),
+                    .init(color: .clear, location: 0.66)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ))
+            .blendMode(.screen)
+        Circle()
+            .fill(.white.opacity(0.04))
+            .frame(width: 240, height: 240)
+            .blur(radius: 54)
+            .offset(x: 170, y: -135)
+    }
+
+    private var cardHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Tr("星言虚拟卡"))
+                    .font(pf(15, .semibold))
+                    .foregroundStyle(.white)
+                Text("STAR PAY · DEVICE CARD")
+                    .font(pfExact(8.5, .bold))
+                    .tracking(1.4)
+                    .foregroundStyle(.white.opacity(0.45))
+            }
+            Spacer()
+            Image(systemName: "wave.3.right.circle.fill")
+                .font(.system(size: 24, weight: .medium))
+                .foregroundStyle(.white.opacity(0.42))
+        }
+    }
+
+    private var cardNumber: some View {
+        Text(numberText)
+            .font(Font(UIFont.monospacedDigitSystemFont(ofSize: 18, weight: .semibold)))
+            .tracking(1.1)
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+    }
+
+    private var cardFooter: some View {
+        HStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(Tr("持卡人"))
+                    .font(pfExact(8.5, .medium))
+                    .foregroundStyle(.white.opacity(0.38))
+                Text(cardholder)
+                    .font(pfExact(10.5, .semibold))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            if exists {
+                cardMetric(Tr("有效期"), expiryText)
+                if revealed {
+                    cardMetric(Tr("安全码"), info?.cvv ?? "•••")
+                }
+            }
+        }
+    }
+
+    private var cardholder: String {
+        (app.me?.nickname ?? app.me?.username ?? "STAR PAY").uppercased()
+    }
+
     private var numberText: String {
-        guard exists else { return "••••  ••••  ••••  ••••" }
-        if revealed, let number = info?.number, !number.isEmpty {
-            return stride(from: 0, to: number.count, by: 4).map { offset -> String in
-                let start = number.index(number.startIndex, offsetBy: offset)
-                let end = number.index(start, offsetBy: min(4, number.count - offset))
-                return String(number[start..<end])
-            }.joined(separator: "  ")
+        if exists, revealed, let number = info?.number, !number.isEmpty {
+            return groupedVirtualCardNumber(number)
         }
         return "••••  ••••  ••••  " + (info?.last4 ?? "••••")
     }
@@ -322,4 +344,15 @@ struct VirtualCardView: View {
         revealed = false
         info = try? await API.shared.virtualCard()
     }
+}
+
+private func groupedVirtualCardNumber(_ number: String) -> String {
+    var parts: [String] = []
+    var index = number.startIndex
+    while index < number.endIndex {
+        let end = number.index(index, offsetBy: 4, limitedBy: number.endIndex) ?? number.endIndex
+        parts.append(String(number[index..<end]))
+        index = end
+    }
+    return parts.joined(separator: "  ")
 }
