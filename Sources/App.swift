@@ -288,6 +288,7 @@ final class AppState: ObservableObject {
 
     @Published var appearance: String = UserDefaults.standard.string(forKey: "chris.appearance") ?? "auto"
     @Published var appearanceVeilOpacity: Double = 0
+    @Published var chatTransitionVeilOpacity: Double = 0
     func setAppearance(_ v: String) {
         guard v != appearance else { return }
         withAnimation(.easeOut(duration: 0.12)) {
@@ -299,6 +300,21 @@ final class AppState: ObservableObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.035) {
                 withAnimation(.easeInOut(duration: 0.30)) {
                     self.appearanceVeilOpacity = 0
+                }
+            }
+        }
+    }
+
+    func withSoftChatTransition(_ action: @escaping () -> Void) {
+        guard chatTransitionVeilOpacity < 0.001 else { return }
+        withAnimation(.easeOut(duration: 0.10)) {
+            chatTransitionVeilOpacity = 0.08
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+            action()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.035) {
+                withAnimation(.easeInOut(duration: 0.28)) {
+                    self.chatTransitionVeilOpacity = 0
                 }
             }
         }
@@ -1773,7 +1789,8 @@ struct CHRISApp: App {
                         .zIndex(13)
                 }
                 Color.black
-                    .opacity(app.appearanceVeilOpacity)
+                    .opacity(max(app.appearanceVeilOpacity,
+                                 app.chatTransitionVeilOpacity))
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
                     .zIndex(18)

@@ -1342,7 +1342,9 @@ struct ChatsView: View {
         } else if chat.oaDigest == true {
             showOAList = true
         } else {
-            path.append(chat)
+            app.withSoftChatTransition {
+                path.append(chat)
+            }
         }
     }
 
@@ -2339,7 +2341,11 @@ struct ChatsView: View {
 
             .background(chatsPageFill.ignoresSafeArea(edges: .bottom))
             .fullScreenCover(isPresented: $showSearch) {
-                SearchPage(onOpenChat: { c in path.append(c) })
+                SearchPage(onOpenChat: { c in
+                    app.withSoftChatTransition {
+                        path.append(c)
+                    }
+                })
                     .environmentObject(app)
             }
             .sheet(isPresented: $showChatFilterSheet) {
@@ -2665,7 +2671,9 @@ struct ChatsView: View {
             CrashCatcher.note("推送", "交给会话列表打开 " + id)
 
             try? await Task.sleep(nanoseconds: 350_000_000)
-            path.append(c)
+            app.withSoftChatTransition {
+                path.append(c)
+            }
         }
     }
 }
