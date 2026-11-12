@@ -75,6 +75,11 @@ assert.strictEqual(
   'business balance should be zero after moving all funds to wallet'
 );
 assert.strictEqual(ledger.entriesForUser('u1', 10).length, 3, 'user statement should include own entries');
+const u1Statement = ledger.entriesForUser('u1', 10);
+assert.ok(u1Statement.some((row) => row.delta === 20),
+  'statement amounts must remain in currency units, not cents');
+assert.ok(u1Statement.some((row) => row.delta === -30),
+  'outgoing statement amount must remain in currency units');
 
 ledger.apply({
   userId: 'payer',
@@ -122,6 +127,22 @@ ledger.apply({
 assert.strictEqual(ledger.accountBalance('user:payee'), 0);
 assert.strictEqual(ledger.accountBalance('user:payer'), 50);
 assert.strictEqual(ledger.accountBalance('system:wallet-transfer-clearing'), 0);
+
+const rebuilt = new PaymentLedger({
+  dataDir: dir,
+  openSealed: (_name, value) => value,
+  sealValue: (_name, value) => value,
+  readState: (name, fallback) => secureState[name] || fallback,
+  writeState: (name, value) => { secureState[name] = JSON.parse(JSON.stringify(value)); },
+  hmac: (payload) => require('crypto').createHash('sha256').update(payload).digest('hex'),
+  uid: (prefix) => prefix + '_rebuild_' + (++sequence),
+  now: () => new Date().toISOString()
+});
+rebuilt.rebuild();
+assert.strictEqual(rebuilt.accountBalance('user:payer'), 50,
+  'journal rebuild must preserve cent-based account balances');
+assert.ok(rebuilt.entriesForUser('payer', 10).some((row) => row.delta === 10),
+  'journal rebuild must preserve statement currency amounts');
 
 assert.throws(() => {
   ledger.record({

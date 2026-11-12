@@ -191,7 +191,23 @@ class PaymentLedger {
 
   postingsOf(record) {
     if (record && Array.isArray(record.postings) && record.postings.length >= 2) {
-      return this.normalizePostings(record.postings);
+      /* 落盘 postings 已经是“分”；不能再走 normalizePostings 的元→分换算，
+         否则账单会把每笔金额放大 100 倍，启动重建也会把账户索引算错。 */
+      const merged = new Map();
+      for (const posting of record.postings) {
+        const account = String(posting && posting.account || '').trim();
+        const delta = Math.round(Number(posting && posting.delta));
+        if (!account || !Number.isFinite(delta)) {
+          throw new Error('账本历史分录账户或金额不合法');
+        }
+        merged.set(account, (merged.get(account) || 0) + delta);
+      }
+      const lines = Array.from(merged.entries())
+        .filter(([, delta]) => delta !== 0)
+        .map(([account, delta]) => ({ account, delta }));
+      const total = lines.reduce((sum, line) => sum + line.delta, 0);
+      if (total !== 0) throw new Error('历史账本借贷不平：' + total + ' 分');
+      return lines;
     }
     const amount = cents(record && record.delta);
     if (!record || !record.userId || !Number.isFinite(amount) || amount === 0) return [];

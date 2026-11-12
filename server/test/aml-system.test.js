@@ -218,6 +218,16 @@ async function main() {
     assert.ok(chatRow && chatRow.lastMessage, 'transfer must create a conversation preview');
     assert.strictEqual(chatRow.lastMessage.preview, '[转账] ¥100.00',
       'conversation preview must include the transfer amount');
+    response = await call(base, 'GET', '/api/bills?limit=20', undefined, payerCookie);
+    assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    assert.ok((response.data.bills || []).some((x) => Number(x.amount) === 100
+      && x.direction === 'out' && x.walletKind === undefined),
+    'successful transfer must immediately appear in /api/bills');
+    response = await call(base, 'GET', '/api/bills/ledger?limit=20', undefined, payerCookie);
+    assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    assert.ok((response.data.entries || []).some((x) => Number(x.delta) === -100),
+      'successful transfer must immediately appear in the payment ledger: '
+        + JSON.stringify(response.data.entries || []));
 
     response = await call(base, 'POST', '/api/ops/aml/rules', {
       confirmPassword: ADMIN_PASSWORD,
