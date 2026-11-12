@@ -1123,11 +1123,49 @@ struct ListenView: View {
         if sendMode {
             libraryBody
         } else {
-            MusicPlayingView(onExit: leaveListen,
-                             onModeChange: selectCopyMode)
-                .background(Color.black.ignoresSafeArea())
-                .task { await refreshTracks(force: true) }
+            playerOnlyBody
         }
+    }
+
+    private var playerOnlyBody: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if loading && tracks.isEmpty && player.current == nil {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .tint(.white)
+                    Text(Tr("正在准备音乐…"))
+                        .font(pf(14, .medium))
+                        .foregroundStyle(.white.opacity(0.72))
+                }
+            } else if tracks.isEmpty && player.current == nil {
+                VStack(spacing: 12) {
+                    Image(systemName: "music.note.list")
+                        .font(.system(size: 34, weight: .light))
+                        .foregroundStyle(.white.opacity(0.72))
+                    Text(Tr("曲库暂时没有音乐"))
+                        .font(pf(17, .semibold))
+                        .foregroundStyle(.white)
+                    Button {
+                        Task { await refreshTracks(force: true) }
+                    } label: {
+                        Text(Tr("重新加载"))
+                            .font(pf(14, .semibold))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 18)
+                            .frame(height: 38)
+                            .background(.white, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else {
+                MusicPlayingView(onExit: leaveListen,
+                                 onModeChange: selectCopyMode)
+                    .transition(.opacity)
+            }
+        }
+        .task { await refreshTracks(force: true) }
     }
 
     private var libraryBody: some View {

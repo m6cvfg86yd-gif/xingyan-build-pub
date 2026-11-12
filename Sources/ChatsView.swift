@@ -792,7 +792,7 @@ struct SwipeChatRow: View {
 
     var body: some View {
         ZStack(alignment: .trailing) {
-            leadingActionButtons
+            pinActionButtons
                 .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
                 .allowsHitTesting(offset > 0)
                 .zIndex(0)
@@ -816,7 +816,7 @@ struct SwipeChatRow: View {
                 .contentShape(Rectangle())
                 .zIndex(1)
 
-            pinActionButtons
+            chatActionButtons
                 .allowsHitTesting(offset < 0)
                 .zIndex(0)
         }
@@ -842,29 +842,29 @@ struct SwipeChatRow: View {
                     startOffset = offset
                     dragVelocity = 0
                     crossedOpen = abs(offset) > (offset >= 0
-                                                 ? leadingFullW * 0.38
-                                                 : fullW * 0.42)
+                                                 ? fullW * 0.42
+                                                 : leadingFullW * 0.38)
                     ChatSwipeFeedback.selection.prepare()
                     NotificationCenter.default.post(name: .chrisRowSwipe, object: chat.id)
                 },
                 onChanged: { dx in
                     var x = startOffset + dx
                     if x > 0 {
-                        if x > leadingFullW {
-                            let extra = x - leadingFullW
-                            x = leadingFullW
+                        if x > fullW {
+                            let extra = x - fullW
+                            x = fullW
                                 + min(86, CGFloat(pow(Double(extra), 0.72)) * 1.25)
                         }
-                    } else if x < -fullW {
-                        let extra = -x - fullW
-                        x = -(fullW
+                    } else if x < -leadingFullW {
+                        let extra = -x - leadingFullW
+                        x = -(leadingFullW
                               + min(92, CGFloat(pow(Double(extra), 0.72)) * 1.30))
                     }
                     offset = x
 
                     let threshold = offset >= 0
-                        ? leadingFullW * 0.38
-                        : fullW * 0.42
+                        ? fullW * 0.42
+                        : leadingFullW * 0.38
                     let nowCrossed = abs(offset) > threshold
                     if nowCrossed != crossedOpen {
                         crossedOpen = nowCrossed
@@ -875,7 +875,7 @@ struct SwipeChatRow: View {
                     dragging = false
                     dragVelocity = vx
                     let projected = offset + vx * 0.14
-                    if projected < -fullW * 1.06, vx <= 0 {
+                    if projected > fullW * 1.06, vx >= 0 {
                         ChatSwipeFeedback.notification.notificationOccurred(.success)
                         onPin(chat.pinned != true)
                         close()
@@ -915,11 +915,11 @@ struct SwipeChatRow: View {
             }
         }
         .frame(height: ChatListVisual.rowHeight)
-        .frame(width: max(0, -offset), height: ChatListVisual.rowHeight, alignment: .trailing)
+        .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
         .clipped()
     }
 
-    private var leadingActionButtons: some View {
+    private var chatActionButtons: some View {
         HStack(spacing: 0) {
             bar("标为未读", blueBg, btnW) {
                 onUnread()
@@ -935,6 +935,7 @@ struct SwipeChatRow: View {
             }
         }
         .frame(width: leadingFullW, height: ChatListVisual.rowHeight, alignment: .leading)
+        .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .trailing)
         .clipped()
     }
 
@@ -984,7 +985,7 @@ struct SwipeChatRow: View {
             }
             if open { ChatSwipeFeedback.selection.selectionChanged() }
             withAnimation(swipeSpring) {
-                offset = open ? leadingFullW : 0
+                offset = open ? fullW : 0
                 if !open { mode = .none }
             }
             return
@@ -1000,7 +1001,7 @@ struct SwipeChatRow: View {
         }
         if open { ChatSwipeFeedback.selection.selectionChanged() }
         withAnimation(swipeSpring) {
-            offset = open ? -fullW : 0
+            offset = open ? -leadingFullW : 0
             if !open { mode = .none }
         }
     }
