@@ -3779,7 +3779,9 @@ struct ChatDetailView: View {
                         stageDraftImages([image])
                         panel = .none
                     })
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(3)
             }
 
             HStack(spacing: 6) {
@@ -3968,9 +3970,12 @@ struct ChatDetailView: View {
                             panel = (panel == .plus) ? .none : .plus
                             if panel == .plus && plusItems.isEmpty {
                                 Task {
+                                    await recentPhotos.loadIfNeeded(force: true)
                                     let items = (try? await API.shared.plusPanel()) ?? []
                                     plusItems = normalizedPlusItems(items)
                                 }
+                            } else if panel == .plus {
+                                Task { await recentPhotos.loadIfNeeded(force: true) }
                             }
                         } label: {
                             plusIcon
