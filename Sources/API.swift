@@ -1304,6 +1304,28 @@ struct BillsPayload: Decodable, Hashable {
     var faq: [BalanceFaq]?
 }
 
+struct LedgerBillEntry: Decodable, Identifiable, Hashable {
+    var id: String
+    var at: String
+    var delta: Double
+    var direction: String
+    var before: Double
+    var after: Double
+    var reason: String
+    var ref: String
+}
+
+struct LedgerBillsPayload: Decodable, Hashable {
+    var balance: Double
+    var income: Double
+    var expense: Double
+    var net: Double
+    var count: Int
+    var verified: Bool
+    var entries: [LedgerBillEntry]
+    var month: String?
+}
+
 struct BillsPageStyle: Decodable, Hashable {
     var iconSize: Double?
     var titleSize: Double?
@@ -2920,12 +2942,17 @@ private struct StarredPayload: Decodable {
     }
 
     func walletRecharge(amount: Double, bankId: String) async throws -> MoneyResult {
-        try await post("/api/wallet/recharge", ["amount": amount, "bankId": bankId], as: MoneyResult.self)
+        try await post("/api/wallet/recharge", [
+            "amount": amount,
+            "bankId": bankId,
+            "requestId": UUID().uuidString
+        ], as: MoneyResult.self)
     }
 
     func walletWithdraw(amount: Double, bankId: String, password: String, face: Bool) async throws -> MoneyResult {
         try await post("/api/wallet/withdraw",
-                       ["amount": amount, "bankId": bankId, "password": password, "face": face],
+                       ["amount": amount, "bankId": bankId, "password": password,
+                        "face": false, "requestId": UUID().uuidString],
                        as: MoneyResult.self)
     }
 
@@ -5056,6 +5083,16 @@ private struct StarredPayload: Decodable {
         if let l = limit { qs.append("limit=\(max(1, min(200, l)))") }
         let path = "/api/bills" + (qs.isEmpty ? "" : "?" + qs.joined(separator: "&"))
         return try await get(path, as: BillsPayload.self)
+    }
+
+    func ledgerBills(month: String? = nil, limit: Int? = nil) async throws -> LedgerBillsPayload {
+        var query: [String] = []
+        if let month, !month.isEmpty {
+            query.append("month=" + (month.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? month))
+        }
+        if let limit { query.append("limit=\(limit)") }
+        let path = "/api/bills/ledger" + (query.isEmpty ? "" : "?" + query.joined(separator: "&"))
+        return try await get(path, as: LedgerBillsPayload.self)
     }
 
     func balancePage() async throws -> BalancePageConfig {

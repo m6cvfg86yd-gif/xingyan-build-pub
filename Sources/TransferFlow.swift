@@ -116,7 +116,7 @@ struct TransferView: View {
         }
         .task {
             hasPwd = await API.shared.hasPayPassword()
-            faceOK = Biometrics.available
+            faceOK = Biometrics.paymentReady
 
             if (chat.type ?? "direct") != "group" {
                 let meId = app.me?.id ?? ""

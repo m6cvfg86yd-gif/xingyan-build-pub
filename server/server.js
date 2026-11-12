@@ -20,6 +20,7 @@ const os = require('os');
 const { spawnSync, spawn } = require('child_process');
 const zlib = require('zlib');
 const ws = require('./lib/ws');
+const { PaymentLedger, cents: ledgerCents, money: ledgerMoney } = require('./payment-ledger');
 const {
   isOpsUser,
   isOpsWebAuthPath,
@@ -2893,6 +2894,21 @@ const MONEY_JOURNAL = 'money-journal.jsonl';
 const MONEY_STATE = 'money-state.json';
 const IDEM_FILE = 'idem.json';
 
+const paymentLedger = new PaymentLedger({
+  dataDir: DATA_DIR,
+  journalName: MONEY_JOURNAL,
+  stateName: 'payment-ledger-state.json',
+  openSealed: openSecureStoreValue,
+  sealValue: sealSecureStoreValue,
+  readState: readSecureJsonStore,
+  writeState: writeSecureJsonStore,
+  hmac: (payload) => crypto.createHmac('sha256', String(db.secret || 'chris'))
+    .update('payment-ledger|' + payload).digest('hex'),
+  uid,
+  now
+});
+let paymentLedgerHealthy = true;
+
 /** 统一四舍五入到「分」：钱一律走这个，别各处自己 Math.round */
 function moneyRound(v) {
   const n = Number(v);
@@ -2913,10 +2929,9 @@ function payRuleNum(key, def) {
 
 /** 总账：追加一行（崩溃也不影响已写入的历史） */
 function journalMoney(row) {
-  try {
-    fs.appendFileSync(path.join(DATA_DIR, MONEY_JOURNAL),
-      JSON.stringify(sealSecureStoreValue(MONEY_JOURNAL, row)) + '\n', 'utf8');
-  } catch (err) { /* 总账写不进去不能拦住交易，但下面那份 state 还会写 */ }
+  /* 双边账本先落盘。写不进去必须抛错，由 applyMoney 回滚余额，不能出现「钱扣了但没账」。 */
+  if (!paymentLedgerHealthy) throw new Error('支付账本未通过启动校验，交易已暂停');
+  paymentLedger.apply(row, row.delta, row.reason, row.ref);
   try {
     const st = readSecureJsonStore(MONEY_STATE, { users: {} });
     if (!st.users) st.users = {};
@@ -2946,11 +2961,18 @@ function applyMoney(user, delta, meta) {
   }
   if (d === 0) return { balance: before, before: before, delta: 0 };
   user.balance = after;
-  journalMoney({
-    at: new Date().toISOString(), userId: user.id, delta: d,
-    before: before, after: after,
-    reason: (meta && meta.reason) || '', ref: (meta && meta.ref) || ''
-  });
+  try {
+    journalMoney({
+      at: new Date().toISOString(), userId: user.id, delta: d,
+      before: before, after: after,
+      counterAccount: (meta && meta.counterAccount) || 'system:unclassified',
+      reason: (meta && meta.reason) || '', ref: (meta && meta.ref) || ''
+    });
+  } catch (error) {
+    user.balance = before;
+    saveUsers();
+    return { error: '账本落账失败，交易已取消：' + String(error.message || error) };
+  }
   return { balance: after, before: before, delta: d };
 }
 
@@ -3082,7 +3104,11 @@ function expireTransfers() {
     const from = findUser(tr.fromId);
     if (from) {
       /* 24 小时没人收款：原路退回，走统一入口（记总账 + 不会算错分） */
-      applyMoney(from, Number(tr.amount) || 0, { reason: '转账 24 小时未收自动退回', ref: tr.id });
+      applyMoney(from, Number(tr.amount) || 0, {
+        reason: '转账 24 小时未收自动退回',
+        ref: tr.id,
+        counterAccount: 'system:pending-transfer'
+      });
       sendTo(from.id, { type: 'balance', balance: from.balance });
     }
     tr.status = 'refunded';
@@ -3499,6 +3525,33 @@ function bizPush(userId, row) {
   return acc.records[0];
 }
 
+/** 经营账户和零钱之间的内部划转：一笔账本同时记两边，不能分成两次扣加。 */
+function moveBusinessToWallet(user, amount, ref) {
+  const acc = bizOf(user.id, true);
+  const value = moneyRound(amount);
+  if (!(value > 0)) return { error: '提现金额不合法' };
+  const beforeBiz = moneyRound(acc.balance);
+  if (beforeBiz < value) return { error: '经营账户余额不够' };
+  const beforeWallet = moneyRound(user.balance);
+  const afterWallet = moneyRound(beforeWallet + value);
+  paymentLedger.record({
+    userId: user.id,
+    delta: value,
+    before: beforeWallet,
+    after: afterWallet,
+    reason: '经营账户提现到零钱',
+    ref: ref || ''
+  }, [
+    { account: 'user:' + user.id, delta: value },
+    { account: 'user:biz:' + user.id, delta: -value }
+  ]);
+  acc.balance = moneyRound(beforeBiz - value);
+  user.balance = afterWallet;
+  saveUsers();
+  saveBizAll();
+  return { balance: user.balance, bizBalance: acc.balance, amount: value };
+}
+
 /** 收到钱：如果这个人开了经营账户且到账方式选的是经营账户，钱进经营账户余额；否则照旧进零钱。
     两种情况都会记一条收款流水（后台查账看的就是它）。 */
 /* ============================================================
@@ -3588,23 +3641,29 @@ function payRateAllow(userId) {
 function bizCollect(user, amount, fromName, fromId, kind, note, reason) {
   const acc = bizOf(user.id, false);
   const toBiz = !!(acc.enabled && acc.settings.arrival === 'biz');
+  const counterAccount = kind === 'redpacket'
+    ? 'system:pending-redpacket'
+    : (kind === 'transfer' ? 'system:pending-transfer' : 'system:paycode-clearing');
   if (toBiz) {
     const a = bizOf(user.id, true);
     const beforeBiz = moneyRound(a.balance);
-    a.balance = moneyRound(beforeBiz + amount);
-    saveBizAll();
+    const afterBiz = moneyRound(beforeBiz + amount);
     /* 经营账户也是钱：同样进总账（userId 用 biz: 前缀，和零钱分开对） */
     journalMoney({
       at: new Date().toISOString(), userId: 'biz:' + user.id,
-      delta: moneyRound(amount), before: beforeBiz, after: a.balance,
+      delta: moneyRound(amount), before: beforeBiz, after: afterBiz,
+      counterAccount,
       reason: (kind === 'redpacket' ? '抢红包' : (kind === 'transfer' ? '收转账' : '收款')) + '（经营账户）',
       ref: fromId || ''
     });
+    a.balance = afterBiz;
+    saveBizAll();
   } else {
     /* 钱一律走 applyMoney：统一四舍五入到分 + 记总账（接真钱靠这本账对） */
     applyMoney(user, amount, {
       reason: reason || (kind === 'redpacket' ? '抢红包' : (kind === 'transfer' ? '收转账' : '收款')),
-      ref: fromId || ''
+      ref: fromId || '',
+      counterAccount
     });
     saveUsers();
   }
@@ -3835,7 +3894,11 @@ function expireRedPackets() {
     const from = findUser(r.fromId);
     if (from && left > 0) {
       /* 24 小时没抢完：剩下的原路退回，走统一入口（记总账 + 不会算错分） */
-      applyMoney(from, left, { reason: '红包 24 小时未抢完退回', ref: r.id });
+      applyMoney(from, left, {
+        reason: '红包 24 小时未抢完退回',
+        ref: r.id,
+        counterAccount: 'system:pending-redpacket'
+      });
       sendTo(from.id, { type: 'balance', balance: from.balance });
     }
     r.refundAmount = left;
@@ -5384,6 +5447,47 @@ function hasPayPassword(user) {
   return !!(user && (user.payPasswordHash || user.payPassword));
 }
 
+const PAY_FAIL_WINDOW_MS = 15 * 60 * 1000;
+const PAY_LOCK_MS = 15 * 60 * 1000;
+const PAY_FAIL_LIMIT = 5;
+
+function payPasswordRemainingLock(user) {
+  const until = Number(user && user.payLockedUntil) || 0;
+  return Math.max(0, until - Date.now());
+}
+
+function clearPayPasswordFailures(user) {
+  if (!user) return;
+  if (!user.payFailedAttempts && !user.payLockedUntil && !user.payLastFailedAt) return;
+  user.payFailedAttempts = 0;
+  user.payLockedUntil = 0;
+  user.payLastFailedAt = 0;
+  saveUsers();
+}
+
+function recordPayPasswordFailure(user) {
+  if (!user) return 0;
+  const t = Date.now();
+  const last = Number(user.payLastFailedAt) || 0;
+  let attempts = Number(user.payFailedAttempts) || 0;
+  if (!last || t - last > PAY_FAIL_WINDOW_MS) attempts = 0;
+  attempts += 1;
+  user.payFailedAttempts = attempts;
+  user.payLastFailedAt = t;
+  if (attempts >= PAY_FAIL_LIMIT) user.payLockedUntil = t + PAY_LOCK_MS;
+  saveUsers();
+  return attempts;
+}
+
+function requirePaymentRequestId(req, res, body, scene) {
+  const id = String((body && body.requestId) || '').trim();
+  if (id.length < 8 || id.length > 64) {
+    fail(res, 422, (scene || '支付') + '必须带唯一请求号，防止重复扣款');
+    return true;
+  }
+  return false;
+}
+
 /** 付钱之前一律要有支付密码（微信的规矩）：没设过就先去设，不给「直接付」这条路。
     以前是「没设过密码就直接扣钱」，等于谁都能不输密码把红包发出去。
     返回 true = 已经拦住并回过响应了，调用方直接 return。 */
@@ -5392,14 +5496,25 @@ function payPasswordGate(req, res, user, body, scene) {
     fail(res, 428, '还没设置支付密码。为了安全，发红包 / 转账 / 付款都要先设一个（我 → 设置 → 账号与安全 → 支付密码）');
     return true;
   }
-  if (body && body.face) return false;
+  const locked = payPasswordRemainingLock(user);
+  if (locked > 0) {
+    const minutes = Math.max(1, Math.ceil(locked / 60000));
+    fail(res, 429, '支付密码错误次数过多，已锁定 ' + minutes + ' 分钟');
+    return true;
+  }
   const pwd = String((body && body.password) || '').trim();
   if (!pwd) { fail(res, 422, '请输入支付密码'); return true; }
   if (!verifyPayPassword(user, pwd)) {
+    const attempts = recordPayPasswordFailure(user);
     recordSecurity(user.id, req, 'pay-password-fail', { note: (scene || '付款') + '时支付密码错' });
-    fail(res, 422, '支付密码不正确');
+    if (attempts >= PAY_FAIL_LIMIT) {
+      fail(res, 429, '支付密码错误次数过多，已锁定 15 分钟');
+    } else {
+      fail(res, 422, '支付密码不正确，还可尝试 ' + (PAY_FAIL_LIMIT - attempts) + ' 次');
+    }
     return true;
   }
+  clearPayPasswordFailures(user);
   return false;
 }
 
@@ -9068,7 +9183,12 @@ async function housekeeperCommand(user, text, chat, bot) {
     if (!it) return '清单里只有 ' + menu.items.length + ' 项，你再说一次序号？';
     const bal = Number(user.balance) || 0;
     if (bal < it.price) return '余额不够啦（' + money(bal) + ' / 需要 ' + money(it.price) + '）。我 → 服务 → 充值余额 充一点就行。';
-    user.balance = Math.round((bal - it.price) * 100) / 100;
+    const paid = applyMoney(user, -it.price, {
+      reason: 'AI 助手代下单',
+      ref: it.name,
+      counterAccount: 'system:commerce-clearing'
+    });
+    if (paid.error) return paid.error;
     saveUsers();
     sendTo(user.id, { type: 'balance', balance: user.balance });
     const order = { id: uid('od'), userId: user.id, kind: menu.kind, name: it.name, price: it.price, at: now(), status: '已下单' };
@@ -9440,7 +9560,15 @@ async function housekeeperCommand(user, text, chat, bot) {
       aiTodo.delete(user.id);
       return '余额不够（' + money(bal) + ' / 要 ' + money(todo.amount) + '）。去「我 → 服务 → 充值余额」充一点。';
     }
-    user.balance = Math.round((bal - todo.amount) * 100) / 100;
+    const charge = applyMoney(user, -todo.amount, {
+      reason: 'AI 助手确认转账',
+      ref: todo.toId,
+      counterAccount: 'system:pending-transfer'
+    });
+    if (charge.error) {
+      aiTodo.delete(user.id);
+      return charge.error;
+    }
     saveUsers();
     const c = openChatWith(user, target);
     const tr = {
@@ -9453,7 +9581,11 @@ async function housekeeperCommand(user, text, chat, bot) {
     const sent = deliverMessage(user, c.id, 'transfer', transferSnapshot(tr), null);
     if (sent && sent.error) {
       db.transfers = db.transfers.filter((x) => x.id !== tr.id);
-      user.balance = Math.round(bal * 100) / 100;
+      applyMoney(user, todo.amount, {
+        reason: 'AI 助手转账发不出去退回',
+        ref: tr.id,
+        counterAccount: 'system:pending-transfer'
+      });
       saveUsers();
       aiTodo.delete(user.id);
       return '转账没发出去：' + sent.error;
@@ -11156,7 +11288,8 @@ async function handleAdmin(req, res, parts, query) {
       applyMoney(target, nextBal - curBal, {
         reason: '后台直接改余额',
         ref: (admin && admin.username) || '',
-        allowNegative: true
+        allowNegative: true,
+        counterAccount: 'system:admin-adjustment'
       });
       sendTo(target.id, { type: 'balance', balance: target.balance });      // 在线的话余额立刻刷新
     }
@@ -11516,7 +11649,12 @@ async function handleApi(req, res, pathname, query) {
     if (want === 'on' && !user.eyesPaidAt) {
       const bal = Number(user.balance) || 0;
       if (bal < EYES_PRICE) return fail(res, 400, '零钱不够（还差 ' + money(EYES_PRICE - bal) + '），去「我 → 服务 → 充值余额」');
-      user.balance = Math.round((bal - EYES_PRICE) * 100) / 100;
+      const paid = applyMoney(user, -EYES_PRICE, {
+        reason: '开通动态眼睛',
+        ref: 'eyes',
+        counterAccount: 'system:digital-goods-clearing'
+      });
+      if (paid.error) return fail(res, 402, paid.error);
       user.eyesPaidAt = now();
       sendTo(user.id, { type: 'balance', balance: user.balance });
     }
@@ -12440,11 +12578,16 @@ async function handleApi(req, res, pathname, query) {
     const total = Math.round((Number(it.price) || 0) * count * 100) / 100;
     const bal = Number(user.balance) || 0;
     if (bal < total) return fail(res, 400, '零钱不够（还差 ' + money(total - bal) + '），去「我 → 服务 → 充值余额」');
-    /* 有支付密码的用户：传了就必须对；没传（比如小额/调试）先放行，App 那边会主动弹密码框 */
-    if (user.payPassword && b.payPassword && String(b.payPassword) !== String(user.payPassword)) {
-      return fail(res, 400, '支付密码不对');
-    }
-    user.balance = Math.round((bal - total) * 100) / 100;
+    const secureBody = Object.assign({}, b, {
+      password: String(b.password || b.payPassword || '')
+    });
+    if (payPasswordGate(req, res, user, secureBody, '小店下单')) return;
+    const paid = applyMoney(user, -total, {
+      reason: '小店下单',
+      ref: it.id,
+      counterAccount: 'system:shop-clearing'
+    });
+    if (paid.error) return fail(res, 402, paid.error);
     if (it.stock !== undefined && it.stock !== null && it.stock !== '') it.stock = Math.max(0, (Number(it.stock) || 0) - count);
     saveShopCfg(cfg);
     saveUsers();
@@ -14289,9 +14432,36 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
 
+  /* 用户账本明细：只按当前登录账号过滤，不能传 userId 查别人。 */
+  if (parts[0] === 'bills' && parts[1] === 'ledger' && method === 'GET') {
+    const me = currentUser(req);
+    if (!me) return fail(res, 401, '请先登录');
+    const limit = Math.min(500, Math.max(1, Number(query.get('limit')) || 100));
+    const month = str(query.get('month'), 7);
+    let rows = paymentLedger.entriesForUser(me.id, 500);
+    if (month) rows = rows.filter((row) => String(row.at || '').slice(0, 7) === month);
+    const income = moneyRound(rows.filter((row) => row.direction === 'in')
+      .reduce((sum, row) => sum + row.delta, 0));
+    const expense = moneyRound(rows.filter((row) => row.direction === 'out')
+      .reduce((sum, row) => sum + Math.abs(row.delta), 0));
+    const latestAfter = rows.length ? Number(rows[0].after || 0) : 0;
+    const verified = Math.abs(moneyRound(latestAfter) - moneyRound(me.balance)) <= 0.005;
+    ok(res, {
+      balance: moneyRound(me.balance),
+      income,
+      expense,
+      net: moneyRound(income - expense),
+      count: rows.length,
+      verified,
+      entries: rows.slice(0, limit),
+      month: month || ''
+    });
+    return;
+  }
+
   /* 账单：这个人所有的转账（钱包页右上角「账单」用）。
      带上对方是谁（名字/头像）、进出方向、状态、时间，再给一份汇总和月份列表。 */
-  if (parts[0] === 'bills' && method === 'GET') {
+  if (parts[0] === 'bills' && parts.length === 1 && method === 'GET') {
     const me = currentUser(req);
     if (blockedByRealName(res, me)) return;      // 账单属于钱包，同样要实名
     const limit = Math.min(200, Math.max(1, Number(query.get('limit')) || 100));
@@ -15590,9 +15760,8 @@ async function handleApi(req, res, pathname, query) {
     if (amount > acc.balance + 0.001) return fail(res, 422, '最多只能提 ¥' + acc.balance.toFixed(2));
     /* 经营账户提现也要支付密码（钱出去的口子一个都不能漏） */
     if (payPasswordGate(req, res, user, body, '经营账户提现')) return;
-    acc.balance = Math.round((acc.balance - amount) * 100) / 100;
-    user.balance = Math.round(((Number(user.balance) || 0) + amount) * 100) / 100;
-    saveUsers();
+    const moved = moveBusinessToWallet(user, amount, body.requestId || '');
+    if (moved.error) return fail(res, 402, moved.error);
     bizPush(user.id, { kind: 'withdraw', amount, note: '提现到零钱', method: 'balance' });
     saveBizAll();
     sendTo(user.id, { type: 'balance', balance: user.balance });
@@ -16043,6 +16212,7 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'pay' && parts[1] === 'collect' && method === 'POST') {
     if (blockedByRealName(res, user)) return;
     const body = await readBody(req);
+    if (requirePaymentRequestId(req, res, body, '扫码付款')) return;
     /* 幂等：扫码付款同样只允许扣一次（重发/连点都走同一笔） */
     const idem = idemBegin(user, body, 'collect');
     if (idem.dup) {
@@ -16076,7 +16246,11 @@ async function handleApi(req, res, pathname, query) {
       db.chats.push(chat);
       sendTo(target.id, { type: 'chat', action: 'created', chat: chatSummary(chat, target.id) });
     }
-    const paidMoney = applyMoney(user, -amount, { reason: '扫码付款', ref: target.id });
+    const paidMoney = applyMoney(user, -amount, {
+      reason: '扫码付款',
+      ref: target.id,
+      counterAccount: 'system:paycode-clearing'
+    });
     if (paidMoney.error) return fail(res, 402, paidMoney.error);
     balance = paidMoney.balance;
     const note = str(body.note, 40) || (found.kind === 'pay' ? '扫码付款' : '收款码付款');
@@ -16090,7 +16264,11 @@ async function handleApi(req, res, pathname, query) {
     const sent = deliverMessage(user, chat.id, 'transfer', transferSnapshot(transfer), null);
     if (sent.error) {
       db.transfers = db.transfers.filter((x) => x.id !== transfer.id);
-      user.balance = rpRound2(balance + amount);       // 发不出去就把钱还回去
+      applyMoney(user, amount, {
+        reason: '扫码付款发不出去退回',
+        ref: transfer.id,
+        counterAccount: 'system:paycode-clearing'
+      });
       saveUsers();
       return fail(res, 400, sent.error);
     }
@@ -16122,12 +16300,14 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'pay' && parts[1] === 'transfer' && method === 'POST') {
     if (blockedByRealName(res, user)) return;
     const body = await readBody(req);
+    if (requirePaymentRequestId(req, res, body, '转账')) return;
     /* 幂等：同一笔（同一个 requestId）只处理一次 —— 超时重发、连点都不会扣两次 */
     const idem = idemBegin(user, body, 'transfer');
     if (idem.dup) {
       if (idem.inflight) return fail(res, 409, '这笔正在处理，稍等一秒看余额再操作');
       return ok(res, idem.cached);
     }
+    if (!payRateAllow(user.id)) return fail(res, 429, '付得太快了，歇一会儿再试');
     const amount = Math.round((Number(body.amount) || 0) * 100) / 100;
     const useBalance = body.method !== 'card';
     const face = !!body.face;                                   // 「使用面容」= 已通过人脸
@@ -16147,7 +16327,11 @@ async function handleApi(req, res, pathname, query) {
     if (lim.error) return fail(res, 403, lim.error);
 
     // 不管选的是余额还是银行卡，钱都从余额里扣：用多少扣多少，没余额就付不了
-    const charge = applyMoney(user, -amount, { reason: '转账', ref: chat.id });
+    const charge = applyMoney(user, -amount, {
+      reason: '转账',
+      ref: chat.id,
+      counterAccount: 'system:pending-transfer'
+    });
     if (charge.error) return fail(res, 402, charge.error);
     let balance = charge.balance;
     const peerId = chat.type === 'direct' ? chat.memberIds.filter((id) => id !== user.id)[0] : '';
@@ -16172,7 +16356,11 @@ async function handleApi(req, res, pathname, query) {
     const sent = deliverMessage(user, chat.id, 'transfer', transferSnapshot(transfer), null);
     if (sent.error) {
       db.transfers = db.transfers.filter((x) => x.id !== transfer.id);
-      applyMoney(user, amount, { reason: '转账发不出去退回', ref: transfer.id });   // 发不出去就把钱还回去
+      applyMoney(user, amount, {
+        reason: '转账发不出去退回',
+        ref: transfer.id,
+        counterAccount: 'system:pending-transfer'
+      });   // 发不出去就把钱还回去
       saveUsers();
       return fail(res, 400, sent.error);
     }
@@ -16270,18 +16458,28 @@ async function handleApi(req, res, pathname, query) {
       const a = bizOf(user.id, true);
       if ((Number(a.balance) || 0) < amount) return fail(res, 402, '经营账户余额不够退还');
       const beforeBiz = moneyRound(a.balance);
-      a.balance = moneyRound(beforeBiz - amount);
-      saveBizAll();
+      const afterBiz = moneyRound(beforeBiz - amount);
       journalMoney({
         at: new Date().toISOString(), userId: 'biz:' + user.id,
-        delta: -moneyRound(amount), before: beforeBiz, after: a.balance,
+        delta: -moneyRound(amount), before: beforeBiz, after: afterBiz,
+        counterAccount: 'system:wallet-transfer-clearing',
         reason: '收款方退还（经营账户）', ref: tr.id
       });
+      a.balance = afterBiz;
+      saveBizAll();
     } else {
-      const paid = applyMoney(user, -amount, { reason: '收款方退还', ref: tr.id });
+      const paid = applyMoney(user, -amount, {
+        reason: '收款方退还',
+        ref: tr.id,
+        counterAccount: 'system:wallet-transfer-clearing'
+      });
       if (paid.error) return fail(res, 402, '零钱不够退还，先充值再退');
     }
-    applyMoney(payer, amount, { reason: '收到退还', ref: tr.id });
+    applyMoney(payer, amount, {
+      reason: '收到退还',
+      ref: tr.id,
+      counterAccount: 'system:wallet-transfer-clearing'
+    });
     saveUsers();
     tr.status = 'refunded';
     tr.refundedAt = now();
@@ -16303,12 +16501,14 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'pay' && parts[1] === 'redpacket' && method === 'POST') {
     if (blockedByRealName(res, user)) return;
     const body = await readBody(req);
+    if (requirePaymentRequestId(req, res, body, '发红包')) return;
     /* 幂等：同一个 requestId 只会发一次红包（重发/连点不会扣两次钱） */
     const idem = idemBegin(user, body, 'redpacket');
     if (idem.dup) {
       if (idem.inflight) return fail(res, 409, '这个红包正在发送，稍等一秒再操作');
       return ok(res, idem.cached);
     }
+    if (!payRateAllow(user.id)) return fail(res, 429, '付得太快了，歇一会儿再试');
     const face = !!body.face;
     const pwd = String(body.password || '').trim();
     const note = str(body.note, 50) || '恭喜发财，大吉大利';
@@ -16342,7 +16542,11 @@ async function handleApi(req, res, pathname, query) {
 
     let balance = Number(user.balance) || 0;
     if (balance < total) return fail(res, 402, '余额不足，先充值再来');
-    const rpPay = applyMoney(user, -total, { reason: '发红包', ref: chat.id + ':' + (body.count || 1) });
+    const rpPay = applyMoney(user, -total, {
+      reason: '发红包',
+      ref: chat.id + ':' + (body.count || 1),
+      counterAccount: 'system:pending-redpacket'
+    });
     if (rpPay.error) return fail(res, 402, rpPay.error);
     balance = rpPay.balance;
 
@@ -16374,7 +16578,11 @@ async function handleApi(req, res, pathname, query) {
     const sent = deliverMessage(user, chat.id, 'redpacket', redpacketSnapshot(rp), null);
     if (sent.error) {
       db.redpackets = db.redpackets.filter((x) => x.id !== rp.id);
-      applyMoney(user, total, { reason: '红包发不出去退回', ref: rp.id });   // 发不出去就把钱还回去
+      applyMoney(user, total, {
+        reason: '红包发不出去退回',
+        ref: rp.id,
+        counterAccount: 'system:pending-redpacket'
+      });   // 发不出去就把钱还回去
       saveUsers();
       return fail(res, 400, sent.error);
     }
@@ -16459,12 +16667,17 @@ async function handleApi(req, res, pathname, query) {
     if (!tier) return fail(res, 404, '没有这个档位');
     const months = Math.max(1, Math.min(36, Math.floor(Number(body.months) || 1)));
     const price = memberPrice(tier, months);
-    if (!hasPayPassword(user)) return fail(res, 422, '先设一个支付密码（我 → 设置 → 支付密码）');
-    if (!verifyPayPassword(user, String(body.payPassword || '').trim())) {
-      return fail(res, 403, '支付密码不对');
-    }
+    const secureBody = Object.assign({}, body, {
+      password: String(body.password || body.payPassword || '')
+    });
+    if (payPasswordGate(req, res, user, secureBody, '开通会员')) return;
     if ((Number(user.balance) || 0) + 1e-9 < price) return fail(res, 402, '零钱不够，先去钱包充值');
-    user.balance = Math.round(((Number(user.balance) || 0) - price) * 100) / 100;
+    const paid = applyMoney(user, -price, {
+      reason: '开通会员',
+      ref: tier.id + ':' + months,
+      counterAccount: 'system:membership-revenue'
+    });
+    if (paid.error) return fail(res, 402, paid.error);
     const me = setMember(user.id, tier.id, monthsToDays(months), 'open', price, months);
     saveUsers();
     audit(req, { username: user.username || '', name: user.nickname || '', role: 'user' },
@@ -16694,6 +16907,13 @@ async function handleApi(req, res, pathname, query) {
       return fail(res, 403, '充值暂未开放，请让管理员在后台打开「允许用户自助充值」');
     }
     const body = await readBody(req);
+    if (requirePaymentRequestId(req, res, body, '充值')) return;
+    const idem = idemBegin(user, body, 'wallet-recharge');
+    if (idem.dup) {
+      if (idem.inflight) return fail(res, 409, '这笔充值正在处理');
+      return ok(res, idem.cached);
+    }
+    if (!payRateAllow(user.id)) return fail(res, 429, '操作太频繁，稍后再试');
     const amount = Math.round((Number(body.amount) || 0) * 100) / 100;
     if (!(amount > 0)) return fail(res, 422, '充值金额要大于 0');
     if (amount < 0.01) return fail(res, 422, '充值金额太小');
@@ -16701,7 +16921,11 @@ async function handleApi(req, res, pathname, query) {
     const list = userBanks(user);
     const bank = list.find((b) => b.id === str(body.bankId, 40)) || list.find((b) => b.isDefault) || list[0] || null;
     const before = Number(user.balance) || 0;
-    applyMoney(user, amount, { reason: '充值到零钱', ref: bank ? bank.tail : '' });
+    applyMoney(user, amount, {
+      reason: '充值到零钱',
+      ref: bank ? bank.tail : '',
+      counterAccount: 'system:external-settlement'
+    });
     saveUsers();
     const op = pushWalletOp({
       id: uid('wop'), userId: user.id, kind: 'recharge', amount,
@@ -16710,7 +16934,9 @@ async function handleApi(req, res, pathname, query) {
     });
     recordSecurity(user.id, req, 'recharge', { note: '充值 ' + amount });
     sendTo(user.id, { type: 'balance', balance: user.balance });
-    ok(res, { recharged: amount, balanceBefore: before, balance: user.balance, op });
+    const payload = { recharged: amount, balanceBefore: before, balance: user.balance, op };
+    idemFinish(idem.key, payload);
+    ok(res, payload);
     return;
   }
 
@@ -16719,6 +16945,13 @@ async function handleApi(req, res, pathname, query) {
     if (blockedByRealName(res, user)) return;
     const rules = readWalletRules();
     const body = await readBody(req);
+    if (requirePaymentRequestId(req, res, body, '提现')) return;
+    const idem = idemBegin(user, body, 'wallet-withdraw');
+    if (idem.dup) {
+      if (idem.inflight) return fail(res, 409, '这笔提现正在处理');
+      return ok(res, idem.cached);
+    }
+    if (!payRateAllow(user.id)) return fail(res, 429, '操作太频繁，稍后再试');
     const amount = Math.round((Number(body.amount) || 0) * 100) / 100;
     if (!(amount > 0)) return fail(res, 422, '提现金额要大于 0');
     if (amount < rules.withdrawMin) return fail(res, 422, '提现最少 ¥' + rules.withdrawMin.toFixed(2));
@@ -16739,7 +16972,11 @@ async function handleApi(req, res, pathname, query) {
       return fail(res, 402, '零钱不够：要提 ¥' + amount.toFixed(2) + '，手续费 ¥' + fee.toFixed(2)
         + '，当前零钱 ¥' + before.toFixed(2));
     }
-    const wd = applyMoney(user, -(amount + fee), { reason: '提现（含手续费 ¥' + fee.toFixed(2) + '）', ref: bank.tail });
+    const wd = applyMoney(user, -(amount + fee), {
+      reason: '提现（含手续费 ¥' + fee.toFixed(2) + '）',
+      ref: bank.tail,
+      counterAccount: 'system:external-settlement'
+    });
     if (wd.error) return fail(res, 402, wd.error);
     saveUsers();
     const op = pushWalletOp({
@@ -16751,10 +16988,12 @@ async function handleApi(req, res, pathname, query) {
     });
     recordSecurity(user.id, req, 'withdraw', { note: '提现 ' + amount + ' 手续费 ' + fee });
     sendTo(user.id, { type: 'balance', balance: user.balance });
-    ok(res, {
+    const payload = {
       amount, fee, balance: user.balance, status: 'pending',
       bankText: op.bankText, expect: rules.withdrawReview ? '已提交，等待管理员审核' : '预计 2 小时内到账'
-    });
+    };
+    idemFinish(idem.key, payload);
+    ok(res, payload);
     return;
   }
 
@@ -16780,7 +17019,10 @@ async function handleApi(req, res, pathname, query) {
     if (!(amount > 0)) return fail(res, 422, '充值金额要大于 0');
     if (amount > 1000000) return fail(res, 422, '单次充值不能超过 1000000');
     const before = Number(user.balance) || 0;
-    applyMoney(user, amount, { reason: '自助充值' });
+    applyMoney(user, amount, {
+      reason: '自助充值',
+      counterAccount: 'system:external-settlement'
+    });
     saveUsers();
     recordSecurity(user.id, req, 'recharge', { note: '充值 ' + amount });
     ok(res, { recharged: amount, balanceBefore: before, balance: user.balance });
@@ -19969,6 +20211,11 @@ function serveStatic(req, res, pathname) {
 
 loadStore();
 loadSecurityState();   // 恢复「登录失败计数 / IP 封禁」（重启也不会被清掉）
+/* 支付账本以追加日志为唯一事实源，启动时从日志重建账户索引。 */
+try { paymentLedger.rebuild(); } catch (error) {
+  paymentLedgerHealthy = false;
+  console.log('[支付账本] 重建失败：' + error.message);
+}
 /* 钱的开工前自检：总账上每个账号最后那笔余额，必须和 users.json 对得上；
    对不上就大声报警（接真钱之前必须先查清，绝不带着不一致继续跑） */
 moneySelfCheck();
@@ -20703,7 +20950,12 @@ const OPS_ROLES = {
   /* 运维（规范）：看服务器监控和日志，不允许操作用户账号。 */
   ops: ['dashboard', 'system', 'ops', 'ops.write', 'audit']
 };
-const OPS_ROLE_NAMES = { super: '超级管理员', auditor: '内容审核运营', support: '客服', ops: '运维' };
+const OPS_ROLE_NAMES = {
+  super: '超级管理员',
+  auditor: '内容审核运营',
+  support: '客服',
+  ops: '运维'
+};
 
 /* ---------------------------------------------------------------- IM 后台配置
    规范里那套「运营配置 / 系统设置」（风控阈值、App 版本、告警、角色权限）
@@ -21288,7 +21540,7 @@ function opsMe(admin) {
 }
 
 function can(admin, perm) {
-  const perms = OPS_ROLES[admin.role] || [];
+  const perms = rolePerms()[admin.role] || [];
   return perms.indexOf(perm) >= 0;
 }
 
@@ -23349,6 +23601,16 @@ async function handleOps(req, res, parts, query) {
     return;
   }
 
+  /* 支付账本对账：余额账户 vs 双边账本，发现差异只报告，不自动改钱。 */
+  if (sub === 'payments' && parts[2] === 'reconcile' && method === 'GET') {
+    if (!can(admin, 'payments')) return fail(res, 403, '你的角色没有查看这一项的权限');
+    const result = paymentLedger.reconcile(db.users, (id) => bizOf(id, false));
+    audit(req, admin, '支付账本对账', 'reconcile',
+      'entries=' + result.entries + ', differences=' + result.differences.length);
+    ok(res, result);
+    return;
+  }
+
   /* 某一笔的详情：完整流水 + 发起设备 IP + 相关审计 */
   if (sub === 'payments' && parts.length === 3 && method === 'GET') {
     if (!can(admin, 'payments')) return fail(res, 403, '你的角色没有查看这一项的权限');
@@ -23393,7 +23655,12 @@ async function handleOps(req, res, parts, query) {
     t.status = 'refunded';
     t.refundedAt = now();
     if (payer) {
-      payer.balance = Math.round(((Number(payer.balance) || 0) + Number(t.amount)) * 100) / 100;
+      const refunded = applyMoney(payer, Number(t.amount), {
+        reason: '管理员撤销待收款转账',
+        ref: t.id,
+        counterAccount: 'system:pending-transfer'
+      });
+      if (refunded.error) return fail(res, 500, refunded.error);
       saveUsers();
       sendTo(payer.id, { type: 'balance', balance: payer.balance });
     }
@@ -24264,7 +24531,12 @@ async function handleOps(req, res, parts, query) {
     if (action === 'fail') {
       /* 退回：本金 + 手续费一起还给用户 */
       if (u) {
-        u.balance = Math.round(((Number(u.balance) || 0) + Number(op.amount || 0) + Number(op.fee || 0)) * 100) / 100;
+        const refunded = applyMoney(u, Number(op.amount || 0) + Number(op.fee || 0), {
+          reason: '提现失败退回',
+          ref: op.id,
+          counterAccount: 'system:external-settlement'
+        });
+        if (refunded.error) return fail(res, 500, refunded.error);
         saveUsers();
         sendTo(u.id, { type: 'balance', balance: u.balance });
       }
@@ -24392,7 +24664,8 @@ async function handleOps(req, res, parts, query) {
     const r = applyMoney(target, amount, {
       reason: amount > 0 ? '后台充值' : '后台扣减',
       ref: admin.username,
-      allowNegative: amount < 0
+      allowNegative: amount < 0,
+      counterAccount: 'system:admin-adjustment'
     });
     if (r.error) return fail(res, 402, r.error);
     saveUsers();

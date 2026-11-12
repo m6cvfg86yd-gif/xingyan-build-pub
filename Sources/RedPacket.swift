@@ -1017,7 +1017,7 @@ struct RedPacketSendView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20).padding(.top, 6)
             }
-            if Biometrics.available {
+            if Biometrics.paymentReady {
                 Button { doSend(password: "", face: true) } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "faceid").font(.system(size: 15, weight: .semibold))
@@ -1247,7 +1247,7 @@ struct PayPasswordSheet: View {
         .presentationDetents([.height(hasPwd ? 452 : 300)])
         .task {
             hasPwd = await API.shared.hasPayPassword()
-            faceOK = Biometrics.available
+            faceOK = Biometrics.paymentReady
         }
     }
 

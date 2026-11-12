@@ -1150,6 +1150,10 @@ struct ChatsView: View {
     @State private var showOfficialAdminEditor = false
     @State private var showOfficialIconPicker = false
     @State private var localOfficialRowAvatar = ""
+    @State private var showPayOfficial = false
+    @State private var showPayOfficialAdminEditor = false
+    @State private var showPayOfficialIconPicker = false
+    @State private var localPayOfficialAvatar = ""
     @State private var showWeatherConversation = false
     @State private var showWeatherAdminEditor = false
     @State private var showWeatherIconPicker = false
@@ -2044,6 +2048,111 @@ struct ChatsView: View {
         return UIConfig.text("weatherRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var payOfficialRowName: String {
+        let custom = UIConfig.text("payOfficialRowName", "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return custom.isEmpty ? Tr("星言支付") : custom
+    }
+
+    private var payOfficialRowSubtitle: String {
+        let fallback = Tr("收付款、账单与支付安全")
+        let custom = UIConfig.text("payOfficialRowSubtitle", "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return custom.isEmpty ? fallback : custom
+    }
+
+    private var payOfficialRowAvatar: String {
+        if !localPayOfficialAvatar.isEmpty { return localPayOfficialAvatar }
+        return UIConfig.text("payOfficialRowAvatar", "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var payOfficialConversationRow: some View {
+        ZStack(alignment: .trailing) {
+            Button {
+                showPayOfficial = true
+            } label: {
+                HStack(spacing: ChatListVisual.avatarGap) {
+                    if payOfficialRowAvatar.isEmpty {
+                        Image(systemName: "creditcard.fill")
+                            .font(.system(size: ChatListVisual.avatarSize * 0.39, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: ChatListVisual.avatarSize,
+                                   height: ChatListVisual.avatarSize)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(hex: 0x21C879), Color(hex: 0x0A84FF)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                in: Circle()
+                            )
+                    } else {
+                        Avatar(path: payOfficialRowAvatar, size: ChatListVisual.avatarSize,
+                               radius: 14, circle: true)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 5) {
+                            Text(payOfficialRowName)
+                                .font(pfStyled(size: 17, weight: .semibold))
+                                .foregroundStyle(OfficialAccountVisual.name)
+                                .lineLimit(1)
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(PayVisual.tint)
+                        }
+                        Text(payOfficialRowSubtitle)
+                            .font(pfStyled(size: 15, weight: .regular))
+                            .foregroundStyle(ChatListVisual.previewInk)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    if app.me?.ops != true {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                            .padding(.trailing, 2)
+                    }
+                }
+                .padding(.leading, ChatListVisual.rowLeading)
+                .padding(.trailing, ChatListVisual.trailing)
+                .frame(height: ChatListVisual.rowHeight)
+                .background(chatsPageFill)
+                .contentShape(Rectangle())
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(ChatListVisual.rule)
+                        .frame(height: 0.5)
+                        .padding(.leading, ChatListVisual.dividerLeading)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(payOfficialRowName)
+            .accessibilityHint(Tr("查看收付款和账单"))
+
+            if app.me?.ops == true {
+                Menu {
+                    Button {
+                        showPayOfficialAdminEditor = true
+                    } label: {
+                        Label(Tr("编辑支付官方号"), systemImage: "square.and.pencil")
+                    }
+                    Button {
+                        showPayOfficialIconPicker = true
+                    } label: {
+                        Label(Tr("更换头像"), systemImage: "photo.badge.plus")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle.fill")
+                        .font(.system(size: 21, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 38, height: 38)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .padding(.trailing, 12)
+                .accessibilityLabel(Tr("管理支付官方号"))
+            }
+        }
+    }
+
     private var weatherConversationRow: some View {
         ZStack(alignment: .trailing) {
             Button {
@@ -2160,6 +2269,8 @@ struct ChatsView: View {
                         chatsSearchBar
                         officialConversationRow
                             .frame(width: chatsContentMaxWidth)
+                        payOfficialConversationRow
+                            .frame(width: chatsContentMaxWidth)
                         weatherConversationRow
                             .frame(width: chatsContentMaxWidth)
                         emptyView
@@ -2173,6 +2284,8 @@ struct ChatsView: View {
                                               + chatFilterOffset)
                             chatsSearchBar
                             officialConversationRow
+                                .frame(width: chatsContentMaxWidth)
+                            payOfficialConversationRow
                                 .frame(width: chatsContentMaxWidth)
                             if snapshot.list.isEmpty {
                                 Text(Tr("这个分类暂时没有会话"))
@@ -2368,6 +2481,7 @@ struct ChatsView: View {
             .onAppear {
                 cachedSnapshot = chatSnapshot()
                 localOfficialRowAvatar = UserDefaults.standard.string(forKey: "chris.accountIcon.officialRowAvatar") ?? ""
+                localPayOfficialAvatar = UserDefaults.standard.string(forKey: "chris.accountIcon.payOfficialRowAvatar") ?? ""
                 localWeatherRowAvatar = UserDefaults.standard.string(forKey: "chris.accountIcon.weatherRowAvatar") ?? ""
             }
             .onChange(of: app.chats) { _ in cachedSnapshot = chatSnapshot() }
@@ -2393,6 +2507,12 @@ struct ChatsView: View {
             }
             .navigationDestination(isPresented: $showOfficialConversation) {
                 OfficialNoticeCenterView().environmentObject(app)
+            }
+            .navigationDestination(isPresented: $showPayOfficial) {
+                PayOfficialView(name: payOfficialRowName,
+                                subtitle: payOfficialRowSubtitle,
+                                avatar: payOfficialRowAvatar)
+                    .environmentObject(app)
             }
             .navigationDestination(isPresented: $showWeatherConversation) {
                 WeatherOfficialView(name: weatherRowName,
@@ -2488,6 +2608,23 @@ struct ChatsView: View {
                 }
             }
         }
+        .sheet(isPresented: $showPayOfficialAdminEditor) {
+            OfficialRowAdminEditor(name: payOfficialRowName,
+                                   subtitle: payOfficialRowSubtitle,
+                                   nameKey: "payOfficialRowName",
+                                   subtitleKey: "payOfficialRowSubtitle",
+                                   screenTitle: Tr("编辑支付官方号"))
+                .environmentObject(app)
+        }
+        .sheet(isPresented: $showPayOfficialIconPicker) {
+            PhotoPicker { image in
+                Task {
+                    await saveAccountIcon(image,
+                                          key: "payOfficialRowAvatar",
+                                          success: Tr("支付官方号头像已更新"))
+                }
+            }
+        }
         .sheet(isPresented: $showWeatherAdminEditor) {
             OfficialRowAdminEditor(name: weatherRowName,
                                    subtitle: weatherRowSubtitle,
@@ -2565,12 +2702,14 @@ struct ChatsView: View {
     private func rememberLocalAccountIcon(_ key: String, _ value: String) {
         UserDefaults.standard.set(value, forKey: "chris.accountIcon." + key)
         if key == "officialRowAvatar" { localOfficialRowAvatar = value }
+        if key == "payOfficialRowAvatar" { localPayOfficialAvatar = value }
         if key == "weatherRowAvatar" { localWeatherRowAvatar = value }
     }
 
     private func clearLocalAccountIcon(_ key: String) {
         UserDefaults.standard.removeObject(forKey: "chris.accountIcon." + key)
         if key == "officialRowAvatar" { localOfficialRowAvatar = "" }
+        if key == "payOfficialRowAvatar" { localPayOfficialAvatar = "" }
         if key == "weatherRowAvatar" { localWeatherRowAvatar = "" }
     }
 

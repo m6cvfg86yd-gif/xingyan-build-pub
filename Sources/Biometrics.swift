@@ -3,6 +3,9 @@ import LocalAuthentication
 
 enum Biometrics {
 
+    /// 未完成服务端 challenge/验签前，面容只能用于本机解锁，不能作为真实支付授权。
+    static let paymentReady = false
+
     static var available: Bool {
         var err: NSError?
         let ok = context().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &err)

@@ -434,13 +434,13 @@ struct PayConfirmPage: View {
                                         if clean != v { password = clean }
                                     }
 
-                                if Biometrics.available {
+                                if Biometrics.paymentReady {
                                     Divider().overlay(PayVisual.separator)
                                     Button {
                                         Task { await biometricPay() }
                                     } label: {
                                         Label(Tr("使用") + Biometrics.label + Tr("支付"),
-                                              systemImage: Biometrics.available ? "faceid" : "touchid")
+                                              systemImage: Biometrics.paymentReady ? "faceid" : "touchid")
                                             .font(pf(15.5, .semibold))
                                             .foregroundColor(PayVisual.tint)
                                             .frame(maxWidth: .infinity)
