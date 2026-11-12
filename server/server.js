@@ -2738,7 +2738,46 @@ const saveFriendships = () => {
   writeJson(path.join(DATA_DIR, 'friendships.json'), { friendships: db.friendships });
   friendshipsDiskSignature = friendshipsFileSignature();
 };
-const saveChats = () => writeJson(path.join(DATA_DIR, 'chats.json'), { chats: db.chats });
+let chatsAccessSignature = '';
+
+function chatsAccessStorageSignature() {
+  try {
+    const st = fs.statSync(path.join(DATA_DIR, 'chats.json'), { bigint: true });
+    return String(st.size) + ':' + String(st.mtimeNs);
+  } catch (_) {
+    return '';
+  }
+}
+
+function refreshChatAccessStateFromDisk(force) {
+  const signature = chatsAccessStorageSignature();
+  if (!signature || (!force && signature === chatsAccessSignature)) return false;
+  try {
+    const raw = readJson(path.join(DATA_DIR, 'chats.json'), { chats: [] });
+    const disk = new Map((Array.isArray(raw.chats) ? raw.chats : []).map((chat) => [chat.id, chat]));
+    db.chats.forEach((chat) => {
+      const latest = disk.get(chat.id);
+      if (!latest) return;
+      chat.hiddenFor = Array.isArray(latest.hiddenFor) ? latest.hiddenFor.slice() : [];
+      chat.dismissed = !!latest.dismissed;
+      chat.memberIds = Array.isArray(latest.memberIds) ? latest.memberIds.slice() : [];
+      chat.ownerId = latest.ownerId || '';
+      chat.name = latest.name || '';
+      chat.avatar = latest.avatar || '';
+      if (latest.friendshipRemovedAt) chat.friendshipRemovedAt = latest.friendshipRemovedAt;
+      else delete chat.friendshipRemovedAt;
+    });
+    chatsAccessSignature = signature;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+const saveChats = () => {
+  writeJson(path.join(DATA_DIR, 'chats.json'), { chats: db.chats });
+  chatsAccessSignature = chatsAccessStorageSignature();
+};
 const saveReads = () => writeJson(path.join(DATA_DIR, 'reads.json'), { reads: db.reads, cleared: db.cleared || {} });
 const saveDelivered = () => writeJson(path.join(DATA_DIR, 'delivered.json'), { delivered: db.delivered });
 /* 高频写入用这两个：先打标记，攒到定时器里再落盘（压测发现每发一条消息
@@ -2803,7 +2842,10 @@ function burnSweepAll() {
 setInterval(() => {
   try { burnSweepAll(); } catch (err) { /* 绝不因为这一下把服务弄挂 */ }
 }, 5000).unref();      // 5 秒扫一遍（20 秒的期限不能被扫描间隔拖长）
-const saveMoments = () => writeJson(path.join(DATA_DIR, 'moments.json'), { moments: db.moments });
+const saveMoments = () => {
+  writeJson(path.join(DATA_DIR, 'moments.json'), { moments: db.moments });
+  momentsDiskSignature = momentsStorageSignature();
+};
 const saveMomentViews = () => writeJson(path.join(DATA_DIR, 'moment-views.json'), { views: db.momentViews });
 const saveMomentNotices = () => writeJson(path.join(DATA_DIR, 'moment-notices.json'),
   { items: db.momentNotices.slice(-2000), seen: db.momentNoticeSeen });
@@ -2860,7 +2902,34 @@ const saveWallet = () => writeJson(path.join(DATA_DIR, WALLET_FILE), { wallet: d
 const saveBalancePage = () => writeJson(path.join(DATA_DIR, BALANCE_FILE), { page: db.balancePage });
 const saveBillsPage = () => writeJson(path.join(DATA_DIR, BILLS_FILE), { page: db.billsPage });
 const saveFaceRooms = () => writeJson(path.join(DATA_DIR, 'face-rooms.json'), { rooms: db.faceRooms });
-const saveTransfers = () => writeSecureJsonStore('transfers.json', { transfers: db.transfers });
+let transfersDiskSignature = '';
+
+function transfersStorageSignature() {
+  try {
+    const st = fs.statSync(path.join(DATA_DIR, 'transfers.json'), { bigint: true });
+    return String(st.size) + ':' + String(st.mtimeNs);
+  } catch (_) {
+    return '';
+  }
+}
+
+function refreshTransfersFromDisk(force) {
+  const signature = transfersStorageSignature();
+  if (!signature || (!force && signature === transfersDiskSignature)) return false;
+  try {
+    const raw = readSecureJsonStore('transfers.json', { transfers: [] });
+    db.transfers = Array.isArray(raw.transfers) ? raw.transfers : [];
+    transfersDiskSignature = signature;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+const saveTransfers = () => {
+  writeSecureJsonStore('transfers.json', { transfers: db.transfers });
+  transfersDiskSignature = transfersStorageSignature();
+};
 const saveRedPackets = () => writeSecureJsonStore('redpackets.json', { redpackets: db.redpackets });
 const saveSecurity = () => writeJson(path.join(DATA_DIR, 'logins.json'), { logins: db.security.logins, events: db.security.events });
 
@@ -2872,6 +2941,44 @@ const saveSecurity = () => writeJson(path.join(DATA_DIR, 'logins.json'), { login
 const MOMENTS_LOG = 'moments-log.jsonl';
 const momentsLogPath = () => path.join(DATA_DIR, MOMENTS_LOG);
 let momentsLogCount = 0;
+let momentsDiskSignature = '';
+
+function momentsStorageSignature() {
+  const fileSig = (file) => {
+    try {
+      const st = fs.statSync(file, { bigint: true });
+      return String(st.size) + ':' + String(st.mtimeNs);
+    } catch (_) {
+      return '-';
+    }
+  };
+  return fileSig(path.join(DATA_DIR, 'moments.json')) + '|' + fileSig(momentsLogPath());
+}
+
+function refreshMomentsFromDisk(force) {
+  const signature = momentsStorageSignature();
+  if (!signature || (!force && signature === momentsDiskSignature)) return false;
+  const rows = new Map();
+  try {
+    const base = readJson(path.join(DATA_DIR, 'moments.json'), { moments: [] });
+    (Array.isArray(base.moments) ? base.moments : []).forEach((m) => {
+      if (m && m.id) rows.set(m.id, m);
+    });
+  } catch (_) { /* keep trying log */ }
+  try {
+    fs.readFileSync(momentsLogPath(), 'utf8').split('\n').forEach((line) => {
+      if (!line.trim()) return;
+      try {
+        const m = JSON.parse(line);
+        if (m && m.id && !rows.has(m.id)) rows.set(m.id, m);
+      } catch (_) { /* skip bad line */ }
+    });
+  } catch (_) { /* no log yet */ }
+  db.moments = Array.from(rows.values())
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  momentsDiskSignature = signature;
+  return true;
+}
 
 function replayMomentsLog() {
   let added = 0;
@@ -2903,6 +3010,7 @@ function appendMoment(moment) {
     momentsLogCount++;
   } catch (err) { /* 写不进日志就让下次整体保存兜底 */ }
   db.moments.unshift(moment);
+  momentsDiskSignature = momentsStorageSignature();
 }
 
 /* --------------------------------------------------- 转账单（待收款 / 24 小时退回）
@@ -6036,6 +6144,7 @@ function friendshipBetween(a, b) {
 }
 
 function friendIds(userId) {
+  refreshFriendshipsFromDisk(false);
   return db.friendships
     .filter((f) => f.status === 'accepted' && (f.fromId === userId || f.toId === userId))
     .map((f) => (f.fromId === userId ? f.toId : f.fromId));
@@ -6185,6 +6294,7 @@ function sysNotice(userId, text, title, type) {
 }
 
 function directChatBetween(a, b) {
+  refreshChatAccessStateFromDisk(false);
   // 自己和自己（名片里的「发消息」）：必须两边都是自己，否则会误匹配到别人的单聊
   if (a === b) {
     return db.chats.find((c) =>
@@ -6223,7 +6333,9 @@ function openChatForFriendship(aId, bId) {
 }
 
 // 删掉会话只是「对我隐藏」，对方那边不受影响；来了新消息会自动回到列表
-const chatsOf = (userId) => db.chats.filter((c) => {
+const chatsOf = (userId) => {
+  refreshChatAccessStateFromDisk(false);
+  return db.chats.filter((c) => {
   if (!c.memberIds.includes(userId)) return false;
   if ((c.hiddenFor || []).includes(userId)) return false;
   /* 「在线客服」不占会话列表：它有独立的客服页面（聊天记录还在，客服页照常收发） */
@@ -6236,8 +6348,9 @@ const chatsOf = (userId) => db.chats.filter((c) => {
        但它们**必须**出现在会话列表里（订阅了就该看到）——所以这里排除掉。 */
     if (peer && peer.service && !peer.oaId && !peer.oaDigest) return false;
   }
-  return true;
-});
+    return true;
+  });
+};
 
 function lastReadSeq(userId, chatId) {
   const per = db.reads[userId];
@@ -6606,6 +6719,7 @@ function visibleMoment(m, viewerId) {
     likes: (m.likes || []).filter((l) => __canSeeInteract(l.userId)).map((l) => ({
       userId: l.userId,
       nickname: displayNameFor(viewerId, findUser(l.userId)),
+      avatar: findUser(l.userId)?.avatar || '',
       at: l.at
     })),
     likedByMe: (m.likes || []).some((l) => l.userId === viewerId),
@@ -6613,12 +6727,14 @@ function visibleMoment(m, viewerId) {
       id: c.id,
       userId: c.userId,
       nickname: displayNameFor(viewerId, findUser(c.userId)),
+      avatar: findUser(c.userId)?.avatar || '',
       replyToName: c.replyTo ? displayNameFor(viewerId, findUser(c.replyTo)) : '',
       content: c.content,
       at: c.at,
       likes: (c.likes || []).filter((l) => __canSeeInteract(l.userId)).map((l) => ({
         userId: l.userId,
         nickname: displayNameFor(viewerId, findUser(l.userId)),
+        avatar: findUser(l.userId)?.avatar || '',
         at: l.at
       })),
       likedByMe: (c.likes || []).some((l) => l.userId === viewerId)
@@ -7163,6 +7279,7 @@ const FRIEND_META_FILE = path.join(DATA_DIR, 'friendmeta.json');
 const FRIEND_REMOVALS_FILE = path.join(DATA_DIR, 'friend-removals.json');
 let friendRemovalCache = { signature: '', pairs: {} };
 let friendMetaCache = null;
+let friendMetaSignature = '';
 
 function friendPairKey(a, b) {
   return [String(a || ''), String(b || '')].sort().join('|');
@@ -7205,16 +7322,26 @@ function friendPairWasRemoved(a, b) {
 }
 
 function readFriendMeta() {
-  if (friendMetaCache) return friendMetaCache;
+  let signature = '';
+  try {
+    const st = fs.statSync(FRIEND_META_FILE, { bigint: true });
+    signature = String(st.size) + ':' + String(st.mtimeNs);
+  } catch (_) { signature = ''; }
+  if (friendMetaCache && signature && signature === friendMetaSignature) return friendMetaCache;
   let raw = {};
   try { raw = JSON.parse(fs.readFileSync(FRIEND_META_FILE, 'utf8')); } catch (e) { raw = {}; }
   friendMetaCache = { byOwner: (raw && typeof raw.byOwner === 'object' && raw.byOwner) ? raw.byOwner : {} };
+  friendMetaSignature = signature;
   return friendMetaCache;
 }
 
 function saveFriendMeta() {
   if (!friendMetaCache) return;
-  try { writeJson(FRIEND_META_FILE, friendMetaCache); } catch (e) { }
+  try {
+    writeJson(FRIEND_META_FILE, friendMetaCache);
+    const st = fs.statSync(FRIEND_META_FILE, { bigint: true });
+    friendMetaSignature = String(st.size) + ':' + String(st.mtimeNs);
+  } catch (e) { }
 }
 
 /** 我对某个人设的资料（没人设过就返回空对象） */
@@ -8314,6 +8441,7 @@ function directFriendMessageError(user, chatId) {
 
 function deliverMessage(user, chatId, kind, content, clientId, mentionHint, mediaExtra) {
   if (user.banned) return { error: '账号已被管理员禁用，无法发送消息' };
+  refreshChatAccessStateFromDisk(false);
   const chat = db.chats.find((c) => c.id === chatId);
   if (!chat) return { error: '会话不存在' };
   if (!chat.memberIds.includes(user.id)) return { error: '你不在这个会话里' };
@@ -13842,6 +13970,7 @@ async function handleApi(req, res, pathname, query) {
      items = 后台内置的（data/feed.json），posts = 用户自己发的；
      点赞/评论都落在同一个文件里，重启不丢。 */
   if (parts[0] === 'feed' && method === 'GET') {
+    refreshMomentsFromDisk(false);
     const user = currentUser(req);
     if (!user) return fail(res, 401, '请先登录');
     const f = readJson(path.join(DATA_DIR, 'feed.json'), { items: [], posts: [] });
@@ -16834,6 +16963,7 @@ async function handleApi(req, res, pathname, query) {
 
   /* 收款：对方点「收钱」，钱才真正进他余额 */
   if (parts[0] === 'transfers' && parts[2] === 'claim' && method === 'POST') {
+    refreshTransfersFromDisk(false);
     const tr = db.transfers.find((x) => x.id === str(parts[1], 60));
     if (!tr) return fail(res, 404, '转账单不存在');
     if (tr.toId !== user.id) return fail(res, 403, '这笔转账不是给你的');
@@ -18625,7 +18755,7 @@ async function handleApi(req, res, pathname, query) {
     sendTo(user.id, { type: 'friend', action: 'removed', userId: target.id });
     /* 对端也立即刷新，不再等客户端每 10 秒拉通讯录。 */
     sendTo(target.id, { type: 'friend', action: 'removed', userId: user.id });
-    ok(res, { removed: true });
+    ok(res, { removed: true, alreadyRemoved: !removedRelationship });
     return;
   }
 
@@ -18850,6 +18980,7 @@ async function handleApi(req, res, pathname, query) {
 
   // 置顶 / 取消置顶会话（只对自己生效，QQ 右键菜单里的「置顶会话」）
   if (parts[0] === 'chats' && parts[2] === 'pin' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat) return fail(res, 404, '会话不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个会话里');
@@ -18871,6 +19002,7 @@ async function handleApi(req, res, pathname, query) {
 
   // 删除会话：只从自己的列表里移除（对齐微信的删除聊天），对方不受影响
   if (parts[0] === 'chats' && parts.length === 2 && method === 'DELETE') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat) return fail(res, 404, '会话不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个会话里');
@@ -19078,6 +19210,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'chats' && parts[2] === 'messages' && method === 'GET') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat || !chat.memberIds.includes(user.id)) return fail(res, 404, '会话不存在');
     const limit = Math.min(100, Math.max(1, Number(query.get('limit')) || 30));
@@ -19216,6 +19349,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'chats' && parts[2] === 'read' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat || !chat.memberIds.includes(user.id)) return fail(res, 404, '会话不存在');
     const messages = loadMessages(chat.id);
@@ -19278,6 +19412,7 @@ async function handleApi(req, res, pathname, query) {
      自己的随时能改；改别人的只有群主（微信的规矩）。
      传空字符串 = 取消群昵称。 */
   if (parts[0] === 'chats' && parts[2] === 'alias' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat || chat.type !== 'group') return fail(res, 404, '群聊不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个群里');
@@ -19409,6 +19544,7 @@ async function handleApi(req, res, pathname, query) {
 
   /* 群禁言：全员禁言 / 单独禁言某个人（只有群主能开） */
   if (parts[0] === 'chats' && parts[2] === 'muteall' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat) return fail(res, 404, '会话不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个会话里');
@@ -19423,6 +19559,7 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
   if (parts[0] === 'chats' && parts[2] === 'mutemember' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat) return fail(res, 404, '会话不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个会话里');
@@ -19443,6 +19580,7 @@ async function handleApi(req, res, pathname, query) {
 
   // 改群名称、群公告：只有群主能改
   if (parts[0] === 'chats' && parts[2] === 'info' && method === 'PATCH') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat) return fail(res, 404, '会话不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个会话里');
@@ -19555,6 +19693,7 @@ async function handleApi(req, res, pathname, query) {
   /* 群加人：群里任何一个成员都能拉人进来（微信默认也是这样），群上限 500。
      注意路径不能用 invite —— 那个已经被「群二维码/邀请码」占用了。 */
   if (parts[0] === 'chats' && parts[2] === 'add-members' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat) return fail(res, 404, '会话不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个会话里');
@@ -19598,6 +19737,7 @@ async function handleApi(req, res, pathname, query) {
 
   // 群踢人：群主把某个成员移出群聊
   if (parts[0] === 'chats' && parts[2] === 'kick' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat) return fail(res, 404, '会话不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个会话里');
@@ -19621,6 +19761,7 @@ async function handleApi(req, res, pathname, query) {
 
   // 退出群聊：群主退群就顺位把群主交给下一个人
   if (parts[0] === 'chats' && parts[2] === 'leave' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat) return fail(res, 404, '会话不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个会话里');
@@ -19647,6 +19788,7 @@ async function handleApi(req, res, pathname, query) {
 
   // 解散群聊：只有群主
   if (parts[0] === 'chats' && parts[2] === 'dismiss' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat) return fail(res, 404, '会话不存在');
     if (!chat.memberIds.includes(user.id)) return fail(res, 403, '你不在这个会话里');
@@ -19690,6 +19832,7 @@ async function handleApi(req, res, pathname, query) {
 
   // 清空聊天记录：只清自己这边的，别人不受影响
   if (parts[0] === 'chats' && parts[2] === 'clear' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat || !chat.memberIds.includes(user.id)) return fail(res, 404, '会话不存在');
     const messages = loadMessages(chat.id);
@@ -19705,6 +19848,7 @@ async function handleApi(req, res, pathname, query) {
 
   // 标为未读：把已读位置退回一条，这样最后一条又算未读（QQ / 微信左滑里的「标为未读」）
   if (parts[0] === 'chats' && parts[2] === 'unread' && method === 'POST') {
+    refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat || !chat.memberIds.includes(user.id)) return fail(res, 404, '会话不存在');
     const messages = loadMessages(chat.id);
@@ -19938,6 +20082,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'moments' && parts[1] === 'notices' && parts.length === 2 && method === 'GET') {
+    refreshMomentsFromDisk(false);
     const limit = Math.min(100, Math.max(1, Number(query.get('limit')) || 60));
     const mine = db.momentNotices.filter((r) => r.toUserId === user.id);
     /* 动态被删掉的那种通知不再显示（微信删了动态，消息列表里那条也点不开） */
@@ -19949,6 +20094,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'moments' && method === 'GET' && parts.length === 1) {
+    refreshMomentsFromDisk(false);
     const limit = Math.min(50, Math.max(1, Number(query.get('limit')) || 20));
     const before = str(query.get('before'), 40);
     const beforeId = str(query.get('beforeId'), 40);
@@ -20029,6 +20175,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'moments' && method === 'POST' && parts.length === 1) {
+    refreshMomentsFromDisk(false);
     if (!momentRateAllow(user.id)) {
       return fail(res, 429, '发朋友圈太频繁了（1 分钟最多 20 条）');
     }
@@ -20090,6 +20237,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'moments' && method === 'POST' && parts[2] === 'like') {
+    refreshMomentsFromDisk(false);
     const m = db.moments.find((x) => x.id === parts[1]);
     if (!m) return fail(res, 404, '动态不存在');
     if (!momentAudience(m.authorId).includes(user.id)) return fail(res, 403, '看不到这条动态');
@@ -20118,6 +20266,7 @@ async function handleApi(req, res, pathname, query) {
 
   /* 置顶 / 取消置顶自己发的动态：置顶的固定排在朋友圈最上面 */
   if (parts[0] === 'moments' && method === 'POST' && parts[2] === 'pin') {
+    refreshMomentsFromDisk(false);
     const m = db.moments.find((x) => x.id === parts[1]);
     if (!m) return fail(res, 404, '动态不存在');
     if (m.authorId !== user.id) return fail(res, 403, '只能置顶自己的动态');
@@ -20135,6 +20284,7 @@ async function handleApi(req, res, pathname, query) {
 
   /* 删评论：只能删自己发的；动态作者可以删自己动态下的任何评论（微信那套） */
   if (parts[0] === 'moments' && method === 'DELETE' && parts[2] === 'comments' && parts.length === 4) {
+    refreshMomentsFromDisk(false);
     const m = db.moments.find((x) => x.id === parts[1]);
     if (!m) return fail(res, 404, '动态不存在');
     const idx = (m.comments || []).findIndex((c) => c.id === parts[3]);
@@ -20157,6 +20307,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'moments' && method === 'POST' && parts[2] === 'comments' && parts[4] === 'like') {
+    refreshMomentsFromDisk(false);
     const m = db.moments.find((x) => x.id === parts[1]);
     if (!m) return fail(res, 404, '动态不存在');
     if (!momentAudience(m.authorId).includes(user.id)) return fail(res, 403, '看不到这条动态');
@@ -20187,6 +20338,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'moments' && method === 'POST' && parts[2] === 'comments' && parts.length === 3) {
+    refreshMomentsFromDisk(false);
     const m = db.moments.find((x) => x.id === parts[1]);
     if (!m) return fail(res, 404, '动态不存在');
     if (!momentAudience(m.authorId).includes(user.id)) return fail(res, 403, '看不到这条动态');
@@ -20223,6 +20375,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'moments' && method === 'DELETE' && parts.length === 2) {
+    refreshMomentsFromDisk(false);
     const idx = db.moments.findIndex((x) => x.id === parts[1]);
     if (idx === -1) return fail(res, 404, '动态不存在');
     if (db.moments[idx].authorId !== user.id) return fail(res, 403, '只能删除自己发的动态');
