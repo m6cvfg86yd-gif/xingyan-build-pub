@@ -2534,16 +2534,6 @@ struct PhotoPager: View {
         ZStack {
 
             Color.black.ignoresSafeArea()
-            if let p = currentPath {
-                RemoteImage(path: p, mode: .fill, maxSide: 600)
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .clipped()
-                    .blur(radius: 34)
-                    .opacity(0.55)
-                    .overlay(Color.black.opacity(0.18))
-                    .ignoresSafeArea()
-                    .animation(.easeOut(duration: 0.2), value: index)
-            }
 
             TabView(selection: $index) {
                 ForEach(paths.indices, id: \.self) { i in
@@ -2577,17 +2567,15 @@ struct PhotoPager: View {
                 Spacer(minLength: 0)
                 if saved || paths.count > 1 {
                     Text(saved ? Tr("已保存到相册") : "\(index + 1) / \(paths.count)")
-                        .font(pfExact(showActions ? 13 : 14))
+                        .font(pfExact(showActions ? 12.5 : 14, .medium))
                         .foregroundColor(.white.opacity(0.92))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background {
-                            GlassBackground(shape: Capsule(style: .continuous), shadow: true)
-                        }
-                        .padding(.bottom, showActions ? 10 : 26)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.black.opacity(0.34),
+                                    in: Capsule(style: .continuous))
+                        .padding(.bottom, showActions ? max(16, L.safeBottom + 6) : 26)
                         .transition(.opacity.combined(with: .scale(scale: 0.94)))
                 }
-                if showActions { actionBar }
             }
             .opacity(showActions && !chromeVisible ? 0 : 1)
             .allowsHitTesting(!showActions || chromeVisible)
@@ -2599,6 +2587,7 @@ struct PhotoPager: View {
         }
         .onChange(of: index) { _ in revealChrome() }
         .onDisappear { hideChromeTask?.cancel() }
+        .statusBarHidden(showActions && !chromeVisible)
 
         .sheet(isPresented: $showForward) {
             if let p = currentPath {
@@ -2611,21 +2600,38 @@ struct PhotoPager: View {
     }
 
     private var topBar: some View {
-        HStack {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: 40, height: 40)
-                .contentShape(Circle())
-                .background { NativeGlassCircleBackground() }
-                .highPriorityGesture(TapGesture().onEnded { closePager() })
-                .accessibilityAddTraits(.isButton)
-                .accessibilityLabel(Tr("返回"))
-                .zIndex(20)
+        HStack(spacing: 2) {
+            chromeButton("chevron.left", label: Tr("返回")) {
+                closePager()
+            }
+
             Spacer(minLength: 0)
+
+            chromeButton(saved ? "checkmark" : "arrow.down.to.line",
+                         label: saved ? Tr("已保存") : Tr("保存")) {
+                save(index)
+            }
+
+            chromeButton("square.and.arrow.up", label: Tr("分享")) {
+                shareCurrent()
+            }
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
+        .padding(.horizontal, 8)
+        .padding(.top, 4)
+    }
+
+    private func chromeButton(_ symbol: String,
+                              label: String,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     private func closePager() {
