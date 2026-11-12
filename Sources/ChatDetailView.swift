@@ -1012,13 +1012,11 @@ struct ChatDetailView: View {
     }
 
     private var whatsAppChatSubtitle: String {
-        if loadingAllGroupHistory { return navTitleShown }
+        if loadingAllGroupHistory { return navTitle }
         if !peerTyping.isEmpty {
             return isGroup ? "有人正在输入…" : "对方正在输入…"
         }
-        let context = isGroup ? liveChat.name : navTitle
-        let status = chatNavigationStatus.trimmingCharacters(in: .whitespacesAndNewlines)
-        return status.isEmpty ? context : context + " · " + status
+        return chatNavigationStatus.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var navAvatarPath: String {
@@ -1034,30 +1032,28 @@ struct ChatDetailView: View {
                navAvatarPath.isEmpty || navAvatarPath.contains("/uploads/group-") {
                 GroupAvatarMosaic(chatId: liveChat.id,
                                   memberIds: liveChat.memberIds ?? [],
-                                  size: 34, radius: 17)
+                                  size: 38, radius: 19)
             } else {
-                Avatar(path: navAvatarPath, size: 34, radius: 17,
+                Avatar(path: navAvatarPath, size: 38, radius: 19,
                        circle: true, group: isGroup)
             }
         }
-        .frame(width: 34, height: 34)
+        .frame(width: 38, height: 38)
         .clipShape(Circle())
     }
 
     private var whatsAppChatHeader: some View {
         let hideChrome = false
-        let title = "Star chat"
+        let title = loadingAllGroupHistory ? Tr("正在同步全部消息…") : navTitle
 
         return HStack(spacing: 0) {
             if let back = navBackAction {
                 Button(action: back) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.system(size: 19, weight: .medium))
                         .foregroundStyle(adaptiveTopInk)
-                        .shadow(color: adaptiveTopOutline, radius: 0.8,
-                                x: 0.5, y: 0)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+                        .frame(width: 42, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Tr("返回"))
@@ -1073,22 +1069,21 @@ struct ChatDetailView: View {
                 Button {
                     if isGroup { showGroupInfo = true } else { showChatInfo = true }
                 } label: {
-                    HStack(spacing: 9) {
+                    HStack(spacing: 10) {
                         whatsAppChatAvatar
 
-                        VStack(alignment: .leading, spacing: 1) {
-                            HStack(spacing: 4) {
-                                Text(title)
-                                    .font(pf(16.5, .semibold))
-                                    .foregroundStyle(adaptiveTopAccent)
-                                    .lineLimit(1)
-                            }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(title)
+                                .font(pf(17, .semibold))
+                                .foregroundStyle(adaptiveTopInk)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
 
                             if !whatsAppChatSubtitle.isEmpty {
                                 Text(whatsAppChatSubtitle)
-                                    .font(pf(11.5, .regular))
-                                    .foregroundColor(adaptiveTopInk.opacity(
-                                        topBarUsesLightInk ? 0.96 : 0.88
+                                    .font(pf(12.5, .regular))
+                                    .foregroundStyle(adaptiveTopInk.opacity(
+                                        topBarUsesLightInk ? 0.78 : 0.72
                                     ))
                                     .lineLimit(1)
                             }
@@ -1105,11 +1100,11 @@ struct ChatDetailView: View {
                     showCallChoice = true
                 } label: {
                     Image(systemName: "phone.fill")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
+                        .frame(width: 32, height: 32)
                         .background(Circle().fill(C.red))
-                        .frame(width: 44, height: 44)
+                        .frame(width: 42, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -1148,9 +1143,9 @@ struct ChatDetailView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(adaptiveTopInk)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 42, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -1159,6 +1154,7 @@ struct ChatDetailView: View {
                 Spacer(minLength: 0)
             }
         }
+        .padding(.leading, 2)
         .padding(.trailing, 2)
         .frame(height: L.navH)
         .animation(.easeOut(duration: 0.18), value: hideChrome)
