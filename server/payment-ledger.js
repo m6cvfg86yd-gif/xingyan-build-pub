@@ -27,6 +27,8 @@ class PaymentLedger {
     this.uid = options.uid;
     this.now = options.now;
     this.state = this.loadState();
+    this.references = new Map();
+    this.indexReferences();
   }
 
   journalPath() {
@@ -135,7 +137,25 @@ class PaymentLedger {
       /* 日志已经 fsync 成功，状态只是索引；下次启动会从日志重建。 */
       this.lastStateError = String(error && error.message || error);
     }
+    if (record.ref) this.references.set(String(record.ref), record);
     return record;
+  }
+
+  recordOnce(meta, postings) {
+    const ref = String(meta && meta.ref || '');
+    if (!ref) throw new Error('idempotent ledger record requires ref');
+    const existing = this.references.get(ref);
+    if (existing) return { duplicate: true, record: existing };
+    const record = this.record(meta, postings);
+    this.references.set(ref, record);
+    return { duplicate: false, record };
+  }
+
+  indexReferences() {
+    this.references = new Map();
+    for (const record of this.readEntries()) {
+      if (record && record.ref) this.references.set(String(record.ref), record);
+    }
   }
 
   hashRecord(record) {
@@ -231,6 +251,7 @@ class PaymentLedger {
     }
     this.state = state;
     this.writeState(this.stateName, state);
+    this.indexReferences();
     return state;
   }
 

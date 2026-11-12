@@ -128,6 +128,38 @@ assert.strictEqual(ledger.accountBalance('user:payee'), 0);
 assert.strictEqual(ledger.accountBalance('user:payer'), 50);
 assert.strictEqual(ledger.accountBalance('system:wallet-transfer-clearing'), 0);
 
+const firstOnce = ledger.recordOnce({
+  userId: 'payer',
+  before: 50,
+  after: 45,
+  reason: '幂等扣款',
+  ref: 'idempotent-capture-1'
+}, [
+  { account: 'user:payer', delta: -5 },
+  { account: 'merchant:shop', delta: 5 }
+]);
+const secondOnce = ledger.recordOnce({
+  userId: 'payer',
+  before: 50,
+  after: 45,
+  reason: '幂等扣款',
+  ref: 'idempotent-capture-1'
+}, [
+  { account: 'user:payer', delta: -5 },
+  { account: 'merchant:shop', delta: 5 }
+]);
+assert.strictEqual(firstOnce.duplicate, false);
+assert.strictEqual(secondOnce.duplicate, true);
+assert.strictEqual(secondOnce.record.id, firstOnce.record.id);
+assert.strictEqual(ledger.accountBalance('user:payer'), 45);
+assert.strictEqual(ledger.accountBalance('merchant:shop'), 5);
+ledger.apply({
+  userId: 'payer',
+  before: 45,
+  after: 50,
+  counterAccount: 'merchant:shop'
+}, 5, '测试恢复余额', 'idempotent-test-reversal');
+
 const rebuilt = new PaymentLedger({
   dataDir: dir,
   openSealed: (_name, value) => value,
