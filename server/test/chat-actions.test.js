@@ -253,6 +253,14 @@ async function main() {
       accept: true
     });
     assert.equal(response.status, 200, JSON.stringify(response.data));
+    response = await call(base, alice.cookie, 'POST',
+      '/api/chats/' + directId + '/messages',
+      { kind: 'text', content: '重新添加好友后恢复聊天' });
+    assert.equal(response.status, 200,
+      '重新添加好友后必须恢复发送：' + JSON.stringify(response.data));
+    response = await call(base, alice.cookie, 'GET', '/api/chats');
+    assert.ok((response.data.chats || []).some((chat) => chat.id === directId),
+      '重新添加好友后会话必须回到列表');
 
     response = await call(base, alice.cookie, 'POST', '/api/friends/clear', {});
     assert.equal(response.status, 200, JSON.stringify(response.data));
