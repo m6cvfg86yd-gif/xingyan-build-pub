@@ -1,5 +1,130 @@
 import SwiftUI
 
+private enum MeCardRowPosition {
+    case single
+    case first
+    case middle
+    case last
+
+    static func at(_ index: Int, count: Int) -> MeCardRowPosition {
+        if count == 1 { return .single }
+        if index == 0 { return .first }
+        if index == count - 1 { return .last }
+        return .middle
+    }
+}
+
+private struct MeCardRowFill: Shape {
+    let position: MeCardRowPosition
+    let radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let topRounded = position == .single || position == .first
+        let bottomRounded = position == .single || position == .last
+        var path = Path()
+
+        if topRounded {
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY + radius))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.minX + radius, y: rect.minY),
+                control: CGPoint(x: rect.minX, y: rect.minY)
+            )
+            path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.maxX, y: rect.minY + radius),
+                control: CGPoint(x: rect.maxX, y: rect.minY)
+            )
+        } else {
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        }
+
+        if bottomRounded {
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.maxX - radius, y: rect.maxY),
+                control: CGPoint(x: rect.maxX, y: rect.maxY)
+            )
+            path.addLine(to: CGPoint(x: rect.minX + radius, y: rect.maxY))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.minX, y: rect.maxY - radius),
+                control: CGPoint(x: rect.minX, y: rect.maxY)
+            )
+        } else {
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        }
+
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct MeCardRowOutline: Shape {
+    let position: MeCardRowPosition
+    let radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        if position == .single {
+            return MeCardRowFill(position: .single, radius: radius).path(in: rect)
+        }
+
+        var path = Path()
+        switch position {
+        case .single:
+            break
+        case .first:
+            path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.minX + radius, y: rect.minY),
+                control: CGPoint(x: rect.minX, y: rect.minY)
+            )
+            path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.maxX, y: rect.minY + radius),
+                control: CGPoint(x: rect.maxX, y: rect.minY)
+            )
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        case .middle:
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        case .last:
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - radius))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.minX + radius, y: rect.maxY),
+                control: CGPoint(x: rect.minX, y: rect.maxY)
+            )
+            path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.maxY))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.maxX, y: rect.maxY - radius),
+                control: CGPoint(x: rect.maxX, y: rect.maxY)
+            )
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        }
+        return path
+    }
+}
+
+private struct MeCardRowBackground: View {
+    let position: MeCardRowPosition
+
+    var body: some View {
+        GeometryReader { proxy in
+            let radius = min(18, proxy.size.height / 2)
+            ZStack {
+                MeCardRowFill(position: position, radius: radius)
+                    .fill(C.meCardBg)
+                MeCardRowOutline(position: position, radius: radius)
+                    .stroke(C.hairline, lineWidth: 0.8)
+            }
+        }
+    }
+}
+
 struct MeView: View {
     @ObservedObject private var lang = LangStore.shared
     @State private var showMyQR = false
@@ -284,103 +409,83 @@ struct MeView: View {
 
     @ViewBuilder
     private var darkMeRows: some View {
-            Section {
-                meGroupCard {
-                    HStack(spacing: 8) {
-                        NavigationLink(value: "profile") {
-                            HStack(spacing: 12) {
-                                Avatar(path: app.me?.avatarPath ?? "", size: 58, radius: 18,
-                                       level: growth.shownLevel)
+        Section {
+            HStack(spacing: 8) {
+                NavigationLink(value: "profile") {
+                    HStack(spacing: 12) {
+                        Avatar(path: app.me?.avatarPath ?? "", size: 58, radius: 18,
+                               level: growth.shownLevel)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 6) {
-                                        Text(app.me?.name ?? Tr("星言用户"))
-                                            .font(pfStyled(size: 17, weight: .semibold))
-                                            .foregroundStyle(.primary)
-                                            .lineLimit(1)
-                                        if growthShow {
-                                            QQLevelBadge(level: growth.shownLevel, size: 14, maxIcons: 2)
-                                                .fixedSize()
-                                        }
-                                    }
-                                    Text(Tr("星言号") + "：" + (app.me?.username ?? "-"))
-                                        .font(pfStyled(size: 12))
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                    let bio = (app.me?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                                    Text(bio.isEmpty ? Tr("点击编辑个人资料") : bio)
-                                        .font(pfStyled(size: 12))
-                                        .foregroundStyle(.tertiary)
-                                        .lineLimit(1)
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text(app.me?.name ?? Tr("星言用户"))
+                                    .font(pfStyled(size: 17, weight: .semibold))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                if growthShow {
+                                    QQLevelBadge(level: growth.shownLevel, size: 14, maxIcons: 2)
+                                        .fixedSize()
                                 }
                             }
+                            Text(Tr("星言号") + "：" + (app.me?.username ?? "-"))
+                                .font(pfStyled(size: 12))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            let bio = (app.me?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                            Text(bio.isEmpty ? Tr("点击编辑个人资料") : bio)
+                                .font(pfStyled(size: 12))
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
                         }
-                        .buttonStyle(.plain)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 3)
+        }
+        .listRowBackground(MeCardRowBackground(position: .single))
+        .listRowSeparator(.hidden)
+
+        ForEach(grouped.indices, id: \.self) { gi in
+            Section {
+                ForEach(Array(grouped[gi].enumerated()), id: \.element.id) { idx, item in
+                    NavigationLink(value: routeKey(for: item)) {
+                        nativeMeItemRow(item)
+                    }
+                    .listRowBackground(
+                        MeCardRowBackground(position: .at(idx, count: grouped[gi].count))
+                    )
+                    .listRowSeparator(idx < grouped[gi].count - 1 ? .visible : .hidden)
+                    .listRowSeparatorTint(C.hairline)
                 }
             }
-            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
+        }
 
-            ForEach(grouped.indices, id: \.self) { gi in
-                Section {
-                    meGroupCard {
-                        ForEach(Array(grouped[gi].enumerated()), id: \.element.id) { idx, item in
-                            NavigationLink(value: routeKey(for: item)) {
-                                nativeMeItemRow(item)
-                            }
-                            if idx < grouped[gi].count - 1 {
-                                HairLine(inset: 16)
-                            }
-                        }
-                    }
+        if app.me?.ops == true {
+            Section(header: Text(Tr("管理"))) {
+                NavigationLink(value: "manage") {
+                    nativeSettingsIconRow(Tr("用户管理"),
+                                          symbol: "person.2.badge.gearshape.fill",
+                                          color: .indigo)
                 }
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                .listRowBackground(Color.clear)
+                .listRowBackground(MeCardRowBackground(position: .first))
+                .listRowSeparator(.visible)
+                .listRowSeparatorTint(C.hairline)
+
+                NavigationLink(value: "faces") {
+                    nativeSettingsIconRow(Tr("人脸比对"),
+                                          symbol: "face.smiling",
+                                          color: C.green)
+                }
+                .listRowBackground(MeCardRowBackground(position: .last))
                 .listRowSeparator(.hidden)
             }
-
-            if app.me?.ops == true {
-                Section(header: Text(Tr("管理"))) {
-                    meGroupCard {
-                        NavigationLink(value: "manage") {
-                            nativeSettingsIconRow(Tr("用户管理"),
-                                                  symbol: "person.2.badge.gearshape.fill",
-                                                  color: .indigo)
-                        }
-                        HairLine(inset: 16)
-                        NavigationLink(value: "faces") {
-                            nativeSettingsIconRow(Tr("人脸比对"),
-                                                  symbol: "face.smiling",
-                                                  color: C.green)
-                        }
-                    }
-                }
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
+        }
     }
 
     private var mePageCanvasColor: Color {
         UIConfig.colorIfSet("pageBg") ?? worldAndMeCanvasColor()
-    }
-
-    private func meGroupCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: 0) {
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(C.meCardBg)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(C.hairline, lineWidth: 0.8)
-        }
     }
 
     private func nativeStat(value: String, title: String,
