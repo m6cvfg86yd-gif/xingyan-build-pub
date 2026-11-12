@@ -276,9 +276,12 @@ struct PayOfficialView: View {
 
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var ledger: LedgerBillsPayload?
     @State private var loading = true
     @State private var selectedLedger: LedgerBillEntry?
+    @State private var balanceVisible = false
+    @State private var faceBusy = false
 
     private var balance: Double { app.me?.balance ?? ledger?.balance ?? 0 }
 
@@ -315,6 +318,11 @@ struct PayOfficialView: View {
             app.me = try? await account
             ledger = try? await ledgerValue
             loading = false
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase != .active {
+                balanceVisible = false
+            }
         }
     }
 
@@ -377,20 +385,60 @@ struct PayOfficialView: View {
 
                 Spacer(minLength: 22)
 
-                Text(Tr("可用余额"))
-                    .font(pf(12.5, .medium))
-                    .foregroundStyle(.white.opacity(0.56))
-                StarPayAmount(value: balance, role: .hero, color: .white)
-                    .padding(.top, 3)
+                Button {
+                    toggleBalancePrivacy()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(Tr("可用余额"))
+                            .font(pf(12.5, .medium))
+                            .foregroundStyle(.white.opacity(0.56))
+
+                        Group {
+                            if balanceVisible {
+                                StarPayAmount(value: balance, role: .hero, color: .white)
+                            } else {
+                                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                                    Text("¥")
+                                        .font(moneySymbolFont(17, .bold))
+                                        .baselineOffset(13)
+                                    Text(" ********")
+                                        .font(pfMoney(39, .bold))
+                                        .tracking(1.2)
+                                }
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                            }
+                        }
+                        .padding(.top, 3)
+
+                        HStack(spacing: 5) {
+                            if faceBusy {
+                                ProgressView()
+                                    .tint(.white)
+                                    .scaleEffect(0.65)
+                                    .frame(width: 14, height: 14)
+                            } else {
+                                Image(systemName: balanceVisible ? "checkmark.shield.fill" : "faceid")
+                            }
+                            Text(balanceVisible ? Tr("已在本次页面验证") : Tr("轻点使用面容 ID 查看"))
+                        }
+                        .font(pf(10.5, .medium))
+                        .foregroundStyle(.white.opacity(0.48))
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
 
                 Spacer(minLength: 18)
 
                 HStack(spacing: 18) {
-                    heroMetric(Tr("收入"), ledger?.income ?? 0, PayVisual.success)
+                    heroMetric(Tr("收入"), ledger?.income ?? 0, PayVisual.success,
+                               visible: balanceVisible)
                     Rectangle()
                         .fill(.white.opacity(0.12))
                         .frame(width: 0.5, height: 28)
-                    heroMetric(Tr("支出"), ledger?.expense ?? 0, .white)
+                    heroMetric(Tr("支出"), ledger?.expense ?? 0, .white,
+                               visible: balanceVisible)
                     Spacer(minLength: 4)
                     Image(systemName: "wave.3.right.circle.fill")
                         .font(.system(size: 21, weight: .medium))
@@ -409,12 +457,51 @@ struct PayOfficialView: View {
         .padding(.horizontal, 16)
     }
 
-    private func heroMetric(_ title: String, _ value: Double, _ color: Color) -> some View {
+    private func heroMetric(_ title: String, _ value: Double, _ color: Color,
+                            visible: Bool) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .font(pf(10.5, .medium))
                 .foregroundStyle(.white.opacity(0.48))
-            StarPayAmount(value: value, role: .metric, color: color.opacity(0.96))
+            if visible {
+                StarPayAmount(value: value, role: .metric, color: color.opacity(0.96))
+            } else {
+                Text("¥ ***")
+                    .font(pfMoney(13.5, .semibold))
+                    .foregroundStyle(color.opacity(0.72))
+                    .tracking(0.5)
+            }
+        }
+    }
+
+    private func toggleBalancePrivacy() {
+        if balanceVisible {
+            balanceVisible = false
+            return
+        }
+        guard !faceBusy else { return }
+        faceBusy = true
+        let reason: String
+        if Lang.isEnglish {
+            reason = "Authenticate to view your Balance"
+        } else if Lang.isRussian {
+            reason = "Подтвердите личность, чтобы увидеть баланс"
+        } else {
+            reason = "验证身份，查看零钱余额"
+        }
+        Task {
+            let result = await Biometrics.authenticate(reason: reason)
+            faceBusy = false
+            if result.ok {
+                balanceVisible = true
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            } else {
+                balanceVisible = false
+                if !result.message.isEmpty {
+                    app.show(result.message)
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                }
+            }
         }
     }
 
