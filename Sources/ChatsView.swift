@@ -752,7 +752,7 @@ struct SwipeChatRow: View {
     private var btnW: CGFloat { UIConfig.num("swipeBtnW", 74) }
     private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
     private let actionGap: CGFloat = 4
-    private var fullW: CGFloat { btnW }
+    private var fullW: CGFloat { max(80, btnW) }
 
     private var blueBg: Color {
         UIConfig.colorIfSet("swipeUnread") ?? Color(hex: 0x28986C)
@@ -857,7 +857,7 @@ struct SwipeChatRow: View {
                 onEnded: { _, vx in
                     dragging = false
                     dragVelocity = vx
-                    if -offset > fullW * 1.12, vx <= 0 {
+                    if -offset > fullW * 1.04, vx <= 0 {
                         ChatSwipeFeedback.notification.notificationOccurred(.success)
                         onPin(chat.pinned != true)
                         close()
@@ -889,16 +889,44 @@ struct SwipeChatRow: View {
 
     private var actionButtons: some View {
         HStack {
-            bar(chat.pinned == true ? "取消置顶" : "置顶", pinBg, btnW) {
+            pinSwipeButton {
                 ChatSwipeFeedback.selection.selectionChanged()
                 onPin(chat.pinned != true)
                 close()
             }
         }
-        .padding(.vertical, 7)
         .frame(height: ChatListVisual.rowHeight)
         .frame(width: max(0, -offset), height: ChatListVisual.rowHeight, alignment: .trailing)
         .clipped()
+    }
+
+    private func pinSwipeButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        pinBg.opacity(0.96),
+                        pinBg
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                VStack(spacing: 4) {
+                    Image(systemName: chat.pinned == true
+                          ? "pin.slash.fill" : "pin.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(chat.pinned == true ? Tr("取消置顶") : Tr("置顶"))
+                        .font(pfExact(12.5, .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.76)
+                }
+                .foregroundStyle(.white)
+            }
+            .frame(width: fullW, height: ChatListVisual.rowHeight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(RowSwipeActionButtonStyle())
     }
 
     private func settle(velocity vx: CGFloat) {
