@@ -861,7 +861,9 @@ struct UserManageView: View {
             ("discoverCardBg", 0xFFFFFF),
             ("meCardBg", 0xFFFFFF),
             ("pinnedBg", 0xFFFFFF),
-            ("chatTimeBg", 0xE5E5E5)
+            ("chatTimeBg", 0xE5E5E5),
+            ("searchBg", 0xF2F2F2),
+            ("fieldBg", 0xF2F2F2)
         ]
         for (key, light) in surfaceKeys {
             values[key] = value(key, light: light, darkHex: preset.surface)

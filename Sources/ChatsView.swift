@@ -1088,6 +1088,11 @@ struct ChatsView: View {
     private var chatsPageFill: Color {
         UIConfig.colorIfSet("chatsPageBg") ?? Color.dyn(0xFFFFFF, 0x0B141A)
     }
+    private var chatsSearchFill: Color {
+        scheme == .dark
+            ? (UIConfig.colorIfSet("searchBg") ?? Color(hex: 0x202C33))
+            : Color(hex: 0xF0F2F5)
+    }
     private var chatsCardFill: Color { chatsPageFill }
 
     @State private var scrolled: CGFloat = 0
@@ -1498,7 +1503,7 @@ struct ChatsView: View {
             .frame(height: 36)
             .background {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.dyn(0xF0F2F5, 0x202C33))
+                    .fill(chatsSearchFill)
                     .overlay {
                         RoundedRectangle(cornerRadius: 9, style: .continuous)
                             .stroke(C.searchBorderChats, lineWidth: 0.6)

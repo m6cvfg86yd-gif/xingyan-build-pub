@@ -985,6 +985,7 @@ struct SettingsView: View {
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
 
     @State private var confirmLogout = false
     @State private var busy = false
@@ -1340,12 +1341,19 @@ struct SettingsView: View {
             .padding(.horizontal, 12)
             .frame(height: 38)
             .background {
-                GlassBackground(shape: RoundedRectangle(cornerRadius: 12, style: .continuous),
-                                opacity: 0.88,
-                                edgeAlpha: 0.55,
-                                shadow: false,
-                                seed: 0.28,
-                                native: true)
+                ZStack {
+                    if scheme == .dark,
+                       let themed = UIConfig.colorIfSet("searchBg") {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(themed)
+                    }
+                    GlassBackground(shape: RoundedRectangle(cornerRadius: 12, style: .continuous),
+                                    opacity: 0.88,
+                                    edgeAlpha: 0.55,
+                                    shadow: false,
+                                    seed: 0.28,
+                                    native: true)
+                }
             }
 
             if searchActive {
