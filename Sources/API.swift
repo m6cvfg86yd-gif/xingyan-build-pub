@@ -1231,6 +1231,25 @@ struct WalletConfig: Decodable, Hashable {
     var isLocked: Bool { (locked ?? false) || (needRealName ?? false) }
 }
 
+struct VirtualCardInfo: Decodable, Hashable {
+    var exists: Bool
+    var id: String?
+    var number: String?
+    var last4: String?
+    var expMonth: Int?
+    var expYear: Int?
+    var cvv: String?
+    var status: String?
+    var generation: Int?
+    var scope: String?
+    var issuerConnected: Bool?
+    var securityLevel: String?
+    var notice: String?
+    var createdAt: String?
+    var updatedAt: String?
+    var frozenAt: String?
+}
+
 struct GameRankRow: Decodable, Hashable, Identifiable {
     var id: String?
     var name: String?
@@ -5068,6 +5087,16 @@ private struct StarredPayload: Decodable {
 
     func walletConfig() async throws -> WalletConfig {
         try await get("/api/wallet", as: WalletConfig.self)
+    }
+
+    func virtualCard() async throws -> VirtualCardInfo {
+        try await get("/api/wallet/virtual-card", as: VirtualCardInfo.self)
+    }
+
+    func virtualCardAction(_ action: String, verified: Bool) async throws -> VirtualCardInfo {
+        try await post("/api/wallet/virtual-card",
+                       ["action": action, "verified": verified],
+                       as: VirtualCardInfo.self)
     }
 
     func securityScore() async throws -> CreditScore {

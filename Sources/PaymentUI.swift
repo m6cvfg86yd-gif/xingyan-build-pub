@@ -535,6 +535,12 @@ struct PayOfficialView: View {
                 } label: {
                     quickAction(Tr("支付安全"), "lock.shield.fill", PayVisual.warning)
                 }
+                actionDivider
+                NavigationLink {
+                    VirtualCardView()
+                } label: {
+                    quickAction(Tr("虚拟卡"), "creditcard.fill", PayVisual.gold)
+                }
             }
             .padding(.vertical, 16)
         }

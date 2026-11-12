@@ -3096,6 +3096,101 @@ function amlComplete(result, success, detail) {
   }
 }
 
+/* ---------------------------------------------------------------- 星言虚拟卡
+ * 这是设备绑定的内部测试卡号，不是 Visa / Mastercard，也不能在外部商户使用。
+ * PAN 加密保存；CVV 不落盘，只由服务端密钥和卡版本临时派生。
+ * 真实虚拟卡必须改由持牌发卡机构 / HSM / 网络令牌服务签发。
+ */
+function virtualPanCheckDigit(prefix15) {
+  let sum = 0;
+  for (let i = 0; i < prefix15.length; i += 1) {
+    let n = Number(prefix15[prefix15.length - 1 - i]);
+    if (i % 2 === 0) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+  }
+  return String((10 - (sum % 10)) % 10);
+}
+
+function newInternalVirtualPan() {
+  let prefix = '9999';
+  for (let i = 0; i < 11; i += 1) prefix += String(crypto.randomInt(0, 10));
+  return prefix + virtualPanCheckDigit(prefix);
+}
+
+function virtualCardCvv(user, card) {
+  const text = crypto.createHmac('sha256', String(db.secret || 'chris'))
+    .update('virtual-card-cvv|' + user.id + '|' + card.id + '|' + card.generation)
+    .digest();
+  return String((text.readUInt16BE(0) % 900) + 100);
+}
+
+function issueVirtualCard(user) {
+  const t = new Date();
+  const card = {
+    id: uid('vc'),
+    panEnc: sealPii(newInternalVirtualPan()),
+    last4: '',
+    expMonth: t.getMonth() + 1,
+    expYear: t.getFullYear() + 3,
+    status: 'active',
+    generation: 1,
+    scope: 'internal-test',
+    issuer: 'not-connected',
+    createdAt: now(),
+    updatedAt: now(),
+    frozenAt: '',
+    revealedAt: ''
+  };
+  const pan = openPii(card.panEnc);
+  card.last4 = pan.slice(-4);
+  user.virtualCard = card;
+  return card;
+}
+
+function rotateVirtualCard(user) {
+  const old = user.virtualCard || issueVirtualCard(user);
+  const pan = newInternalVirtualPan();
+  old.panEnc = sealPii(pan);
+  old.last4 = pan.slice(-4);
+  old.generation = (Number(old.generation) || 1) + 1;
+  old.status = 'active';
+  old.frozenAt = '';
+  old.updatedAt = now();
+  return old;
+}
+
+function virtualCardPayload(user, reveal) {
+  const card = user.virtualCard;
+  if (!card) return {
+    exists: false,
+    scope: 'internal-test',
+    issuerConnected: false,
+    notice: '星言内部虚拟卡号，不是 Visa / Mastercard，不能在外部商户使用'
+  };
+  const full = reveal ? openPii(card.panEnc || '') : '';
+  return {
+    exists: true,
+    id: card.id,
+    number: reveal ? full : ('•••• •••• •••• ' + String(card.last4 || '')),
+    last4: card.last4 || '',
+    expMonth: Number(card.expMonth) || 0,
+    expYear: Number(card.expYear) || 0,
+    cvv: reveal ? virtualCardCvv(user, card) : '',
+    status: card.status || 'active',
+    generation: Number(card.generation) || 1,
+    scope: card.scope || 'internal-test',
+    issuerConnected: false,
+    securityLevel: 'local-biometric-ui',
+    notice: '星言内部虚拟卡号，不是 Visa / Mastercard，不能在外部商户使用',
+    createdAt: card.createdAt || '',
+    updatedAt: card.updatedAt || '',
+    frozenAt: card.frozenAt || ''
+  };
+}
+
 /* ---------------- ② 幂等 ---------------- */
 let idemStore = readJson(path.join(DATA_DIR, IDEM_FILE), { items: {} });
 if (!idemStore.items) idemStore.items = {};
@@ -17356,6 +17451,59 @@ async function handleApi(req, res, pathname, query) {
     idemFinish(idem.key, payload);
     ok(res, payload);
     return;
+  }
+
+  /* 星言设备虚拟卡：内部测试卡号，不接外部卡组织。 */
+  if (parts[0] === 'wallet' && parts[1] === 'virtual-card' && method === 'GET') {
+    if (blockedByRealName(res, user)) return;
+    ok(res, virtualCardPayload(user, false));
+    return;
+  }
+  if (parts[0] === 'wallet' && parts[1] === 'virtual-card' && method === 'POST') {
+    if (blockedByRealName(res, user)) return;
+    const body = await readBody(req);
+    const action = str(body.action, 30);
+    if (body.verified !== true) {
+      return fail(res, 428, '请先完成面容 ID 或设备密码验证');
+    }
+    if (action === 'issue') {
+      if (!user.virtualCard) issueVirtualCard(user);
+      user.virtualCard.updatedAt = now();
+      saveUsers();
+      audit(req, { username: user.username, name: user.nickname, role: '用户本人' },
+        '签发星言内部虚拟卡', user.username, user.virtualCard.id);
+      ok(res, virtualCardPayload(user, false));
+      return;
+    }
+    if (!user.virtualCard) return fail(res, 404, '还没有生成虚拟卡号');
+    if (!payRateAllow(user.id)) return fail(res, 429, '操作太频繁，稍后再试');
+    if (action === 'reveal') {
+      user.virtualCard.revealedAt = now();
+      saveUsers();
+      audit(req, { username: user.username, name: user.nickname, role: '用户本人' },
+        '查看虚拟卡号', user.username, user.virtualCard.id + ' · 第 ' + user.virtualCard.generation + ' 版');
+      ok(res, virtualCardPayload(user, true));
+      return;
+    }
+    if (action === 'freeze' || action === 'unfreeze') {
+      user.virtualCard.status = action === 'freeze' ? 'frozen' : 'active';
+      user.virtualCard.frozenAt = action === 'freeze' ? now() : '';
+      user.virtualCard.updatedAt = now();
+      saveUsers();
+      audit(req, { username: user.username, name: user.nickname, role: '用户本人' },
+        action === 'freeze' ? '冻结虚拟卡' : '解冻虚拟卡', user.username, user.virtualCard.id);
+      ok(res, virtualCardPayload(user, false));
+      return;
+    }
+    if (action === 'rotate') {
+      rotateVirtualCard(user);
+      saveUsers();
+      audit(req, { username: user.username, name: user.nickname, role: '用户本人' },
+        '更换虚拟卡号', user.username, user.virtualCard.id + ' · 第 ' + user.virtualCard.generation + ' 版');
+      ok(res, virtualCardPayload(user, false));
+      return;
+    }
+    return fail(res, 400, 'action 只能是 issue / reveal / freeze / unfreeze / rotate');
   }
 
   /* 提现记录 */
