@@ -86,6 +86,8 @@ struct UserManageView: View {
 
     @State private var activeDarkPagePreset = ""
     private let darkPagePresets: [DarkPagePreset] = [
+        DarkPagePreset(id: "standard", name: "星言黑", hex: 0x191919,
+                       surface: 0x191919, line: 0x2C2C2E),
         DarkPagePreset(id: "whatsapp", name: "墨蓝黑", hex: 0x0B141A,
                        surface: 0x111B21, line: 0x22343D),
         DarkPagePreset(id: "obsidian", name: "曜石黑", hex: 0x090A0C,
