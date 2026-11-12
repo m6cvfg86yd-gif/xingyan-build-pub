@@ -753,6 +753,7 @@ struct SwipeChatRow: View {
     private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
     private let actionGap: CGFloat = 4
     private var fullW: CGFloat { max(80, btnW) }
+    private var leadingFullW: CGFloat { btnW * 3 }
 
     private var blueBg: Color {
         UIConfig.colorIfSet("swipeUnread") ?? Color(hex: 0x28986C)
@@ -790,6 +791,10 @@ struct SwipeChatRow: View {
 
     var body: some View {
         ZStack(alignment: .trailing) {
+            leadingActionButtons
+                .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
+                .allowsHitTesting(offset > 0)
+                .zIndex(0)
 
             EquatableView(content: ChatRow(
                 chat: chat,
@@ -810,9 +815,9 @@ struct SwipeChatRow: View {
                 .contentShape(Rectangle())
                 .zIndex(1)
 
-            actionButtons
-                .allowsHitTesting(offset != 0)
-                .zIndex(2)
+            pinActionButtons
+                .allowsHitTesting(offset < 0)
+                .zIndex(0)
         }
         .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
 
@@ -835,20 +840,27 @@ struct SwipeChatRow: View {
                     dragging = true
                     startOffset = offset
                     dragVelocity = 0
-                    crossedOpen = (-offset > fullW * 0.42)
+                    crossedOpen = abs(offset) > (offset >= 0
+                                                 ? leadingFullW * 0.38
+                                                 : fullW * 0.42)
                     ChatSwipeFeedback.selection.prepare()
                     NotificationCenter.default.post(name: .chrisRowSwipe, object: chat.id)
                 },
                 onChanged: { dx in
                     var x = startOffset + dx
                     if x > 0 {
-                        x = min(10, x * 0.22)
+                        if x > leadingFullW {
+                            x = leadingFullW + min(86, (x - leadingFullW) * 0.28)
+                        }
                     } else if x < -fullW {
                         x = -(fullW + min(92, (-x - fullW) * 0.30))
                     }
                     offset = x
 
-                    let nowCrossed = (-offset > fullW * 0.42)
+                    let threshold = offset >= 0
+                        ? leadingFullW * 0.38
+                        : fullW * 0.42
+                    let nowCrossed = abs(offset) > threshold
                     if nowCrossed != crossedOpen {
                         crossedOpen = nowCrossed
                         ChatSwipeFeedback.selection.selectionChanged()
@@ -866,7 +878,8 @@ struct SwipeChatRow: View {
                     settle(velocity: vx)
                 }
             )
-            .frame(width: max(0, rowWidth + offset), height: ChatListVisual.rowHeight)
+            .frame(width: max(0, rowWidth - abs(offset)), height: ChatListVisual.rowHeight)
+            .offset(x: offset > 0 ? offset : 0)
         }
 
         .onReceive(NotificationCenter.default.publisher(for: .chrisRowSwipe)) { note in
@@ -887,7 +900,7 @@ struct SwipeChatRow: View {
         }
     }
 
-    private var actionButtons: some View {
+    private var pinActionButtons: some View {
         HStack {
             pinSwipeButton {
                 ChatSwipeFeedback.selection.selectionChanged()
@@ -897,6 +910,25 @@ struct SwipeChatRow: View {
         }
         .frame(height: ChatListVisual.rowHeight)
         .frame(width: max(0, -offset), height: ChatListVisual.rowHeight, alignment: .trailing)
+        .clipped()
+    }
+
+    private var leadingActionButtons: some View {
+        HStack(spacing: 0) {
+            bar("标为未读", blueBg, btnW) {
+                onUnread()
+                close()
+            }
+            bar("不显示", yellowBg, btnW) {
+                onHide(false)
+                close()
+            }
+            bar("删除", redBg, btnW) {
+                onDelete()
+                close()
+            }
+        }
+        .frame(width: leadingFullW, height: ChatListVisual.rowHeight, alignment: .leading)
         .clipped()
     }
 
@@ -934,6 +966,23 @@ struct SwipeChatRow: View {
             withAnimation(swipeSpring) { offset = -fullW }
             return
         }
+        if offset >= 0 {
+            let projected = offset + vx * 0.16
+            let open: Bool
+            if vx <= -360 {
+                open = true
+            } else if vx >= 360 {
+                open = false
+            } else {
+                open = projected > leadingFullW * 0.38
+            }
+            if open { ChatSwipeFeedback.selection.selectionChanged() }
+            withAnimation(swipeSpring) {
+                offset = open ? leadingFullW : 0
+                if !open { mode = .none }
+            }
+            return
+        }
         let open: Bool
         let projected = offset + vx * 0.16
         if vx <= -360 {
@@ -960,9 +1009,8 @@ struct SwipeChatRow: View {
                 .minimumScaleFactor(0.68)
                 .allowsTightening(true)
                 .frame(width: max(0, width),
-                       height: ChatListVisual.rowHeight - 14)
-                .background(bg, in: RoundedRectangle(cornerRadius: 12,
-                                                     style: .continuous))
+                       height: ChatListVisual.rowHeight)
+                .background(bg)
                 .contentShape(Rectangle())
         }
         .buttonStyle(RowSwipeActionButtonStyle())
