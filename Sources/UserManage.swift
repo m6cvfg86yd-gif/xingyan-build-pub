@@ -797,7 +797,12 @@ struct UserManageView: View {
         UISelectionFeedbackGenerator().selectionChanged()
 
         let direct = await API.shared.opsApplyDarkTheme(preset.id)
-        let allOK = direct || (await API.shared.opsSetUIValues(values))
+        let allOK: Bool
+        if direct {
+            allOK = true
+        } else {
+            allOK = await API.shared.opsSetUIValues(values)
+        }
         if allOK {
             await app.refreshUI(force: true)
             msg = Tr("四个主页颜色已切换为") + preset.name
