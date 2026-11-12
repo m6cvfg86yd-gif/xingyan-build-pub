@@ -199,19 +199,19 @@ struct SearchPage: View {
     }
 
     private var xhsCanvas: Color {
-        Color.dyn(0xF7F7F7, 0x000000)
+        Color.dyn(0xFFFFFF, 0x0B141A)
     }
 
     private var xhsCard: Color {
-        Color.dyn(0xFFFFFF, 0x141416)
+        Color.dyn(0xFFFFFF, 0x111B21)
     }
 
     private var xhsField: Color {
-        Color.dyn(0xFFFFFF, 0x1C1C1E)
+        Color.dyn(0xF0F2F5, 0x202C33)
     }
 
     private var xhsRed: Color {
-        Color(hex: 0xFF2442)
+        Color(hex: 0x25D366)
     }
 
     private var xhsSearchBody: some View {
@@ -314,19 +314,19 @@ struct SearchPage: View {
     }
 
     private var xhsSearchHeader: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 8) {
             Button { dismiss() } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(C.label)
-                    .frame(width: 36, height: 44)
+                    .frame(width: 38, height: 44)
             }
             .buttonStyle(.plain)
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(xhsRed)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(C.subLabel)
 
                 TextField(Tr("搜索人、消息与官方工具"), text: $q)
                     .font(pfStyled(size: 15.5, weight: .regular))
@@ -344,19 +344,21 @@ struct SearchPage: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 13)
-            .frame(height: 42)
-            .background(xhsField, in: Capsule())
-            .overlay(Capsule().stroke(C.hairline, lineWidth: 0.6))
+            .padding(.horizontal, 12)
+            .frame(height: 40)
+            .background(
+                xhsField,
+                in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+            )
 
             Button(Tr("取消")) { dismiss() }
-                .font(pfStyled(size: 14.5, weight: .medium))
+                .font(pfStyled(size: 14.5, weight: .regular))
                 .foregroundStyle(C.label)
                 .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .background(Color.dyn(0xFFFFFF, 0x0F0F10))
+        .background(xhsCanvas)
     }
 
     private var xhsIdleContent: some View {
@@ -572,8 +574,8 @@ struct SearchPage: View {
 
     private func xhsSectionTitle(_ title: String) -> some View {
         Text(title)
-            .font(pfStyled(size: 17, weight: .bold))
-            .foregroundStyle(C.label)
+            .font(pfStyled(size: 13, weight: .semibold))
+            .foregroundStyle(C.subLabel)
     }
 
     private func xhsTermChip(_ term: String, symbol: String) -> some View {
@@ -640,13 +642,13 @@ struct SearchPage: View {
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: item.2)
-                                .font(.system(size: 11.5, weight: .medium))
+                                .font(.system(size: 11, weight: .medium))
                             Text(Tr(item.1))
-                                .font(pfStyled(size: 13, weight: .medium))
+                                .font(pfStyled(size: 12.5, weight: .medium))
                         }
                         .foregroundStyle(selected ? Color.white : C.subLabel)
-                        .padding(.horizontal, 13)
-                        .frame(height: 34)
+                        .padding(.horizontal, 12)
+                        .frame(height: 32)
                         .background(selected ? xhsRed : xhsCard, in: Capsule())
                     }
                     .buttonStyle(.plain)
@@ -680,11 +682,11 @@ struct SearchPage: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         xhsResultSection(title, count: count) {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
-                               GridItem(.flexible(), spacing: 10)],
-                      spacing: 10) {
+            LazyVStack(spacing: 0) {
                 content()
             }
+            .background(xhsCard)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 
@@ -738,34 +740,38 @@ struct SearchPage: View {
             onOpenChat?(chat)
             dismiss()
         } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Avatar(path: chatAvatar(chat), size: 44,
-                           radius: isGroup ? 12 : 10, group: isGroup)
-                    Spacer(minLength: 0)
-                    Text(isGroup ? Tr("群聊") : Tr("聊天"))
-                        .font(pfStyled(size: 10, weight: .semibold))
-                        .foregroundStyle(xhsRed)
-                        .padding(.horizontal, 7)
-                        .frame(height: 21)
-                        .background(Capsule().fill(xhsRed.opacity(0.09)))
+            HStack(spacing: 12) {
+                Avatar(path: chatAvatar(chat), size: 46,
+                       radius: isGroup ? 13 : 23, group: isGroup)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(chatTitle(chat))
+                        .font(pfStyled(size: 16, weight: .regular))
+                        .foregroundStyle(C.label)
+                        .lineLimit(1)
+
+                    Text(chat.lastMessage?.preview?.isEmpty == false
+                         ? chat.lastMessage?.preview ?? ""
+                         : Tr("打开会话"))
+                        .font(pfStyled(size: 13.5, weight: .regular))
+                        .foregroundStyle(C.subLabel)
+                        .lineLimit(1)
                 }
 
-                Text(chatTitle(chat))
-                    .font(pfStyled(size: 15.5, weight: .semibold))
-                    .foregroundStyle(C.label)
-                    .lineLimit(1)
+                Spacer(minLength: 8)
 
-                Text(chat.lastMessage?.preview?.isEmpty == false
-                     ? chat.lastMessage?.preview ?? ""
-                     : Tr("打开会话"))
-                    .font(pfStyled(size: 12.5, weight: .regular))
-                    .foregroundStyle(C.subLabel)
-                    .lineLimit(2)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(C.subLabel.opacity(0.70))
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
-            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 13)
+            .frame(minHeight: 68)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(C.hairline)
+                    .frame(height: 0.5)
+                    .padding(.leading, 71)
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -777,20 +783,31 @@ struct SearchPage: View {
             onOpenUser?(user)
             dismiss()
         } label: {
-            VStack(spacing: 9) {
-                Avatar(path: user.avatarPath, size: 58, radius: 29, circle: true)
-                Text(user.name)
-                    .font(pfStyled(size: 15.5, weight: .semibold))
-                    .foregroundStyle(C.label)
-                    .lineLimit(1)
-                Text(user.username?.isEmpty == false ? "@\(user.username ?? "")" : Tr("联系人"))
-                    .font(pfStyled(size: 12.5, weight: .regular))
-                    .foregroundStyle(C.subLabel)
-                    .lineLimit(1)
+            HStack(spacing: 12) {
+                Avatar(path: user.avatarPath, size: 46, radius: 23, circle: true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(user.name)
+                        .font(pfStyled(size: 16, weight: .regular))
+                        .foregroundStyle(C.label)
+                        .lineLimit(1)
+                    Text(user.username?.isEmpty == false ? "@\(user.username ?? "")" : Tr("联系人"))
+                        .font(pfStyled(size: 13.5, weight: .regular))
+                        .foregroundStyle(C.subLabel)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(C.subLabel.opacity(0.70))
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 142)
-            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 13)
+            .frame(minHeight: 68)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(C.hairline)
+                    .frame(height: 0.5)
+                    .padding(.leading, 71)
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -801,20 +818,31 @@ struct SearchPage: View {
             remember(key)
             pickedUser = User(id: person.id)
         } label: {
-            VStack(spacing: 9) {
-                Avatar(path: person.avatar ?? "", size: 58, radius: 29, circle: true)
-                Text(person.name ?? Tr("联系人"))
-                    .font(pfStyled(size: 15.5, weight: .semibold))
-                    .foregroundStyle(C.label)
-                    .lineLimit(1)
-                Text(person.username?.isEmpty == false ? "@\(person.username ?? "")" : Tr("联系人"))
-                    .font(pfStyled(size: 12.5))
-                    .foregroundStyle(C.subLabel)
-                    .lineLimit(1)
+            HStack(spacing: 12) {
+                Avatar(path: person.avatar ?? "", size: 46, radius: 23, circle: true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(person.name ?? Tr("联系人"))
+                        .font(pfStyled(size: 16, weight: .regular))
+                        .foregroundStyle(C.label)
+                        .lineLimit(1)
+                    Text(person.username?.isEmpty == false ? "@\(person.username ?? "")" : Tr("联系人"))
+                        .font(pfStyled(size: 13.5))
+                        .foregroundStyle(C.subLabel)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(C.subLabel.opacity(0.70))
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 142)
-            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 13)
+            .frame(minHeight: 68)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(C.hairline)
+                    .frame(height: 0.5)
+                    .padding(.leading, 71)
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -825,25 +853,30 @@ struct SearchPage: View {
             remember(key)
             openChat(id: group.id)
         } label: {
-            VStack(alignment: .leading, spacing: 9) {
-                HStack {
-                    Avatar(path: group.avatar ?? "", size: 48, radius: 13, group: true)
-                    Spacer()
-                    Image(systemName: "person.3.fill")
-                        .font(.system(size: 12, weight: .semibold))
+            HStack(spacing: 12) {
+                Avatar(path: group.avatar ?? "", size: 46, radius: 13, group: true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(group.name ?? Tr("群聊"))
+                        .font(pfStyled(size: 16, weight: .regular))
+                        .foregroundStyle(C.label)
+                        .lineLimit(1)
+                    Text("\(group.members ?? 0) " + Tr("人"))
+                        .font(pfStyled(size: 13.5))
                         .foregroundStyle(C.subLabel)
                 }
-                Text(group.name ?? Tr("群聊"))
-                    .font(pfStyled(size: 15.5, weight: .semibold))
-                    .foregroundStyle(C.label)
-                    .lineLimit(1)
-                Text("\(group.members ?? 0) " + Tr("人"))
-                    .font(pfStyled(size: 12.5))
-                    .foregroundStyle(C.subLabel)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(C.subLabel.opacity(0.70))
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading)
-            .background(xhsCard, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 13)
+            .frame(minHeight: 68)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(C.hairline)
+                    .frame(height: 0.5)
+                    .padding(.leading, 71)
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
