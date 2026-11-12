@@ -67,6 +67,7 @@ struct ContactsView: View {
 
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
+    @Environment(\.colorScheme) private var scheme
 
     @State private var keyword = ""
     @State private var path = NavigationPath()
@@ -91,11 +92,28 @@ struct ContactsView: View {
     private var contactsCanvas: Color {
         UIConfig.colorIfSet("contactsBg") ?? Color.dyn(0xFFFFFF, 0x0B141A)
     }
-    private var contactsField: Color { Color.dyn(0xF0F2F5, 0x202C33) }
-    private var contactsRule: Color { Color.dyn(0xE9EDEF, 0x1F2C34) }
-    private var contactsLabel: Color { Color.dyn(0x111B21, 0xE9EDEF) }
-    private var contactsSecondary: Color { Color.dyn(0x667781, 0x8696A0) }
-    private var contactsSectionFill: Color { Color.dyn(0xF7F8FA, 0x111B21) }
+    private var contactsField: Color {
+        scheme == .dark ? (UIConfig.colorIfSet("cardBg") ?? Color(hex: 0x202C33))
+                        : Color(hex: 0xF0F2F5)
+    }
+    private var contactsRule: Color {
+        scheme == .dark ? (UIConfig.colorIfSet("lineColor") ?? Color(hex: 0x1F2C34))
+                        : Color(hex: 0xE9EDEF)
+    }
+    private var contactsLabel: Color {
+        scheme == .dark ? C.label : Color(hex: 0x111B21)
+    }
+    private var contactsSecondary: Color {
+        scheme == .dark ? C.subLabel : Color(hex: 0x667781)
+    }
+    private var contactsSectionFill: Color {
+        scheme == .dark ? (UIConfig.colorIfSet("cardBg") ?? Color(hex: 0x111B21))
+                        : Color(hex: 0xF7F8FA)
+    }
+    private var contactsRowFill: Color {
+        scheme == .dark ? (UIConfig.colorIfSet("cardBg") ?? Color(hex: 0x111B21))
+                        : contactsCanvas
+    }
     private let contactsAccent = Color(hex: 0x25D366)
 
 private var funcs: [(String, String, Color, String)] {
@@ -629,7 +647,7 @@ private var funcs: [(String, String, Color, String)] {
             }
             .padding(.leading, L.ctPadL)
             .frame(height: L.ctRowH)
-            .background(C.contactsBg)
+            .background(contactsRowFill)
             .contentShape(Rectangle())
         }
         .buttonStyle(MenuPressStyle())
@@ -720,7 +738,7 @@ private var funcs: [(String, String, Color, String)] {
         .padding(.leading, 16)
         .padding(.trailing, 16)
         .frame(height: max(72, L.ctRowH))
-        .background(contactsCanvas)
+        .background(contactsRowFill)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(contactsRule)

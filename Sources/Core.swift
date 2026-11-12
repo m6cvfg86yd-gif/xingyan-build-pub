@@ -143,6 +143,25 @@ enum UIConfig {
         return def
     }
 
+    static func stringValue(_ key: String) -> String? {
+        strings[key]
+    }
+
+    static func darkHex(_ key: String) -> UInt32? {
+        guard let raw = strings[key] else { return nil }
+        let parts = raw.split(separator: "|", omittingEmptySubsequences: false)
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+        let source = parts.count > 1 ? parts[1] : parts.first
+        guard let source else { return nil }
+        return UInt32(source.replacingOccurrences(of: "#", with: ""), radix: 16)
+    }
+
+    static func merge(_ values: [String: String]) {
+        for (key, value) in values {
+            strings[key] = value
+        }
+    }
+
     static var avatarCircle: Bool {
         if numbers.keys.contains("avatarShape") {
             return num("avatarShape", 0) > 0

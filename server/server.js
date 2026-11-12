@@ -12528,6 +12528,40 @@ async function handleApi(req, res, pathname, query) {
     ok(res, { key: key, value: value });
     return;
   }
+
+  /* 管理页整套主题一次保存：四个主页、导航、底栏、卡片和分隔线同一事务写入。
+     这样不会出现用户点了切换，但只改到一半、页面颜色互相打架的情况。 */
+  if (parts[0] === 'ops' && parts[1] === 'ui-batch' && method === 'POST') {
+    if (!isOpsUser(user)) return fail(res, 403, '没有权限');
+    const b = await readBody(req);
+    const patch = b && b.ui && typeof b.ui === 'object' ? b.ui : null;
+    if (!patch) return fail(res, 422, '缺少界面配置');
+    const keys = Object.keys(patch);
+    if (!keys.length || keys.length > 80) return fail(res, 422, '界面配置数量不合法');
+    const next = {};
+    for (const key of keys) {
+      if (!/^[A-Za-z][A-Za-z0-9_]{0,40}$/.test(key)) return fail(res, 422, '键名不合法：' + key);
+      let value = patch[key];
+      if (typeof value === 'string') {
+        const n = Number(value);
+        value = (value !== '' && !isNaN(n)) ? n : value;
+      }
+      if (!['number', 'string', 'boolean'].includes(typeof value)) {
+        return fail(res, 422, '值不合法：' + key);
+      }
+      next[key] = value;
+    }
+    const file = path.join(DATA_DIR, 'ui.json');
+    let ui = {};
+    try { ui = JSON.parse(fs.readFileSync(file, 'utf8')) || {}; } catch (e) { ui = {}; }
+    try { fs.copyFileSync(file, file + '.bak-theme' + Date.now().toString().slice(-6)); } catch (e) { }
+    Object.assign(ui, next);
+    writeJson(file, ui);
+    console.log('[管理] ui theme batch ' + keys.join(','));
+    sendToAll({ type: 'ui' });
+    ok(res, { ui });
+    return;
+  }
   /* App 日志 / 崩溃汇入（只有 App 内的 ops 账号能看）：
      手机上的崩溃、异常、体检上传都走 POST /api/clientlog 落到 data/client-errors.jsonl，
      这里按类型汇总 + 给最近几条（倒序），点开能看到完整调用栈。 */

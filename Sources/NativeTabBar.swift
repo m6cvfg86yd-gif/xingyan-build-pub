@@ -235,9 +235,12 @@ struct NativeTabBar: UIViewRepresentable {
         appearance.configureWithDefaultBackground()
         bar.isOpaque = false
         if scheme == .dark {
-            // 深色页面与系统默认深色玻璃差一个黑阶；只校准材质底色，保留原生模糊。
+            // 深色玻璃跟随管理端整套主题，不再固定成一个脱离页面的黑阶。
             appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-            appearance.backgroundColor = UIColor(C.pageBg).withAlphaComponent(0.38)
+            let themed = UIConfig.colorIfSet("tabBarColor")
+                ?? UIConfig.colorIfSet("tabBg")
+                ?? C.pageBg
+            appearance.backgroundColor = UIColor(themed).withAlphaComponent(0.72)
         }
         let normalTitle: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor(OrbitTheme.secondary),

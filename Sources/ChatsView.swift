@@ -788,7 +788,12 @@ struct SwipeChatRow: View {
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
-    private var rowBg: Color { cardStyle ? .clear : Color.dyn(0xFFFFFF, 0x0B141A) }
+    private var rowBg: Color {
+        if cardStyle { return .clear }
+        return UIConfig.colorIfSet("chatsRowBg")
+            ?? UIConfig.colorIfSet("chatRowBg")
+            ?? Color.dyn(0xFFFFFF, 0x0B141A)
+    }
 
     var body: some View {
         ZStack(alignment: .trailing) {

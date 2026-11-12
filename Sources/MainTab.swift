@@ -658,18 +658,18 @@ struct TabBar: View {
     }
 
     private var tabMaskLayer: some View {
+        let fill = UIConfig.colorIfSet("tabBarColor")
+            ?? UIConfig.colorIfSet("tabBg")
+            ?? C.tabBg
 
         if scheme == .dark {
             return AnyView(ZStack {
                 Rectangle().fill(.ultraThinMaterial)
-                    .opacity(0.84)
-                Color(hex: 0x0C0C0D)
-                    .opacity(0.52)
+                    .opacity(0.42)
+                fill
+                    .opacity(0.90)
             })
         }
-        let fill = UIConfig.colorIfSet("tabBarColor")
-            ?? UIConfig.colorIfSet("tabBg")
-            ?? C.tabBg
 
         let glassOn = UIConfig.num("tabGlass", 1) > 0
         if glassOn {

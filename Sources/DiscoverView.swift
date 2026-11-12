@@ -327,15 +327,21 @@ struct DiscoverView: View {
     }
 
     private var worldSectionFill: Color {
-        scheme == .dark ? Color.black.opacity(0.58) : .white
+        scheme == .dark
+            ? (UIConfig.colorIfSet("discoverCardBg") ?? Color.black.opacity(0.58))
+            : .white
     }
 
     private var worldRowFill: Color {
-        scheme == .dark ? Color.black.opacity(0.70) : .white
+        scheme == .dark
+            ? (UIConfig.colorIfSet("discoverCardBg") ?? Color.black.opacity(0.70))
+            : .white
     }
 
     private var worldHairline: Color {
-        Color.dyn(0xE7E7E7, 0x1C1C20)
+        scheme == .dark
+            ? (UIConfig.colorIfSet("lineColor") ?? Color(hex: 0x1C1C20))
+            : Color(hex: 0xE7E7E7)
     }
 
     private func worldSectionHeader(_ title: String) -> some View {

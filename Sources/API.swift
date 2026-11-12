@@ -4255,6 +4255,19 @@ private struct StarredPayload: Decodable {
         }
     }
 
+    func opsSetUIValues(_ values: [String: String]) async -> Bool {
+        do {
+            _ = try await request("POST", "/api/ops/ui-batch", body: ["ui": values])
+            return true
+        } catch {
+            // 兼容尚未升级的服务端：整套主题仍会逐项保存。
+            for (key, value) in values {
+                if !(await opsSetUIKey(key, value)) { return false }
+            }
+            return true
+        }
+    }
+
     func memberInfo() async throws -> MemberInfo {
         struct P: Decodable { var membership: MemberInfo? }
         let p: P = try await get("/api/membership", as: P.self)

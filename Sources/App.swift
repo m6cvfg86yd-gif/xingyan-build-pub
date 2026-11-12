@@ -701,6 +701,12 @@ final class AppState: ObservableObject {
         uiVersion &+= 1
     }
 
+    func previewUIConfig(_ values: [String: String]) {
+        UIConfig.merge(values)
+        uiVersion &+= 1
+        NotificationCenter.default.post(name: .chrisUIPrefsChanged, object: nil)
+    }
+
     private func cacheUIConfig(_ ui: [String: Any], _ icons: [String: String]) {
         if let d = try? JSONSerialization.data(withJSONObject: ui),
            let s = String(data: d, encoding: .utf8) {

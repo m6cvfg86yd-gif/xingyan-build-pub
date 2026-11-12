@@ -217,6 +217,7 @@ struct MeView: View {
                 }
                 .padding(.vertical, 3)
             }
+            .listRowBackground(C.meCardBg)
 
             ForEach(grouped.indices, id: \.self) { gi in
                 Section {
@@ -226,6 +227,7 @@ struct MeView: View {
                         }
                     }
                 }
+                .listRowBackground(C.meCardBg)
             }
 
             if app.me?.ops == true {
@@ -241,6 +243,7 @@ struct MeView: View {
                                               color: C.green)
                     }
                 }
+                .listRowBackground(C.meCardBg)
             }
         }
         .listStyle(.insetGrouped)

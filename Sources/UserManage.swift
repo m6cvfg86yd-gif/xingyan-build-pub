@@ -12,6 +12,8 @@ private struct DarkPagePreset: Identifiable {
     let id: String
     let name: String
     let hex: UInt32
+    let surface: UInt32
+    let line: UInt32
 }
 
 struct UserManageView: View {
@@ -84,11 +86,16 @@ struct UserManageView: View {
 
     @State private var activeDarkPagePreset = ""
     private let darkPagePresets: [DarkPagePreset] = [
-        DarkPagePreset(id: "whatsapp", name: "墨蓝黑", hex: 0x0B141A),
-        DarkPagePreset(id: "obsidian", name: "曜石黑", hex: 0x090A0C),
-        DarkPagePreset(id: "pure", name: "纯黑", hex: 0x000000),
-        DarkPagePreset(id: "graphite", name: "石墨灰", hex: 0x121417),
-        DarkPagePreset(id: "forest", name: "深林青", hex: 0x07120F)
+        DarkPagePreset(id: "whatsapp", name: "墨蓝黑", hex: 0x0B141A,
+                       surface: 0x111B21, line: 0x22343D),
+        DarkPagePreset(id: "obsidian", name: "曜石黑", hex: 0x090A0C,
+                       surface: 0x121316, line: 0x26282D),
+        DarkPagePreset(id: "pure", name: "纯黑", hex: 0x000000,
+                       surface: 0x111112, line: 0x262628),
+        DarkPagePreset(id: "graphite", name: "石墨灰", hex: 0x121417,
+                       surface: 0x1C1F24, line: 0x30353C),
+        DarkPagePreset(id: "forest", name: "深林青", hex: 0x07120F,
+                       surface: 0x0F1B17, line: 0x22352F)
     ]
 
     var body: some View {
@@ -740,6 +747,12 @@ struct UserManageView: View {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .fill(Color(hex: preset.hex))
                                     .frame(width: 62, height: 62)
+                                    .overlay(alignment: .bottomLeading) {
+                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                            .fill(Color(hex: preset.surface))
+                                            .frame(width: 38, height: 18)
+                                            .padding(7)
+                                    }
                                     .overlay {
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                                             .stroke(
@@ -771,24 +784,91 @@ struct UserManageView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
+        .onAppear { syncActiveDarkPagePreset() }
     }
 
     private func applyDarkPagePreset(_ preset: DarkPagePreset) async {
-        let value = "FFFFFF|" + String(preset.hex, radix: 16).uppercased()
-        let keys = ["chatsPageBg", "contactsBg", "discoverBg", "pageBg"]
-        var allOK = true
-        for key in keys {
-            let ok = await API.shared.opsSetUIKey(key, value)
-            allOK = allOK && ok
-        }
+        let values = darkPageThemeValues(preset)
+        activeDarkPagePreset = preset.id
+        app.previewUIConfig(values)
+        UISelectionFeedbackGenerator().selectionChanged()
+
+        let allOK = await API.shared.opsSetUIValues(values)
         if allOK {
-            activeDarkPagePreset = preset.id
             await app.refreshUI(force: true)
-            UISelectionFeedbackGenerator().selectionChanged()
             msg = Tr("四个主页颜色已切换为") + preset.name
         } else {
+            await app.refreshUI(force: true)
+            syncActiveDarkPagePreset()
             msg = Tr("深色页面配色保存失败")
         }
+    }
+
+    private func syncActiveDarkPagePreset() {
+        guard let current = UIConfig.darkHex("chatsPageBg") else {
+            activeDarkPagePreset = ""
+            return
+        }
+        activeDarkPagePreset = darkPagePresets.first(where: { $0.hex == current })?.id ?? ""
+    }
+
+    private func darkPageThemeValues(_ preset: DarkPagePreset) -> [String: String] {
+        func dark(_ value: UInt32) -> String {
+            String(format: "#%06X", value)
+        }
+        func value(_ key: String, light: UInt32, darkHex: UInt32) -> String {
+            let currentLight: String? = {
+                guard let raw = UIConfig.stringValue(key) else { return nil }
+                return raw.split(separator: "|", omittingEmptySubsequences: false)
+                    .first
+                    .map(String.init)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }()
+            let preservedLight = (currentLight?.isEmpty == false)
+                ? currentLight!
+                : String(format: "#%06X", light)
+            return preservedLight + "|" + dark(darkHex)
+        }
+
+        var values: [String: String] = [:]
+
+        let canvasKeys: [(String, UInt32)] = [
+            ("navBg", 0xEDEDED),
+            ("tabBg", 0xF7F7F8),
+            ("tabBarColor", 0xF7F7F8),
+            ("chatsTopBg", 0xFFFFFF),
+            ("chatsPageBg", 0xFFFFFF),
+            ("chatsNavMaskColor", 0xEDEDED),
+            ("chatsBottomMaskColor", 0xF7F7F7),
+            ("hbChatsBottomMaskColor", 0xFFFFFF),
+            ("hbChatsTabBg", 0xFFFFFF),
+            ("hbChatsListBg", 0xFFFFFF),
+            ("contactsBg", 0xFFFFFF),
+            ("discoverBg", 0xEDEDED),
+            ("discoverPageBg", 0xEDEDED),
+            ("pageBg", 0xEDEDED)
+        ]
+        for (key, light) in canvasKeys {
+            values[key] = value(key, light: light, darkHex: preset.hex)
+        }
+
+        let surfaceKeys: [(String, UInt32)] = [
+            ("cardBg", 0xFFFFFF),
+            ("chatsRowBg", 0xFFFFFF),
+            ("chatRowBg", 0xFFFFFF),
+            ("hbChatsRowBg", 0xFFFFFF),
+            ("discoverCardBg", 0xFFFFFF),
+            ("meCardBg", 0xFFFFFF),
+            ("pinnedBg", 0xFFFFFF),
+            ("chatTimeBg", 0xE5E5E5)
+        ]
+        for (key, light) in surfaceKeys {
+            values[key] = value(key, light: light, darkHex: preset.surface)
+        }
+
+        values["lineColor"] = value("lineColor", light: 0xE5E5E5, darkHex: preset.line)
+        values["navLineColor"] = value("navLineColor", light: 0xE8E8E8, darkHex: preset.line)
+        return values
     }
 
     private var rpCoversSection: some View {
