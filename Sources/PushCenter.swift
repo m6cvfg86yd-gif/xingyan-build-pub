@@ -61,6 +61,20 @@ final class PushCenter: NSObject, ObservableObject, UIApplicationDelegate, UNUse
         scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
     }
 
+    @MainActor
+    static func forceMusicLandscape() {
+        supportedOrientations = [.portrait, .landscapeLeft, .landscapeRight]
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })
+            ?? UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first
+        else { return }
+
+        scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight))
+    }
+
     func application(_ application: UIApplication,
                      open url: URL,
                      options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {

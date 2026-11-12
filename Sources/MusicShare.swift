@@ -3767,42 +3767,36 @@ private struct FullPlayerAmbient: View {
     @ObservedObject private var player = MusicPlayer.shared
     @State private var drifting = false
 
+    /// 播放列表不换，背景就不换。上一版每切一首歌都重建整页氛围，
+    /// 颜色和明暗跳得太频繁；这里固定使用当前队列的封面作为稳定锚点。
+    private var ambientCover: String {
+        let first = player.queue.first?.cover ?? ""
+        if !first.isEmpty { return first }
+        return track?.cover ?? ""
+    }
+
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 Color(uiColor: .systemBackground)
 
-                if player.playing, let cover = track?.cover, !cover.isEmpty {
-                    RemoteImage(path: cover, mode: .fill, maxSide: 1200)
-                        .frame(width: max(640, geo.size.width * 1.52),
-                               height: max(760, geo.size.height * 1.52))
-                        .scaleEffect((drifting ? 1.30 : 1.18) + player.level * 0.08)
-                        .offset(x: drifting ? geo.size.width * 0.075 : -geo.size.width * 0.055,
-                                y: drifting ? -geo.size.height * 0.035 : geo.size.height * 0.055)
-                        .blur(radius: 76, opaque: false)
-                        .saturation(scheme == .dark ? 1.52 : 1.36)
-                        .brightness(scheme == .dark ? 0.015 : 0.055)
-                        .opacity((scheme == .dark ? 0.64 : 0.52)
-                                 + Double(player.level) * 0.08)
-                        .id(cover)
-                        .transition(.opacity)
-
-                    RemoteImage(path: cover, mode: .fill, maxSide: 720)
-                        .frame(width: max(420, geo.size.width * 0.92),
-                               height: max(420, geo.size.height * 0.78))
-                        .offset(x: geo.size.width * 0.20, y: -geo.size.height * 0.22)
-                        .blur(radius: 110, opaque: false)
-                        .saturation(1.46)
-                        .blendMode(scheme == .dark ? .screen : .softLight)
-                        .opacity((scheme == .dark ? 0.24 : 0.18)
-                                 + Double(player.level) * 0.10)
-                        .id("detail-\(cover)")
+                if !ambientCover.isEmpty {
+                    RemoteImage(path: ambientCover, mode: .fill, maxSide: 1600)
+                        .frame(width: max(680, geo.size.width * 1.56),
+                               height: max(820, geo.size.height * 1.56))
+                        .scaleEffect(drifting ? 1.16 : 1.08)
+                        .offset(x: drifting ? geo.size.width * 0.035 : -geo.size.width * 0.028,
+                                y: drifting ? -geo.size.height * 0.018 : geo.size.height * 0.026)
+                        .blur(radius: 92, opaque: false)
+                        .saturation(scheme == .dark ? 1.12 : 1.04)
+                        .brightness(scheme == .dark ? -0.015 : 0.025)
+                        .opacity(scheme == .dark ? 0.40 : 0.28)
                         .transition(.opacity)
                 }
 
                 RadialGradient(
                     colors: [
-                        OrbitTheme.jade.opacity(scheme == .dark ? 0.22 : 0.14),
+                        OrbitTheme.jade.opacity(scheme == .dark ? 0.16 : 0.10),
                         Color.clear
                     ],
                     center: .topTrailing,
@@ -3811,23 +3805,15 @@ private struct FullPlayerAmbient: View {
                 )
 
                 LinearGradient(
-                    colors: [
-                        Color.white.opacity(scheme == .dark ? 0.06 : 0.20),
-                        Color.clear
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-
-                LinearGradient(
                     stops: [
-                        .init(color: Color(uiColor: .systemBackground).opacity(0.01), location: 0),
                         .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.08 : 0.10), location: 0.42),
+                            .opacity(scheme == .dark ? 0.04 : 0.08), location: 0),
                         .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.42 : 0.46), location: 0.78),
+                            .opacity(scheme == .dark ? 0.20 : 0.20), location: 0.42),
                         .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.76 : 0.78), location: 1)
+                            .opacity(scheme == .dark ? 0.56 : 0.54), location: 0.78),
+                        .init(color: Color(uiColor: .systemBackground)
+                            .opacity(scheme == .dark ? 0.86 : 0.84), location: 1)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -3838,11 +3824,10 @@ private struct FullPlayerAmbient: View {
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .onAppear { drifting = true }
-        .animation(.easeInOut(duration: 14).repeatForever(autoreverses: true),
+        .animation(.easeInOut(duration: 18).repeatForever(autoreverses: true),
                    value: drifting)
-        .animation(.linear(duration: 0.28), value: player.level)
         .animation(.easeInOut(duration: 0.4), value: player.playing)
-        .animation(.easeInOut(duration: 0.55), value: track?.cover)
+        .animation(.easeInOut(duration: 0.8), value: ambientCover)
     }
 }
 
@@ -4458,6 +4443,18 @@ struct MusicPlayingView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Tr("退出横屏"))
+            } else {
+                Button {
+                    PushCenter.forceMusicLandscape()
+                } label: {
+                    Image(systemName: "rectangle.landscape.rotate")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(.white.opacity(0.10), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Tr("横版"))
             }
 
             playbackMenu

@@ -75,6 +75,7 @@ enum L10n {
         "密码只以加密哈希保存，仅异常注册才需要安全验证": "Passwords are stored as encrypted hashes. Security verification appears only for unusual registrations.",
         "首次注册只需星言号和密码；昵称可直接使用星言号。": "For a first registration, only an ID and password are required. Your nickname can use the same ID.",
         "安全验证": "Security check",
+        "横版": "Landscape",
         "从手机通讯录添加朋友": "Add friends from phone contacts",
         "从一个关键词进入你的星轨": "Start with a keyword",
         "打不开对话": "Can't open chat",
