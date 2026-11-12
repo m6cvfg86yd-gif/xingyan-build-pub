@@ -2,6 +2,133 @@ import SwiftUI
 import UIKit
 import CoreImage
 
+struct ChatDefaultWallpaper: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            Color.dyn(0xEFEAE2, 0x0B141A)
+
+            Canvas { context, size in
+                let light = scheme == .light
+                let ink = Color(hex: light ? 0x6C6558 : 0x8696A0)
+                    .opacity(light ? 0.070 : 0.042)
+                let stepX: CGFloat = 94
+                let stepY: CGFloat = 104
+                let cols = Int(ceil(size.width / stepX)) + 2
+                let rows = Int(ceil(size.height / stepY)) + 2
+
+                func star(at center: CGPoint, radius: CGFloat) -> Path {
+                    var path = Path()
+                    for index in 0..<10 {
+                        let angle = -CGFloat.pi / 2
+                            + CGFloat(index) * CGFloat.pi / 5
+                        let r = index.isMultiple(of: 2) ? radius : radius * 0.44
+                        let point = CGPoint(
+                            x: center.x + CGFloat(cos(Double(angle))) * r,
+                            y: center.y + CGFloat(sin(Double(angle))) * r
+                        )
+                        if index == 0 {
+                            path.move(to: point)
+                        } else {
+                            path.addLine(to: point)
+                        }
+                    }
+                    path.closeSubpath()
+                    return path
+                }
+
+                func leaf(at center: CGPoint) -> Path {
+                    var path = Path()
+                    path.move(to: CGPoint(x: center.x - 7, y: center.y + 5))
+                    path.addQuadCurve(
+                        to: CGPoint(x: center.x + 7, y: center.y - 5),
+                        control: CGPoint(x: center.x - 4, y: center.y - 10)
+                    )
+                    path.addQuadCurve(
+                        to: CGPoint(x: center.x - 7, y: center.y + 5),
+                        control: CGPoint(x: center.x + 5, y: center.y + 9)
+                    )
+                    path.move(to: CGPoint(x: center.x - 4, y: center.y + 3))
+                    path.addLine(to: CGPoint(x: center.x + 5, y: center.y - 3))
+                    return path
+                }
+
+                func bubble(at center: CGPoint) -> Path {
+                    var path = Path()
+                    path.addRoundedRect(
+                        in: CGRect(x: center.x - 10, y: center.y - 7,
+                                   width: 20, height: 13),
+                        cornerSize: CGSize(width: 5, height: 5)
+                    )
+                    path.move(to: CGPoint(x: center.x - 3, y: center.y + 6))
+                    path.addLine(to: CGPoint(x: center.x - 6, y: center.y + 10))
+                    path.addLine(to: CGPoint(x: center.x + 2, y: center.y + 6))
+                    return path
+                }
+
+                func note(at center: CGPoint) -> Path {
+                    var path = Path()
+                    path.addEllipse(
+                        in: CGRect(x: center.x - 8, y: center.y + 2,
+                                   width: 6, height: 5)
+                    )
+                    path.move(to: CGPoint(x: center.x - 2, y: center.y + 4))
+                    path.addLine(to: CGPoint(x: center.x - 2, y: center.y - 10))
+                    path.addQuadCurve(
+                        to: CGPoint(x: center.x + 7, y: center.y - 7),
+                        control: CGPoint(x: center.x + 4, y: center.y - 12)
+                    )
+                    return path
+                }
+
+                for row in 0..<rows {
+                    for column in 0..<cols {
+                        let stagger = row.isMultiple(of: 2) ? 0 : stepX * 0.48
+                        let center = CGPoint(
+                            x: CGFloat(column) * stepX + stagger - 20,
+                            y: CGFloat(row) * stepY - 16
+                        )
+                        let motif = (row * 3 + column) % 7
+                        let path: Path
+                        switch motif {
+                        case 0: path = star(at: center, radius: 5.5)
+                        case 1: path = leaf(at: center)
+                        case 2: path = bubble(at: center)
+                        case 3: path = note(at: center)
+                        case 4:
+                            var wave = Path()
+                            wave.move(to: CGPoint(x: center.x - 10, y: center.y))
+                            wave.addCurve(
+                                to: CGPoint(x: center.x + 10, y: center.y),
+                                control1: CGPoint(x: center.x - 5, y: center.y - 6),
+                                control2: CGPoint(x: center.x + 5, y: center.y + 6)
+                            )
+                            path = wave
+                        case 5:
+                            path = Path(ellipseIn:
+                                CGRect(x: center.x - 6, y: center.y - 6,
+                                       width: 12, height: 12))
+                        default:
+                            var dots = Path()
+                            dots.addEllipse(in:
+                                CGRect(x: center.x - 3, y: center.y - 2,
+                                       width: 4, height: 4))
+                            dots.addEllipse(in:
+                                CGRect(x: center.x + 3, y: center.y + 3,
+                                       width: 3, height: 3))
+                            path = dots
+                        }
+                        context.stroke(path, with: .color(ink), lineWidth: 0.8)
+                    }
+                }
+            }
+            .allowsHitTesting(false)
+        }
+        .ignoresSafeArea()
+    }
+}
+
 final class ChatWallpaperEffectRenderer {
     static let shared = ChatWallpaperEffectRenderer()
 

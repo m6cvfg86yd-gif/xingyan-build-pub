@@ -286,7 +286,7 @@ private struct ChatImmersiveEdgeMask: View {
     var body: some View {
         GeometryReader { proxy in
             if path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                defaultChatCanvasColor()
+                ChatDefaultWallpaper()
                     .frame(width: max(1, proxy.size.width),
                            height: max(1, proxy.size.height),
                            alignment: edge == .top ? .top : .bottom)
@@ -1845,28 +1845,40 @@ struct ChatDetailView: View {
                     announcePage = groupAnnouncement
                     showAnnouncePage = true
                 } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "megaphone.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color(hex: 0xF5A623))
-                        Text(Tr("群公告"))
-                            .font(pf(13, .semibold))
-                            .foregroundStyle(C.label)
-                        Text(groupAnnouncement)
-                            .font(pf(13, .regular))
-                            .foregroundColor(C.subLabel)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: 0x25D366)
+                                    .opacity(scheme == .dark ? 0.18 : 0.12))
+                            Image(systemName: "megaphone.fill")
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .foregroundStyle(Color(hex: 0x25D366))
+                        }
+                        .frame(width: 30, height: 30)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Tr("群公告"))
+                                .font(pf(12.5, .semibold))
+                                .foregroundStyle(Color.dyn(0x1D8F5B, 0x63D89A))
+                            Text(groupAnnouncement)
+                                .font(pf(13.5, .regular))
+                                .foregroundColor(C.label)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(C.subLabel.opacity(0.78))
                     }
-                    .padding(.horizontal, 12)
-                    .frame(height: 38)
-                    .background(Color.dyn(0xF7F7F7, 0x1C1C1E))
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 50)
+                    .background(Color.dyn(0xF0F8F3, 0x10231B))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(ChatTheme.separator).frame(height: 0.5)
+                        Rectangle()
+                            .fill(Color.dyn(0xDDEBE3, 0x1B3329))
+                            .frame(height: 0.5)
                     }
                     .contentShape(Rectangle())
                 }
@@ -2770,8 +2782,10 @@ struct ChatDetailView: View {
 
     private var chatBackdrop: some View {
         ZStack {
-            ChatTheme.page
-            if !backgroundPath.isEmpty {
+            if backgroundPath.isEmpty {
+                ChatDefaultWallpaper()
+            } else {
+                ChatTheme.page
                 if let solid = renderedChatBackgroundSolidColor(
                     backgroundPath,
                     dark: scheme == .dark

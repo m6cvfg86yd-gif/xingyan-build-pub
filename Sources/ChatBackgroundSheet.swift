@@ -548,6 +548,8 @@ struct ChatBackgroundSheet: View {
                     .contrast(effect == .blackBlur ? 1.04 : 1)
                     .brightness(effect == .blackBlur
                                 ? -0.035 : (effect == .whiteBlur ? 0.045 : 0))
+            } else {
+                ChatDefaultWallpaper()
             }
 
             if effect == .blackBlur {
@@ -665,7 +667,7 @@ struct ChatBackgroundSheet: View {
                     .brightness(effect == .blackBlur
                                 ? -0.035 : (effect == .whiteBlur ? 0.045 : 0))
             } else {
-                defaultChatCanvasColor()
+                ChatDefaultWallpaper()
             }
 
             if effect == .blackBlur {
