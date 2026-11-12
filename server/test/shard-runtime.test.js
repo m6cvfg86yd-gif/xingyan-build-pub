@@ -130,6 +130,38 @@ try {
     assert.strictEqual(reopenedCluster.get('chat', chatId).version, 1);
   }
 
+  const crossShardDir = path.join(dir, 'cross-shard-verify');
+  const crossShardCluster = new ShardCluster({
+    dataDir: crossShardDir,
+    shardCount: 6
+  });
+  const firstShard = crossShardCluster.ownerShard('profile', 'cross-a');
+  let otherEntityId = '';
+  for (let i = 0; i < 100; i += 1) {
+    const candidate = 'cross-' + i;
+    if (crossShardCluster.ownerShard('profile', candidate) !== firstShard) {
+      otherEntityId = candidate;
+      break;
+    }
+  }
+  assert.ok(otherEntityId);
+  const sharedEventId = 'duplicate-across-shards';
+  crossShardCluster.apply('profile', 'cross-a', {
+    eventId: sharedEventId,
+    version: 1,
+    payload: { value: 'a' }
+  });
+  crossShardCluster.apply('profile', otherEntityId, {
+    eventId: sharedEventId,
+    version: 1,
+    payload: { value: 'b' }
+  });
+  const crossShardVerification = crossShardCluster.verify();
+  assert.strictEqual(crossShardVerification.ok, false);
+  assert.ok(crossShardVerification.crossShardFailures.some(
+    (failure) => failure.code === 'cross-shard-duplicate-event'
+  ));
+
   const bus = new ShardEventBus({ dataDir: clusterDir, shardCount: 6 });
   bus.publish({
     eventId: 'moment-event-1',
@@ -143,6 +175,51 @@ try {
   assert.strictEqual(reopenedCluster.get('moment', 'moment-1').payload.content, 'hello');
   replay = bus.replayInto(reopenedCluster);
   assert.strictEqual(replay.replayed, 0);
+
+  const corruptBusDir = path.join(dir, 'corrupt-bus');
+  const corruptBus = new ShardEventBus({ dataDir: corruptBusDir, shardCount: 6 });
+  corruptBus.publish({
+    eventId: 'bus-good-1',
+    entityType: 'profile',
+    entityId: 'corrupt-user',
+    version: 1,
+    payload: { active: true }
+  });
+  fs.appendFileSync(corruptBus.file(), '{broken-json}\n', 'utf8');
+  assert.throws(() => corruptBus.read(0), /event bus corruption/);
+
+  const duplicateBusDir = path.join(dir, 'duplicate-bus');
+  const duplicateBus = new ShardEventBus({ dataDir: duplicateBusDir, shardCount: 6 });
+  const duplicateEvent = {
+    eventId: 'bus-duplicate-1',
+    entityType: 'profile',
+    entityId: 'duplicate-user',
+    version: 1,
+    payload: { active: true }
+  };
+  duplicateBus.publish(duplicateEvent);
+  duplicateBus.publish(duplicateEvent);
+  assert.throws(() => duplicateBus.read(0), /duplicate event/);
+
+  const cursorBusDir = path.join(dir, 'cursor-bus');
+  const cursorBus = new ShardEventBus({ dataDir: cursorBusDir, shardCount: 6 });
+  cursorBus.publish({
+    eventId: 'cursor-good-1',
+    entityType: 'profile',
+    entityId: 'cursor-user',
+    version: 1,
+    payload: { active: true }
+  });
+  fs.writeFileSync(
+    path.join(cursorBusDir, 'shard-event-cursor.json'),
+    JSON.stringify({ cursor: 99 }),
+    'utf8'
+  );
+  const cursorCluster = new ShardCluster({
+    dataDir: path.join(cursorBusDir, 'cluster'),
+    shardCount: 6
+  });
+  assert.throws(() => cursorBus.replayInto(cursorCluster), /cursor is beyond/);
 
   let nextId = 0;
   const domain = new ShardDomain({

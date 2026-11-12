@@ -321,12 +321,49 @@ class ShardCluster {
   verify() {
     const shards = [];
     let ok = true;
+    const seenEventIds = new Map();
+    const crossShardFailures = [];
     for (let shard = 0; shard < this.shardCount; shard += 1) {
-      const result = this.log(shard).verify();
+      const log = this.log(shard);
+      const result = log.verify();
       if (!result.ok) ok = false;
+      for (const event of log.eventsById.values()) {
+        const eventId = String(event.eventId || '');
+        if (seenEventIds.has(eventId)) {
+          crossShardFailures.push({
+            code: 'cross-shard-duplicate-event',
+            eventId,
+            shards: [seenEventIds.get(eventId), shard]
+          });
+          ok = false;
+        } else {
+          seenEventIds.set(eventId, shard);
+        }
+        if (Number(event.writerShard) !== shard) {
+          crossShardFailures.push({
+            code: 'wrong-writer-shard',
+            eventId,
+            expected: shard,
+            actual: event.writerShard
+          });
+          ok = false;
+        }
+        const owner = this.ownerShard(event.entityType, event.entityId);
+        if (owner !== shard) {
+          crossShardFailures.push({
+            code: 'wrong-owner-shard',
+            eventId,
+            entityType: event.entityType,
+            entityId: event.entityId,
+            expected: owner,
+            actual: shard
+          });
+          ok = false;
+        }
+      }
       shards.push(Object.assign({ shard }, result));
     }
-    return { ok, shards };
+    return { ok, shards, crossShardFailures };
   }
 }
 

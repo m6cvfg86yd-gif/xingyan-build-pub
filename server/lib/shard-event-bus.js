@@ -35,9 +35,28 @@ class ShardEventBus {
   read(offset) {
     if (!fs.existsSync(this.file())) return [];
     const rows = [];
-    for (const line of fs.readFileSync(this.file(), 'utf8').split('\n')) {
+    const eventIds = new Set();
+    const lines = fs.readFileSync(this.file(), 'utf8').split('\n');
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
       if (!line.trim()) continue;
-      try { rows.push(JSON.parse(line)); } catch (_) { /* skip corrupt line */ }
+      let event;
+      try {
+        event = JSON.parse(line);
+      } catch (error) {
+        throw new Error('shard event bus corruption at line ' + (index + 1)
+          + ': ' + String(error && error.message || error));
+      }
+      if (!event || !event.eventId || !event.entityType || !event.entityId
+          || !Number.isSafeInteger(Number(event.version)) || Number(event.version) <= 0) {
+        throw new Error('shard event bus invalid event at line ' + (index + 1));
+      }
+      if (eventIds.has(event.eventId)) {
+        throw new Error('shard event bus duplicate event at line ' + (index + 1)
+          + ': ' + event.eventId);
+      }
+      eventIds.add(event.eventId);
+      rows.push(event);
     }
     return rows.slice(Math.max(0, Number(offset) || 0));
   }
@@ -48,13 +67,27 @@ class ShardEventBus {
     try {
       const saved = JSON.parse(fs.readFileSync(cursorFile, 'utf8'));
       cursor = Math.max(0, Number(saved.cursor) || 0);
-    } catch (_) { cursor = 0; }
+    } catch (error) {
+      if (error && error.code !== 'ENOENT') {
+        throw new Error('shard event cursor corruption: ' + String(error.message || error));
+      }
+      cursor = 0;
+    }
     const rows = this.read(cursor);
+    if (!rows.length && cursor > this.read(0).length) {
+      throw new Error('shard event cursor is beyond the event log');
+    }
     for (const event of rows) {
-      cluster.apply(event.entityType, event.entityId, event);
+      const result = cluster.apply(event.entityType, event.entityId, event);
+      if (result.status !== 'applied' && result.status !== 'duplicate') {
+        throw new Error('shard event replay failed at ' + event.eventId
+          + ': ' + result.status);
+      }
       cursor += 1;
     }
-    fs.writeFileSync(cursorFile, JSON.stringify({ cursor }), 'utf8');
+    const temporary = cursorFile + '.tmp';
+    fs.writeFileSync(temporary, JSON.stringify({ cursor }), 'utf8');
+    fs.renameSync(temporary, cursorFile);
     return { replayed: rows.length, cursor };
   }
 }
