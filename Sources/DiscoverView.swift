@@ -183,6 +183,11 @@ private struct XingyanMallMark: View {
     }
 }
 
+private struct WorldPresentedRoute: Identifiable {
+    let key: String
+    var id: String { key }
+}
+
 struct DiscoverView: View {
 
     @State private var navScrolled: CGFloat = 0
@@ -196,10 +201,9 @@ struct DiscoverView: View {
     @State private var items: [DiscoverItem] = []
     @State private var loaded = false
     @State private var worldArtwork: [String: String] = [:]
-    @State private var lastRouteOpenAt = Date.distantPast
 
     @State private var showScan = false
-    @State private var showMomentsPage = false
+    @State private var presentedWorldRoute: WorldPresentedRoute?
     @ObservedObject private var realtime = Realtime.shared
 
     private var latestThumb: String {
@@ -634,8 +638,12 @@ struct DiscoverView: View {
         .fullScreenCover(isPresented: $showScan) {
             ScannerView { text in handleScanned(text, app: app) }
         }
-        .fullScreenCover(isPresented: $showMomentsPage) {
-            MomentsView()
+        .fullScreenCover(item: $presentedWorldRoute) { route in
+            NavigationStack {
+                worldDestination(route.key)
+                    .environmentObject(app)
+            }
+        }
                 .environmentObject(app)
         }
     }
@@ -1126,30 +1134,35 @@ struct DiscoverView: View {
     }
 
     private func open(_ item: DiscoverItem) {
-        if item.action == "moments" {
-            showMomentsPage = true
-            return
+        let action = item.action ?? "soon"
+        switch action {
+        case "scan":
+            showScan = true
+        case "mall":
+            presentedWorldRoute = WorldPresentedRoute(key: "shop")
+        case "soon":
+            presentedWorldRoute = WorldPresentedRoute(key: "soon:" + item.label)
+        default:
+            presentedWorldRoute = WorldPresentedRoute(key: action)
         }
-        let now = Date()
-        guard now.timeIntervalSince(lastRouteOpenAt) > 0.45 else { return }
-        lastRouteOpenAt = now
-        switch item.action ?? "soon" {
-        case "moments": break
-        case "news": path.append("news")
-        case "nearby": path.append("nearby")
-        case "shake": path.append("shake")
-        case "bottle": path.append("bottle")
-        case "live": path.append("live")
-        case "games": path.append("games")
-    case "channels": path.append("channels")
-    case "look": path.append("look")
-    case "search": path.append("search")
+    }
 
-    case "music": path.append("music")
-    case "miniapps": path.append("miniapps")
-    case "shop", "mall": path.append("shop")
-    case "scan": showScan = true
-    default: path.append("soon:" + item.label)
+    @ViewBuilder
+    private func worldDestination(_ key: String) -> some View {
+        switch key {
+        case "moments": MomentsView()
+        case "nearby": NearbyPageView()
+        case "shake", "bottle": BottlePageView()
+        case "live": LiveListView()
+        case "games": GamesPageView()
+        case "channels": ChannelsView()
+        case "look": LookView()
+        case "search": SearchAllView()
+        case "news": NewsView()
+        case "music": ListenView()
+        case "miniapps": MiniAppsView()
+        case "shop": MallAuthGate { MallNativeView(app: app) }
+        default: ComingSoonView(title: String(key.dropFirst(5)))
         }
     }
 
