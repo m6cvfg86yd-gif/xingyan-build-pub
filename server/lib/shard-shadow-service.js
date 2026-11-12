@@ -1,6 +1,8 @@
 'use strict';
 
 const fs = require('fs');
+const crypto = require('crypto');
+const os = require('os');
 const path = require('path');
 const { ShardCluster } = require('./shard-runtime');
 const { ShardEventBus } = require('./shard-event-bus');
@@ -8,6 +10,58 @@ const { ShardMutationGateway } = require('./shard-gateway');
 const { migrateLegacyState } = require('./shard-migrate');
 const { LegacyShadowRecorder, compareLegacyState } = require('./shard-shadow');
 const { ShadowAdapter } = require('./shard-shadow-adapter');
+
+function acquireWriterLock(dataDir, now) {
+  fs.mkdirSync(dataDir, { recursive: true });
+  const file = path.join(dataDir, 'writer.lock');
+  const token = crypto.randomBytes(16).toString('hex');
+  const owner = {
+    pid: process.pid,
+    hostname: os.hostname(),
+    token,
+    startedAt: now ? now() : new Date().toISOString()
+  };
+  const tryAcquire = () => {
+    const fd = fs.openSync(file, 'wx');
+    try {
+      fs.writeFileSync(fd, JSON.stringify(owner), 'utf8');
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+  };
+  try {
+    tryAcquire();
+  } catch (error) {
+    if (!error || error.code !== 'EEXIST') throw error;
+    let existing = null;
+    try { existing = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) { existing = null; }
+    let stale = false;
+    if (existing && existing.hostname === owner.hostname && existing.pid) {
+      try {
+        process.kill(Number(existing.pid), 0);
+        stale = false;
+      } catch (probeError) {
+        stale = !!(probeError && probeError.code === 'ESRCH');
+      }
+    }
+    if (!stale) throw new Error('shard shadow writer already active on '
+      + String(existing && existing.hostname || 'unknown host'));
+    fs.unlinkSync(file);
+    tryAcquire();
+  }
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    try {
+      const current = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (current && current.token === token) fs.unlinkSync(file);
+    } catch (_) { /* process exit or a replaced lock */ }
+  };
+  process.once('exit', release);
+  return { file, token, release };
+}
 
 function createShardShadowService(options) {
   const enabled = String(options && options.enabled || '') === '1';
@@ -19,6 +73,8 @@ function createShardShadowService(options) {
     };
   }
   const dataDir = path.join(options.dataDir, 'shard-shadow');
+  const writerLock = acquireWriterLock(dataDir, options.now);
+  try {
   const cluster = new ShardCluster({
     dataDir,
     shardCount: Number(options.shardCount) || 6
@@ -75,8 +131,14 @@ function createShardShadowService(options) {
     cluster,
     migration,
     reportFile,
-    diffHistoryFile
+    diffHistoryFile,
+    close: writerLock.release,
+    writerLockFile: writerLock.file
   };
+  } catch (error) {
+    writerLock.release();
+    throw error;
+  }
 }
 
 module.exports = { createShardShadowService };

@@ -7,6 +7,8 @@ const path = require('path');
 const { createShardShadowService } = require('../lib/shard-shadow-service');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xingyan-shard-shadow-service-'));
+let service = null;
+let reopened = null;
 
 try {
   const disabled = createShardShadowService({
@@ -20,7 +22,7 @@ try {
 
   let uidCounter = 0;
   let clock = 0;
-  const service = createShardShadowService({
+  service = createShardShadowService({
     enabled: '1',
     dataDir: path.join(root, 'enabled'),
     shardCount: 6,
@@ -28,6 +30,12 @@ try {
     now: () => new Date(1700000000000 + (++clock)).toISOString()
   });
   assert.strictEqual(service.enabled, true);
+  assert.ok(fs.existsSync(service.writerLockFile));
+  assert.throws(() => createShardShadowService({
+    enabled: '1',
+    dataDir: path.join(root, 'enabled'),
+    shardCount: 6
+  }), /writer already active/);
 
   const friendship = {
     id: 'shadow-friend-1',
@@ -179,7 +187,8 @@ try {
   assert.strictEqual(divergence.ok, false);
   assert.ok(fs.existsSync(service.diffHistoryFile));
 
-  const reopened = createShardShadowService({
+  service.close();
+  reopened = createShardShadowService({
     enabled: '1',
     dataDir: path.join(root, 'enabled'),
     shardCount: 6,
@@ -196,5 +205,7 @@ try {
 
   console.log('shard-shadow-service: passed');
 } finally {
+  if (reopened && typeof reopened.close === 'function') reopened.close();
+  if (service && typeof service.close === 'function') service.close();
   fs.rmSync(root, { recursive: true, force: true });
 }
