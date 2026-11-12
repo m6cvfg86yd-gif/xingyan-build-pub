@@ -287,9 +287,21 @@ final class AppState: ObservableObject {
     var tabBarHidden: Bool { tabBarDepth > 0 || floorFull }
 
     @Published var appearance: String = UserDefaults.standard.string(forKey: "chris.appearance") ?? "auto"
+    @Published var appearanceVeilOpacity: Double = 0
     func setAppearance(_ v: String) {
-        appearance = v
-        UserDefaults.standard.set(v, forKey: "chris.appearance")
+        guard v != appearance else { return }
+        withAnimation(.easeOut(duration: 0.12)) {
+            appearanceVeilOpacity = 0.10
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.11) {
+            self.appearance = v
+            UserDefaults.standard.set(v, forKey: "chris.appearance")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.035) {
+                withAnimation(.easeInOut(duration: 0.30)) {
+                    self.appearanceVeilOpacity = 0
+                }
+            }
+        }
     }
     var preferredScheme: ColorScheme? {
         appearance == "light" ? .light : (appearance == "dark" ? .dark : nil)
@@ -1717,6 +1729,7 @@ struct CHRISApp: App {
                     .environmentObject(app)
                     .environmentObject(externalFiles)
                     .preferredColorScheme(app.preferredScheme)
+                    .animation(.easeInOut(duration: 0.22), value: app.appearance)
                     .onOpenURL { url in
                         if url.isFileURL { ExternalFileInbox.shared.accept([url]) }
                     }
@@ -1759,6 +1772,11 @@ struct CHRISApp: App {
                         .transition(.opacity)
                         .zIndex(13)
                 }
+                Color.black
+                    .opacity(app.appearanceVeilOpacity)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .zIndex(18)
                 if let u = app.forcedUpdate {
                     ForceUpdateView(info: u)
                         .transition(.opacity)

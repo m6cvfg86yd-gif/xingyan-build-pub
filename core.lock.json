@@ -8,8 +8,8 @@
     },
     {
       "path": "Sources/App.swift",
-      "size": 160591,
-      "sha256": "cec6a91a786ee85c85c35b56636b765e1931184b8b0c4ef1568bea47c3b0ac77"
+      "size": 161374,
+      "sha256": "5dc3f9f5daf2053ff88b408ae4c1c14cead4b621862f4c47f238193826fb93c1"
     },
     {
       "path": "Sources/Realtime.swift",
