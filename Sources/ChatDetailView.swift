@@ -7016,34 +7016,40 @@ struct ImageBubble: View {
             ? CGSize(width: stickerSide, height: stickerSide)
             : (box ?? CGSize(width: 150, height: 150))
 
-        Group {
-            if path.lowercased().hasSuffix(".gif") {
-                StickerThumb(url: path)
-            } else {
-                RemoteImage(path: path, icon: "photo", mode: stickerLook ? .fit : .fill, onLoaded: { img in
-                    guard !isSticker else { return }
-                    if ImageBubble.looksLikeSticker(img.size) {
-                        smallSticker = true
-                    } else if box == nil {
-                        box = ImageBubble.thumb(img.size)
-
-                        ImageSizeCache.put(path, box ?? ImageBubble.thumb(img.size))
-                    }
-                    onSized?()
-                })
+        Button(action: onTap) {
+            Group {
+                if path.lowercased().hasSuffix(".gif") {
+                    StickerThumb(url: path)
+                } else {
+                    RemoteImage(path: path, icon: "photo",
+                                mode: stickerLook ? .fit : .fill,
+                                onLoaded: { img in
+                        guard !isSticker else { return }
+                        if ImageBubble.looksLikeSticker(img.size) {
+                            smallSticker = true
+                        } else if box == nil {
+                            box = ImageBubble.thumb(img.size)
+                            ImageSizeCache.put(path, box ?? ImageBubble.thumb(img.size))
+                        }
+                        onSized?()
+                    })
+                }
             }
+            .frame(width: size.width, height: size.height)
+            .clipShape(RoundedRectangle(cornerRadius: stickerLook ? 8 : 5,
+                                        style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: stickerLook ? 8 : 5,
+                                 style: .continuous)
+                    .stroke(Color.black.opacity(stickerLook ? 0 : 0.10),
+                            lineWidth: 0.6)
+            )
+            .shadow(color: stickerLook ? .clear : Color.black.opacity(0.16),
+                    radius: 7, x: 0, y: 3)
+            .contentShape(Rectangle())
         }
-        .frame(width: size.width, height: size.height)
-        .clipShape(RoundedRectangle(cornerRadius: stickerLook ? 8 : 5, style: .continuous))
-
-        .overlay(
-            RoundedRectangle(cornerRadius: stickerLook ? 8 : 5, style: .continuous)
-                .stroke(Color.black.opacity(stickerLook ? 0 : 0.10), lineWidth: 0.6)
-        )
-        .shadow(color: stickerLook ? .clear : Color.black.opacity(0.16),
-                radius: 7, x: 0, y: 3)
-        .contentShape(Rectangle())
-        .onTapGesture { onTap() }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Tr(stickerLook ? "查看表情" : "查看图片"))
 
         .onAppear {
             if box == nil, let cached = ImageSizeCache.get(path) { box = cached }

@@ -182,20 +182,22 @@ struct VideoBubble: View {
     private var size: CGSize { videoBubbleSize(w: info.w, h: info.h) }
 
     var body: some View {
-        ZStack {
-            coverLayer
-            playIcon
-            if info.seconds > 0 { timeBadge }
-        }
-        .frame(width: size.width, height: size.height)
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .contentShape(Rectangle())
-
-        .onTapGesture {
+        Button {
             let u = info.url
             let full = u.hasPrefix("http") ? u : API.shared.base + u
             if let url = URL(string: full) { onOpen(url, nil) }
+        } label: {
+            ZStack {
+                coverLayer
+                playIcon
+                if info.seconds > 0 { timeBadge }
+            }
+            .frame(width: size.width, height: size.height)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Tr("查看视频"))
     }
 
     @ViewBuilder
@@ -236,34 +238,32 @@ struct LivePhotoBubble: View {
     let message: Message
     var onPlay: (URL) -> Void = { _ in }
 
-    @State private var pressed = false
-
     private var info: (image: String, video: String) {
         let o = jsonDict(message.body)
         return ((o["image"] as? String) ?? "", (o["video"] as? String) ?? "")
     }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            RemoteImage(path: info.image, mode: .fill, maxSide: 1600)
-            Text(Tr("实况"))
-                .font(pfStyled(size: 11.5, weight: .semibold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 6).padding(.vertical, 2)
-                .background(Capsule().fill(Color.black.opacity(0.42)))
-                .padding(7)
-        }
-        .frame(width: 150, height: 200)
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .scaleEffect(pressed ? 0.97 : 1)
-
-        .onTapGesture {
-            pressed = true
+        Button {
             let v = info.video
             let full = v.hasPrefix("http") ? v : API.shared.base + v
             if let url = URL(string: full) { onPlay(url) }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { pressed = false }
+        } label: {
+            ZStack(alignment: .topLeading) {
+                RemoteImage(path: info.image, mode: .fill, maxSide: 1600)
+                Text(Tr("实况"))
+                    .font(pfStyled(size: 11.5, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(Color.black.opacity(0.42)))
+                    .padding(7)
+            }
+            .frame(width: 150, height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Tr("查看实况照片"))
     }
 }
 
