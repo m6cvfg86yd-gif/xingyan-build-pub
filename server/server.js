@@ -1296,6 +1296,33 @@ function forgetFriendSetCache(...userIds) {
   userIds.filter(Boolean).forEach((id) => friendSetCache.delete(String(id)));
 }
 
+let friendshipsDiskSignature = '';
+
+function friendshipsFileSignature() {
+  try {
+    const st = fs.statSync(path.join(DATA_DIR, 'friendships.json'), { bigint: true });
+    return String(st.size) + ':' + String(st.mtimeNs);
+  } catch (_) {
+    return '';
+  }
+}
+
+/* 六个分片共享 friendships.json，但各自有内存副本。读好友关系或鉴权发消息前
+   按文件版本刷新，避免一个分片已删好友，另一个分片仍拿旧表放行。 */
+function refreshFriendshipsFromDisk(force) {
+  const signature = friendshipsFileSignature();
+  if (!signature || (!force && signature === friendshipsDiskSignature)) return false;
+  try {
+    const raw = readJson(path.join(DATA_DIR, 'friendships.json'), { friendships: [] });
+    db.friendships = Array.isArray(raw.friendships) ? raw.friendships : [];
+    friendshipsDiskSignature = signature;
+    friendSetCache.clear();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 /* 名片 / 会话成员统一走这里：好友给完整资料，陌生人只给最小资料 */
 function memberProfile(u, viewerId) {
   if (!u) return null;
@@ -2876,7 +2903,10 @@ const saveUsers = () => writeJson(path.join(DATA_DIR, 'users.json'), {
     return c;
   })
 });
-const saveFriendships = () => writeJson(path.join(DATA_DIR, 'friendships.json'), { friendships: db.friendships });
+const saveFriendships = () => {
+  writeJson(path.join(DATA_DIR, 'friendships.json'), { friendships: db.friendships });
+  friendshipsDiskSignature = friendshipsFileSignature();
+};
 const saveChats = () => writeJson(path.join(DATA_DIR, 'chats.json'), { chats: db.chats });
 const saveReads = () => writeJson(path.join(DATA_DIR, 'reads.json'), { reads: db.reads, cleared: db.cleared || {} });
 const saveDelivered = () => writeJson(path.join(DATA_DIR, 'delivered.json'), { delivered: db.delivered });
@@ -6181,6 +6211,7 @@ function usernameChangeTimes(user) {
 }
 
 function friendshipBetween(a, b) {
+  refreshFriendshipsFromDisk(false);
   return db.friendships.find((f) =>
     (f.fromId === a && f.toId === b) || (f.fromId === b && f.toId === a)) || null;
 }
@@ -7310,7 +7341,49 @@ function pushForMessage(sender, chat, message) {
    都会用备注 —— 所以老版本 App 不用装包也能看到备注生效。
    ============================================================ */
 const FRIEND_META_FILE = path.join(DATA_DIR, 'friendmeta.json');
+const FRIEND_REMOVALS_FILE = path.join(DATA_DIR, 'friend-removals.json');
+let friendRemovalCache = { signature: '', pairs: {} };
 let friendMetaCache = null;
+
+function friendPairKey(a, b) {
+  return [String(a || ''), String(b || '')].sort().join('|');
+}
+
+function readFriendRemovals() {
+  let signature = '';
+  try {
+    const st = fs.statSync(FRIEND_REMOVALS_FILE, { bigint: true });
+    signature = String(st.size) + ':' + String(st.mtimeNs);
+  } catch (_) { signature = ''; }
+  if (signature && signature === friendRemovalCache.signature) return friendRemovalCache.pairs;
+  let pairs = {};
+  try {
+    const raw = JSON.parse(fs.readFileSync(FRIEND_REMOVALS_FILE, 'utf8'));
+    pairs = raw && raw.pairs && typeof raw.pairs === 'object' ? raw.pairs : {};
+  } catch (_) { pairs = {}; }
+  friendRemovalCache = { signature, pairs };
+  return pairs;
+}
+
+function markFriendRemoved(a, b) {
+  const pairs = Object.assign({}, readFriendRemovals());
+  pairs[friendPairKey(a, b)] = now();
+  writeJson(FRIEND_REMOVALS_FILE, { pairs });
+  friendRemovalCache = { signature: '', pairs };
+}
+
+function clearFriendRemoved(a, b) {
+  const pairs = Object.assign({}, readFriendRemovals());
+  const key = friendPairKey(a, b);
+  if (!pairs[key]) return;
+  delete pairs[key];
+  writeJson(FRIEND_REMOVALS_FILE, { pairs });
+  friendRemovalCache = { signature: '', pairs };
+}
+
+function friendPairWasRemoved(a, b) {
+  return !!readFriendRemovals()[friendPairKey(a, b)];
+}
 
 function readFriendMeta() {
   if (friendMetaCache) return friendMetaCache;
@@ -8399,13 +8472,14 @@ function clearStrangerMessagesBetween(a, b) {
 }
 
 function directFriendMessageError(user, chatId) {
+  refreshFriendshipsFromDisk(false);
   const chat = db.chats.find((c) => c.id === chatId);
   if (!chat || chat.type !== 'direct') return '';
   if (chat.bot || chat.oaId) return '';
-  if (chat.friendshipRemovedAt) {
+  const peerId = chat.memberIds.find((id) => id !== user.id);
+  if (chat.friendshipRemovedAt || (peerId && friendPairWasRemoved(user.id, peerId))) {
     return '你们已经不是好友，重新添加好友并通过验证后才能继续聊天';
   }
-  const peerId = chat.memberIds.find((id) => id !== user.id);
   if (!peerId || peerId === user.id || friendSetCached(user.id).has(peerId)) return '';
   const im = readIm();
   if (im.allowStranger) return '';
@@ -9414,6 +9488,7 @@ function openChatWith(user, target) {
   if (!f) db.friendships.push({ id: uid('f'), fromId: user.id, toId: target.id, status: 'accepted', createdAt: now() });
   else if (f.status !== 'accepted') f.status = 'accepted';
   saveFriendships();
+  clearFriendRemoved(user.id, target.id);
   return chat;
 }
 
@@ -9828,6 +9903,7 @@ async function housekeeperCommand(user, text, chat, bot) {
       if (f.fromId === user.id) return '好友申请已经发过了，等「' + who + '」在「新的朋友」里通过。';
       f.status = 'accepted';
       saveFriendships();
+      clearFriendRemoved(f.fromId, f.toId);
       openChatForFriendship(f.fromId, f.toId);
       sendTo(target.id, { type: 'friend', action: 'accepted', user: publicUser(user) });
       return '「' + who + '」之前加过你，现在你们互相是好友了，可以聊天了。';
@@ -18544,6 +18620,7 @@ async function handleApi(req, res, pathname, query) {
     const q = str(query.get('q'), 24).toLowerCase();
     if (!q) return ok(res, { users: [] });            // 空搜索不再把全站用户吐出来
     if (!searchRateAllow(user.id)) return fail(res, 429, '搜索太频繁了，歇一下再搜');
+    refreshFriendshipsFromDisk(false);
     const online = onlineUserIds();
     const myFriends = friendSetCached(user.id);
     /* 仿微信：微信号 / 手机号要完全对上才出结果，靠字母表一个个扫扫不出来。
@@ -18574,6 +18651,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'contacts' && method === 'GET') {
+    refreshFriendshipsFromDisk(false);
     const online = onlineUserIds();
     /* 公众号**不算好友**：微信里它们只出现在「通讯录 → 公众号」和会话列表，
        不会混进 A-Z 好友列表（用户反馈的「你又造了 2 个机器人出来」就是这个）。 */
@@ -18649,6 +18727,7 @@ async function handleApi(req, res, pathname, query) {
       exist.status = 'accepted';
       exist.respondedAt = now();
       saveFriendships();
+      clearFriendRemoved(exist.fromId, exist.toId);
       forgetFriendSetCache(exist.fromId, exist.toId);
       clearStrangerMessagesBetween(exist.fromId, exist.toId);
       /* 互相加好友（对方先加过我）：同样立刻在两个人的「微信」首页开出会话 */
@@ -18665,6 +18744,7 @@ async function handleApi(req, res, pathname, query) {
         respondedAt: now() };
       db.friendships.push(auto);
       saveFriendships();
+      clearFriendRemoved(target.id, user.id);
       forgetFriendSetCache(target.id, user.id);
       clearStrangerMessagesBetween(target.id, user.id);
       const c0 = openChatForFriendship(target.id, user.id);
@@ -18741,6 +18821,7 @@ async function handleApi(req, res, pathname, query) {
   /* 一键清除“已添加好友”：只清已通过的真实用户，机器人/系统号保留。
      一次请求内保存好友关系和本机会话状态，避免客户端逐个删除时删到一半。 */
   if (parts[0] === 'friends' && parts[1] === 'clear' && method === 'POST') {
+    refreshFriendshipsFromDisk(false);
     const removeIds = new Set();
     const kept = [];
     db.friendships.forEach((f) => {
@@ -18767,6 +18848,7 @@ async function handleApi(req, res, pathname, query) {
     if (removeIds.size) {
       dbm = readFriendMeta();
       removeIds.forEach((targetId) => {
+        markFriendRemoved(user.id, targetId);
         forgetFriendSetCache(user.id, targetId);
         if (dbm.byOwner[user.id] && dbm.byOwner[user.id][targetId]) {
           delete dbm.byOwner[user.id][targetId];
@@ -18799,6 +18881,7 @@ async function handleApi(req, res, pathname, query) {
 
   /* 删除好友（微信：对方还在你的列表里，只是彼此不再是好友，聊天记录可选删） */
   if (parts[0] === 'friends' && parts[1] === 'remove' && method === 'POST') {
+    refreshFriendshipsFromDisk(false);
     const body = await readBody(req);
     const target = findUser(str(body.userId, 40));
     if (!target) return fail(res, 404, '用户不存在');
@@ -18810,6 +18893,7 @@ async function handleApi(req, res, pathname, query) {
       db.friendships = db.friendships.filter((x) => x.id !== f.id);
       saveFriendships();
     }
+    markFriendRemoved(user.id, target.id);
     forgetFriendSetCache(user.id, target.id);
     /* 只动我这边：把会话从我的列表里藏掉（对方那边不受影响，微信就是这样） */
     const chat = db.chats.find((c) => c.type === 'direct' && c.memberIds.includes(user.id) && c.memberIds.includes(target.id));
@@ -18841,6 +18925,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'friends' && parts[1] === 'respond' && method === 'POST') {
+    refreshFriendshipsFromDisk(false);
     const body = await readBody(req);
     /* 两种传法都收：
        · requestId ——「通讯录 → 新的朋友」列表里本来就带着
@@ -18859,6 +18944,7 @@ async function handleApi(req, res, pathname, query) {
       f.status = 'accepted';
       f.respondedAt = now();
       saveFriendships();
+      clearFriendRemoved(f.fromId, f.toId);
       forgetFriendSetCache(f.fromId, f.toId);
       clearStrangerMessagesBetween(f.fromId, f.toId);
       /* 通过好友以后，两个人的「微信」首页立刻各多一个会话（不用等谁先说话） */
@@ -19565,6 +19651,7 @@ async function handleApi(req, res, pathname, query) {
       exist.status = 'accepted';
       exist.respondedAt = now();
       saveFriendships();
+      clearFriendRemoved(exist.fromId, exist.toId);
       const c2 = openChatForFriendship(exist.fromId, exist.toId);
       sendTo(u.id, { type: 'friend', action: 'accepted', user: publicUser(user) });
       sendTo(exist.fromId, { type: 'chat', chatId: c2 ? c2.id : '' });
