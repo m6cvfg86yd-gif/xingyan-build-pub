@@ -124,6 +124,9 @@ struct VirtualCardView: View {
         .frame(height: 220)
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay {
+            CardLightSweep(cornerRadius: 26)
+        }
+        .overlay {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .stroke(
                     LinearGradient(

@@ -649,8 +649,8 @@ struct FinanceSupportView: View {
         errorText = ""
         Task {
             do {
-                let message = try await API.shared.send(chatId: chatId, kind: "text", content: text)
-                if !messages.contains(where: { $0.id == message.id }) {
+                let sent = try await API.shared.send(chatId: chatId, kind: "text", content: text)
+                if let message = sent, !messages.contains(where: { $0.id == message.id }) {
                     messages.append(message)
                 }
                 try? await Task.sleep(nanoseconds: 450_000_000)

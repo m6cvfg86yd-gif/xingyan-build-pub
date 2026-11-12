@@ -16,6 +16,51 @@ enum PayVisual {
     static var secondaryInk: Color { Color.dyn(0x6C6C70, 0xA2A5AC) }
 }
 
+struct CardLightSweep: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var phase: CGFloat = -0.8
+
+    var cornerRadius: CGFloat = 28
+
+    var body: some View {
+        GeometryReader { geo in
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .white.opacity(0.035), location: 0.30),
+                            .init(color: .white.opacity(0.16), location: 0.50),
+                            .init(color: .white.opacity(0.035), location: 0.70),
+                            .init(color: .clear, location: 1)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: geo.size.width * 0.56)
+                .rotationEffect(.degrees(10))
+                .blur(radius: 1.2)
+                .blendMode(.screen)
+                .offset(x: phase * geo.size.width)
+        }
+        .mask(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .allowsHitTesting(false)
+        .opacity(reduceMotion ? 0 : 1)
+        .task {
+            guard !reduceMotion else { return }
+            while !Task.isCancelled {
+                phase = -0.82
+                try? await Task.sleep(nanoseconds: 2_400_000_000)
+                withAnimation(.easeInOut(duration: 1.55)) {
+                    phase = 1.30
+                }
+                try? await Task.sleep(nanoseconds: 3_600_000_000)
+            }
+        }
+    }
+}
+
 struct StarPayAmount: View {
     enum Role {
         case hero, metric, row, detail, sheet
@@ -458,6 +503,9 @@ struct PayOfficialView: View {
         }
         .frame(height: 220)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            CardLightSweep(cornerRadius: 28)
+        }
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(
