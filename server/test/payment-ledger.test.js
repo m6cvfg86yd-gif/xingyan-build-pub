@@ -76,6 +76,64 @@ assert.strictEqual(
 );
 assert.strictEqual(ledger.entriesForUser('u1', 10).length, 3, 'user statement should include own entries');
 
+ledger.apply({
+  userId: 'payer',
+  before: 0,
+  after: 50,
+  counterAccount: 'system:external-settlement'
+}, 50, '充值', 'bank-payer');
+
+ledger.apply({
+  userId: 'payer',
+  before: 50,
+  after: 40,
+  counterAccount: 'system:pending-transfer'
+}, -10, '转账', 'transfer-1');
+
+assert.strictEqual(ledger.accountBalance('user:payer'), 40);
+assert.strictEqual(ledger.accountBalance('system:pending-transfer'), 10,
+  'pending transfer funds must stay in the clearing account');
+
+ledger.apply({
+  userId: 'payee',
+  before: 0,
+  after: 10,
+  counterAccount: 'system:pending-transfer'
+}, 10, '收转账', 'transfer-1');
+
+assert.strictEqual(ledger.accountBalance('user:payee'), 10);
+assert.strictEqual(ledger.accountBalance('system:pending-transfer'), 0,
+  'claiming a transfer must clear the pending account');
+
+ledger.apply({
+  userId: 'payee',
+  before: 10,
+  after: 0,
+  counterAccount: 'system:wallet-transfer-clearing'
+}, -10, '收款方退还', 'transfer-1');
+
+ledger.apply({
+  userId: 'payer',
+  before: 40,
+  after: 50,
+  counterAccount: 'system:wallet-transfer-clearing'
+}, 10, '收到退还', 'transfer-1');
+
+assert.strictEqual(ledger.accountBalance('user:payee'), 0);
+assert.strictEqual(ledger.accountBalance('user:payer'), 50);
+assert.strictEqual(ledger.accountBalance('system:wallet-transfer-clearing'), 0);
+
+assert.throws(() => {
+  ledger.record({
+    userId: 'payer',
+    reason: '不平衡测试',
+    ref: 'invalid'
+  }, [
+    { account: 'user:payer', delta: 1 },
+    { account: 'system:unclassified', delta: -0.99 }
+  ]);
+}, /借贷不平/);
+
 const journal = path.join(dir, 'money-journal.jsonl');
 const rows = fs.readFileSync(journal, 'utf8').trim().split('\n').map(JSON.parse);
 rows[0].reason = 'tampered';

@@ -14517,7 +14517,7 @@ async function handleApi(req, res, pathname, query) {
      带上对方是谁（名字/头像）、进出方向、状态、时间，再给一份汇总和月份列表。 */
   if (parts[0] === 'bills' && parts.length === 1 && method === 'GET') {
     const me = currentUser(req);
-    if (blockedByRealName(res, me)) return;      // 账单属于钱包，同样要实名
+    if (!me) return fail(res, 401, '请先登录');
     const limit = Math.min(200, Math.max(1, Number(query.get('limit')) || 100));
     const month = str(query.get('month'), 7);          // 形如 2026-09，不传就是全部
     let all = (db.transfers || [])
