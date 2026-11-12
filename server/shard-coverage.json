@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "routes": [
+    {
+      "id": "contacts.list",
+      "method": "GET",
+      "path": "/api/contacts",
+      "family": "friendship",
+      "entityTypes": ["friendship", "friend_visibility"],
+      "events": ["read"],
+      "status": "pending"
+    },
+    {
+      "id": "friends.request",
+      "method": "POST",
+      "path": "/api/friends/request",
+      "family": "friendship",
+      "entityTypes": ["friendship"],
+      "events": ["request", "accept"],
+      "status": "pending"
+    },
+    {
+      "id": "friends.respond",
+      "method": "POST",
+      "path": "/api/friends/respond",
+      "family": "friendship",
+      "entityTypes": ["friendship"],
+      "events": ["accept", "reject"],
+      "status": "pending"
+    },
+    {
+      "id": "friends.remove",
+      "method": "POST",
+      "path": "/api/friends/remove",
+      "family": "friendship",
+      "entityTypes": ["friendship", "friend_visibility"],
+      "events": ["delete"],
+      "status": "pending"
+    },
+    {
+      "id": "friends.clear",
+      "method": "POST",
+      "path": "/api/friends/clear",
+      "family": "friendship",
+      "entityTypes": ["friendship", "friend_visibility"],
+      "events": ["delete"],
+      "status": "pending"
+    },
+    {
+      "id": "users.search",
+      "method": "GET",
+      "path": "/api/users",
+      "family": "friendship",
+      "entityTypes": ["friendship", "friend_visibility"],
+      "events": ["read"],
+      "status": "pending"
+    },
+    {
+      "id": "chats.list",
+      "method": "GET",
+      "path": "/api/chats",
+      "family": "chat",
+      "entityTypes": ["chat", "chat_visibility"],
+      "events": ["read"],
+      "status": "pending"
+    },
+    {
+      "id": "chats.hide",
+      "method": "DELETE",
+      "path": "/api/chats/:chatId",
+      "family": "chat",
+      "entityTypes": ["chat_visibility"],
+      "events": ["hide"],
+      "status": "pending"
+    },
+    {
+      "id": "chats.messages.create",
+      "method": "POST",
+      "path": "/api/chats/:chatId/messages",
+      "family": "chat",
+      "entityTypes": ["friendship", "chat_visibility", "chat"],
+      "events": ["send", "show"],
+      "status": "pending"
+    },
+    {
+      "id": "chats.unread",
+      "method": "POST",
+      "path": "/api/chats/:chatId/unread",
+      "family": "chat",
+      "entityTypes": ["chat_read_state"],
+      "events": ["unread"],
+      "status": "pending"
+    },
+    {
+      "id": "chats.pin",
+      "method": "POST",
+      "path": "/api/chats/:chatId/pin",
+      "family": "chat",
+      "entityTypes": ["chat_user_state"],
+      "events": ["pin"],
+      "status": "pending"
+    },
+    {
+      "id": "chats.kick",
+      "method": "POST",
+      "path": "/api/chats/:chatId/kick",
+      "family": "chat",
+      "entityTypes": ["chat_membership"],
+      "events": ["remove-member"],
+      "status": "pending"
+    },
+    {
+      "id": "chats.leave",
+      "method": "POST",
+      "path": "/api/chats/:chatId/leave",
+      "family": "chat",
+      "entityTypes": ["chat_membership"],
+      "events": ["leave"],
+      "status": "pending"
+    },
+    {
+      "id": "chats.dismiss",
+      "method": "POST",
+      "path": "/api/chats/:chatId/dismiss",
+      "family": "chat",
+      "entityTypes": ["chat"],
+      "events": ["dismiss"],
+      "status": "pending"
+    },
+    {
+      "id": "moments.list",
+      "method": "GET",
+      "path": "/api/moments",
+      "family": "moment",
+      "entityTypes": ["moment", "moment_comment", "moment_like"],
+      "events": ["read"],
+      "status": "pending"
+    },
+    {
+      "id": "moments.publish",
+      "method": "POST",
+      "path": "/api/moments",
+      "family": "moment",
+      "entityTypes": ["moment"],
+      "events": ["publish"],
+      "status": "pending"
+    },
+    {
+      "id": "moments.comment",
+      "method": "POST",
+      "path": "/api/moments/:momentId/comments",
+      "family": "moment",
+      "entityTypes": ["moment", "moment_comment"],
+      "events": ["comment"],
+      "status": "pending"
+    },
+    {
+      "id": "moments.like",
+      "method": "POST",
+      "path": "/api/moments/:momentId/like",
+      "family": "moment",
+      "entityTypes": ["moment", "moment_like"],
+      "events": ["like"],
+      "status": "pending"
+    },
+    {
+      "id": "moments.comment-like",
+      "method": "POST",
+      "path": "/api/moments/:momentId/comments/:commentId/like",
+      "family": "moment",
+      "entityTypes": ["moment_comment", "moment_comment_like"],
+      "events": ["like"],
+      "status": "pending"
+    },
+    {
+      "id": "moments.notices",
+      "method": "GET",
+      "path": "/api/moments/notices",
+      "family": "moment",
+      "entityTypes": ["moment", "moment_comment", "moment_like"],
+      "events": ["read"],
+      "status": "pending"
+    },
+    {
+      "id": "transfers.claim",
+      "method": "POST",
+      "path": "/api/transfers/:transferId/claim",
+      "family": "payment",
+      "entityTypes": ["transfer"],
+      "events": ["claim"],
+      "status": "pending"
+    }
+  ]
+}
