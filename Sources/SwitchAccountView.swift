@@ -12,11 +12,21 @@ struct SwitchAccountView: View {
     @State private var note = ""
 
     private var me: String { app.me?.username ?? "" }
-    private var pageBackground: Color { Color.dyn(0xF0F2F5, 0x0B141A) }
-    private var sectionBackground: Color { Color.dyn(0xFFFFFF, 0x111B21) }
-    private var primaryInk: Color { Color.dyn(0x111B21, 0xE9EDEF) }
-    private var secondaryInk: Color { Color.dyn(0x667781, 0x8696A0) }
-    private var separatorInk: Color { Color.dyn(0xE9EDEF, 0x1F2C34) }
+    private var pageBackground: Color {
+        scheme == .dark ? C.pageBg : Color.dyn(0xF0F2F5, 0x0B141A)
+    }
+    private var sectionBackground: Color {
+        scheme == .dark ? C.cardBg : Color.dyn(0xFFFFFF, 0x111B21)
+    }
+    private var primaryInk: Color {
+        scheme == .dark ? C.label : Color.dyn(0x111B21, 0xE9EDEF)
+    }
+    private var secondaryInk: Color {
+        scheme == .dark ? C.subLabel : Color.dyn(0x667781, 0x8696A0)
+    }
+    private var separatorInk: Color {
+        scheme == .dark ? C.hairline : Color.dyn(0xE9EDEF, 0x1F2C34)
+    }
     private let switchAccent = Color(hex: 0x25D366)
 
     var body: some View {
@@ -70,6 +80,12 @@ struct SwitchAccountView: View {
                 }
                 .background(sectionBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    if scheme == .dark {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(C.hairline, lineWidth: 0.8)
+                    }
+                }
 
                 Button {
                     adding = true
@@ -79,6 +95,12 @@ struct SwitchAccountView: View {
                 .buttonStyle(.plain)
                 .background(sectionBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    if scheme == .dark {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(C.hairline, lineWidth: 0.8)
+                    }
+                }
 
                 if !note.isEmpty {
                     HStack(alignment: .top, spacing: 8) {

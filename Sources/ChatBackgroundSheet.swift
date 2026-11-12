@@ -183,6 +183,18 @@ struct ChatBackgroundSheet: View {
     private var inChat: Bool { !chatId.isEmpty }
     @ObservedObject private var store = ChatBgStore.shared
 
+    private var wallpaperCardFill: Color {
+        scheme == .dark ? C.cardBg : C.meCardBg
+    }
+
+    private var wallpaperCardLine: Color {
+        scheme == .dark ? C.hairline : Color.primary.opacity(0.055)
+    }
+
+    private var wallpaperCardLineWidth: CGFloat {
+        scheme == .dark ? 0.8 : 0.6
+    }
+
     private var defaultWallpaperPath: String {
         effectiveDefaultChatBackground(app.defaultChatBackground)
     }
@@ -242,11 +254,11 @@ struct ChatBackgroundSheet: View {
                         }
                     }
                 }
-                .background(C.meCardBg)
+                .background(wallpaperCardFill)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.primary.opacity(0.055), lineWidth: 0.6)
+                        .stroke(wallpaperCardLine, lineWidth: wallpaperCardLineWidth)
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -271,11 +283,11 @@ struct ChatBackgroundSheet: View {
                         picking = true
                     }
                 }
-                .background(C.meCardBg)
+                .background(wallpaperCardFill)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.primary.opacity(0.055), lineWidth: 0.6)
+                        .stroke(wallpaperCardLine, lineWidth: wallpaperCardLineWidth)
                 }
 
                 Text(Tr("相册壁纸会保留完整全景；深色模式使用同一张壁纸的自然黑模糊。"))
@@ -326,7 +338,7 @@ struct ChatBackgroundSheet: View {
 
     private var wallpaperDivider: some View {
         Rectangle()
-            .fill(Color.primary.opacity(0.075))
+            .fill(scheme == .dark ? C.hairline : Color.primary.opacity(0.075))
             .frame(height: 0.5)
             .padding(.leading, 60)
     }
