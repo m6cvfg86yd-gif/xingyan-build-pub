@@ -6,6 +6,32 @@ import QuickLook
 import QuickLookThumbnailing
 import CoreImage
 
+private struct ChatTypingDots: View {
+    let color: Color
+    @State private var active = false
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(color)
+                    .frame(width: 3.6, height: 3.6)
+                    .scaleEffect(active ? 1 : 0.58)
+                    .opacity(active ? 1 : 0.42)
+                    .animation(
+                        .easeInOut(duration: 0.58)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(index) * 0.13),
+                        value: active
+                    )
+            }
+        }
+        .frame(width: 17, height: 10)
+        .onAppear { active = true }
+        .accessibilityHidden(true)
+    }
+}
+
 private enum ChatTheme {
     static let page = defaultChatCanvasColor()
     static let panel = Color.dyn(0xF0F2F5, 0x141416)
@@ -1019,6 +1045,10 @@ struct ChatDetailView: View {
         return chatNavigationStatus.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var isPeerTyping: Bool {
+        !peerTyping.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var navAvatarPath: String {
         let raw = (liveChat.avatar ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !raw.isEmpty { return raw }
@@ -1079,7 +1109,18 @@ struct ChatDetailView: View {
                                 .lineLimit(1)
                                 .truncationMode(.tail)
 
-                            if !whatsAppChatSubtitle.isEmpty {
+                            if isPeerTyping {
+                                HStack(spacing: 5) {
+                                    ChatTypingDots(color: Color(hex: 0x25D366))
+                                    Text(isGroup ? Tr("有人正在输入") : Tr("正在输入"))
+                                        .font(pf(12.5, .regular))
+                                        .foregroundStyle(adaptiveTopInk.opacity(
+                                            topBarUsesLightInk ? 0.78 : 0.72
+                                        ))
+                                        .lineLimit(1)
+                                }
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                            } else if !whatsAppChatSubtitle.isEmpty {
                                 Text(whatsAppChatSubtitle)
                                     .font(pf(12.5, .regular))
                                     .foregroundStyle(adaptiveTopInk.opacity(
