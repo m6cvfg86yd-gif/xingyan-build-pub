@@ -1135,6 +1135,12 @@ struct DiscoverView: View {
 
     private func open(_ item: DiscoverItem) {
         let action = item.action ?? "soon"
+        let label = item.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        if ["listen", "听一听", "听音乐", "音乐"].contains(action)
+            || label == "听一听" || label == "听音乐" {
+            presentedWorldRoute = WorldPresentedRoute(key: "music")
+            return
+        }
         switch action {
         case "scan":
             showScan = true
