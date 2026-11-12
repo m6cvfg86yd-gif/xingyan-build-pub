@@ -486,37 +486,41 @@ private var funcs: [(String, String, Color, String)] {
         case "tags":            sym = "tag.fill"
         default:                sym = "dot.radiowaves.left.and.right"
         }
-        return HStack(spacing: 13) {
-            ZStack {
-                Circle()
-                    .fill(contactsAccent)
-                Image(systemName: sym)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
+        return Button {
+            openFunc(item.3)
+        } label: {
+            HStack(spacing: 13) {
+                ZStack {
+                    Circle()
+                        .fill(contactsAccent)
+                    Image(systemName: sym)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .frame(width: 32, height: 32)
+
+                Text(item.0)
+                    .font(pfStyled(size: 17, weight: .regular))
+                    .foregroundColor(contactsLabel)
+
+                Spacer(minLength: 8)
+
+                if item.3 == "newFriends" && app.showDot("newFriends", auto: app.friendRequests > 0) {
+                    Text(app.friendRequests > 99 ? "99+" : "\(app.friendRequests)")
+                        .font(pf(12, .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, app.friendRequests > 9 ? 6 : 0)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .background(Capsule().fill(Color(.systemRed)))
+                }
             }
-            .frame(width: 32, height: 32)
-
-            Text(item.0)
-                .font(pfStyled(size: 17, weight: .regular))
-                .foregroundColor(contactsLabel)
-
-            Spacer(minLength: 8)
-
-            if item.3 == "newFriends" && app.showDot("newFriends", auto: app.friendRequests > 0) {
-                Text(app.friendRequests > 99 ? "99+" : "\(app.friendRequests)")
-                    .font(pf(12, .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, app.friendRequests > 9 ? 6 : 0)
-                    .frame(minWidth: 20, minHeight: 20)
-                    .background(Capsule().fill(Color(.systemRed)))
-            }
-
+            .padding(.leading, 16)
+            .padding(.trailing, 18)
+            .frame(height: 60)
+            .background(contactsCanvas)
+            .contentShape(Rectangle())
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 18)
-        .frame(height: 60)
-        .background(contactsCanvas)
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
     }
 
     private var ctFuncs: [(String, String, Color, String)] {
