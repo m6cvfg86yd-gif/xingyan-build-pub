@@ -346,6 +346,397 @@ struct RedPacketSendView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            NavBar(title: Tr("发红包"), back: { dismiss() }) {
+                Text(LuckLabel.text(isLucky: isGroup && lucky))
+                    .font(pf(12.5, .medium))
+                    .foregroundColor(C.subLabel)
+                    .padding(.horizontal, 10)
+                    .frame(height: 28)
+                    .background(C.label.opacity(0.055), in: Capsule())
+                    .padding(.trailing, 14)
+            }
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    redPacketHero
+                    quickAmounts
+
+                    if isGroup {
+                        redPacketPlayStyles
+                    }
+
+                    redPacketDetails
+
+                    Text(helpText)
+                        .font(pf(12.5))
+                        .foregroundColor(C.subLabel)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 112)
+            }
+            .scrollIndicators(.hidden)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                sendBar
+            }
+        }
+        .background(redPacketCanvas.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        .task {
+            if let me = app.me, let b = me.balance { myBalance = b; balanceLoaded = true }
+            if let m = try? await API.shared.me() {
+                app.me = m
+                myBalance = m.balance ?? 0
+                balanceLoaded = true
+            }
+
+            if isGroup, !countInit {
+                countInit = true
+                var n = max(1, (chat.memberCount ?? 0) - 1)
+                if let r = try? await API.shared.chatMembers(chatId: chat.id) {
+                    let others = r.members.filter { $0.id != app.me?.id }.count
+                    if others > 0 { n = others }
+                }
+                if countText == "1" { countText = String(max(1, min(100, n))) }
+            }
+
+            if let r = try? await API.shared.redPacketCovers() {
+                let mine = r.covers.first(where: { $0.id == r.mine }) ?? r.covers.first
+                if let mine {
+                    coverId = mine.id
+                    coverImage = mine.image ?? ""
+                    coverColor = mine.color ?? "#B3241C"
+                    coverName = mine.name ?? ""
+                }
+            }
+        }
+        .sheet(isPresented: $showCoverPicker) {
+            RedPacketCoverPicker { c in
+                coverId = c.id
+                coverImage = c.image ?? ""
+                coverColor = c.color ?? "#B3241C"
+                coverName = c.name ?? ""
+            }
+            .environmentObject(app)
+        }
+        .overlay(alignment: .bottom) {
+            if paying { payPanel }
+        }
+        .sheet(isPresented: $showSetPay) {
+            NavigationStack {
+                PayPasswordView().environmentObject(app)
+            }
+        }
+    }
+
+    private var redPacketCanvas: Color {
+        Color.dyn(0xF0F2F5, 0x0B141A)
+    }
+
+    private var redPacketCard: Color {
+        Color.dyn(0xFFFFFF, 0x111B21)
+    }
+
+    private var redPacketHero: some View {
+        ZStack {
+            Group {
+                if coverImage.isEmpty {
+                    LinearGradient(
+                        colors: [Color(hex: 0xF45A3C), Color(hex: 0xB91712)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                } else {
+                    RPCoverView(path: coverImage, colorHex: coverColor)
+                    LinearGradient(
+                        colors: [Color.black.opacity(0.06), Color.black.opacity(0.44)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+            }
+
+            VStack(spacing: 0) {
+                HStack {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                        Text(Tr("星焰红包"))
+                    }
+                    .font(pf(11.5, .semibold))
+                    .foregroundStyle(.white.opacity(0.88))
+                    .padding(.horizontal, 9)
+                    .frame(height: 26)
+                    .background(.white.opacity(0.12), in: Capsule())
+
+                    Spacer()
+
+                    Button {
+                        showCoverPicker = true
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "rectangle.2.swap")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(coverName.isEmpty ? Tr("选择封面") : coverName)
+                                .font(pf(11.5, .medium))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .frame(height: 28)
+                        .background(.black.opacity(0.20), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Spacer(minLength: 16)
+
+                Text(Tr("恭喜发财 · 大吉大利"))
+                    .font(pf(12.5, .medium))
+                    .tracking(1.2)
+                    .foregroundStyle(.white.opacity(0.80))
+
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text("¥")
+                        .font(pf(25, .semibold))
+                        .foregroundStyle(.white.opacity(0.95))
+
+                    TextField("0.00", text: $amountText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.center)
+                        .font(pfMoney(50, .semibold))
+                        .foregroundStyle(.white)
+                        .tint(.white)
+                        .frame(maxWidth: 230)
+                }
+                .padding(.top, 4)
+
+                Spacer(minLength: 16)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "wallet.pass.fill")
+                        .font(.system(size: 10.5))
+                    Text(Tr("零钱余额") + " ¥\(moneyFmt(myBalance))")
+                        .font(pf(12, .medium))
+                }
+                .foregroundStyle(.white.opacity(0.88))
+            }
+            .padding(16)
+        }
+        .frame(height: 258)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [.white.opacity(0.34), .white.opacity(0.04)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.8
+                )
+        }
+        .shadow(color: Color(hex: 0xB91712).opacity(0.24),
+                radius: 18, y: 10)
+    }
+
+    private var quickAmounts: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(["6.66", "8.88", "18.88", "66.66", "88.88"], id: \.self) { value in
+                    Button {
+                        amountText = value
+                        UISelectionFeedbackGenerator().selectionChanged()
+                    } label: {
+                        Text("¥" + value)
+                            .font(pf(13, .semibold))
+                            .foregroundStyle(amountText == value
+                                             ? Color.white : C.label)
+                            .padding(.horizontal, 14)
+                            .frame(height: 36)
+                            .background(
+                                amountText == value
+                                ? Color(hex: 0xE33A2F) : redPacketCard,
+                                in: Capsule()
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 2)
+        }
+    }
+
+    private var redPacketPlayStyles: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(Tr("红包玩法"))
+                .font(pf(13, .semibold))
+                .foregroundStyle(C.subLabel)
+                .padding(.horizontal, 3)
+
+            HStack(spacing: 10) {
+                redPacketStyleCard(
+                    selected: lucky,
+                    icon: "sparkles",
+                    title: Tr("拼手气"),
+                    subtitle: Tr("金额随机，更有惊喜")
+                ) {
+                    lucky = true
+                }
+
+                redPacketStyleCard(
+                    selected: !lucky,
+                    icon: "equal.circle.fill",
+                    title: Tr("普通红包"),
+                    subtitle: Tr("每人金额相同")
+                ) {
+                    lucky = false
+                }
+            }
+        }
+    }
+
+    private func redPacketStyleCard(
+        selected: Bool,
+        icon: String,
+        title: String,
+        subtitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(selected ? Color(hex: 0xE33A2F) : C.subLabel)
+                    Spacer()
+                    if selected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color(hex: 0xE33A2F))
+                    }
+                }
+                Text(title)
+                    .font(pf(15.5, .semibold))
+                    .foregroundStyle(C.label)
+                Text(subtitle)
+                    .font(pf(11.5))
+                    .foregroundStyle(C.subLabel)
+                    .lineLimit(2)
+            }
+            .padding(13)
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+            .background(redPacketCard, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(selected
+                            ? Color(hex: 0xE33A2F).opacity(0.78)
+                            : C.hairline,
+                            lineWidth: selected ? 1.4 : 0.7)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var redPacketDetails: some View {
+        VStack(spacing: 0) {
+            if isGroup {
+                redPacketDetailRow(
+                    icon: "person.2.fill",
+                    title: Tr("红包个数"),
+                    tint: Color(hex: 0x3D83E7)
+                ) {
+                    TextField("1", text: $countText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .font(pfMoney(18, .medium))
+                        .foregroundStyle(C.label)
+                        .frame(maxWidth: 120)
+                    Text(Tr("个"))
+                        .font(pf(13))
+                        .foregroundStyle(C.subLabel)
+                }
+                Rectangle().fill(C.hairline).frame(height: 0.5).padding(.leading, 58)
+            }
+
+            redPacketDetailRow(
+                icon: "text.bubble.fill",
+                title: Tr("祝福语"),
+                tint: Color(hex: 0xF08A32)
+            ) {
+                TextField(Tr("恭喜发财，大吉大利"), text: $note)
+                    .multilineTextAlignment(.trailing)
+                    .font(pf(14.5))
+                    .foregroundStyle(C.label)
+            }
+        }
+        .background(redPacketCard, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(C.hairline, lineWidth: 0.7)
+        }
+    }
+
+    private func redPacketDetailRow<T: View>(
+        icon: String,
+        title: String,
+        tint: Color,
+        @ViewBuilder content: () -> T
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 30, height: 30)
+                .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            Text(title)
+                .font(pf(15.5, .medium))
+                .foregroundStyle(C.label)
+            Spacer(minLength: 8)
+            content()
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 60)
+    }
+
+    private var sendBar: some View {
+        VStack(spacing: 0) {
+            Button {
+                submit()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "envelope.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(busy ? Tr("正在发…") : Tr("塞钱进红包"))
+                        .font(pf(17, .semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: 0xF04C3E), Color(hex: 0xC71F17)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                )
+                .shadow(color: Color(hex: 0xC71F17).opacity(0.28),
+                        radius: 14, y: 7)
+                .opacity(busy ? 0.58 : 1)
+            }
+            .buttonStyle(.plain)
+            .disabled(busy)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, max(10, L.safeBottom))
+        }
+        .background(.ultraThinMaterial)
+    }
+
+    private var legacySendBody: some View {
+        VStack(spacing: 0) {
             NavBar(title: isGroup ? "发红包" : "发红包", back: { dismiss() }) {
                 Text(LuckLabel.text(isLucky: lucky))
                     .font(pf(14))
