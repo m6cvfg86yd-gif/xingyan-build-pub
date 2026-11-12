@@ -97,8 +97,8 @@ struct RowSwipeCatcher: UIViewRepresentable {
             case .changed:
                 if !horizontal {
                     let v = g.velocity(in: g.view)
-                    let xWins = abs(t.x) >= max(7, abs(t.y) + 2.5)
-                        || (abs(v.x) > 100 && abs(v.x) > abs(v.y) * 1.15)
+                    let xWins = abs(t.x) >= max(5, abs(t.y) + 1.5)
+                        || (abs(v.x) > 80 && abs(v.x) > abs(v.y) * 1.10)
                     guard xWins else { return }
                     horizontal = true
                     freezeEnclosingScroll(g.view)
@@ -124,13 +124,8 @@ struct RowSwipeCatcher: UIViewRepresentable {
         }
 
         func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
-            if let pan = g as? UIPanGestureRecognizer,
-               let view = pan.view {
-                let t = pan.translation(in: view)
-                let v = pan.velocity(in: view)
-                return (abs(t.x) >= 3 && abs(t.x) > abs(t.y) * 0.85)
-                    || abs(v.x) > abs(v.y) * 1.1
-            }
+            // 先让拖拽识别启动，再在 changed 阶段判断横向是否胜出。
+            // 若在这里提前拒绝，UIScrollView 会先吞掉手势，导致左右滑偶尔完全没反应。
             return true
         }
     }
