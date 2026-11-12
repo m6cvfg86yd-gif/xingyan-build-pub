@@ -3767,11 +3767,7 @@ private struct FullPlayerAmbient: View {
     @ObservedObject private var player = MusicPlayer.shared
     @State private var drifting = false
 
-    /// 播放列表不换，背景就不换。上一版每切一首歌都重建整页氛围，
-    /// 颜色和明暗跳得太频繁；这里固定使用当前队列的封面作为稳定锚点。
     private var ambientCover: String {
-        let first = player.queue.first?.cover ?? ""
-        if !first.isEmpty { return first }
         return track?.cover ?? ""
     }
 
@@ -3792,6 +3788,7 @@ private struct FullPlayerAmbient: View {
                         .brightness(scheme == .dark ? 0.015 : 0.055)
                         .opacity((scheme == .dark ? 0.64 : 0.52)
                                  + Double(player.level) * 0.08)
+                        .id(ambientCover)
                         .transition(.opacity)
 
                     RemoteImage(path: ambientCover, mode: .fill, maxSide: 820)
@@ -3803,6 +3800,7 @@ private struct FullPlayerAmbient: View {
                         .blendMode(scheme == .dark ? .screen : .softLight)
                         .opacity((scheme == .dark ? 0.24 : 0.18)
                                  + Double(player.level) * 0.10)
+                        .id("detail-\(ambientCover)")
                         .transition(.opacity)
                 }
 
