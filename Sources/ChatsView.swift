@@ -748,7 +748,6 @@ struct SwipeChatRow: View {
     @State private var mode: Mode = .none
     @State private var dragging = false
     @ObservedObject private var drafts = ChatDraftStore.shared
-    @Environment(\.colorScheme) private var scheme
 
     private var btnW: CGFloat { UIConfig.num("swipeBtnW", 74) }
     private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
@@ -791,7 +790,6 @@ struct SwipeChatRow: View {
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
     private var rowBg: Color {
         if cardStyle { return .clear }
-        if scheme == .dark { return C.cardBg }
         return UIConfig.colorIfSet("chatsRowBg")
             ?? UIConfig.colorIfSet("chatRowBg")
             ?? Color.dyn(0xFFFFFF, 0x0B141A)
