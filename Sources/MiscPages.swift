@@ -1633,6 +1633,39 @@ struct HeartBurst: View {
                     .opacity(Double(1 - t))
             }
 
+            ForEach(0..<28, id: \.self) { i in
+                let angle = Double(i) / 28 * 2 * Double.pi
+                    + sin(Double(i) * 1.73) * 0.12
+                let startRadius = CGFloat(18 + (i * 17) % 25)
+                let distance = startRadius
+                    + t * CGFloat(52 + (i % 5) * 11) * intensity
+                let grain = CGFloat(1.15 + Double((i * 7) % 11) * 0.17) * intensity
+                let gravity = t * t * CGFloat(7 + (i % 3) * 4) * intensity
+                Group {
+                    if i % 7 == 0 {
+                        Capsule()
+                            .fill(i % 2 == 0
+                                  ? Color(hex: 0xFFE1A1)
+                                  : Color(hex: 0xFF8FA7))
+                            .frame(width: grain * 0.72, height: grain * 2.9)
+                    } else {
+                        Circle()
+                            .fill(i % 4 == 0
+                                  ? Color.white
+                                  : (i % 4 == 1
+                                     ? Color(hex: 0xFFD77D)
+                                     : (i % 4 == 2
+                                        ? Color(hex: 0xFF6F8E)
+                                        : Color(hex: 0xFFA5B8))))
+                            .frame(width: grain, height: grain)
+                    }
+                }
+                    .rotationEffect(.degrees(Double(t) * Double(65 + i * 9)))
+                    .offset(x: CGFloat(cos(angle)) * distance,
+                            y: CGFloat(sin(angle)) * distance + gravity)
+                    .opacity(pow(Double(1 - t), 1.38))
+            }
+
             ForEach(0..<8, id: \.self) { i in
                 Capsule()
                     .fill(i % 2 == 0
