@@ -5922,12 +5922,12 @@ struct MessageRow: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(C.green)
                 Text(Tr("语音转文字"))
-                    .font(pf(11, .medium))
+                    .font(pf(11.5, .medium))
                     .foregroundColor(C.green)
                 Spacer(minLength: 8)
                 if !asrBusy {
                     Text(Tr("点按复制"))
-                        .font(pf(10))
+                        .font(pf(10.5, .medium))
                         .foregroundColor(C.time)
                     Image(systemName: "doc.on.doc")
                         .font(.system(size: 10.5))
@@ -5943,7 +5943,7 @@ struct MessageRow: View {
                 }
             } else {
                 Text(asrText)
-                    .font(pf(13.5))
+                    .font(pf(13.5, .regular))
                     .foregroundColor(C.label)
                     .lineSpacing(2.5)
                     .multilineTextAlignment(.leading)
@@ -5984,7 +5984,7 @@ struct MessageRow: View {
     private var content: some View {
         if message.isRecalled {
             Text(mine ? "你撤回了一条消息" : "对方撤回了一条消息")
-                .font(pf(12))
+                .font(pf(12.5, .regular))
                 .foregroundColor(senderNameUsesLightInk
                                  ? Color.white.opacity(0.92)
                                  : Color(hex: 0x3F4247))
@@ -6245,14 +6245,14 @@ struct MessageRow: View {
                     VStack(alignment: .leading, spacing: 2) {
                         if !q.sender.isEmpty {
                             Text(q.sender)
-                                .font(pf(12, .medium))
+                                .font(pf(12.5, .medium))
                                 .foregroundColor(bubbleSecondaryInk)
                                 .lineLimit(1)
                         }
                         Text(q.summary.isEmpty ? Tr("[引用]") : q.summary)
-                            .font(pf(12.5))
+                            .font(pf(13, .regular))
                             .foregroundColor(bubbleSecondaryInk)
-                            .lineLimit(3)
+                            .lineLimit(2)
                             .multilineTextAlignment(.leading)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -6347,8 +6347,9 @@ struct MessageRow: View {
             count + (character == "\n" ? 1 : 0)
         }
         let isLong = raw.count >= 120 || lineCount >= 5
-        let minimum: CGFloat = isLong ? 5.5 : 4
-        return max(minimum, L.msgLineSpacing)
+        let preferred: CGFloat = isLong ? 3.2 : 2.4
+        let configured = max(2.2, min(3.2, L.msgLineSpacing))
+        return min(preferred, configured)
     }
 
     private func richBody(_ raw: String) -> AttributedString {
