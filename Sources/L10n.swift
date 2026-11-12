@@ -40,7 +40,6 @@ enum L10n {
         "确认由本人完成设置": "Confirm that you are setting this up yourself",
         "启用钱包": "Enable Wallet",
         "验证完成后自动返回钱包": "Return to Wallet automatically when complete",
-        "继续": "Continue",
         "身份资料只保存在星言服务器；身份证号加密保存，页面只显示脱敏信息。": "Identity information is stored only on Xingyan servers. Your ID number is encrypted and only masked values are shown.",
         "发起了一笔转账": "Sent a transfer",
         "」打电话？": "” Call?",
