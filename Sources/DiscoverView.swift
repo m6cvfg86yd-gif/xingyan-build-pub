@@ -545,7 +545,6 @@ struct DiscoverView: View {
                     .topScrollTracking($navScrolled, space: "discoverScroll")
                 }
 
-                .padding(.top, -L.navH)
                 .background(Color.clear)
 
                 discoverTopHeader
