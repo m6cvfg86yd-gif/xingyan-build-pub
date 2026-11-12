@@ -11,6 +11,7 @@ const {
   ShardCluster
 } = require('../lib/shard-runtime');
 const { ShardEventBus } = require('../lib/shard-event-bus');
+const { ShardDomain } = require('../lib/shard-domain');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xingyan-shard-runtime-'));
 const logFile = path.join(dir, 'events.jsonl');
@@ -130,6 +131,36 @@ try {
   assert.strictEqual(reopenedCluster.get('moment', 'moment-1').payload.content, 'hello');
   replay = bus.replayInto(reopenedCluster);
   assert.strictEqual(replay.replayed, 0);
+
+  let nextId = 0;
+  const domain = new ShardDomain({
+    cluster: reopenedCluster,
+    bus,
+    uid: (prefix) => prefix + '-domain-' + (++nextId),
+    now: () => '2026-11-13T00:00:00.000Z'
+  });
+  domain.acceptFriend('alice', 'bob', 1);
+  assert.strictEqual(domain.canMessage('alice', 'bob').allowed, true);
+  domain.deleteFriend('alice', 'bob', 2);
+  assert.strictEqual(domain.canMessage('alice', 'bob').allowed, false);
+  assert.strictEqual(domain.canMessage('bob', 'alice').reason, 'needs-verification');
+  domain.readdFriend('alice', 'bob', 3);
+  assert.strictEqual(domain.canMessage('alice', 'bob').allowed, true);
+
+  domain.hideChat('chat-alice-bob', 'alice', 1);
+  assert.strictEqual(domain.chatVisible('chat-alice-bob', 'alice'), false);
+  domain.showChatForMessage('chat-alice-bob', 'alice', 2);
+  assert.strictEqual(domain.chatVisible('chat-alice-bob', 'alice'), true);
+
+  domain.dismissGroup('group-1', 1);
+  assert.strictEqual(domain.restoreGroup('group-1', 2).status, 'tombstoned');
+
+  const claimEvent = 'transfer-claim-once';
+  assert.strictEqual(domain.claimTransfer('transfer-1', 'bob', 1, claimEvent).status, 'applied');
+  assert.strictEqual(domain.claimTransfer('transfer-1', 'bob', 2, claimEvent).status,
+    'already-claimed');
+  assert.strictEqual(domain.claimTransfer('transfer-1', 'bob', 2, claimEvent).status,
+    'already-claimed');
 
   console.log('shard-runtime: passed');
 } finally {
