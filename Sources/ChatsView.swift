@@ -874,13 +874,6 @@ struct SwipeChatRow: View {
                 onEnded: { _, vx in
                     dragging = false
                     dragVelocity = vx
-                    let projected = offset + vx * 0.14
-                    if projected > fullW * 1.06, vx >= 0 {
-                        ChatSwipeFeedback.notification.notificationOccurred(.success)
-                        onPin(chat.pinned != true)
-                        close()
-                        return
-                    }
                     settle(velocity: vx)
                 }
             )
@@ -976,12 +969,12 @@ struct SwipeChatRow: View {
         if offset >= 0 {
             let projected = offset + vx * 0.14
             let open: Bool
-            if vx <= -360 {
+            if vx >= 360 {
                 open = true
-            } else if vx >= 360 {
+            } else if vx <= -360 {
                 open = false
             } else {
-                open = projected > leadingFullW * 0.38
+                open = projected > fullW * 0.42
             }
             if open { ChatSwipeFeedback.selection.selectionChanged() }
             withAnimation(swipeSpring) {
