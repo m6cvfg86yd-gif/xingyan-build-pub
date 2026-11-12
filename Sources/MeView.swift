@@ -111,6 +111,7 @@ private struct MeCardRowOutline: Shape {
 
 private struct MeCardRowBackground: View {
     let position: MeCardRowPosition
+    var showsOutline = true
 
     var body: some View {
         GeometryReader { proxy in
@@ -118,8 +119,10 @@ private struct MeCardRowBackground: View {
             ZStack {
                 MeCardRowFill(position: position, radius: radius)
                     .fill(C.meCardBg)
-                MeCardRowOutline(position: position, radius: radius)
-                    .stroke(C.hairline, lineWidth: 0.8)
+                if showsOutline {
+                    MeCardRowOutline(position: position, radius: radius)
+                        .stroke(C.hairline, lineWidth: 0.8)
+                }
             }
         }
     }
@@ -313,6 +316,7 @@ struct MeView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .listSectionSeparator(scheme == .dark ? .hidden : .visible)
         .scrollContentBackground(.hidden)
         .background(mePageCanvasColor.ignoresSafeArea())
         .navigationTitle(Tr("我的"))
@@ -444,7 +448,7 @@ struct MeView: View {
             }
             .padding(.vertical, 3)
         }
-        .listRowBackground(MeCardRowBackground(position: .single))
+        .listRowBackground(MeCardRowBackground(position: .single, showsOutline: false))
         .listRowSeparator(.hidden)
 
         ForEach(grouped.indices, id: \.self) { gi in
@@ -454,10 +458,12 @@ struct MeView: View {
                         nativeMeItemRow(item)
                     }
                     .listRowBackground(
-                        MeCardRowBackground(position: .at(idx, count: grouped[gi].count))
+                        MeCardRowBackground(
+                            position: .at(idx, count: grouped[gi].count),
+                            showsOutline: false
+                        )
                     )
-                    .listRowSeparator(idx < grouped[gi].count - 1 ? .visible : .hidden)
-                    .listRowSeparatorTint(C.hairline)
+                    .listRowSeparator(.hidden)
                 }
             }
         }
@@ -469,16 +475,15 @@ struct MeView: View {
                                           symbol: "person.2.badge.gearshape.fill",
                                           color: .indigo)
                 }
-                .listRowBackground(MeCardRowBackground(position: .first))
-                .listRowSeparator(.visible)
-                .listRowSeparatorTint(C.hairline)
+                .listRowBackground(MeCardRowBackground(position: .first, showsOutline: false))
+                .listRowSeparator(.hidden)
 
                 NavigationLink(value: "faces") {
                     nativeSettingsIconRow(Tr("人脸比对"),
                                           symbol: "face.smiling",
                                           color: C.green)
                 }
-                .listRowBackground(MeCardRowBackground(position: .last))
+                .listRowBackground(MeCardRowBackground(position: .last, showsOutline: false))
                 .listRowSeparator(.hidden)
             }
         }
