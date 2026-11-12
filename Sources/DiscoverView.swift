@@ -1165,7 +1165,10 @@ struct DiscoverView: View {
         case "look": LookView()
         case "search": SearchAllView()
         case "news": NewsView()
-        case "music": ListenView()
+        case "music":
+            ListenView(onLeave: {
+                presentedWorldRoute = nil
+            })
         case "miniapps": MiniAppsView()
         case "shop": MallAuthGate { MallNativeView(app: app) }
         default: ComingSoonView(title: String(key.dropFirst(5)))

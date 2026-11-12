@@ -1128,7 +1128,7 @@ struct ListenView: View {
     }
 
     private var playerOnlyBody: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             Color.black.ignoresSafeArea()
 
             if loading && tracks.isEmpty && player.current == nil {
@@ -1148,6 +1148,17 @@ struct ListenView: View {
                         .font(pf(17, .semibold))
                         .foregroundStyle(.white)
                     Button {
+                        leaveListen()
+                    } label: {
+                        Text(Tr("返回"))
+                            .font(pf(14, .medium))
+                            .foregroundStyle(.white.opacity(0.82))
+                            .padding(.horizontal, 14)
+                            .frame(height: 34)
+                            .background(.white.opacity(0.10), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    Button {
                         Task { await refreshTracks(force: true) }
                     } label: {
                         Text(Tr("重新加载"))
@@ -1163,6 +1174,25 @@ struct ListenView: View {
                 MusicPlayingView(onExit: leaveListen,
                                  onModeChange: selectCopyMode)
                     .transition(.opacity)
+            }
+
+            if (loading && tracks.isEmpty && player.current == nil)
+                || (tracks.isEmpty && player.current == nil) {
+                Button {
+                    leaveListen()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(.white.opacity(0.10), in: Circle())
+                        .frame(width: 48, height: 48)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 10)
+                .padding(.top, 6)
+                .accessibilityLabel(Tr("返回"))
             }
         }
         .task { await refreshTracks(force: true) }
