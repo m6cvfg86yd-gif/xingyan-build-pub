@@ -1849,51 +1849,6 @@ struct ChatDetailView: View {
                 }
             }
 
-            if !groupAnnouncement.isEmpty {
-                Button {
-                    announcePage = groupAnnouncement
-                    showAnnouncePage = true
-                } label: {
-                    HStack(spacing: 10) {
-                        ZStack {
-                            Circle()
-                                .fill(Color(hex: 0x25D366)
-                                    .opacity(scheme == .dark ? 0.18 : 0.12))
-                            Image(systemName: "megaphone.fill")
-                                .font(.system(size: 12.5, weight: .semibold))
-                                .foregroundStyle(Color(hex: 0x25D366))
-                        }
-                        .frame(width: 30, height: 30)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(Tr("群公告"))
-                                .font(pf(12.5, .semibold))
-                                .foregroundStyle(Color.dyn(0x1D8F5B, 0x63D89A))
-                            Text(groupAnnouncement)
-                                .font(pf(13.5, .regular))
-                                .foregroundColor(C.label)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(C.subLabel.opacity(0.78))
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(minHeight: 50)
-                    .background(Color.dyn(0xF0F8F3, 0x10231B))
-                    .overlay(alignment: .bottom) {
-                        Rectangle()
-                            .fill(Color.dyn(0xDDEBE3, 0x1B3329))
-                            .frame(height: 0.5)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-
             if callActiveHere {
                 Button {
                     CallCenter.shared.restore()
