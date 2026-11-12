@@ -116,7 +116,13 @@ async function stopServer(child) {
 }
 
 async function waitForCleanAudit(dataDir, timeoutMs) {
-  const file = path.join(dataDir, 'shard-shadow', 'shadow-audit.json');
+  const file = path.join(
+    dataDir,
+    'shard-shadow',
+    'topologies',
+    'server-a-shards-6',
+    'shadow-audit.json'
+  );
   const deadline = Date.now() + (timeoutMs || 5000);
   let last = null;
   while (Date.now() < deadline) {
@@ -315,7 +321,12 @@ async function main() {
       transfers: readCollection(dataDir, 'transfers')
     };
     const cluster = new ShardCluster({
-      dataDir: path.join(dataDir, 'shard-shadow'),
+      dataDir: path.join(
+        dataDir,
+        'shard-shadow',
+        'topologies',
+        'server-a-shards-6'
+      ),
       shardCount: 6,
       topologyId: 'server-a-shards-6'
     });

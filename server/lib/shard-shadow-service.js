@@ -84,10 +84,11 @@ function createShardShadowService(options) {
   const acquiredShards = [];
   try {
   const topologyId = String(options.topologyId || 'shards-' + shardCount);
+  const safeTopology = topologyId.replace(/[^A-Za-z0-9._-]/g, '_');
+  const topologyDir = path.join(dataDir, 'topologies', safeTopology);
   const ownerId = String(options.ownerId || (os.hostname() + ':' + process.pid));
   leaseManager = new ShardLeaseManager({
-    dataDir: path.join(dataDir, 'topologies',
-      topologyId.replace(/[^A-Za-z0-9._-]/g, '_')),
+    dataDir: topologyDir,
     ownerId,
     ttlMs: Math.max(3000, Number(options.leaseTtlMs) || 30000)
   });
@@ -105,7 +106,7 @@ function createShardShadowService(options) {
     throw error;
   }
   const cluster = new ShardCluster({
-    dataDir,
+    dataDir: topologyDir,
     shardCount,
     topologyId
   });
@@ -139,8 +140,8 @@ function createShardShadowService(options) {
   if (snapshotStores) snapshotMirror.captureStore(options.legacy || {});
   const recorder = new LegacyShadowRecorder({ gateway });
   const adapter = new ShadowAdapter({ recorder });
-  const reportFile = path.join(dataDir, 'shadow-audit.json');
-  const diffHistoryFile = path.join(dataDir, 'shadow-diffs.jsonl');
+  const reportFile = path.join(topologyDir, 'shadow-audit.json');
+  const diffHistoryFile = path.join(topologyDir, 'shadow-diffs.jsonl');
   const leaseTimer = setInterval(() => {
     for (let shard = 0; shard < shardCount; shard += 1) {
       try { leaseManager.renew(shard); }
