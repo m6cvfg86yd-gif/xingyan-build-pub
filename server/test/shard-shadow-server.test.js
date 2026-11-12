@@ -115,6 +115,20 @@ async function stopServer(child) {
   });
 }
 
+async function waitForCleanAudit(dataDir, timeoutMs) {
+  const file = path.join(dataDir, 'shard-shadow', 'shadow-audit.json');
+  const deadline = Date.now() + (timeoutMs || 5000);
+  let last = null;
+  while (Date.now() < deadline) {
+    try {
+      last = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (last.ok === true) return last;
+    } catch (_) { /* audit is still being written */ }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('shadow audit did not become clean: ' + JSON.stringify(last));
+}
+
 function readCollection(dataDir, name) {
   try {
     const row = JSON.parse(fs.readFileSync(path.join(dataDir, name + '.json'), 'utf8'));
@@ -153,7 +167,9 @@ async function main() {
         CHRIS_LOCAL_ONLY: '1',
         AML_RUNTIME_ENABLED: '0',
         SHARD_SHADOW_ENABLED: '1',
+        SHARD_SHADOW_AUDIT_MS: '1000',
         SHARD_COUNT: '6',
+        SHARD_TOPOLOGY_ID: 'server-a-shards-6',
         ADMIN_PASSWORD: 'shadow-test-admin'
       }),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -286,6 +302,9 @@ async function main() {
     response = await call(base, 'POST', '/api/chats/' + groupId + '/dismiss', {}, alice.cookie);
     assert.strictEqual(response.status, 200, JSON.stringify(response.data));
 
+    const audit = await waitForCleanAudit(dataDir, 8000);
+    assert.strictEqual(audit.snapshotsEnabled, true);
+
     await stopServer(child);
     child = null;
 
@@ -297,7 +316,8 @@ async function main() {
     };
     const cluster = new ShardCluster({
       dataDir: path.join(dataDir, 'shard-shadow'),
-      shardCount: 6
+      shardCount: 6,
+      topologyId: 'server-a-shards-6'
     });
     const comparison = compareLegacyState(cluster, legacy);
     assert.strictEqual(comparison.ok, true, JSON.stringify(comparison.diffs));

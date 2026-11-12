@@ -28,7 +28,12 @@ class ShardDomain {
       createdAt: this.now()
     }, options || {});
     const result = this.cluster.apply(entityType, entityId, event);
-    if (result.status === 'applied' && this.bus) this.bus.publish(event);
+    if (result.status === 'applied' && this.bus) {
+      this.bus.publish(Object.assign({}, event, {
+        writerShard: result.state && result.state.writerShard,
+        topologyId: this.cluster.topologyId
+      }));
+    }
     return result;
   }
 

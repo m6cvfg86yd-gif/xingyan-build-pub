@@ -16,6 +16,13 @@ function routingKey(entityType, entityId) {
   if (type === 'friend_visibility') {
     return id.split('|')[0] || id;
   }
+  if (type === 'snapshot_friendMeta') {
+    return id.split('|')[0] || id;
+  }
+  if (type === 'snapshot_reads') {
+    const parts = id.split('|');
+    return (parts.length > 2 ? parts[1] : parts[parts.length - 1]) || id;
+  }
   if (type === 'chat_visibility' || type === 'chat_user_state' || type === 'chat_read_state'
       || type === 'chat_membership') {
     const parts = id.split('|');
@@ -32,9 +39,25 @@ function clone(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
+function readJsonFile(file, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function writeJsonFile(file, value) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = file + '.' + process.pid + '.tmp';
+  fs.writeFileSync(temporary, JSON.stringify(value), 'utf8');
+  fs.renameSync(temporary, file);
+}
+
 class ShardDirectory {
   constructor(options) {
     this.shardCount = Math.max(1, Math.floor(Number(options && options.shardCount) || 1));
+    this.topologyId = String(options && options.topologyId || 'shards-' + this.shardCount);
     this.file = options && options.file ? String(options.file) : '';
     this.readJson = options && options.readJson;
     this.writeJson = options && options.writeJson;
@@ -45,6 +68,12 @@ class ShardDirectory {
   load() {
     if (!this.file || typeof this.readJson !== 'function') return;
     const raw = this.readJson(this.file, { assignments: {} });
+    const storedTopology = String(raw && raw.topologyId || '');
+    if (storedTopology && storedTopology !== this.topologyId) {
+      throw new Error('shard topology mismatch: stored=' + storedTopology
+        + ' current=' + this.topologyId);
+    }
+    this.migratedFrom = String(raw && raw.migratedFrom || '');
     this.assignments = raw && raw.assignments && typeof raw.assignments === 'object'
       ? raw.assignments
       : {};
@@ -53,7 +82,12 @@ class ShardDirectory {
   save() {
     if (!this.file || typeof this.writeJson !== 'function') return;
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    this.writeJson(this.file, { assignments: this.assignments });
+    this.writeJson(this.file, {
+      topologyId: this.topologyId,
+      shardCount: this.shardCount,
+      migratedFrom: this.migratedFrom || '',
+      assignments: this.assignments
+    });
   }
 
   shardFor(kind, id) {
@@ -76,6 +110,26 @@ class ShardDirectory {
 
   chatShard(chatId) {
     return this.shardFor('chat', chatId);
+  }
+
+  exportAssignments() {
+    return Object.assign({}, this.assignments);
+  }
+
+  importAssignments(assignments, sourceTopologyId) {
+    const rows = assignments && typeof assignments === 'object' ? assignments : {};
+    const next = {};
+    for (const key of Object.keys(rows)) {
+      const shard = Number(rows[key]);
+      if (!Number.isInteger(shard) || shard < 0 || shard >= this.shardCount) {
+        throw new Error('assignment ' + key + ' is outside target topology');
+      }
+      next[key] = shard;
+    }
+    this.assignments = next;
+    this.migratedFrom = String(sourceTopologyId || '');
+    this.save();
+    return Object.keys(next).length;
   }
 }
 
@@ -136,7 +190,9 @@ class VersionedEntityLog {
       deleted: event.deleted === true,
       payload: clone(event.payload || {}),
       lastEventId: eventId,
-      writerShard: Number(event.writerShard)
+      writerShard: Number(event.writerShard),
+      writerEpoch: event.writerEpoch == null ? null : Number(event.writerEpoch),
+      topologyId: String(event.topologyId || '')
     });
   }
 
@@ -180,7 +236,9 @@ class VersionedEntityLog {
       deleted: event.deleted === true,
       payload: clone(event.payload || {}),
       lastEventId: identity.eventId,
-      writerShard: Number(event.writerShard)
+      writerShard: Number(event.writerShard),
+      writerEpoch: event.writerEpoch == null ? null : Number(event.writerEpoch),
+      topologyId: String(event.topologyId || '')
     };
     this.entities.set(key, state);
     this.eventIds.add(identity.eventId);
@@ -262,13 +320,15 @@ class ShardCluster {
   constructor(options) {
     const opts = options || {};
     this.shardCount = Math.max(1, Math.floor(Number(opts.shardCount) || 1));
+    this.topologyId = String(opts.topologyId || 'shards-' + this.shardCount);
     this.dataDir = String(opts.dataDir || '');
     if (!this.dataDir) throw new Error('cluster dataDir is required');
     this.directory = opts.directory || new ShardDirectory({
       shardCount: this.shardCount,
+      topologyId: this.topologyId,
       file: path.join(this.dataDir, 'shard-assignments.json'),
-      readJson: opts.readJson,
-      writeJson: opts.writeJson
+      readJson: opts.readJson || readJsonFile,
+      writeJson: opts.writeJson || writeJsonFile
     });
     this.readJson = opts.readJson;
     this.writeJson = opts.writeJson;
@@ -297,7 +357,8 @@ class ShardCluster {
     const next = Object.assign({}, event, {
       entityType,
       entityId,
-      writerShard: owner
+      writerShard: owner,
+      topologyId: this.topologyId
     });
     return this.log(owner).apply(next, { expectedShard: owner });
   }
@@ -316,6 +377,19 @@ class ShardCluster {
 
   event(entityType, entityId, eventId) {
     return this.log(this.ownerShard(entityType, entityId)).event(eventId);
+  }
+
+  migrateAssignmentsFrom(sourceCluster) {
+    if (!sourceCluster || !sourceCluster.directory) {
+      throw new Error('source cluster is required');
+    }
+    if (sourceCluster.topologyId === this.topologyId) {
+      return 0;
+    }
+    return this.directory.importAssignments(
+      sourceCluster.directory.exportAssignments(),
+      sourceCluster.topologyId
+    );
   }
 
   verify() {
@@ -345,6 +419,15 @@ class ShardCluster {
             eventId,
             expected: shard,
             actual: event.writerShard
+          });
+          ok = false;
+        }
+        if (event.topologyId && String(event.topologyId) !== this.topologyId) {
+          crossShardFailures.push({
+            code: 'wrong-topology',
+            eventId,
+            expected: this.topologyId,
+            actual: event.topologyId
           });
           ok = false;
         }

@@ -33,6 +33,39 @@ try {
   assert.strictEqual(routingKey('chat_membership', 'chat|member'), 'member');
   assert.strictEqual(routingKey('moment_comment', 'moment|comment'), 'moment');
 
+  const topology7Dir = path.join(dir, 'topology-7');
+  const topology7 = new ShardCluster({
+    dataDir: topology7Dir,
+    shardCount: 7,
+    topologyId: 'server-b-shards-7'
+  });
+  const topology7Shard = topology7.ownerShard('user', 'topology-user');
+  assert.ok(topology7Shard >= 0 && topology7Shard < 7);
+  topology7.apply('user', 'topology-user', {
+    eventId: 'topology-7-event',
+    version: 1,
+    payload: { active: true }
+  });
+  assert.strictEqual(topology7.verify().ok, true);
+  assert.throws(() => new ShardCluster({
+    dataDir: topology7Dir,
+    shardCount: 6,
+    topologyId: 'server-a-shards-6'
+  }), /topology mismatch/);
+  const expanded7Dir = path.join(dir, 'topology-7-expanded');
+  const expanded7 = new ShardCluster({
+    dataDir: expanded7Dir,
+    shardCount: 7,
+    topologyId: 'server-b-shards-7-expanded'
+  });
+  const sourceAssignments = topology7.directory.exportAssignments();
+  const migratedAssignments = expanded7.migrateAssignmentsFrom(topology7);
+  assert.strictEqual(migratedAssignments, Object.keys(sourceAssignments).length);
+  for (const key of Object.keys(sourceAssignments)) {
+    assert.strictEqual(expanded7.directory.assignments[key], sourceAssignments[key],
+      'expansion must not move existing assignments: ' + key);
+  }
+
   const readJson = (file, fallback) => {
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) { return fallback; }
   };
@@ -175,6 +208,19 @@ try {
   assert.strictEqual(reopenedCluster.get('moment', 'moment-1').payload.content, 'hello');
   replay = bus.replayInto(reopenedCluster);
   assert.strictEqual(replay.replayed, 0);
+  bus.publish({
+    eventId: 'moment-event-2',
+    entityType: 'moment',
+    entityId: 'moment-2',
+    version: 1,
+    writerShard: 3,
+    payload: { content: 'sharded bus' }
+  });
+  assert.notStrictEqual(bus.file(0), bus.file(3));
+  assert.strictEqual(bus.read(0, 3).length, 1);
+  replay = bus.replayInto(reopenedCluster);
+  assert.strictEqual(replay.replayed, 1);
+  assert.strictEqual(reopenedCluster.get('moment', 'moment-2').payload.content, 'sharded bus');
 
   const corruptBusDir = path.join(dir, 'corrupt-bus');
   const corruptBus = new ShardEventBus({ dataDir: corruptBusDir, shardCount: 6 });
@@ -211,7 +257,7 @@ try {
     payload: { active: true }
   });
   fs.writeFileSync(
-    path.join(cursorBusDir, 'shard-event-cursor.json'),
+    path.join(cursorBusDir, 'topologies', 'shards-6', 'shard-event-cursor.json'),
     JSON.stringify({ cursor: 99 }),
     'utf8'
   );

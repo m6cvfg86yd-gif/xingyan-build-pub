@@ -17,6 +17,7 @@ class ShardMutationGateway {
     this.bus = options && options.bus;
     this.uid = options && options.uid;
     this.now = options && options.now;
+    this.leaseManager = options && options.leaseManager;
     if (!this.cluster) throw new Error('cluster is required');
     if (typeof this.uid !== 'function') throw new Error('uid is required');
     if (typeof this.now !== 'function') this.now = () => new Date().toISOString();
@@ -41,6 +42,19 @@ class ShardMutationGateway {
     const eventId = String(input.eventId || this.uid('evt'));
     const payload = input.payload || {};
     const ownerShard = this.cluster.ownerShard(entityType, entityId);
+    let writerEpoch = null;
+    if (this.leaseManager) {
+      const lease = this.leaseManager.validate(ownerShard);
+      if (!lease.ok) {
+        return {
+          status: 'fenced',
+          reason: lease.reason,
+          eventId,
+          ownerShard
+        };
+      }
+      writerEpoch = Number(lease.lease.epoch);
+    }
     const previous = this.cluster.event(entityType, entityId, eventId);
     if (previous) {
       const same = commandFingerprint(entityType, entityId, operation, payload)
@@ -76,10 +90,16 @@ class ShardMutationGateway {
       payload,
       deleted: input.deleted === true,
       allowAfterTombstone: input.allowAfterTombstone === true,
+      writerEpoch,
       createdAt: input.createdAt || this.now()
     };
     const result = this.cluster.apply(entityType, entityId, event);
-    if (result.status === 'applied' && this.bus) this.bus.publish(event);
+    if (result.status === 'applied' && this.bus) {
+      this.bus.publish(Object.assign({}, event, {
+        writerShard: ownerShard,
+        topologyId: this.cluster.topologyId
+      }));
+    }
     return Object.assign({}, result, {
       eventId,
       ownerShard,

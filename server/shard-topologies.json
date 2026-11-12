@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "topologies": {
+    "server-a-shards-6": {
+      "shardCount": 6,
+      "ports": [5299, 5399, 5499, 5599, 5699, 5799]
+    },
+    "server-b-shards-7": {
+      "shardCount": 7,
+      "ports": [5299, 5399, 5499, 5599, 5699, 5799, 5899]
+    }
+  }
+}

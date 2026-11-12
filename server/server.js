@@ -23,6 +23,7 @@ const ws = require('./lib/ws');
 const { PaymentLedger, cents: ledgerCents, money: ledgerMoney } = require('./payment-ledger');
 const { AmlEngine } = require('./aml');
 const { createShardShadowService } = require('./lib/shard-shadow-service');
+const { resolveTopology } = require('./lib/shard-topology');
 const {
   isOpsUser,
   isOpsWebAuthPath,
@@ -42,18 +43,45 @@ function observeShardShadow(routeId, payload) {
   shardShadow.observe(routeId, payload);
 }
 
+function captureShardSnapshots(setNames, data, options) {
+  if (!shardShadow || !shardShadow.enabled || typeof shardShadow.capture !== 'function') return null;
+  try {
+    return shardShadow.capture(setNames, data || {}, options || {});
+  } catch (error) {
+    return { error: String(error && error.message || error) };
+  }
+}
+
 function shardShadowLegacySnapshot() {
+  const messages = {};
+  for (const chat of db.chats || []) {
+    if (!chat || !chat.id) continue;
+    try { messages[chat.id] = loadMessages(chat.id); } catch (_) { messages[chat.id] = []; }
+  }
+  let friendMeta = {};
+  try { friendMeta = readFriendMeta().byOwner || {}; } catch (_) { friendMeta = {}; }
   return {
+    users: db.users,
     friendships: db.friendships,
     chats: db.chats,
+    reads: db.reads,
+    cleared: db.cleared,
+    friendMeta,
     moments: db.moments,
-    transfers: db.transfers
+    momentNotices: db.momentNotices,
+    momentNoticeSeen: db.momentNoticeSeen,
+    transfers: db.transfers,
+    redpackets: db.redpackets,
+    messages
   };
 }
 
 function auditShardShadow() {
   if (!shardShadow || !shardShadow.enabled || typeof shardShadow.audit !== 'function') return null;
   try {
+    if (chatsDirty) { chatsDirty = false; saveChats(); }
+    if (readsDirty) { readsDirty = false; saveReads(); }
+    if (deliveredDirty) { deliveredDirty = false; saveDelivered(); }
     const report = shardShadow.audit(shardShadowLegacySnapshot());
     if (!report.ok) {
       console.log('[分片影子] 状态差异 ' + report.diffs.length + ' 项，已写入 '
@@ -2756,19 +2784,23 @@ if (fs.existsSync(adminFile)) {
 }
 
 /* 保存时把手机号 / 实名姓名加密（内存里仍是明文） */
-const saveUsers = () => writeJson(path.join(DATA_DIR, 'users.json'), {
-  users: db.users.map((u) => {
-    if (!u || typeof u !== 'object') return u;
-    const c = Object.assign({}, u);
-    if (typeof c.phone === 'string' && c.phone) c.phone = sealPii(c.phone);
-    if (typeof c.realName === 'string' && c.realName) c.realName = sealPii(c.realName);
-    if (Array.isArray(c.bankCards)) c.bankCards = c.bankCards.map(sealBankCardFields);
-    return c;
-  })
-});
+const saveUsers = () => {
+  writeJson(path.join(DATA_DIR, 'users.json'), {
+    users: db.users.map((u) => {
+      if (!u || typeof u !== 'object') return u;
+      const c = Object.assign({}, u);
+      if (typeof c.phone === 'string' && c.phone) c.phone = sealPii(c.phone);
+      if (typeof c.realName === 'string' && c.realName) c.realName = sealPii(c.realName);
+      if (Array.isArray(c.bankCards)) c.bankCards = c.bankCards.map(sealBankCardFields);
+      return c;
+    })
+  });
+  captureShardSnapshots(['users'], { users: db.users });
+};
 const saveFriendships = () => {
   writeJson(path.join(DATA_DIR, 'friendships.json'), { friendships: db.friendships });
   friendshipsDiskSignature = friendshipsFileSignature();
+  captureShardSnapshots(['friendships'], { friendships: db.friendships });
 };
 let chatsAccessSignature = '';
 
@@ -2809,8 +2841,12 @@ function refreshChatAccessStateFromDisk(force) {
 const saveChats = () => {
   writeJson(path.join(DATA_DIR, 'chats.json'), { chats: db.chats });
   chatsAccessSignature = chatsAccessStorageSignature();
+  captureShardSnapshots(['chats'], { chats: db.chats });
 };
-const saveReads = () => writeJson(path.join(DATA_DIR, 'reads.json'), { reads: db.reads, cleared: db.cleared || {} });
+const saveReads = () => {
+  writeJson(path.join(DATA_DIR, 'reads.json'), { reads: db.reads, cleared: db.cleared || {} });
+  captureShardSnapshots(['reads'], { reads: db.reads, cleared: db.cleared || {} });
+};
 const saveDelivered = () => writeJson(path.join(DATA_DIR, 'delivered.json'), { delivered: db.delivered });
 /* 高频写入用这两个：先打标记，攒到定时器里再落盘（压测发现每发一条消息
    都重写 chats.json/reads.json 是最大瓶颈，1.5 秒合并一次完全够用）。 */
@@ -2877,10 +2913,17 @@ setInterval(() => {
 const saveMoments = () => {
   writeJson(path.join(DATA_DIR, 'moments.json'), { moments: db.moments });
   momentsDiskSignature = momentsStorageSignature();
+  captureShardSnapshots(['moments'], { moments: db.moments });
 };
 const saveMomentViews = () => writeJson(path.join(DATA_DIR, 'moment-views.json'), { views: db.momentViews });
-const saveMomentNotices = () => writeJson(path.join(DATA_DIR, 'moment-notices.json'),
-  { items: db.momentNotices.slice(-2000), seen: db.momentNoticeSeen });
+const saveMomentNotices = () => {
+  writeJson(path.join(DATA_DIR, 'moment-notices.json'),
+    { items: db.momentNotices.slice(-2000), seen: db.momentNoticeSeen });
+  captureShardSnapshots(['momentNotices', 'momentNoticeSeen'], {
+    momentNotices: db.momentNotices,
+    momentNoticeSeen: db.momentNoticeSeen
+  });
+};
 const saveAnnouncements = () => writeJson(path.join(DATA_DIR, 'announcements.json'), { announcements: db.announcements });
 const saveBranding = () => writeJson(path.join(DATA_DIR, BRANDING_FILE), { branding: db.branding });
 const saveBadges = () => writeJson(path.join(DATA_DIR, 'badges.json'), { badges: db.badges });
@@ -2961,8 +3004,12 @@ function refreshTransfersFromDisk(force) {
 const saveTransfers = () => {
   writeSecureJsonStore('transfers.json', { transfers: db.transfers });
   transfersDiskSignature = transfersStorageSignature();
+  captureShardSnapshots(['transfers'], { transfers: db.transfers });
 };
-const saveRedPackets = () => writeSecureJsonStore('redpackets.json', { redpackets: db.redpackets });
+const saveRedPackets = () => {
+  writeSecureJsonStore('redpackets.json', { redpackets: db.redpackets });
+  captureShardSnapshots(['redpackets'], { redpackets: db.redpackets });
+};
 const saveSecurity = () => writeJson(path.join(DATA_DIR, 'logins.json'), { logins: db.security.logins, events: db.security.events });
 
 /* --------------------------------------------------- 朋友圈：追加式写入
@@ -4883,6 +4930,9 @@ function openMessage(chatId, line) {
 function saveMessagesFile(chatId, list) {
   const body = list.map((m) => sealMessage(chatId, m)).join('\n');
   fs.writeFileSync(messagesFile(chatId), body ? body + '\n' : '', 'utf8');
+  captureShardSnapshots(['messageThreads'], {
+    messages: { [chatId]: list }
+  }, { replace: false });
 }
 
 /** 启动时把还留在磁盘上的明文消息文件改成密文（一次性、可重复跑） */
@@ -4951,6 +5001,9 @@ function appendMessage(chatId, message) {
   const last = list[list.length - 1];
   if (!last || last.id !== message.id) list.push(message);   // 只看尾巴，几万条也不拖慢
   if (list.length > MAX_CACHE) list.splice(0, list.length - MAX_CACHE);
+  captureShardSnapshots(['messageThreads'], {
+    messages: { [chatId]: list }
+  }, { replace: false });
 }
 
 /* 会话自身 seq 是批量落盘的，进程若在 1.5 秒窗口内重启，可能比消息文件慢。
@@ -7374,6 +7427,7 @@ function saveFriendMeta() {
     writeJson(FRIEND_META_FILE, friendMetaCache);
     const st = fs.statSync(FRIEND_META_FILE, { bigint: true });
     friendMetaSignature = String(st.size) + ':' + String(st.mtimeNs);
+    captureShardSnapshots(['friendMeta'], { friendMeta: friendMetaCache.byOwner || {} });
   } catch (e) { }
 }
 
@@ -21133,12 +21187,17 @@ function serveStatic(req, res, pathname) {
 
 loadStore();
 try {
+  const shadowTopology = process.env.SHARD_TOPOLOGY_ID
+    ? resolveTopology(path.join(ROOT, 'shard-topologies.json'), process.env.SHARD_TOPOLOGY_ID)
+    : null;
   shardShadow = createShardShadowService({
     enabled: process.env.SHARD_SHADOW_ENABLED || '0',
     dataDir: DATA_DIR,
-    shardCount: Number(process.env.SHARD_COUNT) || 6,
+    shardCount: Number(process.env.SHARD_COUNT) || (shadowTopology && shadowTopology.shardCount) || 0,
+    topologyId: process.env.SHARD_TOPOLOGY_ID || '',
     uid,
     now,
+    snapshotStores: true,
     legacy: shardShadowLegacySnapshot()
   });
   if (shardShadow.enabled) {
