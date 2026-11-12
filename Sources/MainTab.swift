@@ -603,7 +603,9 @@ struct TabBar: View {
     }
 
     private var selColor: Color { UIConfig.color("tabOrbitSelColor", 0x17201C, 0xDDF7ED) }
-    private var unselColor: Color { UIConfig.color("tabOrbitUnselColor", 0x626B66, 0x8AA79C) }
+    private var unselColor: Color {
+        UIConfig.color("tabOrbitUnselColor", 0x667781, 0x8696A0)
+    }
 
     private func activeColor(_ index: Int) -> Color {
         index < 3 ? (scheme == .dark ? .white : .black) : selColor
@@ -611,7 +613,7 @@ struct TabBar: View {
 
     private func tabIconFont(_ i: Int, on: Bool) -> Font {
         let base = UIConfig.num("tabIcon\(i)", (i == 0 || i == 1) ? L.tabIcon - 2 : L.tabIcon)
-        return pf(on ? base + 1.5 : base)
+        return .system(size: base, weight: on ? .semibold : .regular)
     }
 
     @State private var barWidth: CGFloat = 0
