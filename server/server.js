@@ -66,6 +66,8 @@ function userSessionTtlMs() {
 }
 const MAX_BODY = 28 * 1024 * 1024;
 const RECALL_WINDOW_MS = 2 * 60 * 1000;
+/* 现阶段反洗钱只保留代码、账本和证据能力，不执行实时拦截与持续重筛。 */
+const AML_RUNTIME_ENABLED = process.env.AML_RUNTIME_ENABLED !== '0';
 let writeSeq = 0;                 // writeJson 用的临时文件序号
 const MAX_CACHE = 8000;          // 一个会话最多在内存里留多少条（聊天记录本身在文件里一条不少）
 
@@ -3132,7 +3134,8 @@ function applyMoney(user, delta, meta) {
   if (!allowNeg && after < 0) {
     return { error: '余额不足（当前 ¥' + before.toFixed(2) + '，需要 ¥' + Math.abs(d).toFixed(2) + '）' };
   }
-  if (d < 0 && amlEngine && !user.amlExempt && !(meta && meta.allowAmlRestricted)) {
+  if (AML_RUNTIME_ENABLED && d < 0 && amlEngine && !user.amlExempt
+      && !(meta && meta.allowAmlRestricted)) {
     const restricted = amlEngine.isMoneyOutRestricted(user.id);
     if (restricted) {
       return {
@@ -3143,7 +3146,8 @@ function applyMoney(user, delta, meta) {
   }
   if (d === 0) return { balance: before, before: before, delta: 0 };
   let autoAml = null;
-  if (d < 0 && !user.amlExempt && !(meta && (meta.amlChecked || meta.skipAml))) {
+  if (AML_RUNTIME_ENABLED && d < 0 && !user.amlExempt
+      && !(meta && (meta.amlChecked || meta.skipAml))) {
     if (!amlEngineHealthy || !amlEngine) {
       return { error: '反洗钱风控暂时不可用，交易已安全暂停' };
     }
@@ -3225,6 +3229,9 @@ function readAmlJournal(limit) {
  * 返回 null 表示已经给客户端回了拒绝响应；返回对象则表示可以继续扣款/入账。
  */
 function amlGateOrReject(res, req, user, transaction) {
+  if (!AML_RUNTIME_ENABLED) {
+    return { id: '', decision: 'allow', allowed: true, runtimeDisabled: true, score: 0, reasons: [] };
+  }
   if (user && user.amlExempt) {
     return { id: '', decision: 'allow', allowed: true, exempt: true, score: 0, reasons: [] };
   }
@@ -21050,7 +21057,7 @@ try {
   console.log('[AML] 初始化失败，所有资金转出已暂停：' + String(error && error.message || error));
 }
 setTimeout(() => {
-  if (!amlEngineHealthy || !amlEngine) return;
+  if (!AML_RUNTIME_ENABLED || !amlEngineHealthy || !amlEngine) return;
   try {
     const result = amlEngine.sweep(db.users.filter((u) => !u.amlExempt), { limit: 500 });
     if (result.screened) console.log('[AML] 启动持续尽调筛查 ' + result.screened + ' 人');
@@ -21059,7 +21066,7 @@ setTimeout(() => {
   }
 }, 8000).unref();
 setInterval(() => {
-  if (!amlEngineHealthy || !amlEngine) return;
+  if (!AML_RUNTIME_ENABLED || !amlEngineHealthy || !amlEngine) return;
   try { amlEngine.sweep(db.users.filter((u) => !u.amlExempt), { limit: 500 }); }
   catch (error) { console.log('[AML] 定时筛查失败：' + String(error && error.message || error)); }
 }, 30 * 60 * 1000).unref();
@@ -24443,6 +24450,7 @@ async function handleOps(req, res, parts, query) {
     if (parts.length === 2 && method === 'GET') {
       ok(res, Object.assign(amlEngine.overview(), {
         dualReview: !!opsStore.dualReview,
+        runtimeEnabled: AML_RUNTIME_ENABLED,
         productionReady: false,
         realMoneyEnabled: false,
         productionBlockers: [
