@@ -3781,22 +3781,34 @@ private struct FullPlayerAmbient: View {
                 Color(uiColor: .systemBackground)
 
                 if !ambientCover.isEmpty {
-                    RemoteImage(path: ambientCover, mode: .fill, maxSide: 1600)
-                        .frame(width: max(680, geo.size.width * 1.56),
-                               height: max(820, geo.size.height * 1.56))
-                        .scaleEffect(drifting ? 1.16 : 1.08)
-                        .offset(x: drifting ? geo.size.width * 0.035 : -geo.size.width * 0.028,
-                                y: drifting ? -geo.size.height * 0.018 : geo.size.height * 0.026)
-                        .blur(radius: 92, opaque: false)
-                        .saturation(scheme == .dark ? 1.12 : 1.04)
-                        .brightness(scheme == .dark ? -0.015 : 0.025)
-                        .opacity(scheme == .dark ? 0.40 : 0.28)
+                    RemoteImage(path: ambientCover, mode: .fill, maxSide: 1400)
+                        .frame(width: max(640, geo.size.width * 1.52),
+                               height: max(760, geo.size.height * 1.52))
+                        .scaleEffect((drifting ? 1.30 : 1.18) + player.level * 0.08)
+                        .offset(x: drifting ? geo.size.width * 0.075 : -geo.size.width * 0.055,
+                                y: drifting ? -geo.size.height * 0.035 : geo.size.height * 0.055)
+                        .blur(radius: 76, opaque: false)
+                        .saturation(scheme == .dark ? 1.52 : 1.36)
+                        .brightness(scheme == .dark ? 0.015 : 0.055)
+                        .opacity((scheme == .dark ? 0.64 : 0.52)
+                                 + Double(player.level) * 0.08)
+                        .transition(.opacity)
+
+                    RemoteImage(path: ambientCover, mode: .fill, maxSide: 820)
+                        .frame(width: max(420, geo.size.width * 0.92),
+                               height: max(420, geo.size.height * 0.78))
+                        .offset(x: geo.size.width * 0.20, y: -geo.size.height * 0.22)
+                        .blur(radius: 110, opaque: false)
+                        .saturation(1.46)
+                        .blendMode(scheme == .dark ? .screen : .softLight)
+                        .opacity((scheme == .dark ? 0.24 : 0.18)
+                                 + Double(player.level) * 0.10)
                         .transition(.opacity)
                 }
 
                 RadialGradient(
                     colors: [
-                        OrbitTheme.jade.opacity(scheme == .dark ? 0.16 : 0.10),
+                        OrbitTheme.jade.opacity(scheme == .dark ? 0.22 : 0.14),
                         Color.clear
                     ],
                     center: .topTrailing,
@@ -3805,15 +3817,23 @@ private struct FullPlayerAmbient: View {
                 )
 
                 LinearGradient(
+                    colors: [
+                        Color.white.opacity(scheme == .dark ? 0.06 : 0.20),
+                        Color.clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                LinearGradient(
                     stops: [
+                        .init(color: Color(uiColor: .systemBackground).opacity(0.01), location: 0),
                         .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.04 : 0.08), location: 0),
+                            .opacity(scheme == .dark ? 0.08 : 0.10), location: 0.42),
                         .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.20 : 0.20), location: 0.42),
+                            .opacity(scheme == .dark ? 0.42 : 0.46), location: 0.78),
                         .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.56 : 0.54), location: 0.78),
-                        .init(color: Color(uiColor: .systemBackground)
-                            .opacity(scheme == .dark ? 0.86 : 0.84), location: 1)
+                            .opacity(scheme == .dark ? 0.76 : 0.78), location: 1)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -3824,8 +3844,9 @@ private struct FullPlayerAmbient: View {
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .onAppear { drifting = true }
-        .animation(.easeInOut(duration: 18).repeatForever(autoreverses: true),
+        .animation(.easeInOut(duration: 14).repeatForever(autoreverses: true),
                    value: drifting)
+        .animation(.linear(duration: 0.28), value: player.level)
         .animation(.easeInOut(duration: 0.4), value: player.playing)
         .animation(.easeInOut(duration: 0.8), value: ambientCover)
     }
