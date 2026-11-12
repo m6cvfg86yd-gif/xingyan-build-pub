@@ -57,39 +57,23 @@ struct HarmonyLoginView: View {
 
     private var ink: Color { LoginTheme.ink(scheme) }
     private var subInk: Color { LoginTheme.inkSub(scheme) }
-    private var accent: Color { LoginTheme.accent }
+    private var accent: Color { Color(hex: 0x25D366) }
     private var fieldFill: Color {
-        scheme == .dark ? Color.white.opacity(0.065) : Color.white.opacity(0.72)
+        scheme == .dark ? Color(hex: 0x202C33) : Color(hex: 0xF0F2F5)
     }
     private var fieldStroke: Color {
-        scheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.055)
+        scheme == .dark ? Color(hex: 0x2A3942) : Color.clear
     }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            LinearGradient(
-                colors: scheme == .dark
-                    ? [Color(hex: 0x081310), Color(hex: 0x101A16)]
-                    : [Color(hex: 0xF8FBF8), Color(hex: 0xEEF3EF)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            Color.dyn(0xFFFFFF, 0x0B141A)
                 .ignoresSafeArea()
-
-            Circle()
-                .fill(accent.opacity(scheme == .dark ? 0.10 : 0.065))
-                .frame(width: 260, height: 260)
-                .offset(x: 250, y: -120)
-
-            Circle()
-                .fill(OrbitTheme.gold.opacity(scheme == .dark ? 0.07 : 0.055))
-                .frame(width: 170, height: 170)
-                .offset(x: -85, y: 105)
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     brandArea
-                    Spacer().frame(height: 46)
+                    Spacer().frame(height: 30)
 
                     if mode == .phone {
                         phoneFields
@@ -97,13 +81,14 @@ struct HarmonyLoginView: View {
                         passwordFields
                     }
 
-                    Spacer().frame(height: 18)
+                    Spacer().frame(height: 16)
                     actionArea
-                    Spacer().frame(height: 20)
+                    Spacer().frame(height: 22)
                     termsArea
-                    Spacer(minLength: 36)
+                    Spacer(minLength: 28)
                 }
-                .padding(.top, 104)
+                .padding(.horizontal, 24)
+                .padding(.top, 54)
                 .padding(.bottom, max(24, L.safeBottom))
             }
         }
@@ -149,35 +134,32 @@ struct HarmonyLoginView: View {
     }
 
     private var brandArea: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 9) {
             if let icon = AppIconImage.image {
                 Image(uiImage: icon)
                     .resizable()
                     .interpolation(.high)
-                    .frame(width: 86, height: 86)
-                    .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.14), radius: 18, y: 10)
+                    .frame(width: 66, height: 66)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.08), radius: 10, y: 5)
             } else {
                 Image(systemName: "message.fill")
-                    .font(.system(size: 34, weight: .semibold))
+                    .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 86, height: 86)
+                    .frame(width: 66, height: 66)
                     .background(accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
-                    .frame(width: 86, height: 86)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
 
             Text(brandName)
-                .font(pfStyled(size: 34, weight: .bold))
+                .font(pfStyled(size: 27, weight: .semibold))
                 .foregroundColor(ink)
-                .tracking(3)
-                .padding(.top, 12)
 
             Text(brandSubtitle)
-                .font(pfStyled(size: 14.5))
+                .font(pfStyled(size: 13.5))
                 .foregroundColor(subInk)
-                .tracking(0.6)
-                .padding(.top, 9)
+                .multilineTextAlignment(.center)
+                .lineSpacing(2)
         }
         .frame(maxWidth: .infinity)
     }
@@ -205,13 +187,13 @@ struct HarmonyLoginView: View {
                         message = ""
                     }
             }
-            .frame(height: 56)
-            .padding(.horizontal, 18)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .frame(height: 54)
+            .padding(.horizontal, 14)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(fieldFill))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(fieldStroke, lineWidth: 0.7))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(fieldStroke, lineWidth: 0.6))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             if codeSent {
                 HStack(spacing: 12) {
@@ -233,21 +215,21 @@ struct HarmonyLoginView: View {
                     .foregroundColor(countdown > 0 ? subInk : accent)
                     .disabled(countdown > 0)
                 }
-                .frame(height: 56)
-                .padding(.horizontal, 18)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .frame(height: 54)
+                .padding(.horizontal, 14)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(fieldFill))
-                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(fieldStroke, lineWidth: 0.7))
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(fieldStroke, lineWidth: 0.6))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
-        .frame(maxWidth: 332)
+            .frame(maxWidth: 360)
     }
 
     private var passwordFields: some View {
         VStack(spacing: 10) {
-                        TextField(Tr("账号"), text: $user)
+            TextField(Tr("账号 / 星言号"), text: $user)
                 .textContentType(.username)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -255,20 +237,20 @@ struct HarmonyLoginView: View {
                 .font(pfStyled(16.5))
                 .foregroundColor(ink)
                 .tint(accent)
-                .padding(.horizontal, 18)
-                .frame(height: 56)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .padding(.horizontal, 14)
+                .frame(height: 54)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(fieldFill))
-                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(fieldStroke, lineWidth: 0.7))
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(fieldStroke, lineWidth: 0.6))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             HStack {
                 Group {
                     if showPassword {
-                        TextField(Tr("密码"), text: $pass)
+                        TextField(Tr("请输入密码"), text: $pass)
                     } else {
-                        SecureField("密码", text: $pass)
+                        SecureField(Tr("请输入密码"), text: $pass)
                     }
                 }
                 .textContentType(.password)
@@ -283,38 +265,23 @@ struct HarmonyLoginView: View {
                 Button { showPassword.toggle() } label: {
                     Image(systemName: showPassword ? "eye.slash" : "eye")
                         .foregroundColor(subInk)
+                        .frame(width: 32, height: 32)
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 18)
-            .frame(height: 56)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .padding(.horizontal, 14)
+            .frame(height: 54)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(fieldFill))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(fieldStroke, lineWidth: 0.7))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(fieldStroke, lineWidth: 0.6))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .frame(maxWidth: 332)
+        .frame(maxWidth: 360)
     }
 
     private var actionArea: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 14) {
-                    Button(Tr("找回密码")) { showReset = true }
-                    Button(Tr("自助解封")) { showUnban = true }
-                    Button(Tr("注册")) { showRegister = true }
-                Spacer()
-                Button(mode == .phone ? "账号密码登录 ›" : "手机号登录 ›") {
-                    mode = mode == .phone ? .password : .phone
-                    sliderTicket = ""
-                    message = ""
-                    hint = ""
-                }
-            }
-            .font(pfStyled(13.5))
-            .foregroundColor(subInk)
-            .buttonStyle(.plain)
-            .frame(maxWidth: 332)
-
+        VStack(spacing: 12) {
             Button { primaryAction() } label: {
                 HStack(spacing: 8) {
                     if busy {
@@ -327,27 +294,62 @@ struct HarmonyLoginView: View {
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 54)
+                .frame(height: 52)
                 .background(canPrimary ? accent : accent.opacity(0.34))
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .shadow(color: canPrimary ? accent.opacity(0.18) : .clear,
-                        radius: 14, y: 7)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
-            .frame(maxWidth: 332)
+            .frame(maxWidth: 360)
             .disabled(busy)
 
             if !message.isEmpty {
                 Text(message)
                     .font(pfStyled(size: 12.5))
                     .foregroundColor(C.red)
-                    .frame(maxWidth: 332, alignment: .leading)
+                    .frame(maxWidth: 360, alignment: .leading)
             } else if !hint.isEmpty {
                 Text(hint)
                     .font(pfStyled(size: 12.5))
                     .foregroundColor(subInk)
-                    .frame(maxWidth: 332, alignment: .leading)
+                    .frame(maxWidth: 360, alignment: .leading)
             }
+
+            Button { showRegister = true } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.system(size: 15, weight: .medium))
+                    Text(Tr("注册星言账号"))
+                        .font(pfStyled(size: 14.5, weight: .medium))
+                }
+                .foregroundColor(accent)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(accent.opacity(0.72), lineWidth: 1))
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: 360)
+
+            HStack(spacing: 0) {
+                Button(mode == .phone ? Tr("账号密码登录") : Tr("手机号登录")) {
+                    mode = mode == .phone ? .password : .phone
+                    sliderTicket = ""
+                    message = ""
+                    hint = ""
+                    focus = nil
+                }
+                Spacer(minLength: 12)
+                Button(Tr("找回密码")) { showReset = true }
+                Text("·")
+                    .foregroundColor(subInk.opacity(0.55))
+                    .padding(.horizontal, 8)
+                Button(Tr("自助解封")) { showUnban = true }
+            }
+            .font(pfStyled(13))
+            .foregroundColor(subInk)
+            .buttonStyle(.plain)
+            .frame(maxWidth: 360)
         }
     }
 
@@ -382,7 +384,7 @@ struct HarmonyLoginView: View {
                     return .handled
                 })
         }
-        .frame(maxWidth: 332, alignment: .leading)
+        .frame(maxWidth: 360, alignment: .leading)
     }
 
     private func loadBranding() {

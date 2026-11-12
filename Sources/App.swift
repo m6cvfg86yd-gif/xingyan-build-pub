@@ -3127,11 +3127,26 @@ struct UnbanSheet: View {
 struct RegisterSheet: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
 
-    private enum Field: Hashable { case phone, code }
+    private enum Field: Hashable {
+        case username, nickname, password, phone, code, captcha
+    }
+    private enum Mode {
+        case account, phone
+    }
 
+    @State private var mode: Mode = .account
+    @State private var username = ""
+    @State private var nickname = ""
+    @State private var password = ""
     @State private var phone = UserDefaults.standard.string(forKey: "chris.lastPhone") ?? ""
     @State private var code = ""
+    @State private var captcha = ""
+    @State private var captchaId = ""
+    @State private var captchaSVG = ""
+    @State private var loadingCaptcha = false
+    @State private var showPassword = false
     @State private var countdown = 0
     @State private var codeSent = false
     @State private var busy = false
@@ -3146,8 +3161,21 @@ struct RegisterSheet: View {
         phone.range(of: #"^1[3-9]\d{9}$"#, options: .regularExpression) != nil
     }
 
+    private var validUsername: Bool {
+        username.range(of: #"^[A-Za-z0-9_]{3,24}$"#, options: .regularExpression) != nil
+    }
+
     private var canSubmit: Bool {
-        validPhone && codeSent && code.count == 6 && !busy
+        guard !busy else { return false }
+        switch mode {
+        case .account:
+            return validUsername
+                && password.count >= 6
+                && !captchaId.isEmpty
+                && !captcha.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .phone:
+            return validPhone && codeSent && code.count == 6
+        }
     }
 
     private var registrationGreen: Color {
@@ -3158,96 +3186,57 @@ struct RegisterSheet: View {
         Color.dyn(0xFFFFFF, 0x0B141A)
     }
 
+    private var registrationField: Color {
+        scheme == .dark ? Color(hex: 0x202C33) : Color(hex: 0xF0F2F5)
+    }
+
+    private var registrationLine: Color {
+        scheme == .dark ? Color(hex: 0x2A3942) : Color.clear
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    registrationHero
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 18) {
+                    registrationHeader
+                    registrationModeTabs
 
-                    Text((Lang.isEnglish || Lang.isRussian)
-                         ? Tr("创建你的 Star chat 账号")
-                         : "创建你的星言账号")
-                        .font(pfStyled(size: 24, weight: .semibold))
-                        .foregroundColor(C.label)
-                    Text(Tr("手机号验证后自动生成星言号，之后统一用绑定手机号登录。"))
-                        .font(pfStyled(size: 13))
-                        .foregroundColor(C.subLabel)
-
-                    VStack(spacing: 0) {
-                        TextField(Tr("手机号"), text: $phone)
-                            .keyboardType(.phonePad)
-                            .textContentType(.telephoneNumber)
-                            .focused($focus, equals: .phone)
-                            .font(pfStyled(size: 16.5))
-                            .padding(.horizontal, 14)
-                            .frame(height: 54)
-                            .onChange(of: phone) { value in
-                                phone = String(value.filter(\.isNumber).prefix(11))
-                                error = nil
-                            }
-
-                        HairLine(color: C.navLine)
-
-                        HStack(spacing: 10) {
-                            TextField(Tr("6 位短信验证码"), text: $code)
-                                .keyboardType(.numberPad)
-                                .textContentType(.oneTimeCode)
-                                .focused($focus, equals: .code)
-                                .font(pfStyled(16.5))
-                                .onChange(of: code) { value in
-                                    code = String(value.filter(\.isNumber).prefix(6))
-                                    error = nil
-                                }
-                            Button(countdown > 0
-                                   ? (Lang.isEnglish ? "\(countdown)s" : "\(countdown) 秒")
-                                   : (codeSent ? Tr("重新获取") : Tr("获取验证码"))) {
-                                requestCode()
-                            }
-                            .font(pfStyled(14, .medium))
-                            .foregroundColor(canRequestCode ? C.green : C.subLabel)
-                            .disabled(!canRequestCode)
+                    Group {
+                        if mode == .account {
+                            accountRegistrationForm
+                        } else {
+                            phoneRegistrationForm
                         }
-                        .padding(.horizontal, 14)
-                        .frame(height: 54)
                     }
-                    .background(C.cardBg)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(C.hairline, lineWidth: 0.6))
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
 
-                    if let e = error {
-                        Text(e)
+                    if let error {
+                        Text(error)
                             .font(pfStyled(size: 13))
                             .foregroundColor(C.red)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Button { submit() } label: {
-                        HStack(spacing: 8) {
-                            if busy { ProgressView().tint(.white).scaleEffect(0.85) }
-                            Text(busy ? Tr("请稍候…") : Tr("注册并登录"))
-                                .font(pfStyled(size: 16, weight: .medium))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(canSubmit ? registrationGreen : LoginTheme.disabledGray.opacity(0.75))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!canSubmit)
+                    submitButton
 
                     HStack(spacing: 7) {
                         Image(systemName: "lock.shield.fill")
-                        Text(Tr("验证码仅用于本次注册 · 加密传输"))
+                        Text(mode == .account
+                             ? Tr("密码只以加密哈希保存，验证码仅用于本次注册")
+                             : Tr("验证码仅用于本次注册 · 加密传输"))
                     }
                     .font(pfStyled(size: 11.5))
                     .foregroundColor(C.subLabel)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 3)
+                    .padding(.top, 2)
                 }
-                .padding(20)
+                .padding(.horizontal, 22)
+                .padding(.top, 18)
+                .padding(.bottom, max(24, L.safeBottom))
             }
             .background(registrationCanvas.ignoresSafeArea())
-            .navigationTitle(Tr("手机号注册"))
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(Tr("创建账号"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .navigationBarLeading) { Button(Tr("取消")) { dismiss() } } }
         }
@@ -3258,6 +3247,9 @@ struct RegisterSheet: View {
                 requestCode()
             }
         }
+        .onAppear {
+            if captchaSVG.isEmpty { loadCaptcha() }
+        }
         .onDisappear { countdownTask?.cancel() }
     }
 
@@ -3265,27 +3257,307 @@ struct RegisterSheet: View {
         validPhone && countdown == 0 && !busy
     }
 
-    private var registrationHero: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "bubble.left.and.bubble.right.fill")
-                .font(.system(size: 26, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 64, height: 64)
-                .background(registrationGreen, in: Circle())
+    private var registrationHeader: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Group {
+                if let icon = AppIconImage.image {
+                    Image(uiImage: icon)
+                        .resizable()
+                        .interpolation(.high)
+                } else {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.system(size: 23, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(registrationGreen)
+                }
+            }
+            .frame(width: 54, height: 54)
+            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text((Lang.isEnglish || Lang.isRussian) ? "Star chat" : "星言")
-                    .font(pfStyled(size: 18, weight: .semibold))
+                    .font(pfStyled(size: 20, weight: .semibold))
                     .foregroundColor(C.label)
-                Text(Tr("用手机号创建账号，开始聊天与连接"))
-                    .font(pfStyled(size: 12.5))
+                Text(Tr("自选星言号，或用手机号快速创建"))
+                    .font(pfStyled(size: 13))
                     .foregroundColor(C.subLabel)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.top, 2)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.bottom, 2)
+    }
+
+    private var registrationModeTabs: some View {
+        HStack(spacing: 24) {
+            registrationTab(Tr("自选星言号"), selected: mode == .account) {
+                withAnimation(.easeOut(duration: 0.18)) { mode = .account }
+                error = nil
+            }
+            registrationTab(Tr("手机号注册"), selected: mode == .phone) {
+                withAnimation(.easeOut(duration: 0.18)) { mode = .phone }
+                error = nil
+            }
+            Spacer(minLength: 0)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(registrationLine)
+                .frame(height: 0.6)
+        }
+    }
+
+    private func registrationTab(_ title: String,
+                                 selected: Bool,
+                                 action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 9) {
+                Text(title)
+                    .font(pfStyled(size: 14.5, weight: selected ? .semibold : .regular))
+                    .foregroundColor(selected ? registrationGreen : C.subLabel)
+                Rectangle()
+                    .fill(selected ? registrationGreen : Color.clear)
+                    .frame(height: 2)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var accountRegistrationForm: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            registrationField(Tr("星言号")) {
+                HStack(spacing: 6) {
+                    Text("@")
+                        .foregroundColor(C.subLabel)
+                    TextField(Tr("3-24 位字母、数字或下划线"), text: $username)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .textContentType(.username)
+                        .focused($focus, equals: .username)
+                        .onChange(of: username) { value in
+                            username = String(value
+                                .filter { $0.isLetter || $0.isNumber || $0 == "_" }
+                                .prefix(24))
+                            error = nil
+                        }
+                }
+            }
+
+            Text(Tr("注册后可直接使用这个星言号登录"))
+                .font(pfStyled(size: 11.5))
+                .foregroundColor(C.subLabel)
+                .padding(.leading, 2)
+                .padding(.top, -5)
+
+            registrationField(Tr("昵称（选填）")) {
+                TextField(Tr("留空则使用星言号"), text: $nickname)
+                    .textInputAutocapitalization(.never)
+                    .focused($focus, equals: .nickname)
+                    .onChange(of: nickname) { value in
+                        nickname = String(value.prefix(24))
+                        error = nil
+                    }
+            }
+
+            registrationField(Tr("登录密码")) {
+                HStack(spacing: 8) {
+                    Group {
+                        if showPassword {
+                            TextField(Tr("至少 6 位"), text: $password)
+                        } else {
+                            SecureField(Tr("至少 6 位"), text: $password)
+                        }
+                    }
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .textContentType(.newPassword)
+                    .focused($focus, equals: .password)
+                    .onChange(of: password) { _ in error = nil }
+
+                    Button { showPassword.toggle() } label: {
+                        Image(systemName: showPassword ? "eye.slash" : "eye")
+                            .foregroundColor(C.subLabel)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            registrationField(Tr("绑定手机号（选填）")) {
+                TextField(Tr("用于找回账号"), text: $phone)
+                    .keyboardType(.phonePad)
+                    .textContentType(.telephoneNumber)
+                    .focused($focus, equals: .phone)
+                    .onChange(of: phone) { value in
+                        phone = String(value.filter { $0.isNumber || $0 == "+" }.prefix(20))
+                        error = nil
+                    }
+            }
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text(Tr("图形验证码"))
+                    .font(pfStyled(size: 12.5, weight: .medium))
+                    .foregroundColor(C.subLabel)
+
+                HStack(spacing: 10) {
+                    TextField(Tr("请输入验证码"), text: $captcha)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .focused($focus, equals: .captcha)
+                        .onChange(of: captcha) { value in
+                            captcha = String(value
+                                .filter { $0.isLetter || $0.isNumber }
+                                .uppercased()
+                                .prefix(4))
+                            error = nil
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: 54)
+                        .background(registrationField)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(registrationLine, lineWidth: 0.6))
+
+                    Button { loadCaptcha() } label: {
+                        Group {
+                            if !captchaSVG.isEmpty {
+                                CaptchaView(svg: captchaSVG)
+                            } else if loadingCaptcha {
+                                ProgressView()
+                                    .tint(registrationGreen)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .background(Color.white)
+                            } else {
+                                Text(Tr("换一张"))
+                                    .font(pfStyled(size: 12.5, weight: .medium))
+                                    .foregroundColor(registrationGreen)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                        }
+                        .frame(width: 116, height: 46)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(registrationLine, lineWidth: 0.6))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(loadingCaptcha || busy)
+                }
+            }
+        }
+    }
+
+    private var phoneRegistrationForm: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            registrationField(Tr("手机号")) {
+                HStack(spacing: 10) {
+                    Text("+86")
+                        .foregroundColor(C.label)
+                    Rectangle()
+                        .fill(registrationLine)
+                        .frame(width: 0.7, height: 20)
+                    TextField(Tr("请输入手机号"), text: $phone)
+                        .keyboardType(.phonePad)
+                        .textContentType(.telephoneNumber)
+                        .focused($focus, equals: .phone)
+                        .onChange(of: phone) { value in
+                            phone = String(value.filter(\.isNumber).prefix(11))
+                            error = nil
+                        }
+                }
+            }
+
+            registrationField(Tr("短信验证码")) {
+                HStack(spacing: 10) {
+                    TextField(Tr("6 位短信验证码"), text: $code)
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                        .focused($focus, equals: .code)
+                        .onChange(of: code) { value in
+                            code = String(value.filter(\.isNumber).prefix(6))
+                            error = nil
+                        }
+                    Button(countdown > 0
+                           ? "\(countdown) 秒"
+                           : (codeSent ? Tr("重新获取") : Tr("获取验证码"))) {
+                        requestCode()
+                    }
+                    .font(pfStyled(13.5, .medium))
+                    .foregroundColor(canRequestCode ? registrationGreen : C.subLabel)
+                    .disabled(!canRequestCode)
+                }
+            }
+
+            Text(Tr("手机号验证后自动生成星言号，之后可用手机号或星言号登录。"))
+                .font(pfStyled(size: 11.5))
+                .foregroundColor(C.subLabel)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 2)
+        }
+    }
+
+    private func registrationField<Content: View>(_ title: String,
+                                                   @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(pfStyled(size: 12.5, weight: .medium))
+                .foregroundColor(C.subLabel)
+
+            content()
+                .font(pfStyled(size: 16.5))
+                .foregroundColor(C.label)
+                .tint(registrationGreen)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 54)
+                .background(registrationField)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(registrationLine, lineWidth: 0.6))
+        }
+    }
+
+    private var submitButton: some View {
+        Button { submit() } label: {
+            HStack(spacing: 8) {
+                if busy {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(0.85)
+                }
+                Text(busy ? Tr("请稍候…") : Tr("注册并登录"))
+                    .font(pfStyled(size: 16, weight: .medium))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(canSubmit ? registrationGreen : LoginTheme.disabledGray.opacity(0.72))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSubmit)
+    }
+
+    private func loadCaptcha(clearError: Bool = true) {
+        guard !loadingCaptcha else { return }
+        loadingCaptcha = true
+        if clearError { error = nil }
+        Task { @MainActor in
+            do {
+                let payload = try await API.shared.captcha()
+                captchaId = payload.id
+                captchaSVG = payload.svg
+                captcha = ""
+                if payload.id.isEmpty || payload.svg.isEmpty {
+                    self.error = "图形验证码加载失败，点一下换一张"
+                }
+            } catch {
+                captchaId = ""
+                captchaSVG = ""
+                self.error = (error as? APIError)?.errorDescription ?? "图形验证码加载失败"
+            }
+            loadingCaptcha = false
+        }
     }
 
     private func requestCode() {
@@ -3317,19 +3589,35 @@ struct RegisterSheet: View {
 
     private func submit() {
         guard canSubmit else {
-            if !codeSent { requestCode() }
+            if mode == .phone && !codeSent { requestCode() }
             return
         }
         busy = true
         error = nil
         Task { @MainActor in
             do {
-                try await app.login(phone: phone, code: code, register: true)
-                UserDefaults.standard.set(phone, forKey: "chris.lastPhone")
+                if mode == .account {
+                    let account = username.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let displayName = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let user = try await API.shared.register(
+                        username: account,
+                        nickname: displayName,
+                        password: password,
+                        phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
+                        captchaId: captchaId,
+                        captcha: captcha
+                    )
+                    UserDefaults.standard.set(account, forKey: "chris.lastUser")
+                    await app.adoptRegistered(user)
+                } else {
+                    try await app.login(phone: phone, code: code, register: true)
+                    UserDefaults.standard.set(phone, forKey: "chris.lastPhone")
+                }
                 app.show(Tr("注册成功"))
                 dismiss()
             } catch {
                 self.error = (error as? APIError)?.errorDescription ?? "注册失败"
+                if mode == .account { loadCaptcha(clearError: false) }
             }
             busy = false
         }

@@ -2346,6 +2346,26 @@ final class API {
         return user
     }
 
+    func register(username: String,
+                  nickname: String,
+                  password: String,
+                  phone: String,
+                  captchaId: String,
+                  captcha: String) async throws -> User {
+        var body: [String: Any] = [
+            "username": username,
+            "nickname": nickname,
+            "password": password,
+            "captchaId": captchaId,
+            "captcha": captcha
+        ]
+        let cleanPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleanPhone.isEmpty { body["phone"] = cleanPhone }
+        let payload: LoginPayload = try await post("/api/register", body, as: LoginPayload.self)
+        guard let user = payload.user else { throw APIError.message("注册失败") }
+        return user
+    }
+
     struct TRTCSig: Decodable {
         var sdkAppId: Int
         var userId: String
