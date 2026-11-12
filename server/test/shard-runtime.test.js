@@ -259,6 +259,34 @@ try {
   });
   assert.strictEqual(write.status, 'applied');
   assert.strictEqual(write.version, 2);
+  assert.strictEqual(reopenedCluster.verify().ok, true);
+
+  const badLogDir = path.join(dir, 'bad-log');
+  const badCluster = new ShardCluster({
+    dataDir: badLogDir,
+    shardCount: 6,
+    readJson,
+    writeJson
+  });
+  badCluster.apply('profile', 'bad-user', {
+    eventId: 'bad-1',
+    version: 1,
+    operation: 'create',
+    payload: { ok: true }
+  });
+  const badOwner = badCluster.ownerShard('profile', 'bad-user');
+  const badLogFile = path.join(badLogDir, 'shard-' + badOwner + '-events.jsonl');
+  fs.appendFileSync(badLogFile, JSON.stringify({
+    eventId: 'bad-2',
+    entityType: 'profile',
+    entityId: 'bad-user',
+    version: 1,
+    operation: 'regression',
+    payload: {}
+  }) + '\n', 'utf8');
+  const badResult = new VersionedEntityLog({ file: badLogFile, strict: false }).verify();
+  assert.strictEqual(badResult.ok, false);
+  assert.ok(badResult.failures.some((failure) => failure.code === 'duplicate-version'));
 
   console.log('shard-runtime: passed');
 } finally {

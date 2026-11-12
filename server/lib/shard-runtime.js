@@ -65,11 +65,18 @@ class VersionedEntityLog {
   constructor(options) {
     this.file = String(options && options.file || '');
     this.fsync = !options || options.fsync !== false;
+    this.strict = !options || options.strict !== false;
     this.entities = new Map();
     this.eventIds = new Set();
     this.eventsById = new Map();
     if (!this.file) throw new Error('entity log file is required');
     this.load();
+    if (this.strict) {
+      const integrity = this.verify();
+      if (!integrity.ok) {
+        throw new Error('shard event log integrity failed: ' + JSON.stringify(integrity.failures.slice(0, 5)));
+      }
+    }
   }
 
   load() {
@@ -177,6 +184,60 @@ class VersionedEntityLog {
   event(eventId) {
     return this.eventsById.get(String(eventId || '')) || null;
   }
+
+  verify() {
+    if (!fs.existsSync(this.file)) return { ok: true, events: 0, entities: 0, failures: [] };
+    const failures = [];
+    const ids = new Set();
+    const versions = new Map();
+    const tombstones = new Set();
+    let events = 0;
+    const lines = fs.readFileSync(this.file, 'utf8').split('\n');
+    lines.forEach((raw, index) => {
+      if (!raw.trim()) return;
+      let event;
+      try { event = JSON.parse(raw); }
+      catch (_) {
+        failures.push({ line: index + 1, code: 'corrupt-json' });
+        return;
+      }
+      events += 1;
+      let identity;
+      try { identity = this.validate(event); }
+      catch (error) {
+        failures.push({ line: index + 1, code: 'invalid-event', message: error.message });
+        return;
+      }
+      if (ids.has(identity.eventId)) {
+        failures.push({ line: index + 1, code: 'duplicate-event-id', eventId: identity.eventId });
+        return;
+      }
+      ids.add(identity.eventId);
+      const key = this.entityKey(identity.entityType, identity.entityId);
+      const lastVersion = Number(versions.get(key) || 0);
+      if (identity.version <= lastVersion) {
+        failures.push({
+          line: index + 1,
+          code: identity.version === lastVersion ? 'duplicate-version' : 'version-regression',
+          entity: key,
+          version: identity.version,
+          previousVersion: lastVersion
+        });
+      }
+      if (tombstones.has(key) && event.allowAfterTombstone !== true) {
+        failures.push({ line: index + 1, code: 'tombstone-bypass', entity: key });
+      }
+      versions.set(key, Math.max(lastVersion, identity.version));
+      if (event.deleted === true) tombstones.add(key);
+      else if (event.allowAfterTombstone === true) tombstones.delete(key);
+    });
+    return {
+      ok: failures.length === 0,
+      events,
+      entities: versions.size,
+      failures
+    };
+  }
 }
 
 class ShardCluster {
@@ -227,6 +288,17 @@ class ShardCluster {
 
   event(entityType, entityId, eventId) {
     return this.log(this.ownerShard(entityType, entityId)).event(eventId);
+  }
+
+  verify() {
+    const shards = [];
+    let ok = true;
+    for (let shard = 0; shard < this.shardCount; shard += 1) {
+      const result = this.log(shard).verify();
+      if (!result.ok) ok = false;
+      shards.push(Object.assign({ shard }, result));
+    }
+    return { ok, shards };
   }
 }
 
