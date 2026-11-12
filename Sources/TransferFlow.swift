@@ -410,19 +410,16 @@ struct TransferView: View {
                             VStack(spacing: 0) {
                                 HStack(spacing: 13) {
                                     Avatar(path: peerAvatar, size: 44, radius: 22)
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(Tr("收款给"))
-                                            .font(pf(11.5, .medium))
-                                            .foregroundColor(PayVisual.secondaryInk)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(Tr("收款给"))
+                                    .font(pf(11.5, .medium))
+                                    .foregroundColor(PayVisual.secondaryInk)
                                         Text(peerTitle)
                                             .font(pf(16, .semibold))
-                                            .foregroundColor(C.label)
-                                            .lineLimit(1)
-                                    }
-                                    Spacer(minLength: 6)
-                                    Image(systemName: "checkmark.seal.fill")
-                                        .font(.system(size: 17, weight: .semibold))
-                                        .foregroundColor(PayVisual.tint)
+                                    .foregroundColor(C.label)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
                                 }
                                 .padding(.horizontal, 16)
                                 .frame(minHeight: 74)

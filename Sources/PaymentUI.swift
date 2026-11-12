@@ -292,6 +292,7 @@ struct PayOfficialView: View {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 18) {
                     paymentHero
+                    ledgerSummaryStrip
                     quickActions
 
                     transactionFeed
@@ -331,17 +332,17 @@ struct PayOfficialView: View {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color(hex: 0x050505), Color(hex: 0x17181B)],
+                        colors: [Color(hex: 0x050505), Color(hex: 0x242529)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
 
             Circle()
-                .fill(PayVisual.tint.opacity(0.24))
-                .frame(width: 190, height: 190)
-                .blur(radius: 42)
-                .offset(x: 190, y: -80)
+                .fill(.white.opacity(0.045))
+                .frame(width: 260, height: 260)
+                .blur(radius: 52)
+                .offset(x: 165, y: -110)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 11) {
@@ -429,25 +430,22 @@ struct PayOfficialView: View {
                 }
                 .buttonStyle(.plain)
 
-                Spacer(minLength: 18)
+                Spacer(minLength: 16)
 
-                HStack(spacing: 18) {
-                    heroMetric(Tr("收入"), ledger?.income ?? 0, PayVisual.success,
-                               visible: balanceVisible)
-                    Rectangle()
-                        .fill(.white.opacity(0.12))
-                        .frame(width: 0.5, height: 28)
-                    heroMetric(Tr("支出"), ledger?.expense ?? 0, .white,
-                               visible: balanceVisible)
-                    Spacer(minLength: 4)
+                HStack {
+                    Text(XYPay.cardLine)
+                        .font(pfExact(10.5, .semibold))
+                        .tracking(0.8)
+                        .foregroundStyle(.white.opacity(0.44))
+                    Spacer()
                     Image(systemName: "wave.3.right.circle.fill")
                         .font(.system(size: 21, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.38))
+                        .foregroundStyle(.white.opacity(0.32))
                 }
             }
             .padding(22)
         }
-        .frame(height: 224)
+        .frame(height: 212)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -455,23 +453,6 @@ struct PayOfficialView: View {
         }
         .shadow(color: .black.opacity(0.20), radius: 18, y: 10)
         .padding(.horizontal, 16)
-    }
-
-    private func heroMetric(_ title: String, _ value: Double, _ color: Color,
-                            visible: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title)
-                .font(pf(10.5, .medium))
-                .foregroundStyle(.white.opacity(0.48))
-            if visible {
-                StarPayAmount(value: value, role: .metric, color: color.opacity(0.96))
-            } else {
-                Text("¥ ***")
-                    .font(pfMoney(13.5, .semibold))
-                    .foregroundStyle(color.opacity(0.72))
-                    .tracking(0.5)
-            }
-        }
     }
 
     private func toggleBalancePrivacy() {
@@ -529,6 +510,36 @@ struct PayOfficialView: View {
             .padding(.vertical, 16)
         }
         .padding(.horizontal, 16)
+    }
+
+    @ViewBuilder
+    private var ledgerSummaryStrip: some View {
+        if let ledger {
+            HStack(spacing: 18) {
+                summaryMetric(Tr("收入"), ledger.income, PayVisual.success)
+                Rectangle()
+                    .fill(PayVisual.separator)
+                    .frame(width: 0.5, height: 28)
+                summaryMetric(Tr("支出"), ledger.expense, C.label)
+            }
+            .padding(.horizontal, 22)
+        }
+    }
+
+    private func summaryMetric(_ title: String, _ value: Double, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(pf(10.5, .medium))
+                .foregroundStyle(PayVisual.secondaryInk)
+            if balanceVisible {
+                StarPayAmount(value: value, role: .metric, color: color)
+            } else {
+                Text("¥ ***")
+                    .font(pfMoney(13.5, .semibold))
+                    .foregroundStyle(PayVisual.secondaryInk)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var actionDivider: some View {
