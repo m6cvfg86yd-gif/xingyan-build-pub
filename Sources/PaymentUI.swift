@@ -196,66 +196,9 @@ struct PayOfficialView: View {
             NavBar(title: name, back: { dismiss() })
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 16) {
-                    identity
-
-                    PayGroupCard {
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack(alignment: .firstTextBaseline) {
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text(Tr("零钱余额"))
-                                        .font(pf(13, .medium))
-                                        .foregroundColor(PayVisual.secondaryInk)
-                                    Text("¥" + moneyFmt(balance))
-                                        .font(pfMoney(30, .semibold))
-                                        .foregroundColor(C.label)
-                                        .monospacedDigit()
-                                }
-                                Spacer()
-                                if let ledger {
-                                    PayStatusPill(
-                                        text: ledger.verified ? Tr("账本已核对") : Tr("账本待核对"),
-                                        tone: ledger.verified ? .success : .warning
-                                    )
-                                }
-                            }
-
-                            if let ledger {
-                                HStack(spacing: 0) {
-                                    stat(Tr("收入"), ledger.income, PayVisual.success)
-                                    Rectangle().fill(PayVisual.separator).frame(width: 0.5, height: 30)
-                                    stat(Tr("支出"), ledger.expense, C.label)
-                                    Rectangle().fill(PayVisual.separator).frame(width: 0.5, height: 30)
-                                    stat(Tr("净额"), ledger.net, ledger.net >= 0 ? C.label : PayVisual.danger)
-                                }
-                            }
-                        }
-                        .padding(18)
-                    }
-                    .padding(.horizontal, 16)
-
-                    PayGroupCard {
-                        VStack(spacing: 0) {
-                            NavigationLink {
-                                PayCodePage()
-                            } label: {
-                                serviceRow(Tr("收付款"), Tr("出示付款码或收款码"), "qrcode", PayVisual.tint)
-                            }
-                            HairLine(inset: 56)
-                            NavigationLink {
-                                BillsView()
-                            } label: {
-                                serviceRow(Tr("我的账单"), Tr("收支明细、月度账单与导出"), "doc.text.magnifyingglass", Color(hex: 0x34C759))
-                            }
-                            HairLine(inset: 56)
-                            NavigationLink {
-                                AccountSecurityView()
-                            } label: {
-                                serviceRow(Tr("支付安全"), Tr("支付密码与安全设置"), "lock.shield.fill", Color(hex: 0xFF9F0A))
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
+                LazyVStack(spacing: 18) {
+                    paymentHero
+                    quickActions
 
                     transactionFeed
 
@@ -284,102 +227,202 @@ struct PayOfficialView: View {
         }
     }
 
-    private var identity: some View {
-        HStack(spacing: 14) {
-            if avatar.isEmpty {
-                Image(systemName: "creditcard.fill")
-                    .font(.system(size: 25, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 62, height: 62)
-                    .background(
-                        LinearGradient(colors: [Color(hex: 0x23C878), Color(hex: 0x0A84FF)],
-                                       startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+    private var paymentHero: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0x050505), Color(hex: 0x17181B)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-            } else {
-                Avatar(path: avatar, size: 62, radius: 18, circle: true)
-            }
+                )
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(name)
-                        .font(pf(20, .semibold))
-                        .foregroundColor(C.label)
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(PayVisual.tint)
+            Circle()
+                .fill(PayVisual.tint.opacity(0.24))
+                .frame(width: 190, height: 190)
+                .blur(radius: 42)
+                .offset(x: 190, y: -80)
+
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 11) {
+                    Group {
+                        if avatar.isEmpty {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundStyle(.black)
+                        } else {
+                            Avatar(path: avatar, size: 36, radius: 18, circle: true)
+                        }
+                    }
+                    .frame(width: 36, height: 36)
+                    .background(.white, in: Circle())
+                    .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(name)
+                            .font(pf(15.5, .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Text("STAR PAY")
+                            .font(pfExact(9.5, .bold))
+                            .tracking(1.8)
+                            .foregroundStyle(.white.opacity(0.52))
+                    }
+
+                    Spacer(minLength: 8)
+
+                    HStack(spacing: 5) {
+                        Image(systemName: ledger?.verified == true
+                              ? "checkmark.shield.fill" : "clock.badge.questionmark")
+                        Text(ledger?.verified == true ? Tr("账本已核对") : Tr("账本待核对"))
+                    }
+                    .font(pf(11, .semibold))
+                    .foregroundStyle(.white.opacity(0.82))
+                    .padding(.horizontal, 10)
+                    .frame(height: 28)
+                    .background(.white.opacity(0.10), in: Capsule())
                 }
-                Text(subtitle)
-                    .font(pf(13))
-                    .foregroundColor(PayVisual.secondaryInk)
-                    .lineLimit(2)
+
+                Spacer(minLength: 22)
+
+                Text(Tr("可用余额"))
+                    .font(pf(12.5, .medium))
+                    .foregroundStyle(.white.opacity(0.56))
+                Text("¥" + moneyFmt(balance))
+                    .font(pfMoney(40, .bold))
+                    .foregroundStyle(.white)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.66)
+                    .padding(.top, 3)
+
+                Spacer(minLength: 18)
+
+                HStack(spacing: 18) {
+                    heroMetric(Tr("收入"), ledger?.income ?? 0, PayVisual.success)
+                    Rectangle()
+                        .fill(.white.opacity(0.12))
+                        .frame(width: 0.5, height: 28)
+                    heroMetric(Tr("支出"), ledger?.expense ?? 0, .white)
+                    Spacer(minLength: 4)
+                    Image(systemName: "wave.3.right.circle.fill")
+                        .font(.system(size: 21, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.38))
+                }
             }
-            Spacer(minLength: 0)
+            .padding(22)
         }
-        .padding(16)
-        .background(PayVisual.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .frame(height: 224)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(PayVisual.separator, lineWidth: 0.8)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(.white.opacity(0.08), lineWidth: 0.8)
         }
+        .shadow(color: .black.opacity(0.20), radius: 18, y: 10)
         .padding(.horizontal, 16)
     }
 
-    private func stat(_ title: String, _ value: Double, _ color: Color) -> some View {
-        VStack(spacing: 4) {
-            Text(title).font(pf(12)).foregroundColor(PayVisual.secondaryInk)
+    private func heroMetric(_ title: String, _ value: Double, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(pf(10.5, .medium))
+                .foregroundStyle(.white.opacity(0.48))
             Text("¥" + moneyFmt(abs(value)))
-                .font(pfMoney(15, .semibold))
-                .foregroundColor(color)
+                .font(pfMoney(14.5, .semibold))
+                .foregroundStyle(color.opacity(0.96))
                 .monospacedDigit()
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.72)
         }
-        .frame(maxWidth: .infinity)
     }
 
-    private func serviceRow(_ title: String, _ detail: String, _ symbol: String, _ tint: Color) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: 36, height: 36)
-                .background(tint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(pf(16, .medium)).foregroundColor(C.label)
-                Text(detail).font(pf(12.5)).foregroundColor(PayVisual.secondaryInk)
+    private var quickActions: some View {
+        PayGroupCard {
+            HStack(spacing: 0) {
+                NavigationLink {
+                    PayCodePage()
+                } label: {
+                    quickAction(Tr("收付款"), "qrcode", PayVisual.tint)
+                }
+                actionDivider
+                NavigationLink {
+                    BillsView()
+                } label: {
+                    quickAction(Tr("账单"), "doc.text.magnifyingglass", PayVisual.success)
+                }
+                actionDivider
+                NavigationLink {
+                    AccountSecurityView()
+                } label: {
+                    quickAction(Tr("支付安全"), "lock.shield.fill", PayVisual.warning)
+                }
             }
-            Spacer()
-            Chevron(size: 8, line: 1.5, color: PayVisual.secondaryInk)
+            .padding(.vertical, 16)
         }
         .padding(.horizontal, 16)
-        .frame(height: 66)
+    }
+
+    private var actionDivider: some View {
+        Rectangle()
+            .fill(PayVisual.separator)
+            .frame(width: 0.5, height: 48)
+    }
+
+    private func quickAction(_ title: String, _ symbol: String, _ tint: Color) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 46, height: 46)
+                .background(tint.opacity(0.12), in: Circle())
+            Text(title)
+                .font(pf(11.5, .medium))
+                .foregroundStyle(C.label)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
     }
 
     @ViewBuilder
     private var transactionFeed: some View {
         if let entries = ledger?.entries, !entries.isEmpty {
-            LazyVStack(spacing: 12, pinnedViews: [.sectionHeaders]) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(Tr("最近交易"))
+                        .font(pf(22, .bold))
+                        .foregroundStyle(C.label)
+                    Spacer()
+                    Text("\(entries.count)")
+                        .font(pfMoney(12.5, .medium))
+                        .foregroundStyle(PayVisual.secondaryInk)
+                        .monospacedDigit()
+                }
+                .padding(.horizontal, 4)
+
                 ForEach(ledgerDays(entries)) { group in
-                    Section {
-                        ForEach(group.entries) { entry in
-                            transactionCard(entry)
-                                .padding(.horizontal, 16)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(dayTitle(group.day))
+                            .font(pf(13, .semibold))
+                            .foregroundStyle(PayVisual.secondaryInk)
+                            .padding(.horizontal, 4)
+
+                        PayGroupCard {
+                            VStack(spacing: 0) {
+                                ForEach(Array(group.entries.enumerated()),
+                                        id: \.element.id) { index, entry in
+                                    transactionRow(entry)
+                                    if index < group.entries.count - 1 {
+                                        HairLine(inset: 58)
+                                    }
+                                }
+                            }
                         }
-                    } header: {
-                        HStack {
-                            Text(dayTitle(group.day))
-                                .font(pf(12, .medium))
-                                .foregroundColor(PayVisual.secondaryInk)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 5)
-                        .background(PayVisual.canvas)
                     }
                 }
             }
+            .padding(.horizontal, 16)
         } else if !loading {
             VStack(spacing: 10) {
                 Image(systemName: "list.bullet.rectangle.portrait")
@@ -397,29 +440,29 @@ struct PayOfficialView: View {
         }
     }
 
-    private func transactionCard(_ entry: LedgerBillEntry) -> some View {
+    private func transactionRow(_ entry: LedgerBillEntry) -> some View {
         let incoming = entry.direction == "in"
         return Button {
             selectedLedger = entry
         } label: {
-            HStack(spacing: 13) {
+            HStack(spacing: 12) {
                 Image(systemName: incoming ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 19, weight: .semibold))
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, incoming ? PayVisual.success : PayVisual.tint)
-                    .frame(width: 38, height: 38)
+                    .frame(width: 36, height: 36)
                     .background(
                         (incoming ? PayVisual.success : PayVisual.tint).opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        in: Circle()
                     )
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.reason.isEmpty ? (incoming ? Tr("收款") : Tr("付款")) : entry.reason)
-                        .font(pf(15.5, .medium))
+                        .font(pf(15.5, .semibold))
                         .foregroundColor(C.label)
                         .lineLimit(1)
                     Text(clock(entry.at) + " · " + Tr("交易成功"))
-                        .font(pf(11.5))
+                        .font(pf(11.5, .medium))
                         .foregroundColor(PayVisual.secondaryInk)
                         .lineLimit(1)
                 }
@@ -432,21 +475,14 @@ struct PayOfficialView: View {
                         .foregroundColor(incoming ? PayVisual.success : C.label)
                         .monospacedDigit()
                     Text(Tr("余额") + " ¥" + moneyFmt(entry.after))
-                        .font(pf(10.5))
+                        .font(pf(10.5, .medium))
                         .foregroundColor(PayVisual.secondaryInk)
                         .monospacedDigit()
                 }
-
-                Chevron(size: 7, line: 1.4, color: PayVisual.secondaryInk)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 13)
-            .background(PayVisual.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(PayVisual.separator, lineWidth: 0.7)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(.horizontal, 16)
+            .frame(minHeight: 66)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
