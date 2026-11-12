@@ -2627,8 +2627,10 @@ struct PhotoPager: View {
             Image(systemName: symbol)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(.white)
+                .frame(width: 38, height: 38)
+                .background { NativeGlassCircleBackground() }
                 .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

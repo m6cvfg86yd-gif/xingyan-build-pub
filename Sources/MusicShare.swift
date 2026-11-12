@@ -3855,11 +3855,11 @@ struct MusicPlayingView: View {
                 if let c = count, c > 0 {
                     Text("\(c)")
                         .font(pf(compact ? 10 : 11.5))
-                        .foregroundColor(C.subLabel)
+                        .foregroundColor(.white.opacity(0.50))
                 }
                 Text(name)
                     .font(pf(compact ? 10.5 : 12))
-                    .foregroundColor(C.subLabel)
+                    .foregroundColor(.white.opacity(0.64))
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
@@ -4537,7 +4537,7 @@ struct MusicPlayingView: View {
                     .font(.system(size: iconSize, weight: .semibold))
             }
             .foregroundStyle(player.queue.count > 1
-                             ? Color.primary : Color.secondary.opacity(0.45))
+                             ? Color.white : Color.white.opacity(0.34))
             .accessibilityLabel(Tr("上一首"))
 
             Button {
@@ -4545,16 +4545,16 @@ struct MusicPlayingView: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(OrbitTheme.jade)
+                        .fill(Color.white)
                         .frame(width: playSize, height: playSize)
-                        .shadow(color: OrbitTheme.jade.opacity(0.30),
-                                radius: 14, y: 6)
+                        .shadow(color: .black.opacity(0.20),
+                                radius: 10, y: 4)
                     if player.loadingId == (t?.id ?? "") {
-                        ProgressView().tint(.white)
+                        ProgressView().tint(.black)
                     } else {
                         Image(systemName: player.playing ? "pause.fill" : "play.fill")
                             .font(.system(size: playSize * 0.40, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.black)
                             .offset(x: player.playing ? 0 : 2)
                     }
                 }
@@ -4569,7 +4569,7 @@ struct MusicPlayingView: View {
                     .font(.system(size: iconSize, weight: .semibold))
             }
             .foregroundStyle(player.queue.count > 1
-                             ? Color.primary : Color.secondary.opacity(0.45))
+                             ? Color.white : Color.white.opacity(0.34))
             .accessibilityLabel(Tr("下一首"))
         }
         .buttonStyle(.plain)
@@ -4581,7 +4581,7 @@ struct MusicPlayingView: View {
                 icon: liked ? "heart.fill" : "heart",
                 name: Tr("赞"),
                 count: likeCount,
-                tint: liked ? Color(hex: 0xFF4868) : Color.primary,
+                tint: liked ? Color(hex: 0xFF5A72) : Color.white,
                 burst: heartBurst,
                 compact: compact
             ) {
@@ -4591,7 +4591,7 @@ struct MusicPlayingView: View {
                 icon: "arrowshape.turn.up.right",
                 name: Tr("转发"),
                 count: t?.shareCount ?? 0,
-                tint: Color.primary,
+                tint: Color.white,
                 compact: compact
             ) {
                 shareTo = true
@@ -4600,7 +4600,7 @@ struct MusicPlayingView: View {
                 icon: "list.bullet",
                 name: Tr("播放列表"),
                 count: player.queue.count,
-                tint: Color.primary,
+                tint: Color.white,
                 compact: compact
             ) {
                 showQueue = true
@@ -4609,7 +4609,7 @@ struct MusicPlayingView: View {
                 icon: "square.and.arrow.up",
                 name: Tr("分享"),
                 count: nil,
-                tint: Color.primary,
+                tint: Color.white,
                 compact: compact
             ) {
                 shareSystem = true
