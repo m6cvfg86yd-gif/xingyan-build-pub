@@ -416,6 +416,98 @@ struct TabBarTouchLayer: UIViewRepresentable {
     }
 }
 
+private struct XingyanTabCountBadge: View {
+    let count: Int
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        Text(count > 99 ? "99+" : "\(count)")
+            .font(pf(10.5, .bold))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .padding(.horizontal, count > 9 ? 5.5 : 0)
+            .frame(minWidth: 20, minHeight: 20)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: 0xFF5B69),
+                                Color(hex: 0xE2233B),
+                                Color(hex: 0xB90F2C)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            .overlay {
+                Capsule(style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.58),
+                                Color.white.opacity(0.05)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.7
+                    )
+            }
+            .overlay {
+                Capsule(style: .continuous)
+                    .stroke(Color.dyn(0xFFFFFF, 0x0B141A).opacity(0.92),
+                            lineWidth: 1.8)
+                    .padding(-1.8)
+            }
+            .shadow(color: Color(hex: 0xD71836).opacity(0.34),
+                    radius: 5, y: 2)
+            .offset(x: 7, y: -4)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct XingyanTabDotBadge: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: 0xFF354F).opacity(scheme == .dark ? 0.22 : 0.14))
+                .frame(width: 18, height: 18)
+
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: 0xFF6571), Color(hex: 0xD71935)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 12, height: 12)
+                .overlay {
+                    Circle()
+                        .stroke(Color.dyn(0xFFFFFF, 0x0B141A).opacity(0.92),
+                                lineWidth: 1.5)
+                        .padding(-1.5)
+                }
+                .overlay(alignment: .topLeading) {
+                    Circle()
+                        .fill(Color.white.opacity(0.34))
+                        .frame(width: 3.5, height: 3.5)
+                        .offset(x: 2.2, y: 2.2)
+                }
+                .shadow(color: Color(hex: 0xD71935).opacity(0.30),
+                        radius: 4, y: 1.5)
+        }
+        .frame(width: 18, height: 18)
+        .offset(x: 5, y: -3)
+        .accessibilityHidden(true)
+    }
+}
+
 struct TabBar: View {
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
@@ -630,37 +722,19 @@ struct TabBar: View {
                                     .frame(width: L.tabIconBox, height: L.tabIconBox)
                             }
                             if i == 0 && badge > 0 {
-                                Text(badge > 99 ? "99+" : "\(badge)")
-                                    .font(pf(11, .semibold))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 3)
-                                    .frame(minWidth: 15, minHeight: 15)
-                                    .background(Capsule().fill(Color(.systemRed)))
-                                    .offset(x: 5, y: -3)
+                                XingyanTabCountBadge(count: badge)
                             }
 
                             if i == 2 && momentsDot {
-                                Circle()
-                                    .fill(Color(.systemRed))
-                                    .frame(width: 9, height: 9)
-                                    .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.5))
-                                    .offset(x: 4, y: -2)
+                                XingyanTabDotBadge()
                             }
 
                             if i == 1 && contactsDot {
-                                Circle()
-                                    .fill(Color(.systemRed))
-                                    .frame(width: 9, height: 9)
-                                    .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.5))
-                                    .offset(x: 4, y: -2)
+                                XingyanTabDotBadge()
                             }
 
                             if i == 3 && meDot {
-                                Circle()
-                                    .fill(Color(.systemRed))
-                                    .frame(width: 9, height: 9)
-                                    .overlay(Circle().stroke(OrbitTheme.raised, lineWidth: 1.5))
-                                    .offset(x: 4, y: -2)
+                                XingyanTabDotBadge()
                             }
                         }
                         .frame(width: L.tabIconBox + 10, height: L.tabIconBox + 3)
