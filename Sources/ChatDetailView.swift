@@ -433,6 +433,7 @@ private struct StarWhisperLine: View {
     let border: Color
     let accent: Color
     let active: Bool
+    var plain: Bool = false
 
     @State private var arrived = false
     @State private var bloom = false
@@ -447,19 +448,23 @@ private struct StarWhisperLine: View {
                 .foregroundStyle(ink)
                 .multilineTextAlignment(.center)
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 5)
+        .padding(.horizontal, plain ? 2 : 11)
+        .padding(.vertical, plain ? 0 : 5)
         .background {
-            ZStack {
-                Capsule(style: .continuous).fill(.ultraThinMaterial)
-                Capsule(style: .continuous).fill(surface)
+            if !plain {
+                ZStack {
+                    Capsule(style: .continuous).fill(.ultraThinMaterial)
+                    Capsule(style: .continuous).fill(surface)
+                }
             }
         }
         .overlay {
-            Capsule(style: .continuous).stroke(border, lineWidth: 0.6)
+            if !plain {
+                Capsule(style: .continuous).stroke(border, lineWidth: 0.6)
+            }
         }
         .overlay {
-            if active {
+            if active && !plain {
                 Capsule(style: .continuous)
                     .stroke(accent.opacity(bloom ? 0 : 0.42), lineWidth: 1)
                     .scaleEffect(bloom ? 1.16 : 0.98)
@@ -1394,6 +1399,10 @@ struct ChatDetailView: View {
             return effectiveDefaultChatBackground(def)
         }
         return normalizedChatBackground(v)
+    }
+
+    private var usesPlainDefaultChatChrome: Bool {
+        backgroundPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var backgroundEffect: ChatBackgroundEffect {
@@ -2868,7 +2877,8 @@ struct ChatDetailView: View {
                     surface: adaptiveSystemSurface,
                     border: adaptiveSystemBorder,
                     accent: adaptiveMicInk,
-                    active: patAnimatingId == message.id
+                    active: patAnimatingId == message.id,
+                    plain: usesPlainDefaultChatChrome
                 )
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 40)
@@ -2879,7 +2889,8 @@ struct ChatDetailView: View {
                     callRow(message)
                 } else {
                         SystemLine(message: message,
-                                   usesLightInk: senderNameUsesLightInk)
+                                   usesLightInk: senderNameUsesLightInk,
+                                   plain: usesPlainDefaultChatChrome)
                             .padding(.bottom, gapAfter(message))
 
                             .contentShape(Rectangle())
@@ -2907,9 +2918,19 @@ struct ChatDetailView: View {
                                 .foregroundColor(Color(hex: 0xFF9A2E))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(.thinMaterial))
-                                .overlay(Capsule().stroke(Color(hex: 0xFF9A2E).opacity(0.28),
-                                                          lineWidth: 0.6))
+                                .background {
+                                    if !usesPlainDefaultChatChrome {
+                                        Capsule().fill(.thinMaterial)
+                                    }
+                                }
+                                .overlay {
+                                    if !usesPlainDefaultChatChrome {
+                                        Capsule().stroke(
+                                            Color(hex: 0xFF9A2E).opacity(0.28),
+                                            lineWidth: 0.6
+                                        )
+                                    }
+                                }
                                 .offset(x: (message.senderId == myId) ? -26 : 26)
                             }
                         }
@@ -2935,48 +2956,66 @@ struct ChatDetailView: View {
         }
     }
 
+    @ViewBuilder
     private func timeLine(_ message: Message) -> some View {
-        Text(TimeFmt.bubble(message.createdAt))
-            .font(pf(12, .medium))
-            .foregroundColor(adaptiveSystemSecondaryInk)
-
-            .padding(.horizontal, L.o("chatTimePadX", 9))
-            .padding(.vertical, L.o("chatTimePadY", 4))
-            .background {
-                ZStack {
-                    Capsule(style: .continuous)
-                        .fill(.ultraThinMaterial)
-                    Capsule(style: .continuous)
-                        .fill(adaptiveSystemSurface)
+        if usesPlainDefaultChatChrome {
+            Text(TimeFmt.bubble(message.createdAt))
+                .font(pf(11.5, .medium))
+                .foregroundColor(adaptiveSystemSecondaryInk.opacity(0.92))
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+                .padding(.bottom, 7)
+        } else {
+            Text(TimeFmt.bubble(message.createdAt))
+                .font(pf(12, .medium))
+                .foregroundColor(adaptiveSystemSecondaryInk)
+                .padding(.horizontal, L.o("chatTimePadX", 9))
+                .padding(.vertical, L.o("chatTimePadY", 4))
+                .background {
+                    ZStack {
+                        Capsule(style: .continuous)
+                            .fill(.ultraThinMaterial)
+                        Capsule(style: .continuous)
+                            .fill(adaptiveSystemSurface)
+                    }
                 }
-            }
-            .overlay {
-                Capsule(style: .continuous)
-                    .stroke(adaptiveSystemBorder, lineWidth: 0.6)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, L.o("chatTimeGapTop", 10))
-            .padding(.bottom, L.o("chatTimeGapBottom", 10))
+                .overlay {
+                    Capsule(style: .continuous)
+                        .stroke(adaptiveSystemBorder, lineWidth: 0.6)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, L.o("chatTimeGapTop", 10))
+                .padding(.bottom, L.o("chatTimeGapBottom", 10))
+        }
     }
 
+    @ViewBuilder
     private func recallLine(_ message: Message) -> some View {
-        Text(recallText(message))
-            .font(pf(13))
-
-            .foregroundColor(adaptiveSystemSecondaryInk)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(adaptiveSystemSurface)
-                }
-            )
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 40)
+        if usesPlainDefaultChatChrome {
+            Text(recallText(message))
+                .font(pf(12.5))
+                .foregroundColor(adaptiveSystemSecondaryInk.opacity(0.92))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 40)
+        } else {
+            Text(recallText(message))
+                .font(pf(13))
+                .foregroundColor(adaptiveSystemSecondaryInk)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(adaptiveSystemSurface)
+                    }
+                )
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 40)
+        }
     }
 
     private func recallText(_ message: Message) -> String {
@@ -5512,6 +5551,7 @@ struct ChatDetailView: View {
 struct SystemLine: View {
     let message: Message
     var usesLightInk: Bool = false
+    var plain: Bool = false
 
     var body: some View {
         HStack(spacing: 4) {
@@ -5523,16 +5563,20 @@ struct SystemLine: View {
             }
         }
 
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        .padding(.horizontal, plain ? 2 : 10)
+        .padding(.vertical, plain ? 0 : 4)
         .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(usesLightInk
-                          ? Color.black.opacity(0.40)
-                          : Color.white.opacity(0.76))
+            Group {
+                if !plain {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(usesLightInk
+                                  ? Color.black.opacity(0.40)
+                                  : Color.white.opacity(0.76))
+                    }
+                }
             }
         )
         .frame(maxWidth: .infinity)
