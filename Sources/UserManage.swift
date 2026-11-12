@@ -790,6 +790,7 @@ struct UserManageView: View {
     private func applyDarkPagePreset(_ preset: DarkPagePreset) async {
         let values = darkPageThemeValues(preset)
         activeDarkPagePreset = preset.id
+        UIConfig.setDarkPageTheme(values)
         app.previewUIConfig(values)
         UISelectionFeedbackGenerator().selectionChanged()
 

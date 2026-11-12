@@ -134,6 +134,7 @@ enum AppInfo {
 enum UIConfig {
     private static var numbers: [String: CGFloat] = [:]
     private static var strings: [String: String] = [:]
+    private static let localDarkThemeKey = "chris.darkPageThemeValues"
     static var scale: CGFloat = 0.94
 
     static func num(_ key: String, _ def: CGFloat) -> CGFloat { numbers[key] ?? def }
@@ -160,6 +161,22 @@ enum UIConfig {
         for (key, value) in values {
             strings[key] = value
         }
+    }
+
+    private static func localDarkThemeValues() -> [String: String] {
+        guard let raw = UserDefaults.standard.string(forKey: localDarkThemeKey),
+              let data = raw.data(using: .utf8),
+              let values = try? JSONDecoder().decode([String: String].self, from: data)
+        else { return [:] }
+        return values
+    }
+
+    static func setDarkPageTheme(_ values: [String: String]) {
+        if let data = try? JSONEncoder().encode(values),
+           let raw = String(data: data, encoding: .utf8) {
+            UserDefaults.standard.set(raw, forKey: localDarkThemeKey)
+        }
+        merge(values)
     }
 
     static var avatarCircle: Bool {
@@ -203,6 +220,7 @@ enum UIConfig {
         }
         numbers = n
         strings = s
+        merge(localDarkThemeValues())
         if let sc = n["fontScale"], sc > 0.5, sc < 1.6 { scale = sc }
     }
 }
