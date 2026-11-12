@@ -1583,6 +1583,68 @@ final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate {
     }
 }
 
+struct PaymentDeviceChallengePayload: Decodable {
+    var challenge: String
+    var tokenId: String
+    var expiresAt: String
+}
+
+struct PaymentDeviceRegistrationPayload: Decodable {
+    var tokenId: String
+    var deviceId: String
+    var last4: String?
+    var status: String
+}
+
+struct SecurePaymentIntent: Decodable, Identifiable {
+    var id: String
+    var userId: String
+    var merchantId: String
+    var deviceId: String
+    var amountCents: Int
+    var currency: String
+    var status: String
+    var refundedCents: Int?
+    var createdAt: String?
+    var authorizedAt: String?
+    var capturedAt: String?
+}
+
+private struct SecurePaymentIntentEnvelope: Decodable {
+    var intent: SecurePaymentIntent
+}
+
+struct SecurePaymentSignable: Decodable {
+    var intentId: String
+    var userId: String
+    var merchantId: String
+    var deviceId: String
+    var amountCents: Int
+    var currency: String
+    var nonce: String
+    var expiresAt: String
+
+    var dictionary: [String: Any] {
+        [
+            "intentId": intentId,
+            "userId": userId,
+            "merchantId": merchantId,
+            "deviceId": deviceId,
+            "amountCents": amountCents,
+            "currency": currency,
+            "nonce": nonce,
+            "expiresAt": expiresAt
+        ]
+    }
+}
+
+struct SecurePaymentChallenge: Decodable {
+    var tokenId: String
+    var nonce: String
+    var expiresAt: String
+    var payload: SecurePaymentSignable
+}
+
 final class API {
     static let shared = API()
 
@@ -5515,6 +5577,14 @@ private struct StarredPayload: Decodable {
 
     func transfer(chatId: String, amount: Double, note: String,
                   method: String, password: String, face: Bool = false) async throws -> TransferReceipt {
+        if face, PaymentDeviceSigning.secureHardwareAvailable {
+            return try await transferWithSecureDevice(
+                chatId: chatId,
+                amount: amount,
+                note: note,
+                method: method
+            )
+        }
         let any = try await request("POST", "/api/pay/transfer", body: [
             "chatId": chatId,
             "amount": amount,
@@ -5524,6 +5594,95 @@ private struct StarredPayload: Decodable {
             "face": face,
 
             "requestId": UUID().uuidString
+        ])
+        return try decode(any, as: TransferReceipt.self)
+    }
+
+    func paymentDeviceChallenge(deviceId: String,
+                                publicKey: String) async throws -> PaymentDeviceChallengePayload {
+        try await post("/api/payment/devices/challenge", [
+            "deviceId": deviceId,
+            "publicKey": publicKey
+        ], as: PaymentDeviceChallengePayload.self)
+    }
+
+    func enrollPaymentDevice(challenge: String,
+                             signature: String,
+                             last4: String) async throws -> PaymentDeviceRegistrationPayload {
+        try await post("/api/payment/devices/enroll", [
+            "challenge": challenge,
+            "signature": signature,
+            "last4": last4
+        ], as: PaymentDeviceRegistrationPayload.self)
+    }
+
+    func createSecurePaymentIntent(chatId: String,
+                                   amount: Double,
+                                   note: String,
+                                   deviceId: String,
+                                   requestId: String) async throws -> SecurePaymentIntent {
+        let payload: SecurePaymentIntentEnvelope = try await post("/api/payment/intents", [
+            "requestId": requestId,
+            "chatId": chatId,
+            "amount": amount,
+            "amountCents": Int((amount * 100).rounded()),
+            "deviceId": deviceId,
+            "note": note
+        ], as: SecurePaymentIntentEnvelope.self)
+        return payload.intent
+    }
+
+    func securePaymentChallenge(intentId: String,
+                                tokenId: String) async throws -> SecurePaymentChallenge {
+        try await post("/api/payment/intents/" + intentId + "/challenge",
+                       ["tokenId": tokenId],
+                       as: SecurePaymentChallenge.self)
+    }
+
+    func authorizeSecurePayment(intentId: String,
+                                tokenId: String,
+                                signature: String) async throws -> SecurePaymentIntent {
+        let payload: SecurePaymentIntentEnvelope = try await post(
+            "/api/payment/intents/" + intentId + "/authorize",
+            ["tokenId": tokenId, "signature": signature],
+            as: SecurePaymentIntentEnvelope.self
+        )
+        return payload.intent
+    }
+
+    private func transferWithSecureDevice(chatId: String,
+                                          amount: Double,
+                                          note: String,
+                                          method: String) async throws -> TransferReceipt {
+        guard let me = try await me(), !me.id.isEmpty else {
+            throw APIError.message("请先登录")
+        }
+        let token = try await PaymentDeviceSigning.ensureEnrollment(userId: me.id)
+        let intent = try await createSecurePaymentIntent(
+            chatId: chatId,
+            amount: amount,
+            note: note,
+            deviceId: PaymentDeviceSigning.deviceId,
+            requestId: UUID().uuidString
+        )
+        let challenge = try await securePaymentChallenge(
+            intentId: intent.id,
+            tokenId: token.tokenId
+        )
+        let signature = try PaymentDeviceSigning.signCanonical(
+            challenge.payload.dictionary
+        )
+        _ = try await authorizeSecurePayment(
+            intentId: intent.id,
+            tokenId: token.tokenId,
+            signature: signature
+        )
+        let any = try await request("POST", "/api/pay/transfer", body: [
+            "paymentIntentId": intent.id,
+            "chatId": chatId,
+            "amount": amount,
+            "note": note,
+            "method": method
         ])
         return try decode(any, as: TransferReceipt.self)
     }

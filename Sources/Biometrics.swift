@@ -3,8 +3,8 @@ import LocalAuthentication
 
 enum Biometrics {
 
-    /// 未完成服务端 challenge/验签前，面容只能用于本机解锁，不能作为真实支付授权。
-    static let paymentReady = false
+    /// 仅当设备具备安全区时才显示安全支付入口；服务端仍会逐笔验签。
+    static var paymentReady: Bool { PaymentDeviceSigning.secureHardwareAvailable }
 
     static var available: Bool {
         var err: NSError?
