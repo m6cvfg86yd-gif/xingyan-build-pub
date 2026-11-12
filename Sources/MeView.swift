@@ -181,6 +181,109 @@ struct MeView: View {
 
     private var nativeMeList: some View {
         List {
+            if scheme == .dark {
+                darkMeRows
+            } else {
+                lightMeRows
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(mePageCanvasColor.ignoresSafeArea())
+        .navigationTitle(Tr("我的"))
+        .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(mePageCanvasColor, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .refreshable {
+            app.me = try? await API.shared.me()
+            await app.loadContacts()
+            await MemberStore.shared.refresh()
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { showMyQR = true } label: {
+                    Image(systemName: "qrcode")
+                }
+                .accessibilityLabel(Tr("我的二维码"))
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { path.append("settings") } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel(Tr("设置"))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var lightMeRows: some View {
+        Section {
+            HStack(spacing: 8) {
+                NavigationLink(value: "profile") {
+                    HStack(spacing: 12) {
+                        Avatar(path: app.me?.avatarPath ?? "", size: 58, radius: 18,
+                               level: growth.shownLevel)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text(app.me?.name ?? Tr("星言用户"))
+                                    .font(pfStyled(size: 17, weight: .semibold))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                if growthShow {
+                                    QQLevelBadge(level: growth.shownLevel, size: 14, maxIcons: 2)
+                                        .fixedSize()
+                                }
+                            }
+                            Text(Tr("星言号") + "：" + (app.me?.username ?? "-"))
+                                .font(pfStyled(size: 12))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            let bio = (app.me?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                            Text(bio.isEmpty ? Tr("点击编辑个人资料") : bio)
+                                .font(pfStyled(size: 12))
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 3)
+        }
+        .listRowBackground(C.meCardBg)
+
+        ForEach(grouped.indices, id: \.self) { gi in
+            Section {
+                ForEach(grouped[gi]) { item in
+                    NavigationLink(value: routeKey(for: item)) {
+                        nativeMeItemRow(item)
+                    }
+                }
+            }
+            .listRowBackground(C.meCardBg)
+        }
+
+        if app.me?.ops == true {
+            Section(header: Text(Tr("管理"))) {
+                NavigationLink(value: "manage") {
+                    nativeSettingsIconRow(Tr("用户管理"),
+                                          symbol: "person.2.badge.gearshape.fill",
+                                          color: .indigo)
+                }
+                NavigationLink(value: "faces") {
+                    nativeSettingsIconRow(Tr("人脸比对"),
+                                          symbol: "face.smiling",
+                                          color: C.green)
+                }
+            }
+            .listRowBackground(C.meCardBg)
+        }
+    }
+
+    @ViewBuilder
+    private var darkMeRows: some View {
             Section {
                 meGroupCard {
                     HStack(spacing: 8) {
@@ -261,33 +364,6 @@ struct MeView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
-        }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(mePageCanvasColor.ignoresSafeArea())
-        .navigationTitle(Tr("我的"))
-        .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(mePageCanvasColor, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .refreshable {
-            app.me = try? await API.shared.me()
-            await app.loadContacts()
-            await MemberStore.shared.refresh()
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showMyQR = true } label: {
-                    Image(systemName: "qrcode")
-                }
-                .accessibilityLabel(Tr("我的二维码"))
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { path.append("settings") } label: {
-                    Image(systemName: "gearshape")
-                }
-                .accessibilityLabel(Tr("设置"))
-            }
-        }
     }
 
     private var mePageCanvasColor: Color {
