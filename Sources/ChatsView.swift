@@ -97,8 +97,9 @@ struct RowSwipeCatcher: UIViewRepresentable {
             case .changed:
                 if !horizontal {
                     let v = g.velocity(in: g.view)
-                    let xWins = abs(t.x) >= max(5, abs(t.y) + 1.5)
-                        || (abs(v.x) > 80 && abs(v.x) > abs(v.y) * 1.10)
+                    let clearPan = abs(t.x) >= max(8, abs(t.y) * 1.22 + 1)
+                    let fastPan = abs(v.x) >= 110 && abs(v.x) >= abs(v.y) * 1.35
+                    let xWins = clearPan || fastPan
                     guard xWins else { return }
                     horizontal = true
                     freezeEnclosingScroll(g.view)
@@ -860,6 +861,8 @@ struct SwipeChatRow: View {
                     NotificationCenter.default.post(name: .chrisRowSwipe, object: chat.id)
                 },
                 onChanged: { dx in
+                    // 固定方向：右滑（offset > 0）只露出置顶；左滑（offset < 0）
+                    // 只露出“标为未读 / 不显示 / 删除”。后续调整不得交换。
                     var x = startOffset + dx
                     if x > 0 {
                         if x > fullW {

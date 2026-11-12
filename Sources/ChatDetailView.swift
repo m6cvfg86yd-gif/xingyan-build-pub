@@ -3607,7 +3607,7 @@ struct ChatDetailView: View {
     }
 
     private var composerMaxHeight: CGFloat {
-        min(220, max(120, L.height * 0.36))
+        min(156, max(112, L.height * 0.20))
     }
 
     private var composerInputHeight: CGFloat {
@@ -3895,7 +3895,9 @@ struct ChatDetailView: View {
                                               maxHeight: composerMaxHeight,
                                               onHeightChange: { height in
                                                   guard abs(inputBoxHeight - height) > 0.5 else { return }
-                                                  withAnimation(.easeOut(duration: 0.12)) {
+                                                  withAnimation(.spring(response: 0.22,
+                                                                        dampingFraction: 0.92,
+                                                                        blendDuration: 0.08)) {
                                                       inputBoxHeight = height
                                                   }
                                               },
