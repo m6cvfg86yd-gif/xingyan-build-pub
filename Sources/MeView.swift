@@ -463,7 +463,8 @@ struct MeView: View {
                             showsOutline: false
                         )
                     )
-                    .listRowSeparator(.hidden)
+                    .listRowSeparator(idx < grouped[gi].count - 1 ? .visible : .hidden)
+                    .listRowSeparatorTint(C.hairline)
                 }
             }
         }
@@ -476,7 +477,8 @@ struct MeView: View {
                                           color: .indigo)
                 }
                 .listRowBackground(MeCardRowBackground(position: .first, showsOutline: false))
-                .listRowSeparator(.hidden)
+                .listRowSeparator(.visible)
+                .listRowSeparatorTint(C.hairline)
 
                 NavigationLink(value: "faces") {
                     nativeSettingsIconRow(Tr("人脸比对"),
