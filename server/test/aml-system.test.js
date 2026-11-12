@@ -229,6 +229,26 @@ async function main() {
       'successful transfer must immediately appear in the payment ledger: '
         + JSON.stringify(response.data.entries || []));
 
+    const recipientCookie = await login(base, 'recipient');
+    response = await call(base, 'POST', '/api/pay/transfer', {
+      chatId: 'c_aml',
+      amount: 1,
+      password: PAY_PASSWORD,
+      requestId: 'aml_claim_req_1',
+      note: '收款幂等测试'
+    }, payerCookie);
+    assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    const claimId = response.data.transfer.id;
+    response = await call(base, 'POST', `/api/transfers/${claimId}/claim`, {}, recipientCookie);
+    assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    assert.strictEqual(response.data.transfer.status, 'received');
+    const claimedBalance = Number(response.data.balance) || 0;
+    response = await call(base, 'POST', `/api/transfers/${claimId}/claim`, {}, recipientCookie);
+    assert.strictEqual(response.status, 200, '重复确认收款必须幂等：' + JSON.stringify(response.data));
+    assert.strictEqual(response.data.alreadyReceived, true);
+    assert.strictEqual(Number(response.data.balance) || 0, claimedBalance,
+      '重复确认收款不能重复入账');
+
     response = await call(base, 'POST', '/api/ops/aml/rules', {
       confirmPassword: ADMIN_PASSWORD,
       rules: { pairReviewCount: 99 }

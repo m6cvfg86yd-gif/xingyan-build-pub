@@ -16837,7 +16837,12 @@ async function handleApi(req, res, pathname, query) {
     const tr = db.transfers.find((x) => x.id === str(parts[1], 60));
     if (!tr) return fail(res, 404, '转账单不存在');
     if (tr.toId !== user.id) return fail(res, 403, '这笔转账不是给你的');
-    if (tr.status === 'received') return fail(res, 409, '这笔钱已经收过了');
+    if (tr.status === 'received') {
+      /* 多设备/弱网重试时状态可能已经落库，但确认页还没刷新。
+         这里按幂等成功返回当前结果，避免用户点“确认收款”像没反应。 */
+      ok(res, { balance: user.balance, transfer: JSON.parse(transferSnapshot(tr)), alreadyReceived: true });
+      return;
+    }
     if (tr.status === 'refunded') return fail(res, 409, '超过 24 小时没收，钱已退回对方');
     if (tr.expiresAt <= Date.now()) { expireTransfers(); return fail(res, 409, '超过 24 小时没收，钱已退回对方'); }
     const payer = findUser(tr.fromId) || {};
