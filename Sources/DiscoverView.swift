@@ -651,8 +651,6 @@ struct DiscoverView: View {
                 }
             }
         }
-                .environmentObject(app)
-        }
     }
 
     private var worldOfflineView: some View {
