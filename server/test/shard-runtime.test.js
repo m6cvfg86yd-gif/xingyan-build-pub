@@ -14,6 +14,7 @@ const { ShardEventBus } = require('../lib/shard-event-bus');
 const { ShardDomain } = require('../lib/shard-domain');
 const { migrateLegacyState } = require('../lib/shard-migrate');
 const { ShardMutationGateway } = require('../lib/shard-gateway');
+const { LegacyShadowRecorder, compareLegacyState } = require('../lib/shard-shadow');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xingyan-shard-runtime-'));
 const logFile = path.join(dir, 'events.jsonl');
@@ -287,6 +288,49 @@ try {
   const badResult = new VersionedEntityLog({ file: badLogFile, strict: false }).verify();
   assert.strictEqual(badResult.ok, false);
   assert.ok(badResult.failures.some((failure) => failure.code === 'duplicate-version'));
+
+  const shadowDir = path.join(dir, 'shadow');
+  const shadowCluster = new ShardCluster({
+    dataDir: shadowDir,
+    shardCount: 6,
+    readJson,
+    writeJson
+  });
+  let shadowId = 0;
+  const shadowGateway = new ShardMutationGateway({
+    cluster: shadowCluster,
+    uid: (prefix) => prefix + '-shadow-' + (++shadowId),
+    now: () => '2026-11-13T00:00:00.000Z'
+  });
+  const shadow = new LegacyShadowRecorder({ gateway: shadowGateway });
+  const legacy = {
+    friendships: [{ id: 'sf1', fromId: 's1', toId: 's2', status: 'accepted' }],
+    chats: [{
+      id: 'sc1',
+      hiddenFor: ['s1'],
+      dismissed: false
+    }, {
+      id: 'sg1',
+      dismissed: true,
+      hiddenFor: []
+    }],
+    moments: [{
+      id: 'smo1',
+      authorId: 's1',
+      content: 'shadow',
+      likes: [{ userId: 's2' }],
+      comments: [{ id: 'scm1', userId: 's2', content: 'shadow comment' }]
+    }],
+    transfers: [{ id: 'str1', status: 'received', toId: 's2' }]
+  };
+  shadow.friendAccepted(legacy.friendships[0]);
+  shadow.chatHidden('sc1', 's1', 'legacy-chat-hide');
+  shadow.groupDismissed('sg1', 'legacy-group-dismiss');
+  shadow.momentPublished(legacy.moments[0]);
+  shadow.momentCommented('smo1', legacy.moments[0].comments[0]);
+  shadow.momentLiked('smo1', 's2');
+  shadow.transferClaimed(legacy.transfers[0]);
+  assert.strictEqual(compareLegacyState(shadowCluster, legacy).ok, true);
 
   console.log('shard-runtime: passed');
 } finally {
