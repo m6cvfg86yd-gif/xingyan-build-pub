@@ -34,6 +34,32 @@ class LegacyShadowRecorder {
     }, 'friend-accept:' + id);
   }
 
+  friendRequested(friendship) {
+    const id = friendship && friendship.id;
+    const fromId = friendship && friendship.fromId;
+    const toId = friendship && friendship.toId;
+    if (!id || !fromId || !toId) return { status: 'invalid' };
+    return this.submit('friendship', pairKey(fromId, toId), 'request', {
+      a: fromId,
+      b: toId,
+      status: 'pending',
+      legacyId: id
+    }, 'friend-request:' + id);
+  }
+
+  friendRejected(friendship) {
+    const id = friendship && friendship.id;
+    const fromId = friendship && friendship.fromId;
+    const toId = friendship && friendship.toId;
+    if (!id || !fromId || !toId) return { status: 'invalid' };
+    return this.submit('friendship', pairKey(fromId, toId), 'reject', {
+      a: fromId,
+      b: toId,
+      status: 'rejected',
+      legacyId: id
+    }, 'friend-reject:' + id);
+  }
+
   friendRemoved(actorId, targetId, legacyEventId) {
     const id = String(actorId || '') + '|' + String(targetId || '');
     return this.submit('friend_visibility', id, 'delete', {
@@ -48,6 +74,42 @@ class LegacyShadowRecorder {
       chatId,
       ownerId
     }, 'chat-hide:' + (legacyEventId || id), { deleted: true });
+  }
+
+  chatMessageShown(chatId, ownerId, messageId) {
+    const id = String(chatId || '') + '|' + String(ownerId || '');
+    return this.submit('chat_visibility', id, 'message', {
+      chatId,
+      ownerId,
+      messageId: messageId || ''
+    }, 'chat-message:' + (messageId || id), { allowAfterTombstone: true });
+  }
+
+  chatUnread(chatId, ownerId, unread) {
+    const id = String(chatId || '') + '|' + String(ownerId || '');
+    return this.submit('chat_read_state', id, 'unread', {
+      chatId,
+      ownerId,
+      unread: unread === true || Number(unread) > 0
+    }, 'chat-unread:' + id + ':' + String(unread));
+  }
+
+  chatPinned(chatId, ownerId, pinned) {
+    const id = String(chatId || '') + '|' + String(ownerId || '');
+    return this.submit('chat_user_state', id, 'pin', {
+      chatId,
+      ownerId,
+      pinned: pinned === true
+    }, 'chat-pin:' + id + ':' + String(pinned === true));
+  }
+
+  chatMemberRemoved(chatId, userId, reason) {
+    const id = String(chatId || '') + '|' + String(userId || '');
+    return this.submit('chat_membership', id, reason || 'remove-member', {
+      chatId,
+      userId,
+      active: false
+    }, 'chat-member-remove:' + id + ':' + (reason || 'kick'), { deleted: true });
   }
 
   groupDismissed(chatId, legacyEventId) {
@@ -83,6 +145,16 @@ class LegacyShadowRecorder {
       userId,
       at: at || ''
     }, 'moment-like:' + momentId + ':' + userId);
+  }
+
+  momentCommentLiked(momentId, commentId, userId, at) {
+    return this.submit('moment_comment_like', momentId + '|' + commentId + '|' + userId,
+      'like', {
+        momentId,
+        commentId,
+        userId,
+        at: at || ''
+      }, 'moment-comment-like:' + momentId + ':' + commentId + ':' + userId);
   }
 
   transferClaimed(transfer, userId) {

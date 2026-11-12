@@ -15,6 +15,7 @@ const { ShardDomain } = require('../lib/shard-domain');
 const { migrateLegacyState } = require('../lib/shard-migrate');
 const { ShardMutationGateway } = require('../lib/shard-gateway');
 const { LegacyShadowRecorder, compareLegacyState } = require('../lib/shard-shadow');
+const { ShadowAdapter } = require('../lib/shard-shadow-adapter');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xingyan-shard-runtime-'));
 const logFile = path.join(dir, 'events.jsonl');
@@ -331,6 +332,16 @@ try {
   shadow.momentLiked('smo1', 's2');
   shadow.transferClaimed(legacy.transfers[0]);
   assert.strictEqual(compareLegacyState(shadowCluster, legacy).ok, true);
+
+  const coverageManifest = JSON.parse(fs.readFileSync(
+    path.join(__dirname, '..', 'shard-coverage.json'),
+    'utf8'
+  ));
+  const adapter = new ShadowAdapter({ recorder: shadow });
+  for (const route of coverageManifest.routes) {
+    const result = adapter.handle(route.id, {});
+    assert.notStrictEqual(result && result.status, 'unmapped', 'unmapped route: ' + route.id);
+  }
 
   console.log('shard-runtime: passed');
 } finally {
