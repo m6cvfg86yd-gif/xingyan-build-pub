@@ -111,8 +111,7 @@ struct ContactsView: View {
                         : Color(hex: 0xF7F8FA)
     }
     private var contactsRowFill: Color {
-        scheme == .dark ? (UIConfig.colorIfSet("cardBg") ?? Color(hex: 0x111B21))
-                        : contactsCanvas
+        contactsCanvas
     }
     private let contactsAccent = Color(hex: 0x25D366)
 
