@@ -3438,7 +3438,6 @@ struct RegisterSheet: View {
             }
         }
     }
-    }
 
     private var phoneRegistrationForm: some View {
         VStack(alignment: .leading, spacing: 14) {
