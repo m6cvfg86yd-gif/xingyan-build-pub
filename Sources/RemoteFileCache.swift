@@ -13,6 +13,16 @@ actor RemoteFileCache {
     private var tasks: [String: Task<CachedRemoteFile, Error>] = [:]
 
     func file(path: String, preferredName: String) async throws -> CachedRemoteFile {
+        /* 发送方刚上传时 LocalStore 已经保存了原文件。文件名是随机且不可变的，
+           直接打开本地副本，避免上传完成后又绕服务器整包下载一次。 */
+        let cleanPath = path.split(separator: "?", maxSplits: 1).first.map(String.init) ?? path
+        if let local = LocalStore.localURL(cleanPath),
+           FileManager.default.fileExists(atPath: local.path),
+           let values = try? local.resourceValues(forKeys: [.fileSizeKey]),
+           (values.fileSize ?? 0) > 0 {
+            let localName = preferredName.isEmpty ? local.lastPathComponent : preferredName
+            return CachedRemoteFile(name: Self.safeName(localName), local: local)
+        }
         guard let remote = API.shared.assetURL(path) else {
             throw APIError.message("这个文件找不到了")
         }

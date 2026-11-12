@@ -4244,6 +4244,7 @@ function messagesFile(chatId) { return path.join(MSG_DIR, chatId + '.jsonl'); }
 const UPLOAD_MAGIC = Buffer.from('LUC1');
 const uploadPlainCache = new Map();     // name -> Buffer（解密后的）
 let uploadPlainCacheBytes = 0;
+const UPLOAD_PLAIN_CACHE_FILE_LIMIT = 8 * 1024 * 1024;
 
 function uploadFileKey(name) {
   return crypto.createHmac('sha256', String(db.secret || 'chris')).update('file:' + name).digest();
@@ -4269,7 +4270,7 @@ function readUploadPlain(file) {
   const hit = uploadPlainCache.get(name);
   if (hit) return hit;
   const buf = openUploadBuffer(name, fs.readFileSync(file));
-  if (buf.length <= 8 * 1024 * 1024) {
+  if (buf.length <= UPLOAD_PLAIN_CACHE_FILE_LIMIT) {
     uploadPlainCache.set(name, buf);
     uploadPlainCacheBytes += buf.length;
     while (uploadPlainCacheBytes > 64 * 1024 * 1024 && uploadPlainCache.size > 1) {
@@ -19812,7 +19813,10 @@ function sendFile(req, res, file, rel) {
     const rangeHdr = String(req.headers.range || '').trim();
     const wantRange = /^bytes=/.test(rangeHdr);
     const sealed = inUploads ? uploadIsSealed(file) : false;
-    if (inUploads && !(wantRange && sealed)) {
+    /* 小文件可以解到内存里缓存；大文件如果先整包解密再发，首字节会被硬生生拖到
+       解密结束。大文件直接从磁盘流式解密，浏览器/客户端能立刻开始收数据。 */
+    const streamLargeSealed = sealed && stat.size > UPLOAD_PLAIN_CACHE_FILE_LIMIT;
+    if (inUploads && !(wantRange && sealed) && !streamLargeSealed) {
       try { plain = readUploadPlain(file); } catch (e2) { plain = null; }
     }
     const totalSize = plain ? plain.length : (sealed ? Math.max(0, stat.size - 20) : stat.size);
