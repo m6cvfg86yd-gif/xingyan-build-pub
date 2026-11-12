@@ -31,27 +31,22 @@ struct PayKeypadView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0.5) {
-
+        VStack(spacing: 8) {
             keyRow(0)
             keyRow(1)
             keyRow(2)
             keyRow(3)
         }
-
-        .background(C.hairline)
-
-        .overlay(alignment: .top) {
-            Rectangle().fill(C.hairline).frame(height: 0.5)
-        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .background(PayVisual.canvas)
         .onAppear {
-
             digits = secure ? Self.shuffledDigits() : (0...9).map { String($0) }
         }
     }
 
     private func keyRow(_ r: Int) -> some View {
-        HStack(spacing: 0.5) {
+        HStack(spacing: 8) {
             keyCell(key(r, 0))
             keyCell(key(r, 1))
             keyCell(key(r, 2))
@@ -71,7 +66,8 @@ struct PayKeypadView: View {
             .foregroundColor(C.subLabel.opacity(0.75))
             .frame(maxWidth: .infinity)
             .frame(height: keyHeight)
-            .background(C.cardBg)
+            .background(PayVisual.card)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .allowsHitTesting(false)
         } else {
             Button {
@@ -124,10 +120,10 @@ struct PayDotField: View {
                 }
             }
         }
-        .background(C.cardBg)
-        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .stroke(C.hairline, lineWidth: 0.8))
+        .background(PayVisual.card)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .stroke(PayVisual.separator, lineWidth: 0.8))
 
         .padding(.horizontal, 20)
         .offset(x: shake)
@@ -156,7 +152,10 @@ struct KeyPressStyle: ButtonStyle {
 struct BankKeyStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Color.dyn(0xD1D1D6, 0x3A3A3C) : C.cardBg)
+            .background(configuration.isPressed ? Color.dyn(0xE5E5EA, 0x3A3A3C) : PayVisual.card)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
     }
 }
 
@@ -195,7 +194,7 @@ struct PayBusyOverlay: View {
                     .foregroundColor(.white)
             }
             .frame(width: 118, height: 118)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .background(RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color.black.opacity(0.76)))
             .shadow(color: Color.black.opacity(0.22), radius: 20, y: 8)
         }

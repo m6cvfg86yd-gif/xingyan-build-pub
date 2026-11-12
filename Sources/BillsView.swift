@@ -102,7 +102,9 @@ struct BillsView: View {
                                             if idx < d.rows.count - 1 { HairLine(inset: 64) }
                                         }
                                     }
-                                    .background(C.cardBg)
+                                    .background(PayVisual.card)
+                                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                    .padding(.horizontal, 16)
                                 }
                             } header: {
                                 monthHeader(g)
@@ -112,7 +114,7 @@ struct BillsView: View {
                     Color.clear.frame(height: 24)
                 }
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
 
             .overlay {
                 if showFilterMenu || showMoreMenu {
@@ -124,7 +126,7 @@ struct BillsView: View {
             }
             .zIndex(0)
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
@@ -163,57 +165,59 @@ struct BillsView: View {
         let income = summary?.inSum ?? 0
         let net = income - out
         let title = month.isEmpty ? Tr("本月支出") : (monthLabel(month) + Tr("支出"))
-        return VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(pf(13))
-                .foregroundColor(.white.opacity(0.78))
-            Text(money(out))
-                .font(pfMoney(34, .semibold))
-                .foregroundColor(.white)
-                .monospacedDigit()
-                .padding(.top, 8)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            Rectangle()
-                .fill(Color.white.opacity(0.22))
-                .frame(height: 0.5)
-                .padding(.vertical, 14)
-            HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(Tr("收入"))
-                        .font(pf(12))
-                        .foregroundColor(.white.opacity(0.70))
-                    Text(money(income))
-                        .font(pfMoney(16, .medium))
-                        .foregroundColor(.white)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+        return PayGroupCard {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text(title)
+                        .font(pf(13, .semibold))
+                        .foregroundColor(PayVisual.secondaryInk)
+                    Spacer()
+                    if let summary, summary.pendingOut + summary.pendingIn > 0 {
+                        PayStatusPill(
+                            text: Tr("待处理") + " \(summary.pendingOut + summary.pendingIn)",
+                            tone: .warning
+                        )
+                    }
                 }
-                Spacer(minLength: 12)
-                VStack(alignment: .trailing, spacing: 5) {
-                    Text(Tr("结余"))
-                        .font(pf(12))
-                        .foregroundColor(.white.opacity(0.70))
-                    Text(money(net))
-                        .font(pfMoney(16, .medium))
-                        .foregroundColor(.white)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                Text(money(out))
+                    .font(pfMoney(38, .semibold))
+                    .foregroundColor(C.label)
+                    .monospacedDigit()
+                    .padding(.top, 9)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Rectangle()
+                    .fill(PayVisual.separator)
+                    .frame(height: 0.6)
+                    .padding(.vertical, 15)
+                HStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(Tr("收入"))
+                            .font(pf(12))
+                            .foregroundColor(PayVisual.secondaryInk)
+                        Text(money(income))
+                            .font(pfMoney(17, .semibold))
+                            .foregroundColor(PayVisual.success)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    Spacer(minLength: 12)
+                    VStack(alignment: .trailing, spacing: 5) {
+                        Text(Tr("结余"))
+                            .font(pf(12))
+                            .foregroundColor(PayVisual.secondaryInk)
+                        Text(money(net))
+                            .font(pfMoney(17, .semibold))
+                            .foregroundColor(net >= 0 ? C.label : PayVisual.danger)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
                 }
             }
+            .padding(18)
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 18)
-        .padding(.bottom, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-
-            LinearGradient(colors: [Color(hex: 0x1677FF), Color(hex: 0x0A5BD3)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 8)
@@ -268,6 +272,7 @@ struct BillsView: View {
         }
         .padding(.horizontal, 16.7)
         .frame(height: 52.4)
+        .background(PayVisual.canvas)
         .overlay(alignment: .bottom) { HairLine() }
     }
 
@@ -388,7 +393,7 @@ struct BillsView: View {
         .padding(.trailing, 18)
         .frame(height: 46)
 
-        .background(C.pageBg)
+        .background(PayVisual.canvas)
         .overlay(alignment: .bottom) { HairLine() }
     }
 
@@ -495,7 +500,8 @@ struct BillsView: View {
         .padding(.top, 14)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity)
-        .background(C.pageBg)
+        .padding(.horizontal, 2)
+        .background(PayVisual.canvas)
     }
 
     private func dayRight(_ rows: [BillRecord]) -> String {

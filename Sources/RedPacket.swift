@@ -250,7 +250,7 @@ struct RedPacketCoverPicker: View {
                 .disabled(busy)
             }
         }
-        .background(C.pageBg.ignoresSafeArea())
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
 
         .swipeBack { dismiss() }
@@ -432,11 +432,11 @@ struct RedPacketSendView: View {
     }
 
     private var redPacketCanvas: Color {
-        Color.dyn(0xF0F2F5, 0x0B141A)
+        PayVisual.canvas
     }
 
     private var redPacketCard: Color {
-        Color.dyn(0xFFFFFF, 0x111B21)
+        PayVisual.card
     }
 
     private var redPacketHero: some View {
@@ -732,7 +732,7 @@ struct RedPacketSendView: View {
             .padding(.top, 10)
             .padding(.bottom, max(10, L.safeBottom))
         }
-        .background(.ultraThinMaterial)
+        .background(PayVisual.canvas)
     }
 
     private var legacySendBody: some View {
@@ -1243,7 +1243,7 @@ struct PayPasswordSheet: View {
             if busy { PayBusyOverlay() }
         }
         .animation(.easeOut(duration: 0.15), value: busy)
-        .background(C.pageBg.ignoresSafeArea())
+        .background(PayVisual.canvas.ignoresSafeArea())
         .presentationDetents([.height(hasPwd ? 452 : 300)])
         .task {
             hasPwd = await API.shared.hasPayPassword()
@@ -1452,7 +1452,7 @@ struct RedPacketDetailView: View {
         VStack(spacing: 0) {
             NavBar(title: "红包详情", back: { dismiss() })
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
                     if let info = info {
                         heroCard(info)
                         if let mine = raw?.claims?.first(where: { $0.userId == myId }) {
@@ -1461,7 +1461,7 @@ struct RedPacketDetailView: View {
                         claimsCard(info)
                         Text(footHint(info))
                             .font(pf(12))
-                            .foregroundColor(C.subLabel)
+                            .foregroundColor(PayVisual.secondaryInk)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                             .padding(.horizontal, 20)
@@ -1472,21 +1472,21 @@ struct RedPacketDetailView: View {
                         VStack(spacing: 10) {
                             Image(systemName: "tray")
                                 .font(.system(size: 34))
-                                .foregroundColor(C.subLabel)
+                                .foregroundColor(PayVisual.secondaryInk)
                             Text(Tr("红包不存在或者已经删了"))
                                 .font(pf(14))
-                                .foregroundColor(C.subLabel)
+                                .foregroundColor(PayVisual.secondaryInk)
                         }
                         .padding(.top, 60)
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-                .padding(.bottom, 26)
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
+                .padding(.bottom, max(28, L.safeBottom))
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
@@ -1557,7 +1557,7 @@ struct RedPacketDetailView: View {
                 QQGlyph(kind: .crown, size: 21)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(Tr("我抢到的")).font(pf(12.5)).foregroundColor(C.subLabel)
+                Text(Tr("我抢到的")).font(pf(12.5)).foregroundColor(PayVisual.secondaryInk)
                 Text("¥" + moneyFmt(mine.amount))
                     .font(pfStyled(size: 25, weight: .heavy, design: .rounded))
                     .foregroundStyle(LinearGradient(colors: [gold, goldDeep],
@@ -1574,11 +1574,12 @@ struct RedPacketDetailView: View {
                                                               startPoint: .top, endPoint: .bottom)))
             }
         }
-        .padding(14)
-        .background { CardGlassBox(radius: 14) }
+        .padding(16)
+        .background(PayVisual.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(gold.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(gold.opacity(0.24), lineWidth: 0.8)
         )
     }
 
@@ -1590,7 +1591,7 @@ struct RedPacketDetailView: View {
                 Text(Tr("领取记录")).font(pf(14.5, .semibold)).foregroundColor(C.label)
                 Text("\(list.count)/\(total)")
                     .font(pf(12))
-                    .foregroundColor(C.subLabel)
+                    .foregroundColor(PayVisual.secondaryInk)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
@@ -1601,7 +1602,7 @@ struct RedPacketDetailView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "hourglass")
                         .font(.system(size: 22))
-                        .foregroundColor(C.subLabel)
+                        .foregroundColor(PayVisual.secondaryInk)
                     Text(Tr("还没有人抢到这个红包"))
                         .font(pf(13))
                         .foregroundColor(C.subLabel)
@@ -1640,7 +1641,7 @@ struct RedPacketDetailView: View {
                             }
                             Text(rpTime(c.at ?? ""))
                                 .font(pf(12))
-                                .foregroundColor(C.subLabel)
+                                .foregroundColor(PayVisual.secondaryInk)
                         }
                         Spacer(minLength: 8)
                         Text("¥" + moneyFmt(c.amount))
@@ -1652,7 +1653,8 @@ struct RedPacketDetailView: View {
                 }
             }
         }
-        .background { CardGlassBox(radius: 14) }
+        .background(PayVisual.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func summaryLine(_ info: RedPacketInfo) -> String {

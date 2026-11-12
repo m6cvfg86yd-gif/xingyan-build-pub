@@ -53,7 +53,7 @@ struct XYPaySheet: View {
                 .padding(.top, 12)
             }
         }
-        .background(C.pageBg.ignoresSafeArea())
+        .background(PayVisual.canvas.ignoresSafeArea())
         .task {
 
             noPwd = !(await API.shared.hasPayPassword())
@@ -146,15 +146,9 @@ struct XYPaySheet: View {
                     Image(systemName: Biometrics.available ? "faceid" : "lock.shield.fill")
                         .font(.system(size: 17))
                     Text(busy ? Tr("正在验证…") : Tr(Biometrics.label + "支付"))
-                        .font(pf(16, .medium))
                 }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity).frame(height: 50)
-                .background(RoundedRectangle(cornerRadius: 25).fill(LinearGradient(
-                    colors: [Color(hex: 0x2B2F3E), Color(hex: 0x171922)],
-                    startPoint: .leading, endPoint: .trailing)))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint))
             .disabled(busy)
 
             Button {
@@ -163,17 +157,16 @@ struct XYPaySheet: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { focusPwd = true }
             } label: {
                 Text(Tr("用支付密码支付")).font(pf(14.5)).foregroundColor(C.label)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: 22).fill(C.cardBg))
-                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(C.hairline, lineWidth: 0.6))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PaySecondaryButtonStyle(tint: PayVisual.tint))
 
             if !hint.isEmpty {
                 Text(hint).font(pf(12.5)).foregroundColor(C.red)
                     .multilineTextAlignment(.center).padding(.horizontal, 12)
             }
-            Text(Tr("这是演示环境，不会真的扣钱。")).font(pf(11.5)).foregroundColor(C.subLabel)
+            Label(Tr("支付过程由设备安全验证保护"), systemImage: "lock.shield.fill")
+                .font(pf(11.5))
+                .foregroundColor(PayVisual.secondaryInk)
         }
     }
 

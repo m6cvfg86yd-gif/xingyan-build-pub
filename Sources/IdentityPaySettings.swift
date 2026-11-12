@@ -36,7 +36,7 @@ struct IdentityView: View {
                     .background(LinearGradient(colors: [C.green, C.green.opacity(0.82)],
                                                startPoint: .top, endPoint: .bottom))
 
-                    GroupCard {
+                    PayGroupCard {
                         row(Tr("姓名"), info?.realName?.isEmpty == false ? info!.realName! : Tr("未认证"))
                         HairLine(inset: 16)
                         row(Tr("身份证号"), info?.idMask?.isEmpty == false ? info!.idMask! : Tr("未认证"))
@@ -45,7 +45,7 @@ struct IdentityView: View {
                     }
                     .padding(.top, 10)
 
-                    GroupCard {
+                    PayGroupCard {
                         editRow(Tr("证件有效期"), $idValid, Tr("比如 2035-08-01"))
                         HairLine(inset: 16)
                         editRow(Tr("职业"), $occupation, Tr("比如 个体经营"))
@@ -174,7 +174,7 @@ struct PaySettingsView: View {
             NavBar(title: Tr("支付设置"), back: { dismiss() })
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    GroupCard {
+                    PayGroupCard {
                         Button { showChangePwd = true } label: {
                             HStack(spacing: 8) {
                                 Text(Tr("支付密码")).font(pf(16)).foregroundColor(C.label)
@@ -249,7 +249,7 @@ struct PaySettingsView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(Tr("自动续费 / 免密签约")).font(pf(13)).foregroundColor(C.subLabel)
                             .padding(.horizontal, 8).padding(.bottom, 6)
-                        GroupCard {
+                        PayGroupCard {
                             let list = cfg?.autoDebits ?? []
                             if list.isEmpty {
                                 Text(Tr("没有签约中的免密服务"))
@@ -285,10 +285,9 @@ struct PaySettingsView: View {
                     Color.clear.frame(height: 26)
                 }
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()

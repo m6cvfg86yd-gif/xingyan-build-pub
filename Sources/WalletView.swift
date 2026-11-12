@@ -63,7 +63,7 @@ struct WalletView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    Color.clear.frame(height: 6)
+                    Color.clear.frame(height: 14)
 
                     if cfg?.isLocked ?? false {
                         Button {
@@ -80,24 +80,24 @@ struct WalletView: View {
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
-                            .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(Color.dyn(0xFFF7E6, 0x3A2E17)))
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, 6)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 14)
                         }
                         .buttonStyle(.plain)
                     }
                     ForEach(groups) { g in
-                        card(g).padding(.top, g.id == groups.first?.id ? 0 : st.gap)
+                        card(g).padding(.top, g.id == groups.first?.id ? 0 : 18)
                     }
                     Color.clear.frame(height: 24)
                 }
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
 
             footer
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
@@ -122,17 +122,17 @@ struct WalletView: View {
 
     private func card(_ g: WalletGroup) -> some View {
         let rows = (g.items ?? []).filter { $0.enabled != false }
-        let s = st
         return VStack(spacing: 0) {
-            Rectangle().fill(C.hairline).frame(height: 0.5)
             ForEach(Array(rows.enumerated()), id: \.element.id) { idx, it in
                 row(it)
                 if idx < rows.count - 1 {
-                    HairLine(inset: s.divider)
+                    HairLine(inset: 62)
                 }
             }
         }
-        .background(C.cardBg)
+        .padding(.horizontal, 16)
+        .background(PayVisual.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func row(_ it: WalletItem) -> some View {
@@ -144,39 +144,42 @@ struct WalletView: View {
         return Button {
             run(it.action ?? "soon", it.label)
         } label: {
-            HStack(spacing: 0) {
-                SVGIcon(markup: WalletIcon.markup(it.icon, it.svg), size: s.icon,
-                        color: Color(hexString: it.color ?? "#1180E0", fallback: 0x1180E0))
-                    .frame(width: s.icon, height: s.icon)
-                    .padding(.leading, s.iconX)
+            HStack(spacing: 13) {
+                let tint = Color(hexString: it.color ?? "#1180E0", fallback: 0x1180E0)
+                SVGIcon(markup: WalletIcon.markup(it.icon, it.svg), size: 18, color: tint)
+                    .frame(width: 34, height: 34)
+                    .background(tint.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            Text(Tr(it.label))
-                    .font(pf(s.labelFont))
-                    .foregroundColor(s.labelColorV)
-                    .padding(.leading, max(0, s.textX - s.iconX - s.icon))
+                Text(Tr(it.label))
+                    .font(pf(16.5))
+                    .foregroundColor(C.label)
 
                 if !note.isEmpty {
                     Text(note)
-                        .font(pf(s.noteFont))
+                        .font(pf(12.5))
                         .foregroundColor(s.noteColorV)
-                        .padding(.leading, 11.7)
+                        .lineLimit(1)
                 }
 
                 Spacer(minLength: 0)
 
                 if !value.isEmpty {
-                    MoneyLabel(text: value, size: s.valueFont, curSize: s.curFontSize, color: s.valueColorV)
-                        .padding(.trailing, 11)
+                    MoneyLabel(text: value, size: 15.5, curSize: s.curFontSize,
+                               color: PayVisual.secondaryInk)
+                        .padding(.trailing, 4)
                         .onTapGesture {
                             guard masked, s.canReveal else { return }
                             if revealed.contains(it.id) { revealed.remove(it.id) } else { revealed.insert(it.id) }
                         }
                 }
 
-                Chevron(size: 9, line: 1.6)
-                    .padding(.trailing, s.rightPad)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundColor(PayVisual.secondaryInk.opacity(0.55))
             }
-            .frame(height: s.row)
+            .padding(.horizontal, 2)
+            .frame(height: max(56, min(64, s.row)))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -196,9 +199,9 @@ struct WalletView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 12)
-        .padding(.bottom, 26)
-        .background(C.pageBg)
+        .padding(.top, 16)
+        .padding(.bottom, max(24, L.safeBottom))
+        .background(PayVisual.canvas)
     }
 
     private func run(_ action: String, _ label: String) {

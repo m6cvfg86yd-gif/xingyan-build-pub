@@ -70,21 +70,19 @@ struct PayCodePage: View {
             }
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
+                    identityCard
                     codeCard
                     receiveButton
-                    Text(Tr("付款码只用于向商家付款，请勿泄露给陌生人；60 秒自动更换，付过一次就作废。"))
-                        .font(pf(12.5))
-                        .foregroundColor(C.subLabel)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 34)
-                        .padding(.top, 6)
+                    securityNote
                 }
-                .padding(.bottom, 26)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, max(28, L.safeBottom))
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
 
         .modifier(BrightenScreen())
@@ -101,20 +99,40 @@ struct PayCodePage: View {
         }
     }
 
+    private var identityCard: some View {
+        HStack(spacing: 12) {
+            Avatar(path: info?.user?.avatar ?? app.me?.avatar ?? "", size: 44, radius: 22)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(info?.user?.nickname ?? app.me?.nickname ?? Tr("我"))
+                    .font(pf(16, .semibold))
+                    .foregroundColor(C.label)
+                Text(Tr("向商家出示动态付款码"))
+                    .font(pf(12.5))
+                    .foregroundColor(PayVisual.secondaryInk)
+            }
+            Spacer(minLength: 8)
+            PayStatusPill(text: Tr("安全动态码"), tone: .processing)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 70)
+        .background(PayVisual.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
     private var codeCard: some View {
         VStack(spacing: 0) {
             if let info = info {
                 BarcodeView(text: info.code ?? "", height: 78)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 20)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
                 Text(info.grouped ?? "")
-                    .font(pfStyled(size: 17, weight: .medium, design: .monospaced))
+                    .font(pfStyled(size: 19, weight: .semibold, design: .monospaced))
                     .foregroundColor(C.label)
-                    .padding(.top, 8)
+                    .padding(.top, 10)
                 if !(info.rows ?? []).isEmpty {
                     QRCanvas(rows: info.rows ?? [])
-                        .frame(width: 196, height: 196)
-                        .padding(.top, 16)
+                        .frame(width: 188, height: 188)
+                        .padding(.top, 18)
                 }
                 HStack(spacing: 6) {
                     Image(systemName: "clock")
@@ -122,9 +140,12 @@ struct PayCodePage: View {
                     Text(left > 0 ? Tr("\(left) 秒后自动更换") : Tr("正在更换…"))
                         .font(pf(12))
                 }
-                .foregroundColor(C.subLabel)
-                .padding(.top, 12)
-                .padding(.bottom, 20)
+                .foregroundColor(PayVisual.secondaryInk)
+                .padding(.horizontal, 12)
+                .frame(height: 30)
+                .background(PayVisual.inset, in: Capsule())
+                .padding(.top, 16)
+                .padding(.bottom, 24)
             } else if loading {
                 ProgressView().padding(.vertical, 60)
             } else {
@@ -134,7 +155,7 @@ struct PayCodePage: View {
                         .foregroundColor(Color(hex: 0xE5A54D))
                     Text(failed.isEmpty ? Tr("付款码暂时没准备好，点上面「刷新」再试一次") : failed)
                         .font(pf(14))
-                        .foregroundColor(C.subLabel)
+                        .foregroundColor(PayVisual.secondaryInk)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 24)
@@ -142,9 +163,8 @@ struct PayCodePage: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .background(C.cardBg)
-        .padding(.horizontal, 8)
-        .padding(.top, 12)
+        .background(PayVisual.card)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private var receiveButton: some View {
@@ -153,19 +173,31 @@ struct PayCodePage: View {
                 Image(systemName: "qrcode")
                     .font(.system(size: 17, weight: .medium))
                 Text(Tr("二维码收款"))
-                    .font(pf(17, .medium))
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color.white.opacity(0.75))
+                    .foregroundColor(Color.white.opacity(0.72))
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 18)
-            .frame(height: 52)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(C.green))
+            .padding(.horizontal, 4)
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 8)
+        .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint))
+    }
+
+    private var securityNote: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "lock.shield.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(PayVisual.success)
+                .padding(.top, 1)
+            Text(Tr("付款码只用于向商家付款，请勿泄露给陌生人；60 秒自动更换，付过一次就作废。"))
+                .font(pf(12.5))
+                .foregroundColor(PayVisual.secondaryInk)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(15)
+        .background(PayVisual.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func load(force: Bool) async {
@@ -198,18 +230,18 @@ struct ReceiveCodePage: View {
             NavBar(title: Tr("二维码收款"), back: { dismiss() })
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 14) {
+                VStack(spacing: 18) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12).fill(Color.white)
+                        RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color.white)
                         if let info = info, let rows = info.rows, !rows.isEmpty {
 
-                            QRCanvas(rows: rows).frame(width: 232, height: 232)
+                            QRCanvas(rows: rows).frame(width: 226, height: 226)
                         } else {
                             ProgressView()
                         }
                     }
-                    .frame(width: 260, height: 260)
-                    .shadow(color: Color.black.opacity(0.08), radius: 12, y: 4)
+                    .frame(width: 272, height: 272)
+                    .shadow(color: Color.black.opacity(0.08), radius: 18, y: 8)
 
                     if let a = info?.amount, a > 0 {
                         VStack(spacing: 2) {
@@ -218,7 +250,7 @@ struct ReceiveCodePage: View {
                                 .foregroundColor(C.label)
                             Text(Tr("对方扫码后按这个金额付给你，改不了"))
                                 .font(pf(12.5))
-                                .foregroundColor(C.subLabel)
+                                .foregroundColor(PayVisual.secondaryInk)
                         }
                     }
 
@@ -228,14 +260,14 @@ struct ReceiveCodePage: View {
                             Text(info?.user?.nickname ?? app.me?.nickname ?? "")
                                 .font(pf(16, .medium)).foregroundColor(C.label).lineLimit(1)
                             Text(Tr("扫这张码就能给我付钱"))
-                                .font(pf(12.5)).foregroundColor(C.subLabel)
+                                .font(pf(12.5)).foregroundColor(PayVisual.secondaryInk)
                         }
                         Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(C.cardBg)
-                    .padding(.horizontal, 8)
+                    .frame(height: 70)
+                    .background(PayVisual.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
                     VStack(spacing: 0) {
                         row(Tr("设置金额"), amt > 0 ? Tr("改一下") : Tr("填一个数，扫码的人直接按这个付")) {
@@ -249,22 +281,22 @@ struct ReceiveCodePage: View {
                             }
                         }
                     }
-                    .background { CardGlassBox(radius: 8) }
-                    .padding(.horizontal, 8)
+                    .background(PayVisual.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
                     Text(Tr("收款码长期有效；带金额的那种 24 小时后失效，重新设置一次就行。"))
                         .font(pf(12.5))
-                        .foregroundColor(C.subLabel)
+                        .foregroundColor(PayVisual.secondaryInk)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 34)
-                        .padding(.top, 4)
+                        .padding(.horizontal, 20)
                 }
-                .padding(.top, 14)
-                .padding(.bottom, 26)
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, max(28, L.safeBottom))
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
 
@@ -334,52 +366,89 @@ struct PayConfirmPage: View {
             NavBar(title: Tr("付款"), back: { dismiss() })
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 16) {
-                    VStack(spacing: 8) {
-                        Avatar(path: target.user?.avatar ?? "", size: 58, radius: 8)
+                VStack(spacing: 18) {
+                    VStack(spacing: 10) {
+                        Avatar(path: target.user?.avatar ?? "", size: 68, radius: 34)
+                            .overlay(Circle().stroke(PayVisual.separator, lineWidth: 0.8))
                         Text(Tr("向 ") + (target.user?.nickname ?? Tr("对方")) + Tr(" 付款"))
-                            .font(pf(16, .medium)).foregroundColor(C.label)
+                            .font(pf(19, .semibold)).foregroundColor(C.label)
                         Text(target.kind == "pay" ? Tr("扫的是对方的付款码") : Tr("扫的是对方的收款码"))
-                            .font(pf(12.5)).foregroundColor(C.subLabel)
+                            .font(pf(13)).foregroundColor(PayVisual.secondaryInk)
                     }
-                    .padding(.top, 22)
+                    .padding(.top, 18)
 
-                    if fixedAmount > 0 {
-                        Text(money(fixedAmount))
-                            .font(pfMoney(34))
-                            .foregroundColor(C.label)
-                    } else {
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text("¥").font(pf(22)).foregroundColor(C.label)
-                            TextField("0.00", text: $amountText)
-                                .keyboardType(.decimalPad)
-                                .font(pfMoney(30))
-                                .foregroundColor(C.label)
-                                .focused($amountFocus)
+                    PayGroupCard {
+                        VStack(spacing: 8) {
+                            Text(Tr("付款金额"))
+                                .font(pf(12.5, .medium))
+                                .foregroundColor(PayVisual.secondaryInk)
+                            if fixedAmount > 0 {
+                                Text(money(fixedAmount))
+                                    .font(pfMoney(40, .semibold))
+                                    .foregroundColor(C.label)
+                                    .monospacedDigit()
+                            } else {
+                                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                                    Text("¥").font(pf(24, .semibold)).foregroundColor(C.label)
+                                    TextField("0.00", text: $amountText)
+                                        .keyboardType(.decimalPad)
+                                        .font(pfMoney(38, .semibold))
+                                        .foregroundColor(C.label)
+                                        .focused($amountFocus)
+                                        .multilineTextAlignment(.center)
+                                }
+                            }
                         }
-                        .padding(.horizontal, 16)
-                        .frame(height: 62)
-                        .background { CardGlassBox(radius: 8) }
-                        .padding(.horizontal, 8)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 22)
                     }
 
                     if hasPwd {
-                        VStack(spacing: 10) {
-                            Text(Tr("请输入支付密码"))
-                                .font(pf(13.5)).foregroundColor(C.subLabel)
-
-                            PayDotField(count: password.count, height: 46)
-                                .contentShape(Rectangle())
-                                .onTapGesture { pwdFocus = true }
-                            TextField("", text: $password)
-                                .keyboardType(.numberPad)
-                                .focused($pwdFocus)
-                                .frame(width: 1, height: 1)
-                                .opacity(0.01)
-                                .onChange(of: password) { v in
-                                    let clean = String(v.filter { $0.isNumber }.prefix(6))
-                                    if clean != v { password = clean }
+                        PayGroupCard {
+                            VStack(spacing: 12) {
+                                HStack {
+                                    Label(Tr("支付密码"), systemImage: "lock.fill")
+                                        .font(pf(15, .medium))
+                                        .foregroundColor(C.label)
+                                    Spacer()
+                                    Text(Tr("6 位安全密码"))
+                                        .font(pf(12.5))
+                                        .foregroundColor(PayVisual.secondaryInk)
                                 }
+                                .padding(.horizontal, 18)
+                                .padding(.top, 16)
+
+                                PayDotField(count: password.count, height: 50)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { pwdFocus = true }
+                                    .padding(.horizontal, 16)
+                                    .padding(.bottom, 16)
+
+                                TextField("", text: $password)
+                                    .keyboardType(.numberPad)
+                                    .focused($pwdFocus)
+                                    .frame(width: 1, height: 1)
+                                    .opacity(0.01)
+                                    .onChange(of: password) { v in
+                                        let clean = String(v.filter { $0.isNumber }.prefix(6))
+                                        if clean != v { password = clean }
+                                    }
+
+                                if Biometrics.available {
+                                    Divider().overlay(PayVisual.separator)
+                                    Button {
+                                        Task { await biometricPay() }
+                                    } label: {
+                                        Label(Tr("使用") + Biometrics.label + Tr("支付"),
+                                              systemImage: Biometrics.available ? "faceid" : "touchid")
+                                            .font(pf(15.5, .semibold))
+                                            .foregroundColor(PayVisual.tint)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 50)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
                     } else {
 
@@ -401,33 +470,27 @@ struct PayConfirmPage: View {
                         HStack(spacing: 6) {
                             if busy { ProgressView().tint(.white) }
                             Text(busy ? Tr("付款中…") : Tr("确认付款"))
-                                .font(pf(17, .medium))
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(amount > 0 ? C.green : C.green.opacity(0.5)))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint, enabled: amount > 0))
                     .disabled(busy)
-                    .padding(.horizontal, 8)
 
                     Text(Tr("付出去的钱当时到对方账上，不能撤回。"))
                         .font(pf(12.5))
-                        .foregroundColor(C.subLabel)
+                        .foregroundColor(PayVisual.secondaryInk)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 30)
                 }
-                .padding(.bottom, 26)
+                .padding(.horizontal, 20)
+                .padding(.bottom, max(28, L.safeBottom))
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
 
         .overlay {
             if busy { PayBusyOverlay(text: "正在付款") }
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .task {
@@ -436,15 +499,26 @@ struct PayConfirmPage: View {
         }
     }
 
-    private func pay() async {
+    private func biometricPay() async {
+        guard !busy else { return }
+        let result = await Biometrics.authenticate(
+            reason: Tr("验证身份，付款 ") + money(amount))
+        if result.ok {
+            await pay(face: true)
+        } else if !result.message.isEmpty {
+            hint = result.message
+        }
+    }
+
+    private func pay(face: Bool = false) async {
         hint = ""
         guard amount > 0 else { hint = Tr("请输入金额"); return }
-        if hasPwd && password.count < 6 { hint = Tr("请输入 6 位支付密码"); return }
+        if !face && hasPwd && password.count < 6 { hint = Tr("请输入 6 位支付密码"); return }
         busy = true
         defer { busy = false }
         do {
             let res = try await API.shared.payCollect(
-                text: codeText, amount: amount, password: password, face: false)
+                text: codeText, amount: amount, password: face ? "" : password, face: face)
             app.show(Tr("已付款 ") + money(res.amount ?? amount) + Tr(" 给 ") + (res.payee?.nickname ?? Tr("对方")))
             app.me = try? await API.shared.me()
             await app.loadChats()

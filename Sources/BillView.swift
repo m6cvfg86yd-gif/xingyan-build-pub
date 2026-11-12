@@ -111,143 +111,95 @@ struct BillDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-
-            NavBar(title: "", back: { dismiss() }) {
+            NavBar(title: Tr("转账详情"), back: { dismiss() }) {
                 Button {
                     showMore = true
                 } label: {
-                    WeChatDots(size: 4.6, gap: 3.2)
-                        .frame(width: 60, height: L.navH)
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundColor(C.label)
+                        .frame(width: 52, height: L.navH)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
 
-            ScrollView {
-                VStack(spacing: 0) {
-
-                    Avatar(path: peerAvatar, size: 56, radius: 8)
-                        .padding(.top, 40)
-
-                    Text(mine ? "转账给 \(who)" : "\(who) 转账给你")
-                        .font(pfExact(15))
-                        .foregroundColor(faint)
-                        .padding(.top, 14)
-
-                    MoneyLabel(text: "¥" + money(t.amount), size: 50, curSize: 34,
-                               topAlign: true, color: C.label, exact: true)
-                        .padding(.top, 10)
-
-                    Text(t.statusText(mine: mine))
-                        .font(pfExact(16))
-                        .foregroundColor(C.label)
-                        .padding(.top, 14)
-
-                    Text(hintText)
-                        .font(pfExact(14))
-                        .foregroundColor(faint)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 34)
-                        .padding(.top, 8)
-
-                    if t.status == "pending", mine {
-                        Button { billAction() } label: {
-                            Text(Tr("提醒对方收款"))
-                                .font(pfExact(14.5))
-                                .foregroundColor(C.link)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    HStack(spacing: 12) {
+                        Avatar(path: peerAvatar, size: 50, radius: 25)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(mine ? Tr("转账给") + " " + who : who + " " + Tr("转账给你"))
+                                .font(pf(17, .semibold))
+                                .foregroundColor(C.label)
+                            Text(TimeFmt.bill(t.createdAt))
+                                .font(pf(12.5))
+                                .foregroundColor(PayVisual.secondaryInk)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(busy)
-                        .padding(.top, 12)
+                        Spacer(minLength: 8)
+                        PayStatusPill(text: t.statusText(mine: mine), tone: statusTone)
                     }
+                    .padding(18)
+                    .background(PayVisual.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-                    Rectangle()
-                        .fill(C.hairline)
-                        .frame(height: 0.5)
-                        .padding(.horizontal, 32)
-                        .padding(.top, 31)
-
-                    detailRow("转账时间", TimeFmt.bill(t.createdAt))
-                    if !t.note.isEmpty { detailRow("转账说明", t.note) }
-                    detailRow("支付方式", t.methodName)
-                    detailRow("转账单号", t.billNo)
-                    if t.status == "received" { detailRow("收款时间", TimeFmt.bill(t.receivedAt)) }
-                    if t.status == "refunded" { detailRow("退回时间", TimeFmt.bill(t.refundedAt)) }
-
-                    Spacer(minLength: 40)
-                }
-            }
-            .background(C.cardBg)
-
-            if t.status == "pending", !mine {
-                VStack(spacing: 0) {
-                    Rectangle().fill(C.hairline).frame(height: 0.5)
-                    Button { billAction() } label: {
-                        Text(Tr("确认收款"))
-                            .font(pf(17, .medium))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(C.green))
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(busy)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 12)
-                }
-                .background(C.cardBg)
-            }
-
-            if t.status == "received", !mine, t.refundClosed {
-                VStack(spacing: 0) {
-                    Rectangle().fill(C.hairline).frame(height: 0.5)
-                    Text(Tr("收款超过 5 小时，不能再退回了"))
-                        .font(pf(13.5))
-                        .foregroundColor(C.subLabel)
+                    PayGroupCard {
+                        VStack(spacing: 10) {
+                            Text(t.statusText(mine: mine))
+                                .font(pf(13, .semibold))
+                                .foregroundColor(PayVisual.secondaryInk)
+                            MoneyLabel(text: "¥" + money(t.amount), size: 46, curSize: 30,
+                                       topAlign: true, color: C.label, exact: true,
+                                       weight: .semibold)
+                                .monospacedDigit()
+                            Text(hintText)
+                                .font(pf(13))
+                                .foregroundColor(PayVisual.secondaryInk)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
+                        }
                         .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                }
-                .background(C.cardBg)
-            }
-            if t.status == "received", !mine, !t.refundClosed {
-                VStack(spacing: 0) {
-                    Rectangle().fill(C.hairline).frame(height: 0.5)
-                    Button { askRefund = true } label: {
-                        Text(Tr("退还"))
-                            .font(pf(16.5, .medium))
-                            .foregroundColor(C.label)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background { CardGlassBox(radius: 6) }
-                            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .stroke(C.hairline, lineWidth: 0.9))
-                            .contentShape(Rectangle())
+                        .padding(.vertical, 24)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 12)
-                }
-                .background(C.cardBg)
-            }
 
-            Button {
-                showReceipt = true
-            } label: {
-                Text(Tr("账单详情"))
-                    .font(pfExact(14.5))
-                    .foregroundColor(C.link)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .contentShape(Rectangle())
+                    PayGroupCard {
+                        VStack(spacing: 0) {
+                            PayDetailRow(title: Tr("转账时间"), value: TimeFmt.bill(t.createdAt))
+                            if !t.note.isEmpty {
+                                HairLine(inset: 18)
+                                PayDetailRow(title: Tr("转账说明"), value: t.note)
+                            }
+                            HairLine(inset: 18)
+                            PayDetailRow(title: Tr("支付方式"), value: t.methodName)
+                            HairLine(inset: 18)
+                            PayDetailRow(title: Tr("转账单号"), value: t.billNo, copyValue: t.billNo)
+                            if t.status == "received" {
+                                HairLine(inset: 18)
+                                PayDetailRow(title: Tr("收款时间"), value: TimeFmt.bill(t.receivedAt))
+                            }
+                            if t.status == "refunded" {
+                                HairLine(inset: 18)
+                                PayDetailRow(title: Tr("退回时间"), value: TimeFmt.bill(t.refundedAt))
+                            }
+                        }
+                    }
+
+                    Button {
+                        showReceipt = true
+                    } label: {
+                        Text(Tr("查看电子凭证"))
+                    }
+                    .buttonStyle(PaySecondaryButtonStyle(tint: PayVisual.tint))
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 24)
             }
-            .buttonStyle(.plain)
-            .padding(.bottom, 18)
-            .background(C.cardBg)
+            .background(PayVisual.canvas)
+
+            actionBar
         }
-        .background(C.cardBg.ignoresSafeArea(edges: .bottom))
-        .background(C.cardBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
@@ -301,6 +253,50 @@ struct BillDetailView: View {
         }
         .padding(.horizontal, 32)
         .frame(height: 49)
+    }
+
+    private var statusTone: PayStatusPill.Tone {
+        if t.status == "received" { return .success }
+        if t.status == "refunded" { return .neutral }
+        return .processing
+    }
+
+    @ViewBuilder
+    private var actionBar: some View {
+        if t.status == "pending", !mine {
+            Button { billAction() } label: {
+                Text(Tr("确认收款"))
+            }
+            .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint))
+            .disabled(busy)
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, max(16, L.safeBottom))
+        } else if t.status == "pending", mine {
+            Button { billAction() } label: {
+                Text(Tr("提醒对方收款"))
+            }
+            .buttonStyle(PaySecondaryButtonStyle(tint: PayVisual.tint))
+            .disabled(busy)
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, max(16, L.safeBottom))
+        } else if t.status == "received", !mine, !t.refundClosed {
+            Button { askRefund = true } label: {
+                Text(Tr("退还这笔转账"))
+            }
+            .buttonStyle(PaySecondaryButtonStyle(tint: PayVisual.danger))
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, max(16, L.safeBottom))
+        } else if t.status == "received", !mine, t.refundClosed {
+            Text(Tr("收款超过 5 小时，不能再退回了"))
+                .font(pf(13))
+                .foregroundColor(PayVisual.secondaryInk)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
+                .background(PayVisual.card)
+        }
     }
 
     private func doRefund() {
@@ -387,69 +383,65 @@ struct BillReceiptView: View {
         VStack(spacing: 0) {
             NavBar(title: Tr("账单详情"), back: { dismiss() })
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    Text(info.statusText(mine: mine))
-                        .font(pfExact(17))
-                        .foregroundColor(C.label)
-                        .padding(.top, 26)
-
-                    MoneyLabel(text: "¥" + money(info.amount), size: 40, curSize: 27,
-                               topAlign: true, color: C.label, exact: true)
-                        .padding(.top, 8)
-
-                    VStack(spacing: 0) {
-                        row(Tr("转账说明"), info.note.isEmpty ? "—" : info.note)
-                        HairLine(inset: 16)
-                        row(mine ? Tr("收款方") : Tr("付款方"), chat.name)
-                        HairLine(inset: 16)
-                        row(Tr("转账时间"), TimeFmt.bill(info.createdAt))
-                        HairLine(inset: 16)
-                        row(Tr("支付方式"), info.methodName)
-                        HairLine(inset: 16)
-                        row(Tr("交易单号"), info.billNo)
-
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                UIPasteboard.general.string = info.billNo
-                                app.show(Tr("单号已复制，粘给客服就行"))
-                            }
-                        HairLine(inset: 16)
-                        row(Tr("商户单号"), "1000" + String(info.billNo.suffix(16)))
-                        if info.status == "received" {
-                            HairLine(inset: 16)
-                            row(Tr("收款时间"), TimeFmt.bill(info.receivedAt))
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    PayGroupCard {
+                        VStack(spacing: 8) {
+                            Text(info.statusText(mine: mine))
+                                .font(pf(13, .semibold))
+                                .foregroundColor(PayVisual.secondaryInk)
+                            MoneyLabel(text: "¥" + money(info.amount), size: 42, curSize: 28,
+                                       topAlign: true, color: C.label, exact: true,
+                                       weight: .semibold)
                         }
-                        if info.status == "refunded" {
-                            HairLine(inset: 16)
-                            row(Tr("退回时间"), TimeFmt.bill(info.refundedAt))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                    }
+
+                    PayGroupCard {
+                        VStack(spacing: 0) {
+                            PayDetailRow(title: Tr("转账说明"),
+                                         value: info.note.isEmpty ? "—" : info.note)
+                            HairLine(inset: 18)
+                            PayDetailRow(title: mine ? Tr("收款方") : Tr("付款方"),
+                                         value: chat.name)
+                            HairLine(inset: 18)
+                            PayDetailRow(title: Tr("转账时间"), value: TimeFmt.bill(info.createdAt))
+                            HairLine(inset: 18)
+                            PayDetailRow(title: Tr("支付方式"), value: info.methodName)
+                            HairLine(inset: 18)
+                            PayDetailRow(title: Tr("交易单号"), value: info.billNo,
+                                         copyValue: info.billNo)
+                            HairLine(inset: 18)
+                            PayDetailRow(title: Tr("商户单号"),
+                                         value: "1000" + String(info.billNo.suffix(16)))
+                            if info.status == "received" {
+                                HairLine(inset: 18)
+                                PayDetailRow(title: Tr("收款时间"),
+                                             value: TimeFmt.bill(info.receivedAt))
+                            }
+                            if info.status == "refunded" {
+                                HairLine(inset: 18)
+                                PayDetailRow(title: Tr("退回时间"),
+                                             value: TimeFmt.bill(info.refundedAt))
+                            }
                         }
                     }
-                    .background(C.cardBg)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .padding(.horizontal, 16)
-                    .padding(.top, 24)
 
                     Button {
                         showKefu = true
                     } label: {
                         Text(Tr("对订单有疑问"))
-                            .font(pf(15.5))
-                            .foregroundColor(C.link)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background { CardGlassBox(radius: 10) }
-                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
-                    .padding(.bottom, 30)
+                    .buttonStyle(PaySecondaryButtonStyle(tint: PayVisual.tint))
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, max(28, L.safeBottom))
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(C.pageBg.ignoresSafeArea())
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
 

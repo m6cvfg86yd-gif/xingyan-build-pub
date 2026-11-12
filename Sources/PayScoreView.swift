@@ -42,7 +42,7 @@ struct PayScoreView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(Tr("分是怎么来的")).font(pf(13)).foregroundColor(C.subLabel)
                             .padding(.horizontal, 8).padding(.bottom, 6)
-                        GroupCard {
+                        PayGroupCard {
                             let dims = data?.dims ?? []
                             ForEach(Array(dims.enumerated()), id: \.element.id) { idx, d in
                                 if idx > 0 { HairLine(inset: 16) }
@@ -65,7 +65,7 @@ struct PayScoreView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(Tr("凭支付分可以免押")).font(pf(13)).foregroundColor(C.subLabel)
                             .padding(.horizontal, 8).padding(.bottom, 6)
-                        GroupCard {
+                        PayGroupCard {
                             let list = data?.services ?? []
                             if list.isEmpty {
                                 Text(Tr("暂时没有可用服务")).font(pf(14)).foregroundColor(C.subLabel)
@@ -96,7 +96,7 @@ struct PayScoreView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(Tr("最近的分值变化")).font(pf(13)).foregroundColor(C.subLabel)
                             .padding(.horizontal, 8).padding(.bottom, 6)
-                        GroupCard {
+                        PayGroupCard {
                             let list = data?.history ?? []
                             if list.isEmpty {
                                 Text(Tr("还没有记录")).font(pf(14)).foregroundColor(C.subLabel)
@@ -127,10 +127,9 @@ struct PayScoreView: View {
                     Color.clear.frame(height: 26)
                 }
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()

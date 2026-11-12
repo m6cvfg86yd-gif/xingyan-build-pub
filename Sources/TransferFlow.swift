@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct TransferView: View {
     let chat: Chat
@@ -19,6 +20,7 @@ struct TransferView: View {
     @State private var busy = false
     @State private var step = 0
     @State private var doneAmount: Double = 0
+    @State private var receipt: API.TransferReceipt?
 
     @State private var showBills = false
     @State private var showPayHelp = false
@@ -42,18 +44,16 @@ struct TransferView: View {
     }
     private var balance: Double { app.me?.balance ?? 0 }
     private var methodName: String {
-        method == "card" ? "建设银行储蓄卡" : (method == "xypay" ? XYPay.name : "余额")
+        method == "xypay" ? XYPay.name : Tr("星言零钱")
     }
     private var methodSub: String {
-        if method == "card" { return "尾号 2125" }
-        if method == "xypay" { return XYPay.cardLine + " · ¥" + money(balance) }
-        return "¥" + money(balance)
+        (method == "xypay" ? XYPay.cardLine + " · " : "") + Tr("可用") + " ¥" + money(balance)
     }
 
     var body: some View {
         ZStack {
 
-            Color.dyn(0xF5F5F7, 0x0F0F11).ignoresSafeArea()
+            PayVisual.canvas.ignoresSafeArea()
 
             if step == 1 {
                 resultPage
@@ -178,19 +178,12 @@ struct TransferView: View {
             openPay()
         } label: {
             Text(Tr("转账"))
-                .font(pf(17.5, .medium))
-                .foregroundColor(amount > 0 ? .white : Color.dyn(0x9A9A9A, 0x8A8A8E))
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(amount > 0 ? C.green : Color.dyn(0xDCDCDC, 0x3A3A3C)))
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint, enabled: amount > 0))
         .disabled(amount <= 0)
-        .padding(.horizontal, 16)
-        .padding(.top, 6)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, max(14, L.safeBottom))
     }
 
     private var head: some View {
@@ -224,7 +217,7 @@ struct TransferView: View {
             .padding(.horizontal, L.v(16, 5, 20))
             .padding(.bottom, L.v(12, 4.4, 18))
         }
-        .background(Color.dyn(0xEDEDED, 0x1D1D1D))
+        .background(PayVisual.canvas)
     }
 
     private var bodyArea: some View {
@@ -283,8 +276,10 @@ struct TransferView: View {
             .buttonStyle(.plain)
         }
 
-        .twoLayerCard()
-        .padding(.top, 8)
+        .background(PayVisual.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
     }
 
     private var digitCells: some View {
@@ -535,8 +530,7 @@ struct TransferView: View {
                 .frame(height: L.payHeadH)
 
                 VStack(spacing: 10) {
-                        methodRow("balance", "余额", "¥" + money(balance))
-                        methodRow("card", "建设银行储蓄卡", "尾号 2125")
+                        methodRow("balance", Tr("星言零钱"), "¥" + money(balance))
 
                         if XYPay.on { methodRow("xypay", XYPay.name, XYPay.cardLine + " · ¥" + money(balance)) }
                 }
@@ -570,18 +564,20 @@ struct TransferView: View {
         Button {
             method = key
             withAnimation(.easeOut(duration: 0.22)) { showMethod = false }
-            app.show(Tr("付款方式：") + (key == "card" ? "建设银行储蓄卡" : "余额 ¥" + money(balance)))
+            app.show(Tr("付款方式：") + name)
         } label: {
             HStack(spacing: L.v(8, 2.6, 11)) {
-                SVGIcon(markup: key == "card" ? payCardIcon : payBalanceIcon,
+                SVGIcon(markup: payBalanceIcon,
                         size: L.v(21, 5.8, 25),
-                        color: key == "card" ? Color(hex: 0x1677FF) : C.green)
+                        color: key == "xypay" ? XYPay.on ? PayVisual.gold : PayVisual.tint : PayVisual.tint)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(name).font(pf(14)).foregroundColor(C.label)
                     Text(sub).font(pf(12.8)).foregroundColor(C.subLabel)
                 }
                 Spacer(minLength: 0)
-                SVGIcon(markup: payTick, size: L.v(15, 4.2, 17.5), color: C.green)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(PayVisual.success)
                     .opacity(method == key ? 1 : 0)
             }
             .padding(.horizontal, L.v(12, 3.8, 15))
@@ -622,49 +618,76 @@ struct TransferView: View {
             .padding(.horizontal, 6)
             .padding(.top, 8)
 
-            Spacer().frame(height: 60)
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundColor(C.green)
-            Text(Tr("待好友确认收款"))
-                .font(pf(17))
+            Spacer().frame(height: 44)
+            ZStack {
+                Circle()
+                    .fill(PayVisual.tint.opacity(0.12))
+                    .frame(width: 92, height: 92)
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 36, weight: .semibold))
+                    .foregroundColor(PayVisual.tint)
+                    .offset(x: -2, y: 1)
+            }
+            Text(Tr("转账已发出"))
+                .font(pf(22, .semibold))
                 .foregroundColor(C.label)
-                .padding(.top, 14)
+                .padding(.top, 18)
             Text("¥" + money(doneAmount))
-                .font(pfMoney(34))
+                .font(pfMoney(40, .semibold))
                 .foregroundColor(C.label)
-                .padding(.top, 10)
+                .monospacedDigit()
+                .padding(.top, 8)
+            PayStatusPill(text: Tr("等待对方确认收款"), tone: .processing)
+                .padding(.top, 12)
+            Text(Tr("对方确认后款项进入其零钱；24 小时未确认将自动退回。"))
+                .font(pf(13))
+                .foregroundColor(PayVisual.secondaryInk)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 36)
+                .padding(.top, 12)
 
-            VStack(spacing: 0) {
-                resultRow("付款方式", methodName)
-                HairLine(inset: 16)
-                resultRow("余额", "¥" + money(balance))
-                if !note.isEmpty {
-                    HairLine(inset: 16)
-                    resultRow("转账说明", note)
+            PayGroupCard {
+                VStack(spacing: 0) {
+                    resultRow(Tr("收款方"), chat.name)
+                    HairLine(inset: 18)
+                    resultRow(Tr("付款方式"), methodName)
+                    HairLine(inset: 18)
+                    resultRow(Tr("剩余零钱"), "¥" + money(balance))
+                    if !note.isEmpty {
+                        HairLine(inset: 18)
+                        resultRow(Tr("转账说明"), note)
+                    }
+                    if let id = receipt?.transfer?.id, !id.isEmpty {
+                        HairLine(inset: 18)
+                        resultRow(Tr("转账单号"), id)
+                    }
                 }
             }
-
-            .twoLayerCard()
-            .padding(.top, 26)
+            .padding(.horizontal, 20)
+            .padding(.top, 28)
 
             Spacer()
 
-            Button {
-                dismiss()
-            } label: {
-                Text(Tr("完成"))
-                    .font(pf(17))
-                    .foregroundColor(C.green)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(C.cardBg)
+            VStack(spacing: 12) {
+                Button {
+                    showBills = true
+                } label: {
+                    Text(Tr("查看账单"))
+                }
+                .buttonStyle(PaySecondaryButtonStyle(tint: PayVisual.tint))
+
+                Button {
+                    dismiss()
+                } label: {
+                    Text(Tr("完成"))
+                }
+                .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint))
             }
-            .buttonStyle(.plain)
-            .padding(.bottom, 30)
+            .padding(.horizontal, 20)
+            .padding(.bottom, max(26, L.safeBottom))
         }
         .frame(maxWidth: .infinity)
-        .background(C.pageBg.ignoresSafeArea())
+        .background(PayVisual.canvas.ignoresSafeArea())
     }
 
     private func resultRow(_ k: String, _ v: String) -> some View {
@@ -673,8 +696,8 @@ struct TransferView: View {
             Spacer()
             Text(v).font(pf(15)).foregroundColor(C.label)
         }
-        .padding(.horizontal, 16)
-        .frame(height: 48)
+        .padding(.horizontal, 18)
+        .frame(minHeight: 52)
     }
 
     private func again() {
@@ -685,6 +708,7 @@ struct TransferView: View {
             password = ""
             payHint = nil
             doneAmount = 0
+            receipt = nil
         }
     }
 
@@ -712,17 +736,22 @@ struct TransferView: View {
         payHint = nil
         Task {
             do {
-                try await API.shared.transfer(chatId: chat.id, amount: amount, note: note,
-                                              method: method, password: password, face: face)
-                doneAmount = amount
+                let result = try await API.shared.transfer(
+                    chatId: chat.id, amount: amount, note: note,
+                    method: method, password: password, face: face)
+                receipt = result
+                doneAmount = result.amount ?? amount
                 app.me = try? await API.shared.me()
                 password = ""
-                withAnimation(.easeOut(duration: 0.2)) { showPay = false }
+                busy = false
+                withAnimation(.easeOut(duration: 0.22)) {
+                    showPay = false
+                    step = 1
+                }
 
                 onPaid()
                 await app.loadChats()
-                app.show("已转账 ¥" + money(amount))
-                dismiss()
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
             } catch {
                 let msg = (error as? APIError)?.errorDescription ?? "转账失败"
                 password = ""

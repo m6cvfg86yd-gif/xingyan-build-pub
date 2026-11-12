@@ -18,22 +18,25 @@ struct RechargeView: View {
         VStack(spacing: 0) {
             NavBar(title: Tr("充值"), back: { dismiss() })
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    Text(Tr("充值金额"))
-                        .font(pf(13)).foregroundColor(C.subLabel)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20).padding(.top, 18)
-
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("¥").font(pfMoney(28))
-                        TextField("0.00", text: $amountText)
-                            .font(pfMoney(44))
-                            .keyboardType(.decimalPad)
-                            .foregroundColor(C.label)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    PayGroupCard {
+                        VStack(spacing: 10) {
+                            Text(Tr("充值金额"))
+                                .font(pf(12.5, .medium))
+                                .foregroundColor(PayVisual.secondaryInk)
+                            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                                Text("¥").font(pf(24, .semibold)).foregroundColor(C.label)
+                                TextField("0.00", text: $amountText)
+                                    .font(pfMoney(40, .semibold))
+                                    .keyboardType(.decimalPad)
+                                    .foregroundColor(C.label)
+                                    .multilineTextAlignment(.center)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
                     }
-                    .padding(.horizontal, 20)
-                    .frame(height: 66)
 
                     HStack(spacing: 10) {
                         ForEach([50, 100, 200, 500], id: \.self) { v in
@@ -41,57 +44,57 @@ struct RechargeView: View {
                                 amountText = "\(v)"
                             } label: {
                                 Text("¥\(v)")
-                                    .font(pf(15, .medium))
+                                    .font(pf(14.5, .semibold))
                                     .foregroundColor(amount == Double(v) ? .white : C.label)
-                                    .frame(maxWidth: .infinity).frame(height: 40)
-                                    .background(RoundedRectangle(cornerRadius: 7)
-                                        .fill(amount == Double(v) ? C.green : C.cardBg))
+                                    .frame(maxWidth: .infinity).frame(height: 42)
+                                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(amount == Double(v) ? PayVisual.tint : PayVisual.card))
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 20)
-
-                    Spacer().frame(height: 18)
-
-                    GroupCard {
+                    PayGroupCard {
                         Button {
                             if banks.isEmpty { showAddBank = true }
                         } label: {
                             HStack(spacing: 12) {
+                                Image(systemName: "creditcard.fill")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(PayVisual.tint)
+                                    .frame(width: 34, height: 34)
+                                    .background(PayVisual.tint.opacity(0.12),
+                                                in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                                 Text(Tr("到账银行卡")).font(pf(16)).foregroundColor(C.label)
                                 Spacer(minLength: 8)
-                                Text(bankLabel).font(pf(15)).foregroundColor(C.subLabel).lineLimit(1)
-                                Chevron(size: 9, line: 1.6).padding(.trailing, 3)
+                                Text(bankLabel).font(pf(14)).foregroundColor(PayVisual.secondaryInk).lineLimit(1)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .foregroundColor(PayVisual.secondaryInk.opacity(0.55))
                             }
-                            .padding(.horizontal, 16).frame(height: 54)
+                            .padding(.horizontal, 16).frame(height: 60)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
 
                     Text(Tr("充值是从银行卡转入零钱（本 App 内记账），到账立刻可用。"))
-                        .font(pf(12.5)).foregroundColor(C.subLabel)
+                        .font(pf(12.5)).foregroundColor(PayVisual.secondaryInk)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 22).padding(.top, 10)
-
-                    Spacer().frame(height: 26)
+                        .padding(.horizontal, 4)
 
                     Button { showPay = true } label: {
                         Text(busy ? Tr("处理中…") : Tr("充值"))
-                            .font(pf(17, .medium)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity).frame(height: 46)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(amount > 0 ? C.green : C.subLabel))
-                            .padding(.horizontal, 20)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint, enabled: amount > 0))
                     .disabled(busy || amount <= 0)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, max(28, L.safeBottom))
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
@@ -171,9 +174,9 @@ struct WithdrawView: View {
             NavBar(title: Tr("零钱提现"), back: { dismiss() })
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
+                VStack(spacing: 18) {
 
-                    GroupCard {
+                    PayGroupCard {
                         Button {
                             if banks.isEmpty { showAddBank = true } else { showPickBank = true }
                         } label: {
@@ -187,10 +190,12 @@ struct WithdrawView: View {
                                              ?? Tr("添加银行卡"))
                                             .font(pf(15.5)).foregroundColor(C.label).lineLimit(1)
                                         Text(picked.map { Tr("尾号 ") + ($0.tail ?? "****") } ?? "")
-                                            .font(pf(12.5)).foregroundColor(C.subLabel)
+                                            .font(pf(12.5)).foregroundColor(PayVisual.secondaryInk)
                                     }
                                 }
-                                Chevron(size: 9, line: 1.6).padding(.leading, 2)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .foregroundColor(PayVisual.secondaryInk.opacity(0.55))
                             }
                             .padding(.horizontal, 16).frame(height: 68)
                             .contentShape(Rectangle())
@@ -200,99 +205,112 @@ struct WithdrawView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "clock")
                                 .font(.system(size: 12))
-                                .foregroundColor(C.subLabel)
+                                .foregroundColor(PayVisual.secondaryInk)
                             Text(Tr("预计 2 小时内到账（以银行处理时间为准）"))
-                                .font(pf(12.5)).foregroundColor(C.subLabel)
+                                .font(pf(12.5)).foregroundColor(PayVisual.secondaryInk)
                             Spacer(minLength: 0)
                         }
-                        .padding(.horizontal, 16).padding(.bottom, 12)
+                        .padding(.horizontal, 16)
+                        .frame(height: 42)
                     }
-                    .padding(.top, 10)
 
-                    Spacer().frame(height: 8)
-
-                    GroupCard {
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text("¥").font(pfMoney(22)).foregroundColor(C.label)
-                            TextField("0.00", text: $amountText)
-                                .font(pfMoney(34))
-                                .keyboardType(.decimalPad)
-                                .foregroundColor(C.label)
-                                .focused($amountFocused)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Button {
-                                amountText = String(format: "%.2f", max(0, balance))
-                                amountFocused = false
-                            } label: {
-                                Text(Tr("全部提现")).font(pf(14.5)).foregroundColor(C.link)
+                    PayGroupCard {
+                        VStack(spacing: 0) {
+                            VStack(spacing: 8) {
+                                Text(Tr("提现金额"))
+                                    .font(pf(12.5, .medium))
+                                    .foregroundColor(PayVisual.secondaryInk)
+                                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                                    Text("¥").font(pf(24, .semibold)).foregroundColor(C.label)
+                                    TextField("0.00", text: $amountText)
+                                        .font(pfMoney(38, .semibold))
+                                        .keyboardType(.decimalPad)
+                                        .foregroundColor(C.label)
+                                        .focused($amountFocused)
+                                        .multilineTextAlignment(.center)
+                                }
                             }
-                            .buttonStyle(.plain)
-                        }
-                        .padding(.horizontal, 16).frame(height: 74)
-                        HairLine(inset: 16)
-                        HStack {
-                            Text(Tr("可用余额")).font(pf(13)).foregroundColor(C.subLabel)
-                            Spacer()
-                            Text("¥" + money(balance)).font(pf(13)).foregroundColor(C.subLabel)
-                        }
-                        .padding(.horizontal, 16).frame(height: 40)
-                    }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 22)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        if amount > 0 {
+                            HairLine(inset: 18)
                             HStack {
-                                Text(Tr("服务费（0.1%，最低 ¥0.1）")).font(pf(13)).foregroundColor(C.subLabel)
+                                Text(Tr("可用余额"))
+                                    .font(pf(13.5))
+                                    .foregroundColor(PayVisual.secondaryInk)
                                 Spacer()
-                                Text("¥" + money(fee)).font(pf(13)).foregroundColor(C.subLabel)
+                                Text("¥" + money(balance))
+                                    .font(pf(13.5, .medium))
+                                    .foregroundColor(PayVisual.secondaryInk)
+                                Button {
+                                    amountText = String(format: "%.2f", max(0, balance))
+                                    amountFocused = false
+                                } label: {
+                                    Text(Tr("全部提现"))
+                                        .font(pf(13.5, .semibold))
+                                        .foregroundColor(PayVisual.tint)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            HStack {
-                                Text(Tr("实际到账")).font(pf(13)).foregroundColor(C.subLabel)
-                                Spacer()
-                                Text("¥" + money(net)).font(pf(13)).foregroundColor(C.subLabel)
-                            }
-                        }
-                        HStack {
-                            Text(Tr("单笔限额")).font(pf(13)).foregroundColor(C.subLabel)
-                            Spacer()
-                            Text("¥50,000.00").font(pf(13)).foregroundColor(C.subLabel)
+                            .padding(.horizontal, 18)
+                            .frame(height: 48)
                         }
                     }
-                    .padding(.horizontal, 22).padding(.top, 10)
 
-                    Spacer().frame(height: 22)
+                    PayGroupCard {
+                        VStack(spacing: 0) {
+                            if amount > 0 {
+                                HStack {
+                                    Text(Tr("服务费（0.1%，最低 ¥0.1）"))
+                                    Spacer()
+                                    Text("¥" + money(fee))
+                                }
+                                HairLine(inset: 18)
+                                HStack {
+                                    Text(Tr("实际到账"))
+                                    Spacer()
+                                    Text("¥" + money(net))
+                                        .foregroundColor(PayVisual.success)
+                                }
+                                HairLine(inset: 18)
+                            }
+                            HStack {
+                                Text(Tr("单笔限额"))
+                                Spacer()
+                                Text("¥50,000.00")
+                            }
+                        }
+                        .font(pf(13.5))
+                        .foregroundColor(PayVisual.secondaryInk)
+                        .padding(.horizontal, 18)
+                        .frame(minHeight: 46)
+                    }
 
                     Button { showPay = true } label: {
                         Text(busy ? Tr("处理中…") : Tr("提现"))
-                            .font(pf(17, .medium)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity).frame(height: 46)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(canWithdraw ? C.green : C.subLabel))
-                            .padding(.horizontal, 20)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint, enabled: canWithdraw))
                     .disabled(busy || !canWithdraw)
 
-                    VStack(spacing: 0) {
-                        faqRow(Tr("提现多久能到账？"),
-                               Tr("一般 2 小时内到账，具体以银行处理时间为准。遇到节假日可能稍慢。")) {
-                            faq = (Tr("提现多久能到账？"),
-                                   Tr("一般 2 小时内到账，具体以银行处理时间为准。遇到节假日可能慢一些。\n如果超过 24 小时还没到账，把提现记录截图发给管理员查。"))
-                        }
-                        HairLine(inset: 16)
-                        faqRow(Tr("提现要手续费吗？"),
-                               Tr("按提现金额的 0.1% 收取，最低 ¥0.1。")) {
-                            faq = (Tr("提现要手续费吗？"),
-                                   Tr("按提现金额的 0.1% 收取，最低 ¥0.1，从提现金额里直接扣。\n（这也是微信零钱提现的规则。）"))
+                    PayGroupCard {
+                        VStack(spacing: 0) {
+                            faqRow(Tr("提现多久能到账？"),
+                                   Tr("一般 2 小时内到账，具体以银行处理时间为准。遇到节假日可能稍慢。")) {
+                                faq = (Tr("提现多久能到账？"),
+                                       Tr("一般 2 小时内到账，具体以银行处理时间为准。遇到节假日可能慢一些。\n如果超过 24 小时还没到账，把提现记录截图发给管理员查。"))
+                            }
+                            HairLine(inset: 18)
+                            faqRow(Tr("提现要手续费吗？"),
+                                   Tr("按提现金额的 0.1% 收取，最低 ¥0.1。")) {
+                                faq = (Tr("提现要手续费吗？"),
+                                       Tr("按提现金额的 0.1% 收取，最低 ¥0.1，从提现金额里直接扣。\n（这也是微信零钱提现的规则。）"))
+                            }
                         }
                     }
-                    .padding(.top, 18)
 
                     if !ops.isEmpty {
-                        HStack {
-                            Text(Tr("提现记录")).font(pf(13)).foregroundColor(C.subLabel)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16).padding(.top, 20).padding(.bottom, 6)
-                        GroupCard {
+                        PaySectionLabel(text: Tr("提现记录"))
+                        PayGroupCard {
                             ForEach(ops.indices, id: \.self) { i in
                                 let o = ops[i]
                                 if i > 0 { HairLine(inset: 16) }
@@ -300,7 +318,7 @@ struct WithdrawView: View {
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text("¥" + money(o.amount ?? 0)).font(pf(16)).foregroundColor(C.label)
                                         Text((o.bankText ?? "") + " · " + (o.createdAt ?? "").prefix(16))
-                                            .font(pf(12)).foregroundColor(C.subLabel).lineLimit(1)
+                                            .font(pf(12)).foregroundColor(PayVisual.secondaryInk).lineLimit(1)
                                     }
                                     Spacer(minLength: 8)
                                     Text(statusText(o.status))
@@ -311,13 +329,14 @@ struct WithdrawView: View {
                             }
                         }
                     }
-                    Spacer().frame(height: 30)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, max(28, L.safeBottom))
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
@@ -440,9 +459,9 @@ struct WithdrawView: View {
                         .padding(.horizontal, 22).padding(.top, 10)
                 }
             }
-            .background(C.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(C.pageBg.ignoresSafeArea())
+        .background(PayVisual.canvas.ignoresSafeArea())
 
         .swipeBack { showPickBank = false }
     }
@@ -512,8 +531,7 @@ struct BankAddSheet: View {
                 .padding(.horizontal, 22).padding(.top, 10)
             Spacer()
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .hidesTabBar()
 
@@ -556,34 +574,77 @@ struct PayConfirmSheet: View {
 
     @State private var pwd = ""
     @State private var hasPay = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Button { dismiss() } label: {
-                    Image(systemName: "xmark").font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(C.label).frame(width: 44, height: L.navH)
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 28, weight: .regular))
+                        .foregroundColor(PayVisual.secondaryInk.opacity(0.55))
+                        .frame(width: 44, height: L.navH)
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Text(title).font(pf(16, .medium)).foregroundColor(C.label)
+                Text(Tr("确认支付"))
+                    .font(pf(16.5, .semibold))
+                    .foregroundColor(C.label)
                 Spacer()
                 Spacer().frame(width: 44)
             }
             .frame(height: L.navH)
 
-            Text(Tr("请输入支付密码"))
-                .font(pf(15)).foregroundColor(C.subLabel)
-                .padding(.top, 18)
-
-            HStack(spacing: 0) {
-                PayDotField(count: pwd.count)
+            VStack(spacing: 12) {
+                Image(systemName: "creditcard.fill")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundColor(PayVisual.tint)
+                    .frame(width: 62, height: 62)
+                    .background(PayVisual.tint.opacity(0.12), in: Circle())
+                Text(title)
+                    .font(pf(24, .semibold))
+                    .foregroundColor(C.label)
+                    .multilineTextAlignment(.center)
+                Text(Tr("请验证支付密码完成付款"))
+                    .font(pf(13.5))
+                    .foregroundColor(PayVisual.secondaryInk)
             }
-            .padding(.top, 16)
+            .padding(.top, 24)
 
-            TextField("", text: $pwd)
-                .keyboardType(.numberPad)
-                .frame(height: 1).opacity(0.01)
+            PayGroupCard {
+                VStack(spacing: 0) {
+                    HStack {
+                        Label(Tr("支付密码"), systemImage: "lock.fill")
+                            .font(pf(15, .medium))
+                            .foregroundColor(C.label)
+                        Spacer()
+                        Text(Tr("6 位安全密码"))
+                            .font(pf(12.5))
+                            .foregroundColor(PayVisual.secondaryInk)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, 16)
+
+                    PayDotField(count: pwd.count, height: 50)
+                        .contentShape(Rectangle())
+                        .onTapGesture { focused = true }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 14)
+                        .padding(.bottom, 16)
+
+                    TextField("", text: $pwd)
+                        .keyboardType(.numberPad)
+                        .focused($focused)
+                        .frame(height: 1)
+                        .opacity(0.01)
+                        .onChange(of: pwd) { value in
+                            let clean = String(value.filter(\.isNumber).prefix(6))
+                            if clean != value { pwd = clean }
+                        }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 28)
 
             if Biometrics.available {
                 Button {
@@ -594,10 +655,10 @@ struct PayConfirmSheet: View {
                         Image(systemName: "faceid")
                         Text(Tr("使用面容"))
                     }
-                    .font(pf(15)).foregroundColor(C.link)
+                    .font(pf(15.5, .semibold)).foregroundColor(PayVisual.tint)
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 18)
+                .padding(.top, 22)
             }
 
             Button {
@@ -605,19 +666,18 @@ struct PayConfirmSheet: View {
                 onConfirm(pwd, false)
             } label: {
                 Text(Tr("确认支付"))
-                    .font(pf(16, .medium)).foregroundColor(.white)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(pwd.count >= 6 ? C.green : C.subLabel))
-                    .padding(.horizontal, 20)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint, enabled: pwd.count >= 6))
             .disabled(pwd.count < 6)
-            .padding(.top, 20)
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
             Spacer()
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .hidesTabBar()
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { focused = true }
+        }
     }
 }

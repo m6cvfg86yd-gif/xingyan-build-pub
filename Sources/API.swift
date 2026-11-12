@@ -5388,9 +5388,32 @@ private struct StarredPayload: Decodable {
         return (url, payload.name ?? "", payload.bytes ?? 0)
     }
 
+    struct TransferPayment: Decodable, Identifiable, Hashable {
+        var id: String
+        var chatId: String?
+        var fromId: String?
+        var toId: String?
+        var amount: Double?
+        var note: String?
+        var method: String?
+        var status: String?
+        var createdAt: String?
+        var expiresAt: Double?
+        var receivedAt: String?
+        var refundedAt: String?
+    }
+
+    struct TransferReceipt: Decodable {
+        var balance: Double?
+        var amount: Double?
+        var method: String?
+        var deducted: Double?
+        var transfer: TransferPayment?
+    }
+
     func transfer(chatId: String, amount: Double, note: String,
-                  method: String, password: String, face: Bool = false) async throws {
-        _ = try await request("POST", "/api/pay/transfer", body: [
+                  method: String, password: String, face: Bool = false) async throws -> TransferReceipt {
+        let any = try await request("POST", "/api/pay/transfer", body: [
             "chatId": chatId,
             "amount": amount,
             "note": note,
@@ -5400,6 +5423,7 @@ private struct StarredPayload: Decodable {
 
             "requestId": UUID().uuidString
         ])
+        return try decode(any, as: TransferReceipt.self)
     }
 
     func payCode() async throws -> PayCodeInfo {

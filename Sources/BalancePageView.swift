@@ -26,16 +26,16 @@ struct BalancePageView: View {
             NavBar(title: cfg?.navTitle ?? "零钱明细", back: { dismiss() })
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
+                VStack(spacing: 24) {
                     top
-                    Spacer(minLength: 40)
                     bottom
+                    Spacer(minLength: 20)
                 }
-                .frame(minHeight: 912 - L.safeTop - L.navH - L.safeBottom - 20, alignment: .top)
+                .padding(.top, 20)
             }
-            .background(st.pageBg)
+            .background(PayVisual.canvas)
         }
-        .background(st.pageBg.ignoresSafeArea())
+        .background(PayVisual.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
@@ -79,98 +79,121 @@ struct BalancePageView: View {
     }
 
     private var top: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 12) {
+            PayGroupCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Label(cfg?.title ?? Tr("我的零钱"), systemImage: "wallet.bifold.fill")
+                            .font(pf(15, .medium))
+                            .foregroundColor(PayVisual.secondaryInk)
+                        Spacer()
+                        PayStatusPill(
+                            text: (cfg?.isLocked ?? false) ? Tr("待实名") : Tr("可用"),
+                            tone: (cfg?.isLocked ?? false) ? .warning : .success
+                        )
+                    }
 
-            ZStack {
-                Circle().fill(st.circleColorV)
-                Text("¥")
-                    .font(pfMoney(st.yenFont))
-                    .foregroundColor(st.yenColorV)
+                    MoneyLabel(text: (cfg?.isLocked ?? false)
+                               ? "¥****"
+                               : money(cfg?.balance ?? app.me?.balance ?? 0),
+                               size: 40, curSize: 24, topAlign: true,
+                               color: C.label, weight: .semibold)
+                        .monospacedDigit()
+
+                    if let note = cfg?.note, !note.isEmpty {
+                        Text(note)
+                            .font(pf(13))
+                            .foregroundColor(PayVisual.secondaryInk)
+                    }
+                }
+                .padding(20)
             }
-            .frame(width: st.circle, height: st.circle)
-            .padding(.top, st.topPad)
-
-            Text(cfg?.title ?? "我的零钱")
-                .font(pf(st.titleFont))
-                .foregroundColor(Color.dyn(0x000000, 0xEDEDED))
-                .padding(.top, st.gapTitleV)
-
-            MoneyLabel(text: (cfg?.isLocked ?? false) ? "¥****" : money(cfg?.balance ?? app.me?.balance ?? 0),
-                       size: st.amountFont, curSize: st.curFont, topAlign: true,
-                       color: Color.dyn(0x000000, 0xEDEDED))
-                .padding(.top, st.gapAmountV)
 
             if cfg?.isLocked ?? false {
                 Button {
                     app.show(Tr("请先完成实名认证"))
                     RealNameGate.shared.prompt()
                 } label: {
-                    HStack(spacing: 4) {
-                        Text(Tr("按国家规定，完成实名认证后才能查看和使用零钱"))
-                            .font(pf(max(12, st.noteFont - 1)))
-                            .foregroundColor(Color(hex: 0xE6A23C))
-                        Text(Tr("去认证")).font(pf(max(12, st.noteFont - 1), .medium)).foregroundColor(C.green)
+                    HStack(spacing: 10) {
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                            .font(.system(size: 17, weight: .semibold))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Tr("完成实名认证后使用零钱"))
+                                .font(pf(14, .semibold))
+                            Text(Tr("按国家规定，实名后才能查看和使用钱包金额"))
+                                .font(pf(12))
+                                .foregroundColor(PayVisual.secondaryInk)
+                        }
+                        Spacer(minLength: 6)
+                        Text(Tr("去认证"))
+                            .font(pf(13.5, .semibold))
+                            .foregroundColor(PayVisual.warning)
                     }
+                    .foregroundColor(C.label)
+                    .padding(16)
+                    .background(Color.dyn(0xFFF7E6, 0x2D2417))
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.plain)
-                .padding(.top, st.gapNoteV)
-            }
-            if let note = cfg?.note, !note.isEmpty {
-                HStack(spacing: 4) {
-                    Text(note).font(pf(st.noteFont)).foregroundColor(st.noteColorV)
-                    Chevron(size: 6, line: 1.4, color: st.noteColorV)
-                }
-                .padding(.top, st.gapNoteV)
             }
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
     }
 
     private var bottom: some View {
-        VStack(spacing: 0) {
-            Button {
-                run(cfg?.recharge?.action ?? "recharge", cfg?.recharge?.label ?? "充值")
-            } label: {
-                Text(cfg?.recharge?.label ?? "充值")
-                    .font(pf(17))
-                    .foregroundColor(st.rechargeInkV)
-                    .frame(width: st.btnW, height: st.btnH)
-                    .background(RoundedRectangle(cornerRadius: st.btnR, style: .continuous).fill(st.rechargeBgV))
-            }
-            .buttonStyle(.plain)
+        VStack(spacing: 14) {
+            HStack(spacing: 12) {
+                Button {
+                    run(cfg?.recharge?.action ?? "recharge", cfg?.recharge?.label ?? "充值")
+                } label: {
+                    Label(cfg?.recharge?.label ?? Tr("充值"), systemImage: "plus")
+                }
+                .buttonStyle(PayPrimaryButtonStyle(tint: PayVisual.tint))
 
-            Button {
-                run(cfg?.withdraw?.action ?? "withdraw", cfg?.withdraw?.label ?? "提现")
-            } label: {
-                Text(cfg?.withdraw?.label ?? "提现")
-                    .font(pf(17))
-                    .foregroundColor(st.withdrawInkV)
-                    .frame(width: st.btnW, height: st.btnH)
-                    .background(RoundedRectangle(cornerRadius: st.btnR, style: .continuous).fill(st.withdrawBgV))
+                Button {
+                    run(cfg?.withdraw?.action ?? "withdraw", cfg?.withdraw?.label ?? "提现")
+                } label: {
+                    Label(cfg?.withdraw?.label ?? Tr("提现"), systemImage: "arrow.up.to.line")
+                }
+                .buttonStyle(PaySecondaryButtonStyle(tint: PayVisual.tint))
             }
-            .buttonStyle(.plain)
-            .padding(.top, 16)
 
-            HStack(spacing: 15) {
-                ForEach((cfg?.links ?? []).filter { $0.enabled != false }) { l in
-                    Button {
-                        run(l.action ?? "soon", l.label)
-                    } label: {
-            Text(Tr(l.label)).font(pf(st.linkFont)).foregroundColor(st.linkColorV)
+            PayGroupCard {
+                VStack(spacing: 0) {
+                    ForEach(Array((cfg?.links ?? []).filter { $0.enabled != false }.enumerated()),
+                            id: \.element.id) { idx, l in
+                        Button {
+                            run(l.action ?? "soon", l.label)
+                        } label: {
+                            HStack {
+                                Text(Tr(l.label))
+                                    .font(pf(15.5))
+                                    .foregroundColor(C.label)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .foregroundColor(PayVisual.secondaryInk.opacity(0.55))
+                            }
+                            .padding(.horizontal, 18)
+                            .frame(height: 52)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if idx < ((cfg?.links ?? []).filter { $0.enabled != false }.count - 1) {
+                            HairLine(inset: 18)
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
             }
-            .padding(.top, 71)
 
             if let f = cfg?.footer, !f.isEmpty {
                 Text(f)
-                    .font(pf(st.footFont))
-                    .foregroundColor(st.footerColorV)
-                    .padding(.top, 10)
+                    .font(pf(12))
+                    .foregroundColor(PayVisual.secondaryInk)
+                    .multilineTextAlignment(.center)
             }
-            Color.clear.frame(height: 25)
         }
+        .padding(.horizontal, 20)
     }
 
     private func run(_ action: String, _ label: String) {
