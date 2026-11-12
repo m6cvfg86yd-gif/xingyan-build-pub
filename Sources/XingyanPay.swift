@@ -123,10 +123,7 @@ struct XYPaySheet: View {
     private var amountBlock: some View {
         VStack(spacing: 6) {
             Text(Tr("付款金额")).font(pf(12.5)).foregroundColor(C.subLabel)
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text("¥").font(pf(20, .semibold)).foregroundColor(C.label)
-                Text(moneyFmt(amount)).font(pf(38, .bold)).foregroundColor(C.label)
-            }
+            StarPayAmount(value: amount, role: .sheet, color: C.label)
             if !target.isEmpty {
                 Text(target).font(pf(13)).foregroundColor(C.subLabel)
                     .multilineTextAlignment(.center).lineLimit(2)
@@ -218,7 +215,7 @@ struct XYPaySheet: View {
                     .font(.system(size: 26, weight: .bold)).foregroundColor(.white)
             }
             Text(Tr("支付成功")).font(pf(17, .semibold)).foregroundColor(C.label)
-            Text("¥" + moneyFmt(amount)).font(pf(13.5)).foregroundColor(C.subLabel)
+            StarPayAmount(value: amount, role: .row, color: C.subLabel)
         }
         .padding(.top, 8)
     }

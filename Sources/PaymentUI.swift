@@ -22,6 +22,98 @@ enum PayVisual {
     static var secondaryInk: Color { Color.dyn(0x6C6C70, 0x98989F) }
 }
 
+struct StarPayAmount: View {
+    enum Role {
+        case hero, metric, row, detail, sheet
+
+        var size: CGFloat {
+            switch self {
+            case .hero: return 43
+            case .metric: return 15.5
+            case .row: return 16.5
+            case .detail: return 34
+            case .sheet: return 40
+            }
+        }
+
+        var symbolSize: CGFloat {
+            switch self {
+            case .hero: return 17
+            case .metric: return 8.5
+            case .row: return 9
+            case .detail: return 14
+            case .sheet: return 17
+            }
+        }
+
+        var fractionSize: CGFloat {
+            switch self {
+            case .hero: return 23
+            case .metric: return 10.5
+            case .row: return 11
+            case .detail: return 18
+            case .sheet: return 22
+            }
+        }
+
+        var weight: Font.Weight {
+            switch self {
+            case .hero, .detail, .sheet: return .bold
+            case .metric, .row: return .semibold
+            }
+        }
+
+        var tracking: CGFloat {
+            switch self {
+            case .hero: return -1.2
+            case .detail, .sheet: return -0.8
+            default: return -0.15
+            }
+        }
+
+        var symbolLift: CGFloat {
+            switch self {
+            case .hero: return 13
+            case .metric: return 5
+            case .row: return 5
+            case .detail: return 10
+            case .sheet: return 12
+            }
+        }
+    }
+
+    let value: Double
+    var role: Role = .row
+    var color: Color = C.label
+    var sign = ""
+
+    var body: some View {
+        let text = moneyFmt(abs(value.isFinite ? value : 0))
+        let parts = text.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
+        let integer = parts.first.map(String.init) ?? "0"
+        let fraction = parts.count > 1 ? String(parts[1]) : "00"
+
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text(sign + "¥")
+                .font(moneySymbolFont(role.symbolSize, role.weight))
+                .baselineOffset(role.symbolLift)
+            Text(integer)
+                .font(pfMoney(role.size, role.weight))
+                .tracking(role.tracking)
+                .layoutPriority(1)
+            Text("." + fraction)
+                .font(pfMoney(role.fractionSize, role.weight))
+                .tracking(role.tracking * 0.5)
+        }
+        .foregroundStyle(color)
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.62)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(sign + "¥" + moneyFmt(abs(value.isFinite ? value : 0)))
+    }
+}
+
 struct PayGroupCard<Content: View>: View {
     private let content: Content
 
@@ -289,12 +381,7 @@ struct PayOfficialView: View {
                 Text(Tr("可用余额"))
                     .font(pf(12.5, .medium))
                     .foregroundStyle(.white.opacity(0.56))
-                Text("¥" + moneyFmt(balance))
-                    .font(pfMoney(40, .bold))
-                    .foregroundStyle(.white)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.66)
+                StarPayAmount(value: balance, role: .hero, color: .white)
                     .padding(.top, 3)
 
                 Spacer(minLength: 18)
@@ -328,12 +415,7 @@ struct PayOfficialView: View {
             Text(title)
                 .font(pf(10.5, .medium))
                 .foregroundStyle(.white.opacity(0.48))
-            Text("¥" + moneyFmt(abs(value)))
-                .font(pfMoney(14.5, .semibold))
-                .foregroundStyle(color.opacity(0.96))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+            StarPayAmount(value: value, role: .metric, color: color.opacity(0.96))
         }
     }
 
@@ -470,10 +552,10 @@ struct PayOfficialView: View {
                 Spacer(minLength: 8)
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text((incoming ? "+" : "-") + "¥" + moneyFmt(abs(entry.delta)))
-                        .font(pfMoney(16, .semibold))
-                        .foregroundColor(incoming ? PayVisual.success : C.label)
-                        .monospacedDigit()
+                    StarPayAmount(value: entry.delta,
+                                  role: .row,
+                                  color: incoming ? PayVisual.success : C.label,
+                                  sign: incoming ? "+" : "-")
                     Text(Tr("余额") + " ¥" + moneyFmt(entry.after))
                         .font(pf(10.5, .medium))
                         .foregroundColor(PayVisual.secondaryInk)
@@ -499,9 +581,10 @@ struct PayOfficialView: View {
                             .symbolRenderingMode(.palette)
                             .foregroundStyle(.white, entry.direction == "in"
                                              ? PayVisual.success : PayVisual.tint)
-                        Text((entry.direction == "in" ? "+" : "-") + "¥" + moneyFmt(abs(entry.delta)))
-                            .font(pfMoney(32, .semibold))
-                            .foregroundColor(C.label)
+                        StarPayAmount(value: entry.delta,
+                                      role: .detail,
+                                      color: C.label,
+                                      sign: entry.direction == "in" ? "+" : "-")
                         Text(entry.reason.isEmpty ? Tr("支付交易") : entry.reason)
                             .font(pf(15))
                             .foregroundColor(PayVisual.secondaryInk)

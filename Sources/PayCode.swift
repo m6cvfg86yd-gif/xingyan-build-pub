@@ -383,10 +383,7 @@ struct PayConfirmPage: View {
                                 .font(pf(12.5, .medium))
                                 .foregroundColor(PayVisual.secondaryInk)
                             if fixedAmount > 0 {
-                                Text(money(fixedAmount))
-                                    .font(pfMoney(40, .semibold))
-                                    .foregroundColor(C.label)
-                                    .monospacedDigit()
+                                StarPayAmount(value: fixedAmount, role: .sheet, color: C.label)
                             } else {
                                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                                     Text("¥").font(pf(24, .semibold)).foregroundColor(C.label)
