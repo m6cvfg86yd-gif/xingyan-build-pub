@@ -4301,6 +4301,16 @@ private struct StarredPayload: Decodable {
         return values.allSatisfy { (saved[$0.key] as? String) == $0.value }
     }
 
+    func opsApplyDarkTheme(_ id: String) async -> Bool {
+        do {
+            _ = try await request("POST", "/api/ops/theme", body: ["id": id])
+            let saved = await uiConfig().ui
+            return (saved["darkThemeId"] as? String) == id
+        } catch {
+            return false
+        }
+    }
+
     func memberInfo() async throws -> MemberInfo {
         struct P: Decodable { var membership: MemberInfo? }
         let p: P = try await get("/api/membership", as: P.self)

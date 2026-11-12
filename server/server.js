@@ -12673,6 +12673,59 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
 
+  /* 管理：深色主题按 ID 一次保存。服务端负责展开整套键，避免客户端多项写入
+     因网络中断只保存一半，或者旧版批量接口不可用时整组主题都保存失败。 */
+  if (parts[0] === 'ops' && parts[1] === 'theme' && method === 'POST') {
+    if (!isOpsUser(user)) return fail(res, 403, '没有权限');
+    const b = await readBody(req);
+    const id = String(b.id || '').trim();
+    const presets = {
+      standard: { canvas: 0x191919, surface: 0x191919, line: 0x2C2C2E },
+      whatsapp: { canvas: 0x0B141A, surface: 0x111B21, line: 0x22343D },
+      obsidian: { canvas: 0x090A0C, surface: 0x121316, line: 0x26282D },
+      pure: { canvas: 0x000000, surface: 0x111112, line: 0x262628 },
+      graphite: { canvas: 0x121417, surface: 0x1C1F24, line: 0x30353C },
+      forest: { canvas: 0x07120F, surface: 0x0F1B17, line: 0x22352F }
+    };
+    const preset = presets[id];
+    if (!preset) return fail(res, 422, '没有这个深色主题');
+    const file = path.join(DATA_DIR, 'ui.json');
+    let ui = {};
+    try { ui = JSON.parse(fs.readFileSync(file, 'utf8')) || {}; } catch (e) { ui = {}; }
+    const hex = (v) => '#' + Number(v).toString(16).toUpperCase().padStart(6, '0');
+    const pair = (key, light, dark) => {
+      const raw = String(ui[key] == null ? '' : ui[key]);
+      const savedLight = raw.split('|')[0].trim();
+      return (savedLight || hex(light)) + '|' + hex(dark);
+    };
+    const canvasKeys = [
+      ['navBg', 0xEDEDED], ['tabBg', 0xF7F7F8], ['tabBarColor', 0xF7F7F8],
+      ['chatsTopBg', 0xFFFFFF], ['chatsPageBg', 0xFFFFFF],
+      ['chatsNavMaskColor', 0xEDEDED], ['chatsBottomMaskColor', 0xF7F7F7],
+      ['hbChatsBottomMaskColor', 0xFFFFFF], ['hbChatsTabBg', 0xFFFFFF],
+      ['hbChatsListBg', 0xFFFFFF], ['contactsBg', 0xFFFFFF],
+      ['discoverBg', 0xEDEDED], ['discoverPageBg', 0xEDEDED], ['pageBg', 0xEDEDED]
+    ];
+    const surfaceKeys = [
+      ['cardBg', 0xFFFFFF], ['chatsRowBg', 0xFFFFFF], ['chatRowBg', 0xFFFFFF],
+      ['hbChatsRowBg', 0xFFFFFF], ['discoverCardBg', 0xFFFFFF],
+      ['meCardBg', 0xFFFFFF], ['pinnedBg', 0xFFFFFF], ['chatTimeBg', 0xE5E5E5],
+      ['searchBg', 0xF2F2F2], ['fieldBg', 0xF2F2F2]
+    ];
+    const values = { darkThemeId: id };
+    for (const [key, light] of canvasKeys) values[key] = pair(key, light, preset.canvas);
+    for (const [key, light] of surfaceKeys) values[key] = pair(key, light, preset.surface);
+    values.lineColor = pair('lineColor', 0xE5E5E5, preset.line);
+    values.navLineColor = pair('navLineColor', 0xE8E8E8, preset.line);
+    try { fs.copyFileSync(file, file + '.bak-theme' + Date.now().toString().slice(-6)); } catch (e) { }
+    Object.assign(ui, values);
+    writeJson(file, ui);
+    console.log('[管理] dark theme ' + id);
+    sendToAll({ type: 'ui' });
+    ok(res, { id, ui });
+    return;
+  }
+
   /* 管理页整套主题一次保存：四个主页、导航、底栏、卡片和分隔线同一事务写入。
      这样不会出现用户点了切换，但只改到一半、页面颜色互相打架的情况。 */
   if (parts[0] === 'ops' && parts[1] === 'ui-batch' && method === 'POST') {

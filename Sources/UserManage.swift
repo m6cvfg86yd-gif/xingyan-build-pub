@@ -739,49 +739,49 @@ struct UserManageView: View {
                     .foregroundColor(C.subLabel)
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(darkPagePresets) { preset in
-                        Button {
-                            Task { await applyDarkPagePreset(preset) }
-                        } label: {
-                            VStack(spacing: 7) {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(hex: preset.hex))
-                                    .frame(width: 62, height: 62)
-                                    .overlay(alignment: .bottomLeading) {
-                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                            .fill(Color(hex: preset.surface))
-                                            .frame(width: 38, height: 18)
-                                            .padding(7)
-                                    }
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .stroke(
-                                                activeDarkPagePreset == preset.id
-                                                ? C.green : C.hairline,
-                                                lineWidth: activeDarkPagePreset == preset.id ? 2.2 : 0.7
-                                            )
-                                    }
-                                    .overlay {
-                                        if activeDarkPagePreset == preset.id {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .font(.system(size: 17, weight: .semibold))
-                                                .foregroundStyle(.white)
-                                                .shadow(color: .black.opacity(0.35),
-                                                        radius: 3, y: 1)
-                                        }
-                                    }
+            VStack(spacing: 0) {
+                ForEach(Array(darkPagePresets.enumerated()), id: \.element.id) { index, preset in
+                    Button {
+                        Task { await applyDarkPagePreset(preset) }
+                    } label: {
+                        HStack(spacing: 12) {
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .fill(Color(hex: preset.hex))
+                                .frame(width: 42, height: 42)
+                                .overlay(alignment: .bottomLeading) {
+                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                        .fill(Color(hex: preset.surface))
+                                        .frame(width: 25, height: 12)
+                                        .padding(5)
+                                }
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                        .stroke(C.hairline, lineWidth: 0.6)
+                                }
 
-                                Text(Tr(preset.name))
-                                    .font(pf(11.5, .medium))
-                                    .foregroundColor(C.label)
+                            Text(Tr(preset.name))
+                                .font(pf(15.5, .medium))
+                                .foregroundColor(C.label)
+
+                            Spacer(minLength: 0)
+
+                            if activeDarkPagePreset == preset.id {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(C.green)
+                            } else {
+                                Circle()
+                                    .stroke(C.hairline, lineWidth: 0.8)
+                                    .frame(width: 20, height: 20)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .padding(.horizontal, 14)
+                        .frame(height: 58)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    if index < darkPagePresets.count - 1 { HairLine(inset: 68) }
                 }
-                .padding(.vertical, 1)
             }
         }
         .padding(.horizontal, 16)
@@ -796,7 +796,8 @@ struct UserManageView: View {
         app.previewUIConfig(values)
         UISelectionFeedbackGenerator().selectionChanged()
 
-        let allOK = await API.shared.opsSetUIValues(values)
+        let direct = await API.shared.opsApplyDarkTheme(preset.id)
+        let allOK = direct || (await API.shared.opsSetUIValues(values))
         if allOK {
             await app.refreshUI(force: true)
             msg = Tr("四个主页颜色已切换为") + preset.name
@@ -808,6 +809,11 @@ struct UserManageView: View {
     }
 
     private func syncActiveDarkPagePreset() {
+        let savedId = UIConfig.text("darkThemeId", "")
+        if darkPagePresets.contains(where: { $0.id == savedId }) {
+            activeDarkPagePreset = savedId
+            return
+        }
         guard let current = UIConfig.darkHex("chatsPageBg") else {
             activeDarkPagePreset = ""
             return
@@ -834,6 +840,7 @@ struct UserManageView: View {
         }
 
         var values: [String: String] = [:]
+        values["darkThemeId"] = preset.id
 
         let canvasKeys: [(String, UInt32)] = [
             ("navBg", 0xEDEDED),
