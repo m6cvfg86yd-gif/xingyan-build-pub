@@ -29,10 +29,10 @@ try {
     now: () => now
   });
   vault.enroll({
-    tokenId: 'network-token-visa-001',
+    tokenId: 'xingyan-token-001',
     userId: 'user-1',
     deviceId: 'iphone-1',
-    network: 'visa',
+    network: 'xingyan-internal',
     last4: '4242',
     publicKey
   });
@@ -69,7 +69,7 @@ try {
   let authorized = engine.authorize({
     intentId,
     commandId: 'authorize-001',
-    tokenId: 'network-token-visa-001',
+    tokenId: 'xingyan-token-001',
     nonce: authorization.nonce,
     expiresAt: authorization.expiresAt,
     signature
@@ -80,7 +80,7 @@ try {
   assert.throws(() => engine.authorize({
     intentId,
     commandId: 'authorize-replay',
-    tokenId: 'network-token-visa-001',
+    tokenId: 'xingyan-token-001',
     nonce: authorization.nonce,
     expiresAt: authorization.expiresAt,
     signature
@@ -157,7 +157,7 @@ try {
   engine.authorize({
     intentId: 'intent-payment-002',
     commandId: 'authorize-002',
-    tokenId: 'network-token-visa-001',
+    tokenId: 'xingyan-token-001',
     nonce: voidAuthorization.nonce,
     expiresAt: voidAuthorization.expiresAt,
     signature: voidSignature

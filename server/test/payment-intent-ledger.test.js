@@ -50,10 +50,10 @@ try {
     now: () => now
   });
   vault.enroll({
-    tokenId: 'network-token-ledger-1',
+    tokenId: 'xingyan-token-ledger-1',
     userId: 'buyer',
     deviceId: 'phone-1',
-    network: 'mastercard',
+    network: 'xingyan-internal',
     last4: '4444',
     publicKey
   });
@@ -90,7 +90,7 @@ try {
   engine.authorize({
     intentId: authorization.intentId,
     commandId: 'authorize-ledger-1',
-    tokenId: 'network-token-ledger-1',
+    tokenId: 'xingyan-token-ledger-1',
     nonce: authorization.nonce,
     expiresAt: authorization.expiresAt,
     signature
@@ -103,7 +103,7 @@ try {
       userId: request.userId,
       before: ledger.accountBalance('user:' + request.userId),
       after: ledger.accountBalance('user:' + request.userId) - request.amountCents / 100,
-      reason: 'Apple Pay 风格支付',
+      reason: 'Apple 级内部支付',
       ref: request.ledgerRef
     }, [
       { account: 'user:' + request.userId, delta: -request.amountCents / 100 },
@@ -137,7 +137,7 @@ try {
         userId: request.userId,
         before: ledger.accountBalance('user:' + request.userId),
         after: ledger.accountBalance('user:' + request.userId) + request.amountCents / 100,
-        reason: 'Apple Pay 风格退款',
+        reason: 'Apple 级内部退款',
         ref: request.ledgerRef
       }, [
         { account: 'user:' + request.userId, delta: request.amountCents / 100 },

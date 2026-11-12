@@ -1,16 +1,16 @@
-# Payment security core
+# Internal payment security core
 
-This module follows Apple Pay-style separation of duties. It is not Apple
-certification and it does not make the current wallet a card-network product.
+The target is an internal Xingyan wallet with Apple Pay-class consistency,
+security and interaction quality. This is not an Apple Pay or card-network
+integration.
 
 ## Hard boundaries
 
 - Real card numbers and CVV values must never enter the application server.
-- Only an opaque network-token reference and the last four digits may be stored.
-- Apple merchant validation requires an Apple merchant identifier, registered
-  domain, merchant certificate and private key.
-- Authorization, capture, refund and void require a connected licensed payment
-  service provider. Without one, the API must fail closed.
+- Only an opaque Xingyan payment-token reference and the last four digits may be
+  stored.
+- The device creates and protects its own signing key. The server stores only
+  the public key and verifies every authorization.
 - The application key ring is an interface for an HSM/KMS-backed signer. The
   built-in HMAC implementation is for local tests and does not replace an HSM.
 - AML is currently disabled by product decision and is not a dependency of the
@@ -34,24 +34,22 @@ recovered by retrying the same ledger reference.
 
 ## Device authorization
 
-- A network token is bound to one user and one device public key.
+- An internal payment token is bound to one user and one device public key.
 - The device signs the exact intent ID, amount, currency, merchant, device,
   nonce and expiry.
 - The nonce is single-use and the authorization lifetime is at most five
   minutes.
-- Raw PAN, CVV, expiry and cardholder data are explicitly rejected by the Apple
-  Pay token validator.
+- Raw PAN, CVV, expiry and cardholder data are outside the internal wallet
+  protocol.
 
-## Production gates
+## Internal production gates
 
-All of the following are still external requirements:
+1. Device key enrollment, revocation and lost-device recovery.
+2. HSM/KMS key management, rotation, dual control and disaster recovery.
+3. Wallet and business-account reconciliation with no unclassified balances.
+4. Refund, transfer recall, dispute and customer-support operations.
+5. Payment-sheet password, face/device confirmation and timeout behavior.
+6. Crash, duplicate request, network timeout and topology-switch drills.
 
-1. Apple Merchant ID, registered domain and merchant-validation certificate.
-2. Licensed PSP or acquirer integration and network tokenization.
-3. HSM/KMS key management, rotation, dual control and disaster recovery.
-4. PCI DSS scope assessment and independent security review.
-5. Settlement, refund, chargeback, dispute and reconciliation operations.
-6. Real-device Apple Pay sandbox and production certification.
-
-Until all gates pass, payment endpoints must remain disconnected from real
-funds even if the local tests pass.
+Until all gates pass, the new payment engine remains a tested internal
+foundation even if the local tests pass.

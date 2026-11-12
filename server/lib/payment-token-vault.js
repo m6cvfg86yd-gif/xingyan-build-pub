@@ -41,8 +41,8 @@ class PaymentTokenVault {
   enroll(input) {
     const row = input || {};
     const tokenId = String(row.tokenId || '');
-    if (!/^[A-Za-z0-9._:-]{8,128}$/.test(tokenId)) throw new Error('invalid network token id');
-    if (this.tokens.has(tokenId)) throw new Error('network token already enrolled');
+    if (!/^[A-Za-z0-9._:-]{8,128}$/.test(tokenId)) throw new Error('invalid payment token id');
+    if (this.tokens.has(tokenId)) throw new Error('payment token already enrolled');
     if (!row.userId || !row.deviceId) throw new Error('token owner and device are required');
     const publicKey = String(row.publicKey || '');
     if (publicKey.length < 64 || publicKey.length > 4096) throw new Error('invalid device public key');
@@ -52,7 +52,7 @@ class PaymentTokenVault {
       tokenId,
       userId: String(row.userId),
       deviceId: String(row.deviceId),
-      network: String(row.network || 'network-token'),
+      network: String(row.network || 'xingyan-internal'),
       last4: String(row.last4 || '').replace(/\D/g, '').slice(-4),
       publicKey,
       status: 'active',
@@ -66,7 +66,7 @@ class PaymentTokenVault {
 
   revoke(tokenId, userId) {
     const token = this.tokens.get(String(tokenId || ''));
-    if (!token || token.userId !== String(userId || '')) throw new Error('network token not found');
+    if (!token || token.userId !== String(userId || '')) throw new Error('payment token not found');
     token.status = 'revoked';
     token.revokedAt = this.now();
     this.save();
