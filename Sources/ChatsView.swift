@@ -805,7 +805,7 @@ struct SwipeChatRow: View {
                 .scaleEffect(0.97 + 0.03 * pinReveal, anchor: .leading)
                 .offset(x: -8 * (1 - pinReveal))
                 .allowsHitTesting(offset > 0)
-                .zIndex(0)
+                .zIndex(offset > 0 ? 2 : 0)
 
             EquatableView(content: ChatRow(
                 chat: chat,
@@ -831,7 +831,7 @@ struct SwipeChatRow: View {
                 .scaleEffect(0.96 + 0.04 * actionReveal, anchor: .trailing)
                 .offset(x: 10 * (1 - actionReveal))
                 .allowsHitTesting(offset < 0)
-                .zIndex(0)
+                .zIndex(offset < 0 ? 2 : 0)
         }
         .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
 
