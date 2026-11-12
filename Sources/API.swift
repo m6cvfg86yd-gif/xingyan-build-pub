@@ -2347,17 +2347,19 @@ final class API {
     }
 
     func register(username: String,
-                  nickname: String,
                   password: String,
-                  phone: String,
-                  captchaId: String,
-                  captcha: String) async throws -> User {
+                  nickname: String = "",
+                  phone: String = "",
+                  captchaId: String = "",
+                  captcha: String = "",
+                  quick: Bool = true) async throws -> User {
         var body: [String: Any] = [
             "username": username,
             "nickname": nickname,
             "password": password,
             "captchaId": captchaId,
-            "captcha": captcha
+            "captcha": captcha,
+            "quick": quick
         ]
         let cleanPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
         if !cleanPhone.isEmpty { body["phone"] = cleanPhone }

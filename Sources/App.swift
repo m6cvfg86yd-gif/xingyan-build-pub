@@ -3152,6 +3152,7 @@ struct RegisterSheet: View {
     @State private var captchaId = ""
     @State private var captchaSVG = ""
     @State private var loadingCaptcha = false
+    @State private var needsManualCaptcha = false
     @State private var showPassword = false
     @State private var countdown = 0
     @State private var codeSent = false
@@ -3177,8 +3178,7 @@ struct RegisterSheet: View {
         case .account:
             return validUsername
                 && password.count >= 6
-                && !captchaId.isEmpty
-                && !captcha.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && (!needsManualCaptcha || (!captchaId.isEmpty && !captcha.isEmpty))
         case .phone:
             return validPhone && codeSent && code.count == 6
         }
@@ -3228,7 +3228,7 @@ struct RegisterSheet: View {
                     HStack(spacing: 7) {
                         Image(systemName: "lock.shield.fill")
                         Text(mode == .account
-                             ? Tr("密码只以加密哈希保存，验证码仅用于本次注册")
+                             ? Tr("密码只以加密哈希保存，仅异常注册才需要安全验证")
                              : Tr("验证码仅用于本次注册 · 加密传输"))
                     }
                     .font(pfStyled(size: 11.5))
@@ -3252,9 +3252,6 @@ struct RegisterSheet: View {
                 showSlider = false
                 requestCode()
             }
-        }
-        .onAppear {
-            if captchaSVG.isEmpty { loadCaptcha() }
         }
         .onDisappear { countdownTask?.cancel() }
     }
@@ -3358,16 +3355,6 @@ struct RegisterSheet: View {
                 .padding(.leading, 2)
                 .padding(.top, -5)
 
-            registrationField(Tr("昵称（选填）")) {
-                TextField(Tr("留空则使用星言号"), text: $nickname)
-                    .textInputAutocapitalization(.never)
-                    .focused($focus, equals: .nickname)
-                    .onChange(of: nickname) { value in
-                        nickname = String(value.prefix(24))
-                        error = nil
-                    }
-            }
-
             registrationField(Tr("登录密码")) {
                 HStack(spacing: 8) {
                     Group {
@@ -3392,67 +3379,65 @@ struct RegisterSheet: View {
                 }
             }
 
-            registrationField(Tr("绑定手机号（选填）")) {
-                TextField(Tr("用于找回账号"), text: $phone)
-                    .keyboardType(.phonePad)
-                    .textContentType(.telephoneNumber)
-                    .focused($focus, equals: .phone)
-                    .onChange(of: phone) { value in
-                        phone = String(value.filter { $0.isNumber || $0 == "+" }.prefix(20))
-                        error = nil
-                    }
-            }
+            if needsManualCaptcha {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(Tr("安全验证"))
+                        .font(pfStyled(size: 12.5, weight: .medium))
+                        .foregroundColor(C.subLabel)
 
-            VStack(alignment: .leading, spacing: 7) {
-                Text(Tr("图形验证码"))
-                    .font(pfStyled(size: 12.5, weight: .medium))
-                    .foregroundColor(C.subLabel)
-
-                HStack(spacing: 10) {
-                    TextField(Tr("请输入验证码"), text: $captcha)
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
-                        .focused($focus, equals: .captcha)
-                        .onChange(of: captcha) { value in
-                            captcha = String(value
-                                .filter { $0.isLetter || $0.isNumber }
-                                .uppercased()
-                                .prefix(4))
-                            error = nil
-                        }
-                        .padding(.horizontal, 14)
-                        .frame(height: 54)
-                        .background(registrationField)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(registrationLine, lineWidth: 0.6))
-
-                    Button { loadCaptcha() } label: {
-                        Group {
-                            if !captchaSVG.isEmpty {
-                                CaptchaView(svg: captchaSVG)
-                            } else if loadingCaptcha {
-                                ProgressView()
-                                    .tint(registrationGreen)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .background(Color.white)
-                            } else {
-                                Text(Tr("换一张"))
-                                    .font(pfStyled(size: 12.5, weight: .medium))
-                                    .foregroundColor(registrationGreen)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    HStack(spacing: 10) {
+                        TextField(Tr("请输入验证码"), text: $captcha)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                            .focused($focus, equals: .captcha)
+                            .onChange(of: captcha) { value in
+                                captcha = String(value
+                                    .filter { $0.isLetter || $0.isNumber }
+                                    .uppercased()
+                                    .prefix(4))
+                                error = nil
                             }
+                            .padding(.horizontal, 14)
+                            .frame(height: 54)
+                            .background(registrationField)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(registrationLine, lineWidth: 0.6))
+
+                        Button { loadCaptcha() } label: {
+                            Group {
+                                if !captchaSVG.isEmpty {
+                                    CaptchaView(svg: captchaSVG)
+                                } else if loadingCaptcha {
+                                    ProgressView()
+                                        .tint(registrationGreen)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .background(Color.white)
+                                } else {
+                                    Text(Tr("换一张"))
+                                        .font(pfStyled(size: 12.5, weight: .medium))
+                                        .foregroundColor(registrationGreen)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                }
+                            }
+                            .frame(width: 116, height: 46)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(registrationLine, lineWidth: 0.6))
                         }
-                        .frame(width: 116, height: 46)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(registrationLine, lineWidth: 0.6))
+                        .buttonStyle(.plain)
+                        .disabled(loadingCaptcha || busy)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(loadingCaptcha || busy)
                 }
+            } else {
+                Text(Tr("首次注册只需星言号和密码；昵称可直接使用星言号。"))
+                    .font(pfStyled(size: 11.5))
+                    .foregroundColor(C.subLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 2)
             }
         }
+    }
     }
 
     private var phoneRegistrationForm: some View {
@@ -3604,12 +3589,11 @@ struct RegisterSheet: View {
             do {
                 if mode == .account {
                     let account = username.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let displayName = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
                     let user = try await API.shared.register(
                         username: account,
-                        nickname: displayName,
                         password: password,
-                        phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
+                        nickname: "",
+                        phone: "",
                         captchaId: captchaId,
                         captcha: captcha
                     )
@@ -3622,8 +3606,12 @@ struct RegisterSheet: View {
                 app.show(Tr("注册成功"))
                 dismiss()
             } catch {
-                self.error = (error as? APIError)?.errorDescription ?? "注册失败"
-                if mode == .account { loadCaptcha(clearError: false) }
+                let text = (error as? APIError)?.errorDescription ?? "注册失败"
+                self.error = text
+                if mode == .account && text.contains("验证码") {
+                    needsManualCaptcha = true
+                    loadCaptcha(clearError: false)
+                }
             }
             busy = false
         }

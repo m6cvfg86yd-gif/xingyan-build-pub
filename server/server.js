@@ -14837,7 +14837,15 @@ async function handleApi(req, res, pathname, query) {
     if (password.length < 6) return fail(res, 422, '密码至少 6 位');
     const phone = str(body.phone, 20);
     if (phone && !/^[0-9+\-\s]{5,20}$/.test(phone)) return fail(res, 422, '手机号格式不正确（也可以留空）');
-    if (!checkCaptcha(body.captchaId, body.captcha)) return fail(res, 422, '验证码不正确，请重新输入');
+    const ip = clientInfo(req).ip;
+    const signupCount = signupSameIpCount(ip);
+    const thresholds = imAdminCfg().thresholds || {};
+    const signupLimit = Math.max(1, Number(thresholds.registerPerIpPerDay) || 5);
+    if (signupCount >= signupLimit) return fail(res, 429, '这个网络今天注册的账号太多了，请明天再试');
+    const quick = body.quick === true && signupCount < 2;
+    if (!quick && !checkCaptcha(body.captchaId, body.captcha)) {
+      return fail(res, 422, '为了账号安全，请完成图形验证码');
+    }
     if (findUserByName(username)) return fail(res, 409, '该用户名已被占用');
     const salt = crypto.randomBytes(16).toString('hex');
     const user = {

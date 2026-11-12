@@ -126,63 +126,9 @@ struct BillDetailView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
-                    HStack(spacing: 12) {
-                        Avatar(path: peerAvatar, size: 50, radius: 25)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(mine ? Tr("转账给") + " " + who : who + " " + Tr("转账给你"))
-                                .font(pf(17, .semibold))
-                                .foregroundColor(C.label)
-                            Text(TimeFmt.bill(t.createdAt))
-                                .font(pf(12.5))
-                                .foregroundColor(PayVisual.secondaryInk)
-                        }
-                        Spacer(minLength: 8)
-                        PayStatusPill(text: t.statusText(mine: mine), tone: statusTone)
-                    }
-                    .padding(18)
-                    .background(PayVisual.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                    PayGroupCard {
-                        VStack(spacing: 10) {
-                            Text(t.statusText(mine: mine))
-                                .font(pf(13, .semibold))
-                                .foregroundColor(PayVisual.secondaryInk)
-                            MoneyLabel(text: "¥" + money(t.amount), size: 46, curSize: 30,
-                                       topAlign: true, color: C.label, exact: true,
-                                       weight: .semibold)
-                                .monospacedDigit()
-                            Text(hintText)
-                                .font(pf(13))
-                                .foregroundColor(PayVisual.secondaryInk)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 20)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                    }
-
-                    PayGroupCard {
-                        VStack(spacing: 0) {
-                            PayDetailRow(title: Tr("转账时间"), value: TimeFmt.bill(t.createdAt))
-                            if !t.note.isEmpty {
-                                HairLine(inset: 18)
-                                PayDetailRow(title: Tr("转账说明"), value: t.note)
-                            }
-                            HairLine(inset: 18)
-                            PayDetailRow(title: Tr("支付方式"), value: t.methodName)
-                            HairLine(inset: 18)
-                            PayDetailRow(title: Tr("转账单号"), value: t.billNo, copyValue: t.billNo)
-                            if t.status == "received" {
-                                HairLine(inset: 18)
-                                PayDetailRow(title: Tr("收款时间"), value: TimeFmt.bill(t.receivedAt))
-                            }
-                            if t.status == "refunded" {
-                                HairLine(inset: 18)
-                                PayDetailRow(title: Tr("退回时间"), value: TimeFmt.bill(t.refundedAt))
-                            }
-                        }
-                    }
+                    transferHeaderCard
+                    transferAmountCard
+                    transferDetailsCard
 
                     Button {
                         showReceipt = true
@@ -237,6 +183,70 @@ struct BillDetailView: View {
             }
             Button(Tr("定位到聊天位置")) { dismiss() }
             Button(Tr("取消"), role: .cancel) { }
+        }
+    }
+
+    private var transferHeaderCard: some View {
+        HStack(spacing: 12) {
+            Avatar(path: peerAvatar, size: 50, radius: 25)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(mine ? Tr("转账给") + " " + who : who + " " + Tr("转账给你"))
+                    .font(pf(17, .semibold))
+                    .foregroundColor(C.label)
+                Text(TimeFmt.bill(t.createdAt))
+                    .font(pf(12.5))
+                    .foregroundColor(PayVisual.secondaryInk)
+            }
+            Spacer(minLength: 8)
+            PayStatusPill(text: t.statusText(mine: mine), tone: statusTone)
+        }
+        .padding(18)
+        .background(PayVisual.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var transferAmountCard: some View {
+        PayGroupCard {
+            VStack(spacing: 10) {
+                Text(t.statusText(mine: mine))
+                    .font(pf(13, .semibold))
+                    .foregroundColor(PayVisual.secondaryInk)
+                MoneyLabel(text: "¥" + money(t.amount), size: 46, curSize: 30,
+                           topAlign: true, color: C.label, weight: .semibold,
+                           exact: true)
+                    .monospacedDigit()
+                Text(hintText)
+                    .font(pf(13))
+                    .foregroundColor(PayVisual.secondaryInk)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+        }
+    }
+
+    private var transferDetailsCard: some View {
+        PayGroupCard {
+            VStack(spacing: 0) {
+                PayDetailRow(title: Tr("转账时间"), value: TimeFmt.bill(t.createdAt))
+                if !t.note.isEmpty {
+                    HairLine(inset: 18)
+                    PayDetailRow(title: Tr("转账说明"), value: t.note)
+                }
+                HairLine(inset: 18)
+                PayDetailRow(title: Tr("支付方式"), value: t.methodName)
+                HairLine(inset: 18)
+                PayDetailRow(title: Tr("转账单号"), value: t.billNo, copyValue: t.billNo)
+                if t.status == "received" {
+                    HairLine(inset: 18)
+                    PayDetailRow(title: Tr("收款时间"), value: TimeFmt.bill(t.receivedAt))
+                }
+                if t.status == "refunded" {
+                    HairLine(inset: 18)
+                    PayDetailRow(title: Tr("退回时间"), value: TimeFmt.bill(t.refundedAt))
+                }
+            }
         }
     }
 
@@ -391,8 +401,8 @@ struct BillReceiptView: View {
                                 .font(pf(13, .semibold))
                                 .foregroundColor(PayVisual.secondaryInk)
                             MoneyLabel(text: "¥" + money(info.amount), size: 42, curSize: 28,
-                                       topAlign: true, color: C.label, exact: true,
-                                       weight: .semibold)
+                                       topAlign: true, color: C.label, weight: .semibold,
+                                       exact: true)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
