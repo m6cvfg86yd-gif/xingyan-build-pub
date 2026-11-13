@@ -5287,14 +5287,15 @@ private struct StarredPayload: Decodable {
 
     func uploadImageForSend(_ image: UIImage, original: Bool,
                             maxSide: CGFloat? = nil,
-                            quality: CGFloat? = nil) async throws -> (url: String, data: Data) {
+                            quality: CGFloat? = nil,
+                            onProgress: ((Double) -> Void)? = nil) async throws -> (url: String, data: Data) {
         let effectiveSide = maxSide ?? (original ? 1920 : 1280)
         let effectiveQuality = quality ?? (original ? 0.88 : 0.75)
         let data = await Task.detached(priority: .userInitiated) {
             image.resizedJPEG(maxSide: effectiveSide, quality: effectiveQuality)
         }.value
         guard let data = data else { throw APIError.message("图片处理失败") }
-        let url = try await uploadData(data)
+        let url = try await uploadData(data, onProgress: onProgress)
         return (url, data)
     }
 
@@ -5362,22 +5363,26 @@ private struct StarredPayload: Decodable {
         return try await uploadData(data)
     }
 
-    private func uploadData(_ data: Data?) async throws -> String {
+    private func uploadData(_ data: Data?,
+                            onProgress: ((Double) -> Void)? = nil) async throws -> String {
         guard let data = data else {
             throw APIError.message("图片处理失败")
         }
 
-        if let url = try? await uploadRawJPEG(data) { return url }
+        if let url = try? await uploadRawJPEG(data, onProgress: onProgress) { return url }
+        onProgress?(0.15)
         let b64 = data.base64EncodedString()
         let payload: UploadPayload = try await post("/api/upload",
                                                     ["dataUrl": "data:image/jpeg;base64," + b64,
                                                      "filename": "photo.jpg"],
                                                     as: UploadPayload.self)
         guard let url = payload.url else { throw APIError.message("上传失败") }
+        onProgress?(1)
         return url
     }
 
-    private func uploadRawJPEG(_ data: Data) async throws -> String {
+    private func uploadRawJPEG(_ data: Data,
+                               onProgress: ((Double) -> Void)? = nil) async throws -> String {
         guard let url = URL(string: base + "/api/upload/raw") else {
             throw APIError.message("服务器地址不正确")
         }
@@ -5388,7 +5393,13 @@ private struct StarredPayload: Decodable {
         req.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
 
         req.setValue("1", forHTTPHeaderField: "x-chris-compressed")
-        let (d, resp) = try await session.upload(for: req, from: data)
+        let delegate = onProgress.map(UploadProgressDelegate.init)
+        let (d, resp): (Data, URLResponse)
+        if let delegate {
+            (d, resp) = try await session.upload(for: req, from: data, delegate: delegate)
+        } else {
+            (d, resp) = try await session.upload(for: req, from: data)
+        }
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             throw APIError.message("上传失败（HTTP \((resp as? HTTPURLResponse)?.statusCode ?? 0)）")
         }

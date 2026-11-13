@@ -32,6 +32,28 @@ private struct ChatTypingDots: View {
     }
 }
 
+private final class ImageUploadProgress: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [Double]
+    private var completed = 0
+
+    init(count: Int) {
+        values = Array(repeating: 0, count: max(1, count))
+    }
+
+    func update(index: Int, value: Double) -> (progress: Double, completed: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+        if values.indices.contains(index) {
+            if values[index] < 0.999, value >= 0.999 {
+                completed += 1
+            }
+            values[index] = min(1, max(0, value))
+        }
+        return (values.reduce(0, +) / Double(values.count), completed)
+    }
+}
+
 private enum ChatTheme {
     static let page = defaultChatCanvasColor()
     static let panel = Color.dyn(0xF0F2F5, 0x1C1C1E)
@@ -4556,13 +4578,25 @@ struct ChatDetailView: View {
         switch p {
         case .image(let img):
             uploading = true
+            sendingPreview = img
+            sendingMedia = Tr("图片上传中…")
+            sendProgress = 0.02
+            scrollTick += 1
             let px = img.sendPixelSize
             Task {
                 let t0 = Date()
                 do {
-                    let up = try await API.shared.uploadImageForSend(img, original: original)
+                    let up = try await API.shared.uploadImageForSend(
+                        img, original: original,
+                        onProgress: { p in
+                            DispatchQueue.main.async {
+                                sendProgress = min(0.82, 0.02 + p * 0.80)
+                            }
+                        })
                     let url = up.url
                     seedLocalImage(url, img, data: up.data)
+                    sendingMedia = Tr("正在发送…")
+                    sendProgress = 0.9
                     let tUp = Date()
                     if let m = try await API.shared.send(chatId: chat.id, kind: "image", content: url,
                                                          imgW: px.w, imgH: px.h) {
@@ -4574,6 +4608,9 @@ struct ChatDetailView: View {
                         + " 原图=\(original ? 1 : 0) 原始=\(Int(img.size.width))x\(Int(img.size.height))") }
                 } catch { app.show((error as? APIError)?.errorDescription ?? "图片发送失败") }
                 uploading = false
+                sendingMedia = ""
+                sendingPreview = nil
+                sendProgress = 0
                 await app.loadChats()
             }
 
@@ -4582,6 +4619,11 @@ struct ChatDetailView: View {
             guard !list.isEmpty else { return }
             CrashCatcher.note("发图", "多选 \(list.count) 张，开始上传")
             uploading = true
+            sendingPreview = list.first
+            sendingMedia = Tr("图片上传中…") + " 0/\(list.count)"
+            sendProgress = 0.02
+            scrollTick += 1
+            let progress = ImageUploadProgress(count: list.count)
             Task {
                 do {
                     var urls: [String] = []
@@ -4596,7 +4638,15 @@ struct ChatDetailView: View {
                             let px = img.sendPixelSize
                             group.addTask {
                                 do {
-                                    let up = try await API.shared.uploadImageForSend(img, original: original)
+                                    let up = try await API.shared.uploadImageForSend(
+                                        img, original: original,
+                                        onProgress: { p in
+                                            let state = progress.update(index: i, value: p)
+                                            DispatchQueue.main.async {
+                                                sendProgress = min(0.82, 0.02 + state.progress * 0.80)
+                                                sendingMedia = Tr("图片上传中…") + " \(state.completed)/\(list.count)"
+                                            }
+                                        })
                                     return (i, up.url, px.w, px.h, up.data, nil)
                                 } catch {
                                     return (i, "", 0, 0, Data(),
@@ -4621,6 +4671,8 @@ struct ChatDetailView: View {
                         seedLocalImage(r.url, list[r.idx], data: r.data)
                     }
                     if urls.count >= 2 {
+                        sendingMedia = Tr("正在发送…")
+                        sendProgress = 0.9
                         CrashCatcher.note("发图", "合成一条相册消息（\(urls.count) 张）")
                         let body = "{\"paths\":" + Self.jsonStringArray(urls) + "}"
                         if let m = try await API.shared.send(chatId: chat.id, kind: "images", content: body) {
@@ -4638,6 +4690,9 @@ struct ChatDetailView: View {
                     }
                 } catch { app.show((error as? APIError)?.errorDescription ?? "图片发送失败") }
                 uploading = false
+                sendingMedia = ""
+                sendingPreview = nil
+                sendProgress = 0
                 await app.loadChats()
             }
 
