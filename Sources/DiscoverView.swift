@@ -1323,6 +1323,7 @@ struct MomentsView: View {
 
     @State private var coverLocked = false
     @State private var coverLockPull: CGFloat = 0
+    @State private var coverOverride = ""
 
     @State private var coverPullBox = MomentCoverPullBox()
     @State private var composerPick = false
@@ -1398,7 +1399,14 @@ struct MomentsView: View {
         }
         return app.me
     }
-    private var cover: String { owner?.momentCover ?? "" }
+    private var cover: String {
+        if coverEditable, !coverOverride.isEmpty { return coverOverride }
+        return owner?.momentCover ?? ""
+    }
+
+    private var coverOverrideKey: String {
+        "chris.momentCover.override." + (app.me?.id ?? "")
+    }
 
     private var signature: String? {
         let s = (owner?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1571,6 +1579,7 @@ struct MomentsView: View {
             scrollMetrics.topY = 0
             sentinelGone = false
             solid = false
+            coverOverride = UserDefaults.standard.string(forKey: coverOverrideKey) ?? ""
         }
         .onDisappear {
             guard scrollGateActive else { return }
@@ -2643,6 +2652,7 @@ struct MomentsView: View {
 
     private func changeCover(_ image: UIImage) {
         let localPath = stageLocalImagePreview(image, prefix: "local-cover")
+        setCoverOverride(localPath)
         if var me = app.me {
             me.momentCover = localPath
             app.me = me
@@ -2655,6 +2665,7 @@ struct MomentsView: View {
                 return
             }
 
+            setCoverOverride(url)
             if var me = app.me {
                 me.momentCover = url
                 app.me = me
@@ -2663,7 +2674,8 @@ struct MomentsView: View {
                 try await API.shared.updateMeChecked(["momentCover": url])
                 app.show(Tr("封面换好了"))
             } catch {
-                if var me = app.me, me.momentCover == url {
+                setCoverOverride(localPath)
+                if var me = app.me {
                     me.momentCover = localPath
                     app.me = me
                 }
@@ -2671,6 +2683,11 @@ struct MomentsView: View {
             }
             uploading = false
         }
+    }
+
+    private func setCoverOverride(_ path: String) {
+        coverOverride = path
+        UserDefaults.standard.set(path, forKey: coverOverrideKey)
     }
 
     private func like(_ moment: Moment) {
