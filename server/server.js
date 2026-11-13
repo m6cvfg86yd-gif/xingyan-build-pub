@@ -3126,20 +3126,29 @@ const MONEY_STATE = 'money-state.json';
 const IDEM_FILE = 'idem.json';
 const AML_JOURNAL = 'aml-events.jsonl';
 
-const paymentLedger = new PaymentLedger({
-  dataDir: DATA_DIR,
-  journalName: MONEY_JOURNAL,
-  stateName: 'payment-ledger-state.json',
-  openSealed: openSecureStoreValue,
-  sealValue: sealSecureStoreValue,
-  readState: readSecureJsonStore,
-  writeState: writeSecureJsonStore,
-  hmac: (payload) => crypto.createHmac('sha256', String(db.secret || 'chris'))
-    .update('payment-ledger|' + payload).digest('hex'),
-  uid,
-  now
-});
-let paymentLedgerHealthy = true;
+let paymentLedger = null;
+let paymentLedgerHealthy = false;
+
+function initPaymentLedger() {
+  /* secret.key 和 money-state.json 必须先由 loadStore() 解密装载，
+     账本才能用同一把密钥验证日志。以前在这里提前构造会让所有账本行验签失败。 */
+  const ledger = new PaymentLedger({
+    dataDir: DATA_DIR,
+    journalName: MONEY_JOURNAL,
+    stateName: 'payment-ledger-state.json',
+    openSealed: openSecureStoreValue,
+    sealValue: sealSecureStoreValue,
+    readState: readSecureJsonStore,
+    writeState: writeSecureJsonStore,
+    hmac: (payload) => crypto.createHmac('sha256', String(db.secret || 'chris'))
+      .update('payment-ledger|' + payload).digest('hex'),
+    uid,
+    now
+  });
+  ledger.rebuild();
+  paymentLedger = ledger;
+  paymentLedgerHealthy = true;
+}
 let amlEngine = null;
 let amlEngineHealthy = false;
 
@@ -3182,6 +3191,9 @@ function journalMoney(row) {
  * @returns      { balance } 成功；{ error } 失败（余额不够 / 金额不合法）
  */
 function applyMoney(user, delta, meta) {
+  if (!paymentLedgerHealthy || !paymentLedger) {
+    return { error: '支付账本未通过启动校验，交易已暂停' };
+  }
   if (!user || !user.id) return { error: '账号不存在' };
   const d = moneyRound(delta);
   if (!isFinite(d)) return { error: '金额不合法' };
@@ -4089,6 +4101,9 @@ function bizPush(userId, row) {
 
 /** 经营账户和零钱之间的内部划转：一笔账本同时记两边，不能分成两次扣加。 */
 function moveBusinessToWallet(user, amount, ref) {
+  if (!paymentLedgerHealthy || !paymentLedger) {
+    return { error: '支付账本未通过启动校验，交易已暂停' };
+  }
   const acc = bizOf(user.id, true);
   const value = moneyRound(amount);
   if (!(value > 0)) return { error: '提现金额不合法' };
@@ -15152,6 +15167,9 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'bills' && parts[1] === 'ledger' && method === 'GET') {
     const me = currentUser(req);
     if (!me) return fail(res, 401, '请先登录');
+    if (!paymentLedgerHealthy || !paymentLedger) {
+      return fail(res, 503, '支付账本未通过启动校验，账单暂时只读不可用');
+    }
     const limit = Math.min(500, Math.max(1, Number(query.get('limit')) || 100));
     const month = str(query.get('month'), 7);
     let rows = paymentLedger.entriesForUser(me.id, 500);
@@ -21596,6 +21614,14 @@ function serveStatic(req, res, pathname) {
 
 loadStore();
 try {
+  initPaymentLedger();
+  console.log('[支付账本] 启动校验通过');
+} catch (error) {
+  paymentLedger = null;
+  paymentLedgerHealthy = false;
+  console.log('[支付账本] 启动校验失败，资金功能已暂停：' + error.message);
+}
+try {
   paymentTokenVault = new PaymentTokenVault({
     file: path.join(DATA_DIR, 'payment-token-vault.json'),
     now
@@ -21703,11 +21729,6 @@ setInterval(() => {
   catch (error) { console.log('[AML] 定时筛查失败：' + String(error && error.message || error)); }
 }, 30 * 60 * 1000).unref();
 loadSecurityState();   // 恢复「登录失败计数 / IP 封禁」（重启也不会被清掉）
-/* 支付账本以追加日志为唯一事实源，启动时从日志重建账户索引。 */
-try { paymentLedger.rebuild(); } catch (error) {
-  paymentLedgerHealthy = false;
-  console.log('[支付账本] 重建失败：' + error.message);
-}
 /* 钱的开工前自检：总账上每个账号最后那笔余额，必须和 users.json 对得上；
    对不上就大声报警（接真钱之前必须先查清，绝不带着不一致继续跑） */
 moneySelfCheck();
@@ -25344,6 +25365,9 @@ async function handleOps(req, res, parts, query) {
   /* 支付账本对账：余额账户 vs 双边账本，发现差异只报告，不自动改钱。 */
   if (sub === 'payments' && parts[2] === 'reconcile' && method === 'GET') {
     if (!can(admin, 'payments')) return fail(res, 403, '你的角色没有查看这一项的权限');
+    if (!paymentLedgerHealthy || !paymentLedger) {
+      return fail(res, 503, '支付账本未通过启动校验，无法对账');
+    }
     const result = paymentLedger.reconcile(db.users, (id) => bizOf(id, false));
     audit(req, admin, '支付账本对账', 'reconcile',
       'entries=' + result.entries + ', differences=' + result.differences.length);
