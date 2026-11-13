@@ -5127,7 +5127,9 @@ struct ChatDetailView: View {
                 return
             }
             markMessageRecalledLocally(message.id)
+            app.applyRecallSummaryLocally(chat.id, messageId: message.id)
             await load(initial: true)
+            await app.loadChats()
             guard !draft.isEmpty else { return }
             reEditDraft = draft
 

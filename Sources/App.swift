@@ -533,7 +533,7 @@ final class AppState: ObservableObject {
             }
         case "recall":
             if !ev.chatId.isEmpty {
-                dropOptimisticSummary(ev.chatId)
+                applyRecallSummaryLocally(ev.chatId, messageId: ev.messageId)
             }
             coalesce { [weak self] in
                 await self?.loadChats()
@@ -1248,6 +1248,33 @@ final class AppState: ObservableObject {
     func dropOptimisticSummary(_ chatId: String) {
         optimisticChats[chatId] = nil
         optimisticAt[chatId] = nil
+    }
+
+    func applyRecallSummaryLocally(_ chatId: String, messageId: String) {
+        guard !chatId.isEmpty, !messageId.isEmpty else { return }
+        prefetched[chatId] = nil
+        optimisticChats[chatId] = nil
+        optimisticAt[chatId] = nil
+
+        guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
+        var row = chats[index]
+        guard row.lastMessage?.id == messageId,
+              var last = row.lastMessage else { return }
+
+        if last.senderId == me?.id {
+            last.preview = Tr("你撤回了一条消息")
+        } else if row.type == "group" {
+            let sender = (last.senderName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let action = Tr("撤回了一条消息")
+            last.preview = sender.isEmpty ? action : sender + " " + action
+        } else {
+            last.preview = Tr("对方撤回了一条消息")
+        }
+        row.lastMessage = last
+        chats[index] = row
+        if let userId = me?.id, !userId.isEmpty {
+            LocalStore.saveChatList(chats, userId: userId)
+        }
     }
 
     func hideChatLocally(_ chatId: String) {
