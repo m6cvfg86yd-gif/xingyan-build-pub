@@ -357,8 +357,8 @@ struct AppearanceView: View {
         .navigationTitle(Tr("外观与显示"))
         .navigationBarTitleDisplayMode(.large)
         .hidesTabBar()
-        .animation(.easeInOut(duration: 0.18), value: effectiveMode)
-        .animation(.easeInOut(duration: 0.18), value: app.appearance)
+        .animation(.easeInOut(duration: 0.38), value: effectiveMode)
+        .animation(.easeInOut(duration: 0.38), value: app.appearance)
     }
 
     private func appearanceChoice(mode: String, title: String, selected: Bool) -> some View {

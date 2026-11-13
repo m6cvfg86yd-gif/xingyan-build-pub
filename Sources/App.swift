@@ -290,19 +290,39 @@ final class AppState: ObservableObject {
     @Published var appearance: String = UserDefaults.standard.string(forKey: "chris.appearance") ?? "auto"
     @Published var appearanceVeilOpacity: Double = 0
     @Published var chatTransitionVeilOpacity: Double = 0
+    private var appearanceTransitionTask: Task<Void, Never>?
+
     func setAppearance(_ v: String) {
         guard v != appearance else { return }
-        withAnimation(.easeOut(duration: 0.12)) {
-            appearanceVeilOpacity = 0.10
+
+        appearanceTransitionTask?.cancel()
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            appearance = v
+            UserDefaults.standard.set(v, forKey: "chris.appearance")
+            appearanceVeilOpacity = 0
+            return
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.11) {
+
+        let brightening = v == "light"
+        withAnimation(.easeOut(duration: 0.16)) {
+            appearanceVeilOpacity = brightening ? 0.16 : 0.12
+        }
+        appearanceTransitionTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard let self, !Task.isCancelled else { return }
             self.appearance = v
             UserDefaults.standard.set(v, forKey: "chris.appearance")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.035) {
-                withAnimation(.easeInOut(duration: 0.30)) {
-                    self.appearanceVeilOpacity = 0
-                }
+
+            // 新主题先落位，再用半秒以上撤掉压暗层，形成由深到浅的提亮。
+            withAnimation(.linear(duration: 0.03)) {
+                self.appearanceVeilOpacity = brightening ? 0.17 : 0.12
             }
+            try? await Task.sleep(nanoseconds: 40_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: brightening ? 0.54 : 0.42)) {
+                self.appearanceVeilOpacity = 0
+            }
+            self.appearanceTransitionTask = nil
         }
     }
 
@@ -1843,7 +1863,7 @@ struct CHRISApp: App {
                     .environmentObject(app)
                     .environmentObject(externalFiles)
                     .preferredColorScheme(app.preferredScheme)
-                    .animation(.easeInOut(duration: 0.22), value: app.appearance)
+                    .animation(.easeInOut(duration: 0.38), value: app.appearance)
                     .onOpenURL { url in
                         if url.isFileURL { ExternalFileInbox.shared.accept([url]) }
                     }
