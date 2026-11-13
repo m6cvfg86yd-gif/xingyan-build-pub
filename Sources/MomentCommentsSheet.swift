@@ -27,8 +27,6 @@ struct MomentCommentsSheet: View {
     @State private var fullImageActions = false
     @State private var fullActionPath = ""
     @FocusState private var commentFocused: Bool
-    @State private var openSwipeKey: String?
-    @State private var swipeOffsets: [String: CGFloat] = [:]
 
     init(moment: Moment, onChanged: @escaping () -> Void) {
         self.initial = moment
@@ -81,9 +79,7 @@ struct MomentCommentsSheet: View {
                     }
                     .scrollDismissesKeyboard(.interactively)
                     .contentShape(Rectangle())
-                    .simultaneousGesture(TapGesture().onEnded {
-                        commentFocused = false
-                    })
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onChange(of: comments.count) { _ in
                         if let last = comments.last {
                             withAnimation(.easeOut(duration: 0.22)) {
@@ -440,106 +436,47 @@ struct MomentCommentsSheet: View {
     private func commentRow(_ item: MomentComment, index: Int) -> some View {
         let key = commentKey(item, index)
         let canDelete = item.userId == app.me?.id
-        let offset = swipeOffsets[key] ?? 0
-        return ZStack(alignment: .trailing) {
-            if canDelete {
-                Button {
-                    openSwipeKey = nil
-                    swipeOffsets[key] = 0
-                    deleting = item
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 15, weight: .medium))
-                        Text(Tr("删除"))
+        return HStack(alignment: .top, spacing: 10) {
+            commentAvatar(item)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 5) {
+                    Text(item.nickname ?? "")
+                        .font(pf(13.5, .semibold))
+                        .foregroundColor(C.label.opacity(0.94))
+                        .lineLimit(1)
+                    if let target = item.replyToName, !target.isEmpty {
+                        Text(Tr("回复") + " @" + target)
                             .font(pf(11.5, .medium))
-                    }
-                    .foregroundColor(.white)
-                    .frame(width: 74)
-                    .frame(maxHeight: .infinity)
-                    .background(Color(hex: 0xFA5151))
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                }
-                .buttonStyle(.plain)
-            }
-
-            HStack(alignment: .top, spacing: 9) {
-                commentAvatar(item)
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 5) {
-                        Text(item.nickname ?? "")
-                            .font(pf(13, .medium))
-                            .foregroundColor(C.label.opacity(0.62))
+                            .foregroundColor(C.link)
                             .lineLimit(1)
-                        if let target = item.replyToName, !target.isEmpty {
-                            Text(Tr("回复") + " @" + target)
-                                .font(pf(11.5))
-                                .foregroundColor(C.green)
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: 0)
-                        Text(TimeFmt.ago(item.at))
-                            .font(pf(10.5))
-                            .foregroundColor(C.subLabel)
                     }
-                    Text(item.content ?? "")
-                        .font(systemTextFont(15, .regular, relativeTo: .subheadline))
-                        .foregroundColor(C.label)
-                        .lineSpacing(4)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Text(TimeFmt.ago(item.at))
+                        .font(pf(10.5))
+                        .foregroundColor(C.subLabel)
+                }
+                Text(item.content ?? "")
+                    .font(systemTextFont(15.2, .regular, relativeTo: .subheadline))
+                    .foregroundColor(C.label)
+                    .lineSpacing(4.5)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                    commentActions(item)
-                        .padding(.top, 3)
-                }
+                commentActions(item)
+                    .padding(.top, 2)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(uiColor: .systemBackground))
-            .contentShape(Rectangle())
-            .offset(x: offset)
-            .animation(.easeOut(duration: 0.16), value: offset)
-            .onTapGesture {
-                if offset < -1 {
-                    openSwipeKey = nil
-                    swipeOffsets[key] = 0
-                    return
-                }
-                if let openSwipeKey, openSwipeKey != key {
-                    swipeOffsets[openSwipeKey] = 0
-                    self.openSwipeKey = nil
-                }
-                beginReply(item)
-            }
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.45).onEnded { _ in
-                    if canDelete { deleting = item }
-                }
-            )
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 10)
-                    .onChanged { value in
-                        guard canDelete,
-                              abs(value.translation.width) > abs(value.translation.height) else { return }
-                        if openSwipeKey != nil, openSwipeKey != key {
-                            swipeOffsets[openSwipeKey!] = 0
-                        }
-                        let base: CGFloat = openSwipeKey == key ? -78 : 0
-                        swipeOffsets[key] = max(-78, min(0, base + value.translation.width))
-                    }
-                    .onEnded { value in
-                        guard canDelete else { return }
-                        let shouldOpen = value.translation.width < -32
-                            || value.predictedEndTranslation.width < -70
-                        withAnimation(.easeOut(duration: 0.16)) {
-                            swipeOffsets[key] = shouldOpen ? -78 : 0
-                            openSwipeKey = shouldOpen ? key : nil
-                        }
-                    }
-            )
         }
-        .clipShape(Rectangle())
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(uiColor: .systemBackground))
+        .contentShape(Rectangle())
+        .onTapGesture { beginReply(item) }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                if canDelete { deleting = item }
+            }
+        )
     }
 
     private func commentActions(_ item: MomentComment) -> some View {
@@ -744,8 +681,6 @@ struct MomentCommentsSheet: View {
                 app.show(error)
             } else {
                 live.comments = comments.filter { $0.id != id }
-                swipeOffsets.removeAll()
-                openSwipeKey = nil
                 onChanged()
             }
         }
