@@ -1,6 +1,104 @@
 import SwiftUI
 import UIKit
 
+private final class BrandTabBadgeView: UIView {
+    enum Kind {
+        case count
+        case dot
+        case world
+    }
+
+    private let gradient = CAGradientLayer()
+    private let highlight = CAShapeLayer()
+    private let label = UILabel()
+    private var kind: Kind = .dot
+    private var ringColor = UIColor.black
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        clipsToBounds = false
+        gradient.startPoint = CGPoint(x: 0.18, y: 0.08)
+        gradient.endPoint = CGPoint(x: 0.82, y: 1)
+        layer.insertSublayer(gradient, at: 0)
+
+        label.textAlignment = .center
+        label.textColor = .white
+        label.adjustsFontSizeToFitWidth = true
+        label.minimumScaleFactor = 0.72
+        addSubview(label)
+
+        highlight.fillColor = UIColor.white.withAlphaComponent(0.24).cgColor
+        layer.addSublayer(highlight)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func apply(kind: Kind, count: Int = 0, ringColor: UIColor) {
+        self.kind = kind
+        self.ringColor = ringColor
+        switch kind {
+        case .count:
+            label.isHidden = false
+            label.text = count > 99 ? "99+" : "\(count)"
+            label.font = .systemFont(ofSize: 9.5, weight: .bold)
+            gradient.colors = [
+                UIColor(red: 0.93, green: 0.34, blue: 0.43, alpha: 1).cgColor,
+                UIColor(red: 0.75, green: 0.08, blue: 0.22, alpha: 1).cgColor
+            ]
+            layer.cornerRadius = 9
+            layer.borderWidth = 1.2
+            layer.borderColor = ringColor.cgColor
+            layer.shadowColor = UIColor(red: 0.75, green: 0.08, blue: 0.22, alpha: 1).cgColor
+            layer.shadowOpacity = 0.28
+            layer.shadowRadius = 4
+            layer.shadowOffset = CGSize(width: 0, height: 1.5)
+        case .dot:
+            label.isHidden = true
+            gradient.colors = [
+                UIColor(red: 0.94, green: 0.37, blue: 0.46, alpha: 1).cgColor,
+                UIColor(red: 0.80, green: 0.10, blue: 0.24, alpha: 1).cgColor
+            ]
+            layer.cornerRadius = 4.25
+            layer.borderWidth = 1.2
+            layer.borderColor = ringColor.cgColor
+            layer.shadowOpacity = 0
+        case .world:
+            label.isHidden = true
+            gradient.colors = [
+                UIColor(red: 1.00, green: 0.48, blue: 0.51, alpha: 1).cgColor,
+                UIColor(red: 0.90, green: 0.13, blue: 0.24, alpha: 1).cgColor,
+                UIColor(red: 0.66, green: 0.03, blue: 0.15, alpha: 1).cgColor
+            ]
+            layer.cornerRadius = 5.75
+            layer.borderWidth = 1.3
+            layer.borderColor = ringColor.cgColor
+            layer.shadowColor = UIColor(red: 0.90, green: 0.13, blue: 0.24, alpha: 1).cgColor
+            layer.shadowOpacity = 0.34
+            layer.shadowRadius = 5
+            layer.shadowOffset = CGSize(width: 0, height: 1.5)
+        }
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        gradient.frame = bounds
+        gradient.cornerRadius = layer.cornerRadius
+        label.frame = bounds.insetBy(dx: 2, dy: 0)
+        let highlightFrame = CGRect(
+            x: max(1.5, bounds.width * 0.16),
+            y: max(1.2, bounds.height * 0.12),
+            width: max(2, bounds.width * 0.22),
+            height: max(1.4, bounds.height * 0.14)
+        )
+        highlight.path = UIBezierPath(ovalIn: highlightFrame).cgPath
+        highlight.isHidden = kind == .count
+    }
+}
+
 private final class CompactDotTabBar: UITabBar {
     var dotIndexes: Set<Int> = [] {
         didSet { setNeedsLayout() }
@@ -11,6 +109,9 @@ private final class CompactDotTabBar: UITabBar {
     }
 
     private var dotViews: [Int: UIView] = [:]
+    var badgeCount: Int = 0 {
+        didSet { setNeedsLayout() }
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -18,20 +119,34 @@ private final class CompactDotTabBar: UITabBar {
         let slot = bounds.width / 4
         for index in 0..<4 {
             let dot = dotViews[index] ?? {
-                let view = UIView()
-                view.isUserInteractionEnabled = false
+                let view = BrandTabBadgeView()
                 view.layer.cornerRadius = 4
                 addSubview(view)
                 dotViews[index] = view
                 return view
             }()
-            dot.backgroundColor = .systemRed
-            dot.layer.borderColor = UIColor(C.tabBg).cgColor
-            dot.layer.borderWidth = 1
-            dot.isHidden = !dotIndexes.contains(index)
-            guard !dot.isHidden else { continue }
+            let badge = dot as! BrandTabBadgeView
             let centerX = slot * (CGFloat(index) + 0.5)
-            dot.frame = CGRect(x: centerX + 9.5, y: 3.5, width: 8, height: 8)
+            if index == 0, badgeCount > 0 {
+                let title = badgeCount > 99 ? "99+" : "\(badgeCount)"
+                let width: CGFloat = title.count > 2 ? 28 : (title.count > 1 ? 23 : 18)
+                badge.frame = CGRect(x: centerX + 8, y: 2,
+                                     width: width, height: 18)
+                badge.apply(kind: .count, count: badgeCount,
+                            ringColor: UIColor(C.tabBg))
+                badge.isHidden = false
+                bringSubviewToFront(badge)
+                continue
+            }
+            let isWorld = index == 2 && dotIndexes.contains(index)
+            let side: CGFloat = isWorld ? 11.5 : 8.5
+            badge.frame = CGRect(x: centerX + (isWorld ? 9 : 10),
+                                 y: isWorld ? 3.5 : 4,
+                                 width: side, height: side)
+            badge.apply(kind: isWorld ? .world : .dot,
+                        ringColor: UIColor(C.tabBg))
+            badge.isHidden = !dotIndexes.contains(index)
+            guard !dot.isHidden else { continue }
             bringSubviewToFront(dot)
         }
     }
@@ -283,11 +398,12 @@ struct NativeTabBar: UIViewRepresentable {
 
     private func refresh(_ bar: UITabBar) {
         guard let items = bar.items, items.count == 4 else { return }
-        items[0].badgeValue = badge > 0 ? (badge > 99 ? "99+" : "\(badge)") : nil
+        items[0].badgeValue = nil
         items[1].badgeValue = nil
         items[2].badgeValue = nil
         items[3].badgeValue = nil
         if let bar = bar as? CompactDotTabBar {
+            bar.badgeCount = badge
             var dots: Set<Int> = []
             if contactsDot { dots.insert(1) }
             if momentsDot { dots.insert(2) }
