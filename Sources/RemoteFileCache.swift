@@ -44,7 +44,19 @@ actor RemoteFileCache {
             let temporary = directory.appendingPathComponent(
                 ".download-" + key + "-" + UUID().uuidString)
             do {
-                try await API.shared.downloadAssetToDisk(remote, destination: temporary)
+                do {
+                    try await API.shared.downloadAssetToDisk(remote, destination: temporary)
+                } catch {
+                    /*
+                     消息可能还带着旧媒体域名或旧入口。域名本身失联时，
+                     同一路径、同一签名从当前主服务器再取一次，避免用户
+                     明明能登录聊天，却被判成“网络失败”。
+                     */
+                    guard let fallback = API.shared.primaryAssetURL(remote),
+                          fallback != remote else { throw error }
+                    try await API.shared.downloadAssetToDisk(fallback,
+                                                             destination: temporary)
+                }
                 let values = try temporary.resourceValues(forKeys: [.fileSizeKey])
                 let size = values.fileSize ?? 0
                 guard size > 0 else { throw APIError.message("文件是空的") }
@@ -122,6 +134,19 @@ actor RemoteFileCache {
 }
 
 extension API {
+    func primaryAssetURL(_ url: URL) -> URL? {
+        guard url.path.hasPrefix("/uploads/") || url.path.hasPrefix("/hls/"),
+              let baseURL = URL(string: base),
+              var primary = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
+              let original = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return nil }
+        primary.percentEncodedPath = original.percentEncodedPath
+        primary.percentEncodedQuery = original.percentEncodedQuery
+        primary.fragment = nil
+        let result = primary.url
+        return result == url ? nil : result
+    }
+
     /// 复用 App 现有证书固定会话，但把文件直接落盘，避免整文件进入内存。
     func downloadAssetToDisk(_ url: URL, destination: URL) async throws {
         var req = URLRequest(url: url)
