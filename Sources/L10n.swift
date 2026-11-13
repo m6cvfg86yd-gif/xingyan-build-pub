@@ -479,6 +479,8 @@ enum L10n {
         "选择一个朋友": "Choose a friend",
         "文件会保留原格式发送": "Files keep their original format",
         "正在上传": "Uploading",
+        "图片上传中…": "Uploading photo…",
+        "正在发送…": "Sending…",
         "正在收藏": "Saving to favorites",
         "单个文件不能超过 100MB": "Each file must be 100 MB or smaller",
         "文件发送失败": "File send failed",
