@@ -1595,7 +1595,7 @@ struct MomentsView: View {
 
             let t = realtime.event.type.lowercased()
             guard t.contains("moment") || t.contains("like") || t.contains("comment") else { return }
-            Task { await pollNewMoments() }
+            Task { await reload() }
         }
         .task {
             if liveTarget == nil { liveTarget = target }
@@ -1603,7 +1603,7 @@ struct MomentsView: View {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 8_000_000_000)
                 if Task.isCancelled { break }
-                await pollNewMoments()
+                await reload()
             }
         }
 
