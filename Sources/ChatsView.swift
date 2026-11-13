@@ -7,9 +7,9 @@ private enum ChatListVisual {
     static let rowLeading: CGFloat = 16
     static let headerLeading: CGFloat = 12
     static let trailing: CGFloat = 16
-    static let avatarSize: CGFloat = 56
-    static let avatarGap: CGFloat = 9
-    static let dividerLeading: CGFloat = 76
+    static let avatarSize: CGFloat = 50
+    static let avatarGap: CGFloat = 11
+    static let dividerLeading: CGFloat = 77
 
     static let ink = Color.dyn(0x1A1A1A, 0xE9EDEF)
     static let previewInk = Color.dyn(0xB2B2B2, 0x8696A0)
@@ -308,7 +308,7 @@ private struct XingyanPresenceDot: View {
     var body: some View {
         Circle()
             .fill(Color(hex: 0x4FD229))
-            .frame(width: 16, height: 16)
+            .frame(width: 14, height: 14)
             .accessibilityHidden(true)
     }
 }

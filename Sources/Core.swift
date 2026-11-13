@@ -1271,9 +1271,7 @@ struct GroupAvatarMosaic: View {
     }
 
     private var shape: AnyShape {
-        UIConfig.avatarCircle
-            ? AnyShape(Circle())
-            : AnyShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        AnyShape(Circle())
     }
 
     var body: some View {

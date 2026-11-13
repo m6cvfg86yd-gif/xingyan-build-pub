@@ -209,7 +209,8 @@ struct MeView: View {
             VStack(spacing: 0) {
                 Button { path.append("profile") } label: {
                     HStack(spacing: 14) {
-                        Avatar(path: app.me?.avatarPath ?? "", size: 66, radius: 22,
+                        Avatar(path: app.me?.avatarPath ?? "", size: 60, radius: 30,
+                               circle: true,
                                level: growth.shownLevel)
 
                         VStack(alignment: .leading, spacing: 5) {
@@ -364,7 +365,8 @@ struct MeView: View {
             HStack(spacing: 8) {
                 NavigationLink(value: "profile") {
                     HStack(spacing: 12) {
-                        Avatar(path: app.me?.avatarPath ?? "", size: 58, radius: 18,
+                        Avatar(path: app.me?.avatarPath ?? "", size: 52, radius: 26,
+                               circle: true,
                                level: growth.shownLevel)
 
                         VStack(alignment: .leading, spacing: 4) {
@@ -431,7 +433,8 @@ struct MeView: View {
             HStack(spacing: 8) {
                 NavigationLink(value: "profile") {
                     HStack(spacing: 12) {
-                        Avatar(path: app.me?.avatarPath ?? "", size: 58, radius: 18,
+                        Avatar(path: app.me?.avatarPath ?? "", size: 52, radius: 26,
+                               circle: true,
                                level: growth.shownLevel)
 
                         VStack(alignment: .leading, spacing: 4) {

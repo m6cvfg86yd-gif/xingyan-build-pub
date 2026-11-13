@@ -701,8 +701,8 @@ private var funcs: [(String, String, Color, String)] {
         HStack(spacing: 12) {
 
             Avatar(path: user.avatarPath,
-                   size: max(50, min(54, L.ctAvatar)),
-                   radius: 26, circle: true,
+                   size: max(42, min(46, L.ctAvatar + 2)),
+                   radius: 23, circle: true,
                    level: (user.qqLevel ?? 0) > 1 ? (user.qqLevel ?? 0) : 0)
             VStack(alignment: .leading, spacing: scheme == .dark ? 3 : 2) {
                 HStack(spacing: 5) {
