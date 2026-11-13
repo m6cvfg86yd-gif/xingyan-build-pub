@@ -2,9 +2,6 @@ name: hotfix-deploy
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feature/shard-shadow-hooks
 
 jobs:
   deploy:
