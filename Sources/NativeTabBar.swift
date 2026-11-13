@@ -45,21 +45,18 @@ private final class BrandTabBadgeView: UIView {
             label.text = count > 99 ? "99+" : "\(count)"
             label.font = .systemFont(ofSize: 9.5, weight: .bold)
             gradient.colors = [
-                UIColor(red: 0.93, green: 0.34, blue: 0.43, alpha: 1).cgColor,
-                UIColor(red: 0.75, green: 0.08, blue: 0.22, alpha: 1).cgColor
+                UIColor(red: 1.00, green: 0.23, blue: 0.19, alpha: 1).cgColor,
+                UIColor(red: 0.95, green: 0.16, blue: 0.12, alpha: 1).cgColor
             ]
             layer.cornerRadius = 9
             layer.borderWidth = 1.2
             layer.borderColor = ringColor.cgColor
-            layer.shadowColor = UIColor(red: 0.75, green: 0.08, blue: 0.22, alpha: 1).cgColor
-            layer.shadowOpacity = 0.28
-            layer.shadowRadius = 4
-            layer.shadowOffset = CGSize(width: 0, height: 1.5)
+            layer.shadowOpacity = 0
         case .dot:
             label.isHidden = true
             gradient.colors = [
-                UIColor(red: 0.94, green: 0.37, blue: 0.46, alpha: 1).cgColor,
-                UIColor(red: 0.80, green: 0.10, blue: 0.24, alpha: 1).cgColor
+                UIColor(red: 1.00, green: 0.23, blue: 0.19, alpha: 1).cgColor,
+                UIColor(red: 0.95, green: 0.16, blue: 0.12, alpha: 1).cgColor
             ]
             layer.cornerRadius = 4.25
             layer.borderWidth = 1.2
@@ -95,7 +92,7 @@ private final class BrandTabBadgeView: UIView {
             height: max(1.4, bounds.height * 0.14)
         )
         highlight.path = UIBezierPath(ovalIn: highlightFrame).cgPath
-        highlight.isHidden = kind == .count
+        highlight.isHidden = kind != .world
     }
 }
 
