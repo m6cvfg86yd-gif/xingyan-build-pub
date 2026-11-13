@@ -1740,13 +1740,6 @@ struct ChatDetailView: View {
                     .zIndex(12)
             }
 
-            if recorder.recording {
-                VoiceHUD(seconds: recorder.seconds, level: recorder.level,
-                         willCancel: recorder.willCancel, willTranscribe: recorder.willTranscribe,
-                         maxSeconds: recorder.maxSeconds)
-                    .zIndex(50)
-            }
-
             if UIConfig.num("chatScrollDiag", 0) > 0 {
                 VStack(spacing: 0) {
                     ChatScrollDiagView()
@@ -3880,19 +3873,44 @@ struct ChatDetailView: View {
                 HStack(spacing: 0) {
                     if voiceMode {
 
-                        HStack(spacing: 7) {
+                        HStack(spacing: 9) {
                             if recorder.recording {
-                                Image(systemName: "waveform")
+                                Circle()
+                                    .fill(recorder.willCancel ? C.red : C.green)
+                                    .frame(width: 8, height: 8)
+                                InlineVoiceWave(level: recorder.level,
+                                                active: !recorder.willCancel)
+                                    .frame(width: 76, height: 22)
+                                Text(String(format: "%d:%02d",
+                                            recorder.seconds / 60,
+                                            recorder.seconds % 60))
+                                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(composerTextInk)
+                                    .monospacedDigit()
+                                Spacer(minLength: 0)
+                                Text(recorder.willCancel
+                                     ? Tr("松手取消")
+                                     : (recorder.willTranscribe ? Tr("松手转文字") : Tr("松手发送")))
+                                    .font(pf(12.5, .medium))
+                                    .foregroundStyle(recorder.willCancel ? C.red : C.green)
+                            } else {
+                                Image(systemName: voiceStarting ? "waveform" : "mic.fill")
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(recorder.willCancel ? C.red : C.green)
+                                    .foregroundStyle(C.green)
+                                Text(voiceStarting ? Tr("正在开始录音…") : Tr("按住 说话"))
+                                    .font(pf(15.5))
+                                    .foregroundColor(composerTextInk)
                             }
-                            Text(recorder.recording
-                                 ? (recorder.willCancel ? Tr("松开手指，取消发送") : Tr("松开 发送"))
-                                 : Tr("按住 说话"))
-                                .font(pf(15.5))
-                                .foregroundColor(recorder.willCancel ? C.red : composerTextInk)
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, recorder.recording ? 12 : 0)
+                        .frame(height: composerInputHeight)
+                        .background(
+                            recorder.recording
+                            ? (recorder.willCancel ? C.red.opacity(0.09) : Color.white.opacity(0.72))
+                            : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 19, style: .continuous)
+                        )
                         .contentShape(Rectangle())
 
                         .scaleEffect(pressStart != nil ? 0.965 : 1)
@@ -3934,16 +3952,31 @@ struct ChatDetailView: View {
                                 }
                         )
                     } else if recorder.recording {
-
-                        HStack(spacing: 7) {
-                            Image(systemName: "waveform")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(recorder.willCancel ? C.red : C.green)
-                            Text(recorder.willCancel ? Tr("松开手指，取消发送") : Tr("松开 发送"))
-                                .font(pf(15.5))
-                                .foregroundColor(recorder.willCancel ? C.red : composerTextInk)
+                        HStack(spacing: 9) {
+                            Circle()
+                                .fill(recorder.willCancel ? C.red : C.green)
+                                .frame(width: 8, height: 8)
+                            InlineVoiceWave(level: recorder.level,
+                                            active: !recorder.willCancel)
+                                .frame(width: 76, height: 22)
+                            Text(String(format: "%d:%02d",
+                                        recorder.seconds / 60,
+                                        recorder.seconds % 60))
+                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(composerTextInk)
+                                .monospacedDigit()
+                            Spacer(minLength: 0)
+                            Text(recorder.willCancel ? Tr("松手取消") : Tr("松手发送"))
+                                .font(pf(12.5, .medium))
+                                .foregroundStyle(recorder.willCancel ? C.red : C.green)
                         }
-                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, minHeight: composerInputHeight)
+                        .background(
+                            recorder.willCancel ? C.red.opacity(0.09)
+                                                : Color.white.opacity(0.72),
+                            in: RoundedRectangle(cornerRadius: 19, style: .continuous)
+                        )
                     } else {
                         HStack(spacing: 4) {
                         ChatComposerTextField(text: $input,
@@ -7468,5 +7501,25 @@ struct QuickLookView: UIViewControllerRepresentable {
                                previewItemAt index: Int) -> QLPreviewItem {
             url as NSURL
         }
+    }
+}
+
+private struct InlineVoiceWave: View {
+    let level: CGFloat
+    let active: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 2.5) {
+            ForEach(0..<18, id: \.self) { index in
+                let phase = abs(sin(Double(index) * 1.37 + Double(level) * 7.5))
+                let intensity = 0.24 + phase * 0.76
+                Capsule(style: .continuous)
+                    .fill(active ? OrbitTheme.jade : Color.red)
+                    .frame(width: 2.4,
+                           height: 4 + (18 * max(0.06, level) * CGFloat(intensity)))
+            }
+        }
+        .animation(.easeOut(duration: 0.08), value: level)
+        .accessibilityHidden(true)
     }
 }
