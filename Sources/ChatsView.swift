@@ -2516,6 +2516,8 @@ struct ChatsView: View {
                 chatFilterSheet
             }
             .background(chatsPageFill.ignoresSafeArea(edges: .top))
+            .navigationTitle(chatListBrandTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
 
             .onChange(of: path.count) { n in
