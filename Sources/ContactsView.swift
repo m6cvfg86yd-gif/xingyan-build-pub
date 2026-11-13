@@ -1158,7 +1158,7 @@ struct ContactCardView: View {
                     }
                 }
 
-                PanelSectionTitle(Tr("好友管理"))
+                PanelSectionTitle(text: Tr("好友管理"))
                 PanelCard(solid: true) {
                     if meta?.block == true {
                         PanelRow(

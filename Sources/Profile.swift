@@ -1384,7 +1384,7 @@ struct FriendPermSheet: View {
             .background(C.cardBg)
 
             VStack(spacing: 8) {
-                PanelSectionTitle(Tr("安全"))
+                PanelSectionTitle(text: Tr("安全"))
                 PanelCard(solid: true) {
                     if blocked {
                         PanelRow(
