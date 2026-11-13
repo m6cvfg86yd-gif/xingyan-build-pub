@@ -334,9 +334,9 @@ struct MeView: View {
         .background(mePageCanvasColor.ignoresSafeArea())
         .navigationTitle(Tr("我的"))
         .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(scheme == .dark ? C.navBg : mePageCanvasColor,
+        .toolbarBackground(mePageCanvasColor, for: .navigationBar)
+        .toolbarBackground(scheme == .dark ? .hidden : .visible,
                            for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .refreshable {
             app.me = try? await API.shared.me()
             await app.loadContacts()
