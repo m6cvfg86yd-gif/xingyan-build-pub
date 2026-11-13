@@ -5002,7 +5002,18 @@ function migrateUploadsToEncrypted() {
     try { st = fs.statSync(file); } catch (err) { continue; }
     if (!st.isFile() || st.size < 20) { continue; }
     let head = Buffer.alloc(0);
-    try { head = fs.readFileSync(file).subarray(0, 4); } catch (err) { continue; }
+    let fd = null;
+    try {
+      fd = fs.openSync(file, 'r');
+      head = Buffer.alloc(4);
+      if (fs.readSync(fd, head, 0, 4, 0) < 4) continue;
+    } catch (err) {
+      continue;
+    } finally {
+      if (fd !== null) {
+        try { fs.closeSync(fd); } catch (err) { }
+      }
+    }
     if (head.equals(UPLOAD_MAGIC)) { skipped += 1; continue; }
     try {
       const raw = fs.readFileSync(file);
@@ -21740,20 +21751,24 @@ scheduleReminderTick();// 管家的定时提醒
 /* 机器人相关要等模块全部加载完再做：给用户开欢迎会话时会走违规词检查，
    而违规检查用的 opsStore 在文件更下面才定义。原来在启动时就调用，会报
    「Cannot access 'opsStore' before initialization」——日志刷屏、欢迎语也发不出去。 */
-setTimeout(() => {
-  try {
-    ensureBots();        // 建「AI 助手 / 管家 / 星联世界」几个机器人账号，并和所有人加好友
-    try { dropSysFriendships(); } catch (e) {}   // 「星言团队」不是好友，只占会话列表一条
-    /* 一次性补齐：所有还没有机器人会话的用户（含之前注册的），都给他们开好欢迎会话 */
-    db.users.filter((u) => !u.bot).forEach((u) => { try { attachBotsFor(u); } catch (e) { } try { ensureSysChat(u); } catch (e) { } });
-    welcomeBots();       // 给主要账号开个「欢迎」会话，一打开就能看到机器人
-    if (shardShadow && shardShadow.enabled && typeof shardShadow.reconcile === 'function') {
-      shardShadow.reconcile(shardShadowLegacySnapshot());
+if (process.env.DISABLE_STARTUP_BOT_BACKFILL === '1') {
+  console.log('[bots] 已锁定 11/12 基线：本次启动不批量补机器人好友和会话');
+} else {
+  setTimeout(() => {
+    try {
+      ensureBots();        // 建「AI 助手 / 管家 / 星联世界」几个机器人账号，并和所有人加好友
+      try { dropSysFriendships(); } catch (e) {}   // 「星言团队」不是好友，只占会话列表一条
+      /* 一次性补齐：所有还没有机器人会话的用户（含之前注册的），都给他们开好欢迎会话 */
+      db.users.filter((u) => !u.bot).forEach((u) => { try { attachBotsFor(u); } catch (e) { } try { ensureSysChat(u); } catch (e) { } });
+      welcomeBots();       // 给主要账号开个「欢迎」会话，一打开就能看到机器人
+      if (shardShadow && shardShadow.enabled && typeof shardShadow.reconcile === 'function') {
+        shardShadow.reconcile(shardShadowLegacySnapshot());
+      }
+    } catch (e) {
+      console.log('[bots] 启动异常：' + e.message);
     }
-  } catch (e) {
-    console.log('[bots] 启动异常：' + e.message);
-  }
-}, 0);
+  }, 0);
+}
 
 async function handleHttpRequest(req, res) {
   res.__req = req;      // sendJson 里判断客户端要不要 gzip 用（别的地方不用管）
