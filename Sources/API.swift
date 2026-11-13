@@ -5285,10 +5285,13 @@ private struct StarredPayload: Decodable {
         return try await uploadData(data)
     }
 
-    func uploadImageForSend(_ image: UIImage, original: Bool) async throws -> (url: String, data: Data) {
+    func uploadImageForSend(_ image: UIImage, original: Bool,
+                            maxSide: CGFloat? = nil,
+                            quality: CGFloat? = nil) async throws -> (url: String, data: Data) {
+        let effectiveSide = maxSide ?? (original ? 1920 : 1280)
+        let effectiveQuality = quality ?? (original ? 0.88 : 0.75)
         let data = await Task.detached(priority: .userInitiated) {
-            image.resizedJPEG(maxSide: original ? 1920 : 1280,
-                              quality: original ? 0.88 : 0.75)
+            image.resizedJPEG(maxSide: effectiveSide, quality: effectiveQuality)
         }.value
         guard let data = data else { throw APIError.message("图片处理失败") }
         let url = try await uploadData(data)

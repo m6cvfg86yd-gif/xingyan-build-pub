@@ -1337,6 +1337,8 @@ struct MomentsView: View {
     @State private var videoSeconds = 0
     @State private var videoWH: (w: Int, h: Int)?
     @State private var videoProgress = 0.0
+    @State private var publishProgress = 0.0
+    @State private var publishStatus = ""
     @State private var posting = false
     @State private var draft = ""
     @State private var picked: [UIImage] = []
@@ -2139,6 +2141,23 @@ struct MomentsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
 
+                    if uploading {
+                        HStack(spacing: 10) {
+                            ProgressView(value: publishProgress)
+                                .tint(C.green)
+                                .frame(width: 72)
+                            Text(publishStatus.isEmpty ? Tr("正在发表…") : publishStatus)
+                                .font(pf(12.5, .medium))
+                                .foregroundColor(C.subLabel)
+                                .lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 16)
+                        .frame(height: 38)
+                        .background(C.cardBg)
+                        .padding(.bottom, 8)
+                    }
+
                     ZStack(alignment: .topLeading) {
                         if draft.isEmpty {
                             Text(Tr("这一刻的想法…"))
@@ -2501,6 +2520,10 @@ struct MomentsView: View {
 
     private func publish() {
         uploading = true
+        publishProgress = 0.02
+        publishStatus = pickedVideo == nil
+            ? Tr("正在准备图片…")
+            : Tr("正在准备视频…")
         Task {
 
             if let v = pickedVideo {
@@ -2510,11 +2533,19 @@ struct MomentsView: View {
                     var from = 0.0
                     if await MediaTool.needsCompress(v) {
                         if let small = await MediaTool.compress(v, onProgress: { p in
-                            DispatchQueue.main.async { videoProgress = min(0.45, p * 0.45) }
+                            DispatchQueue.main.async {
+                                videoProgress = min(0.45, p * 0.45)
+                                publishProgress = videoProgress
+                                publishStatus = Tr("正在压缩视频…")
+                            }
                         }) { file = small; from = 0.45 }
                     }
                     guard let up = await MediaTool.upload(file, onProgress: { p in
-                        DispatchQueue.main.async { videoProgress = from + p * (1 - from) }
+                        DispatchQueue.main.async {
+                            videoProgress = from + p * (1 - from)
+                            publishProgress = videoProgress * 0.92
+                            publishStatus = Tr("正在上传视频…")
+                        }
                     }, skipServerTranscode: true) else {
                         throw APIError.message("视频上传失败")
                     }
@@ -2523,6 +2554,10 @@ struct MomentsView: View {
                     let coverImg: UIImage?
                     if let c = videoCover { coverImg = c } else { coverImg = await MediaTool.firstFrame(file) }
                     if let c = coverImg { cp = (try? await API.shared.uploadCover(image: c)) ?? "" }
+                    await MainActor.run {
+                        publishProgress = 0.96
+                        publishStatus = Tr("正在发布…")
+                    }
                     let wh = videoWH
                     try await API.shared.postMoment(content: draft, images: [],
                                                     video: up, videoCover: cp,
@@ -2546,19 +2581,29 @@ struct MomentsView: View {
             var sizes: [String: [Int]] = [:]
 
             var mResults: [(idx: Int, url: String, w: Int, h: Int, data: Data)] = []
+            let total = max(1, picked.count)
+            var completed = 0
             await withTaskGroup(of: (Int, String, Int, Int, Data).self) { group in
                 var nextIdx = 0
                 func addUpload(_ i: Int) {
                     let img = picked[i]
                     let w = Int(img.size.width.rounded()), h = Int(img.size.height.rounded())
                     group.addTask {
-                        let up = try? await API.shared.uploadImageForSend(img, original: false)
+                        let up = try? await API.shared.uploadImageForSend(
+                            img, original: false, maxSide: 1080, quality: 0.70
+                        )
                         return (i, up?.url ?? "", w, h, up?.data ?? Data())
                     }
                 }
-                while nextIdx < min(3, picked.count) { addUpload(nextIdx); nextIdx += 1 }
+                while nextIdx < min(6, picked.count) { addUpload(nextIdx); nextIdx += 1 }
                 for await r in group {
                     if !r.1.isEmpty { mResults.append((idx: r.0, url: r.1, w: r.2, h: r.3, data: r.4)) }
+                    completed += 1
+                    let progress = 0.05 + Double(completed) / Double(total) * 0.72
+                    await MainActor.run {
+                        publishProgress = min(0.78, progress)
+                        publishStatus = Tr("正在上传图片") + " \(min(completed, picked.count))/\(picked.count)"
+                    }
                     if nextIdx < picked.count { addUpload(nextIdx); nextIdx += 1 }
                 }
             }
@@ -2578,6 +2623,10 @@ struct MomentsView: View {
                 }
             }
             do {
+                await MainActor.run {
+                    publishProgress = 0.84
+                    publishStatus = Tr("正在发布…")
+                }
                 try await API.shared.postMoment(content: draft, images: urls,
                                                 imageSizes: sizes,
                                                 visibility: visibility,
@@ -2585,6 +2634,10 @@ struct MomentsView: View {
                                                 hiddenFrom: Array(hiddenFrom),
                                                 location: draftLocation)
                 await remindFriends()
+                await MainActor.run {
+                    publishProgress = 1
+                    publishStatus = Tr("已发表")
+                }
                 app.show(Tr("已发表"))
             } catch {
                 app.show((error as? APIError)?.errorDescription ?? "发表失败")
@@ -2615,6 +2668,8 @@ struct MomentsView: View {
         videoSeconds = 0
         videoWH = nil
         videoProgress = 0
+        publishProgress = 0
+        publishStatus = ""
         visibility = "public"
         visibleTo = []
         hiddenFrom = []
