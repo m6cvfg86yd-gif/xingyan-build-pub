@@ -794,9 +794,10 @@ struct SwipeChatRow: View {
     }
     private var rowBg: Color {
         if cardStyle { return .clear }
+        if scheme == .dark { return C.chatRowBg }
         return UIConfig.colorIfSet("chatsRowBg")
             ?? UIConfig.colorIfSet("chatRowBg")
-            ?? Color.dyn(0xFFFFFF, 0x0B141A)
+            ?? .white
     }
 
     var body: some View {
@@ -1098,11 +1099,11 @@ struct ChatsView: View {
     private var chatsCardInset: CGFloat { max(8, UIConfig.num("chatsOrbitInset", 12)) }
     private var chatsCardRadius: CGFloat { max(16, UIConfig.num("chatsOrbitRadius", 22)) }
     private var chatsPageFill: Color {
-        UIConfig.colorIfSet("chatsPageBg") ?? Color.dyn(0xFFFFFF, 0x0B141A)
+        C.chatsPageBg
     }
     private var chatsSearchFill: Color {
         scheme == .dark
-            ? (UIConfig.colorIfSet("searchBg") ?? Color(hex: 0x202C33))
+            ? C.searchBg
             : Color(hex: 0xF0F2F5)
     }
     private var chatsCardFill: Color { chatsPageFill }
@@ -1921,7 +1922,7 @@ struct ChatsView: View {
 
     @ViewBuilder private func chatsNavGlass(_ scrolled: CGFloat) -> some View {
         TopGlassBar(scrolled: scrolled,
-                    fallback: chatsPageFill,
+                    fallback: scheme == .dark ? C.navBg : chatsPageFill,
                     offset: 9,
                     always: true,
                     matchDarkBackground: true)

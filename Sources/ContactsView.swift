@@ -90,14 +90,15 @@ struct ContactsView: View {
 
     private var listHeadH: CGFloat { max(0, L.navH - 7) }
     private var contactsCanvas: Color {
-        UIConfig.colorIfSet("contactsBg") ?? Color.dyn(0xFFFFFF, 0x0B141A)
+        scheme == .dark ? C.contactsBg
+            : (UIConfig.colorIfSet("contactsBg") ?? .white)
     }
     private var contactsField: Color {
-        scheme == .dark ? (UIConfig.colorIfSet("searchBg") ?? Color(hex: 0x202C33))
+        scheme == .dark ? C.searchBg
                         : Color(hex: 0xF0F2F5)
     }
     private var contactsRule: Color {
-        scheme == .dark ? (UIConfig.colorIfSet("lineColor") ?? Color(hex: 0x233138))
+        scheme == .dark ? C.hairline
                         : Color(hex: 0xE9EDEF)
     }
     private var contactsLabel: Color {
@@ -107,7 +108,7 @@ struct ContactsView: View {
         scheme == .dark ? C.subLabel : Color(hex: 0x667781)
     }
     private var contactsSectionFill: Color {
-        scheme == .dark ? (UIConfig.colorIfSet("cardBg") ?? Color(hex: 0x111B21))
+        scheme == .dark ? C.cardBg
                         : Color(hex: 0xF7F8FA)
     }
     private var contactsRowFill: Color {
@@ -215,7 +216,7 @@ private var funcs: [(String, String, Color, String)] {
 
                     .background {
                         TopGlassBar(scrolled: navScrolled,
-                                    fallback: contactsCanvas,
+                                    fallback: scheme == .dark ? C.navBg : contactsCanvas,
                                     always: true,
                                     matchDarkBackground: true)
                     }

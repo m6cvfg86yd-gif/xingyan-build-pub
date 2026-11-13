@@ -334,7 +334,8 @@ struct MeView: View {
         .background(mePageCanvasColor.ignoresSafeArea())
         .navigationTitle(Tr("我的"))
         .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(mePageCanvasColor, for: .navigationBar)
+        .toolbarBackground(scheme == .dark ? C.navBg : mePageCanvasColor,
+                           for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .refreshable {
             app.me = try? await API.shared.me()
@@ -503,7 +504,8 @@ struct MeView: View {
     }
 
     private var mePageCanvasColor: Color {
-        UIConfig.colorIfSet("pageBg") ?? worldAndMeCanvasColor()
+        scheme == .dark ? C.pageBg
+            : (UIConfig.colorIfSet("pageBg") ?? worldAndMeCanvasColor())
     }
 
     private func nativeStat(value: String, title: String,

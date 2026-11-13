@@ -317,7 +317,8 @@ struct DiscoverView: View {
     }
 
     private var worldCanvas: Color {
-        UIConfig.colorIfSet("discoverBg") ?? worldAndMeCanvasColor()
+        scheme == .dark ? C.discoverBg
+            : (UIConfig.colorIfSet("discoverBg") ?? worldAndMeCanvasColor())
     }
 
     private var worldPageBackground: some View {
@@ -334,7 +335,7 @@ struct DiscoverView: View {
 
     private var worldHairline: Color {
         scheme == .dark
-            ? (UIConfig.colorIfSet("lineColor") ?? Color(hex: 0x233138))
+            ? C.hairline
             : Color(hex: 0xE7E7E7)
     }
 
@@ -555,7 +556,7 @@ struct DiscoverView: View {
                     .measure("discover.nav")
                     .background {
                         TopGlassBar(scrolled: navScrolled,
-                                    fallback: worldCanvas,
+                                    fallback: scheme == .dark ? C.navBg : worldCanvas,
                                     always: true,
                                     matchDarkBackground: true)
                     }
