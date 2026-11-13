@@ -41,10 +41,10 @@ jobs:
       - name: Deploy server and restore family group
         run: |
           set -euo pipefail
-          scp -F /tmp/ssh_config server/server.js front:/tmp/server-5a4db15.js
-          ssh -F /tmp/ssh_config front 'bash -s' <<'REMOTE'
+          timeout 180 scp -F /tmp/ssh_config server/server.js front:/tmp/server-aml-off.js
+          timeout 300 ssh -F /tmp/ssh_config front 'bash -s' <<'REMOTE'
           set -euo pipefail
-          node --check /tmp/server-5a4db15.js
+          node --check /tmp/server-aml-off.js
           systemctl stop chris-watchdog.service 2>/dev/null || true
           systemctl stop chris-shard@0.service chris-shard@1.service chris-shard@2.service chris-shard@3.service chris-shard@4.service chris-shard@5.service
 
@@ -96,7 +96,12 @@ jobs:
           console.log('MOMENTS_BASE', rows.length);
           NODE
 
-          install -m 0644 /tmp/server-5a4db15.js /opt/chris/app/server.js
+          install -m 0644 /tmp/server-aml-off.js /opt/chris/app/server.js
+          DROPIN=/etc/systemd/system/chris-shard@.service.d/50-baseline-lock.conf
+          mkdir -p "$(dirname "$DROPIN")"
+          grep -q '^Environment=AML_RUNTIME_ENABLED=0$' "$DROPIN" 2>/dev/null \
+            || printf '%s\n' 'Environment=AML_RUNTIME_ENABLED=0' >> "$DROPIN"
+          systemctl daemon-reload
           systemctl start chris-shard@0.service
           for i in $(seq 1 60); do
             code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 2 http://127.0.0.1:5299/api/health || true)"

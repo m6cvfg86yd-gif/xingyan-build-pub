@@ -50,6 +50,9 @@ const paymentCoreMode = ['off', 'shadow', 'enforce'].includes(
 )
   ? String(process.env.PAYMENT_REAL_MONEY_MODE || 'off').toLowerCase()
   : 'off';
+const AML_ENFORCEMENT_ENABLED = !['0', 'false', 'off', 'no'].includes(
+  String(process.env.AML_RUNTIME_ENABLED || '1').toLowerCase()
+);
 
 function observeShardShadow(routeId, payload) {
   if (!shardShadow || !shardShadow.enabled) return;
@@ -3209,7 +3212,7 @@ function applyMoney(user, delta, meta) {
   if (!allowNeg && after < 0) {
     return { error: '余额不足（当前 ¥' + before.toFixed(2) + '，需要 ¥' + Math.abs(d).toFixed(2) + '）' };
   }
-  if (d < 0 && amlEngine && !(meta && meta.allowAmlRestricted)) {
+  if (AML_ENFORCEMENT_ENABLED && d < 0 && amlEngine && !(meta && meta.allowAmlRestricted)) {
     const restricted = amlEngine.isMoneyOutRestricted(user.id);
     if (restricted) {
       return {
@@ -3235,7 +3238,7 @@ function applyMoney(user, delta, meta) {
   }
   if (d === 0) return { balance: before, before: before, delta: 0 };
   let autoAml = null;
-  if (d < 0 && !(meta && (meta.amlChecked || meta.skipAml))) {
+  if (AML_ENFORCEMENT_ENABLED && d < 0 && !(meta && (meta.amlChecked || meta.skipAml))) {
     if (!amlEngineHealthy || !amlEngine) {
       return { error: '反洗钱风控暂时不可用，交易已安全暂停' };
     }
@@ -3317,6 +3320,7 @@ function readAmlJournal(limit) {
  * 返回 null 表示已经给客户端回了拒绝响应；返回对象则表示可以继续扣款/入账。
  */
 function amlGateOrReject(res, req, user, transaction) {
+  if (!AML_ENFORCEMENT_ENABLED) return { allowed: true, disabled: true };
   if (!amlEngineHealthy || !amlEngine) {
     fail(res, 503, '反洗钱风控暂时不可用，交易已安全暂停', { amlPaused: true });
     return null;
@@ -21845,42 +21849,48 @@ try {
   console.log('[分片影子] 初始化失败，已自动关闭：' + String(error && error.message || error));
 }
 /* 反洗钱状态与证据链必须在敏感数据密钥加载完成后再初始化。 */
-try {
-  migrateSecureJsonl(AML_JOURNAL);
-  amlEngine = new AmlEngine({
-    dataDir: DATA_DIR,
-    readState: readSecureJsonStore,
-    writeState: writeSecureJsonStore,
-    appendJournal: appendAmlJournal,
-    readJournal: readAmlJournal,
-    hmac: (payload) => crypto.createHmac('sha256', String(db.secret || 'chris'))
-      .update('aml|' + payload).digest('hex'),
-    uid,
-    now
-  });
-  amlEngineHealthy = true;
-  console.log('[AML] 已加载：客户画像 ' + Object.keys(amlEngine.state.profiles || {}).length
-    + '，案件 ' + (amlEngine.state.cases || []).length
-    + '，有效名单 ' + (amlEngine.state.lists || []).filter((x) => x.active).length);
-} catch (error) {
+if (!AML_ENFORCEMENT_ENABLED) {
   amlEngine = null;
   amlEngineHealthy = false;
-  console.log('[AML] 初始化失败，所有资金转出已暂停：' + String(error && error.message || error));
-}
-setTimeout(() => {
-  if (!amlEngineHealthy || !amlEngine) return;
+  console.log('[AML] 已按要求关闭：资金仅保留余额、账本与幂等校验');
+} else {
   try {
-    const result = amlEngine.sweep(db.users, { limit: 500 });
-    if (result.screened) console.log('[AML] 启动持续尽调筛查 ' + result.screened + ' 人');
+    migrateSecureJsonl(AML_JOURNAL);
+    amlEngine = new AmlEngine({
+      dataDir: DATA_DIR,
+      readState: readSecureJsonStore,
+      writeState: writeSecureJsonStore,
+      appendJournal: appendAmlJournal,
+      readJournal: readAmlJournal,
+      hmac: (payload) => crypto.createHmac('sha256', String(db.secret || 'chris'))
+        .update('aml|' + payload).digest('hex'),
+      uid,
+      now
+    });
+    amlEngineHealthy = true;
+    console.log('[AML] 已加载：客户画像 ' + Object.keys(amlEngine.state.profiles || {}).length
+      + '，案件 ' + (amlEngine.state.cases || []).length
+      + '，有效名单 ' + (amlEngine.state.lists || []).filter((x) => x.active).length);
   } catch (error) {
-    console.log('[AML] 启动筛查失败：' + String(error && error.message || error));
+    amlEngine = null;
+    amlEngineHealthy = false;
+    console.log('[AML] 初始化失败，所有资金转出已暂停：' + String(error && error.message || error));
   }
-}, 8000).unref();
-setInterval(() => {
-  if (!amlEngineHealthy || !amlEngine) return;
-  try { amlEngine.sweep(db.users, { limit: 500 }); }
-  catch (error) { console.log('[AML] 定时筛查失败：' + String(error && error.message || error)); }
-}, 30 * 60 * 1000).unref();
+  setTimeout(() => {
+    if (!amlEngineHealthy || !amlEngine) return;
+    try {
+      const result = amlEngine.sweep(db.users, { limit: 500 });
+      if (result.screened) console.log('[AML] 启动持续尽调筛查 ' + result.screened + ' 人');
+    } catch (error) {
+      console.log('[AML] 启动筛查失败：' + String(error && error.message || error));
+    }
+  }, 8000).unref();
+  setInterval(() => {
+    if (!amlEngineHealthy || !amlEngine) return;
+    try { amlEngine.sweep(db.users, { limit: 500 }); }
+    catch (error) { console.log('[AML] 定时筛查失败：' + String(error && error.message || error)); }
+  }, 30 * 60 * 1000).unref();
+}
 loadSecurityState();   // 恢复「登录失败计数 / IP 封禁」（重启也不会被清掉）
 /* 钱的开工前自检：总账上每个账号最后那笔余额，必须和 users.json 对得上；
    对不上就大声报警（接真钱之前必须先查清，绝不带着不一致继续跑） */
