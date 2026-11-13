@@ -2832,18 +2832,16 @@ function refreshChatAccessStateFromDisk(force) {
   try {
     const raw = readJson(path.join(DATA_DIR, 'chats.json'), { chats: [] });
     const disk = new Map((Array.isArray(raw.chats) ? raw.chats : []).map((chat) => [chat.id, chat]));
-    db.chats.forEach((chat) => {
-      const latest = disk.get(chat.id);
-      if (!latest) return;
-      chat.hiddenFor = Array.isArray(latest.hiddenFor) ? latest.hiddenFor.slice() : [];
-      chat.dismissed = !!latest.dismissed;
-      chat.memberIds = Array.isArray(latest.memberIds) ? latest.memberIds.slice() : [];
-      chat.ownerId = latest.ownerId || '';
-      chat.name = latest.name || '';
-      chat.avatar = latest.avatar || '';
-      if (latest.friendshipRemovedAt) chat.friendshipRemovedAt = latest.friendshipRemovedAt;
-      else delete chat.friendshipRemovedAt;
-    });
+    /* chats.json 是唯一事实源。按整表同步，才能让「另一分片刚删掉的群」
+       和「另一分片刚创建的新群」都正确进入本进程，而不是只更新旧对象字段。 */
+    db.chats = Array.from(disk.values()).map((latest) => Object.assign({}, latest, {
+      hiddenFor: Array.isArray(latest.hiddenFor) ? latest.hiddenFor.slice() : [],
+      dismissed: !!latest.dismissed,
+      memberIds: Array.isArray(latest.memberIds) ? latest.memberIds.slice() : [],
+      ownerId: latest.ownerId || '',
+      name: latest.name || '',
+      avatar: latest.avatar || ''
+    }));
     chatsAccessSignature = signature;
     return true;
   } catch (_) {
@@ -19521,6 +19519,7 @@ async function handleApi(req, res, pathname, query) {
   }
 
   if (parts[0] === 'chats' && method === 'GET' && parts.length === 1) {
+    refreshChatAccessStateFromDisk(false);
     // 一次把最近几个会话的消息也带上：登录时「同步最近的聊天记录」用的就是这个
     if (query.get('withMessages') === '1') {
       const chatCount = Math.min(30, Math.max(1, Number(query.get('syncChats')) || 10));
@@ -21932,6 +21931,8 @@ async function handleHttpRequest(req, res) {
       if (!userId || !body.payload || typeof body.payload !== 'object') {
         return fail(res, 422, '分片事件不完整');
       }
+      if (body.payload.type === 'moment') refreshMomentsFromDisk(true);
+      if (body.payload.type === 'chat') refreshChatAccessStateFromDisk(true);
       const sent = sendToLocal(userId, body.payload);
       return ok(res, { sent });
     }
