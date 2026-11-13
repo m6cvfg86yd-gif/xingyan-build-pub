@@ -41,10 +41,13 @@ jobs:
       - name: Deploy server and restore family group
         run: |
           set -euo pipefail
-          timeout 180 scp -F /tmp/ssh_config server/server.js front:/tmp/server-aml-off.js
-          timeout 300 ssh -F /tmp/ssh_config front 'bash -s' <<'REMOTE'
+          rm -rf /tmp/hotfix-payload
+          mkdir -p /tmp/hotfix-payload
+          cp server/server.js /tmp/hotfix-payload/server-aml-off.js
+          cat > /tmp/hotfix-payload/deploy.sh <<'REMOTE'
           set -euo pipefail
-          node --check /tmp/server-aml-off.js
+          BASE=/tmp/hotfix-payload
+          node --check "$BASE/server-aml-off.js"
           systemctl stop chris-watchdog.service 2>/dev/null || true
           systemctl stop chris-shard@0.service chris-shard@1.service chris-shard@2.service chris-shard@3.service chris-shard@4.service chris-shard@5.service
 
@@ -96,7 +99,7 @@ jobs:
           console.log('MOMENTS_BASE', rows.length);
           NODE
 
-          install -m 0644 /tmp/server-aml-off.js /opt/chris/app/server.js
+          install -m 0644 "$BASE/server-aml-off.js" /opt/chris/app/server.js
           DROPIN=/etc/systemd/system/chris-shard@.service.d/50-baseline-lock.conf
           mkdir -p "$(dirname "$DROPIN")"
           grep -q '^Environment=AML_RUNTIME_ENABLED=0$' "$DROPIN" 2>/dev/null \
@@ -121,3 +124,14 @@ jobs:
           echo
           curl -kLsS -o /dev/null -w 'PUBLIC=%{http_code}\n' --max-time 8 https://127.0.0.1:8443/api/health
           REMOTE
+          tar -C /tmp/hotfix-payload -czf /tmp/hotfix-payload.tgz .
+          tar -C /tmp/hotfix-payload -tzf /tmp/hotfix-payload.tgz
+          timeout 300 sh -c '
+            cat /tmp/hotfix-payload.tgz |
+            ssh -F /tmp/ssh_config front "
+              rm -rf /tmp/hotfix-payload &&
+              mkdir -p /tmp/hotfix-payload &&
+              tar -xzf - -C /tmp/hotfix-payload &&
+              bash /tmp/hotfix-payload/deploy.sh
+            "
+          '
