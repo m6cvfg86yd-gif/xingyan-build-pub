@@ -20,7 +20,8 @@ function main() {
     dataDir,
     secret,
     sourceId: arg('source', ''),
-    baselineDate: arg('baseline-date', '')
+    baselineDate: arg('baseline-date', ''),
+    publicDir: arg('public', '')
   });
   const text = JSON.stringify(report, null, 2);
   const out = arg('out');
@@ -33,7 +34,9 @@ function main() {
     console.log(JSON.stringify({
       ok: report.ok,
       counts: report.counts,
-      issues: report.issues.length,
+      issues: report.issueCount,
+      errors: report.errorCount,
+      warnings: report.warningCount,
       out: file
     }, null, 2));
   } else {
