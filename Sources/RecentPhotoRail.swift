@@ -131,67 +131,6 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
     }
 }
 
-struct RecentPhotoRail: View {
-    @ObservedObject var store: RecentPhotoStore
-    var onPick: (UIImage) -> Void
-
-    @State private var loadingId = ""
-    private let tile: CGFloat = 58
-
-    var body: some View {
-        if !store.assets.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Text(Tr("最近照片"))
-                        .font(pf(13, .semibold))
-                        .foregroundColor(C.label)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 14)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 6) {
-                        ForEach(store.assets, id: \.localIdentifier) { asset in
-                            Button {
-                                guard loadingId.isEmpty else { return }
-                                loadingId = asset.localIdentifier
-                                Task {
-                                    let image = await store.preview(for: asset)
-                                    loadingId = ""
-                                    if let image { onPick(image) }
-                                }
-                            } label: {
-                                ZStack {
-                                    RecentAssetThumbnail(asset: asset,
-                                                         store: store,
-                                                         side: tile)
-                                    if loadingId == asset.localIdentifier {
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(Color.black.opacity(0.34))
-                                        ProgressView()
-                                            .tint(.white)
-                                    }
-                                }
-                                .frame(width: tile, height: tile)
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                }
-            }
-            .padding(.top, 10)
-            .padding(.bottom, 10)
-            .task { await store.loadIfNeeded() }
-        }
-    }
-}
-
 /// 输入框上方的紧凑照片条。只显示照片本身，不再重复标题或玻璃边框。
 struct ChatRecentPhotoStrip: View {
     @ObservedObject var store: RecentPhotoStore
@@ -240,7 +179,7 @@ struct ChatRecentPhotoStrip: View {
                                 .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel(Tr("最近照片"))
+                            .accessibilityLabel(Tr("照片"))
                         }
                     }
                     .padding(.horizontal, 12)
