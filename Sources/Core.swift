@@ -436,15 +436,15 @@ func colorDyn(_ raw: String?, light: UInt32, dark: UInt32) -> Color {
 
 enum C {
 
-    static var pageBg      : Color { UIConfig.fixedDark("pageBg", 0xFFFFFF, 0x0B141A) }
-    static var navBg       : Color { UIConfig.fixedDark("navBg", 0xFFFFFF, 0x111B21) }
-    static var tabBg       : Color { UIConfig.fixedDark("tabBg", 0xFFFFFF, 0x111B21) }
-    static var cardBg      : Color { UIConfig.fixedDark("cardBg", 0xFFFFFF, 0x111B21) }
-    static var chatRowBg   : Color { UIConfig.fixedDark("chatRowBg", 0xFFFFFF, 0x0B141A) }
-    static var pinnedBg    : Color { UIConfig.fixedDark("pinnedBg", 0xF2F2F2, 0x111B21) }
-    static var searchBg    : Color { UIConfig.fixedDark("searchBg", 0xFFFFFF, 0x202C33) }
+    static var pageBg      : Color { UIConfig.fixedDark("pageBg", 0xFFFFFF, 0x000000) }
+    static var navBg       : Color { UIConfig.fixedDark("navBg", 0xFFFFFF, 0x000000) }
+    static var tabBg       : Color { UIConfig.fixedDark("tabBg", 0xFFFFFF, 0x000000) }
+    static var cardBg      : Color { UIConfig.fixedDark("cardBg", 0xFFFFFF, 0x1C1C1E) }
+    static var chatRowBg   : Color { UIConfig.fixedDark("chatRowBg", 0xFFFFFF, 0x000000) }
+    static var pinnedBg    : Color { UIConfig.fixedDark("pinnedBg", 0xF2F2F2, 0x1C1C1E) }
+    static var searchBg    : Color { UIConfig.fixedDark("searchBg", 0xFFFFFF, 0x1C1C1E) }
 
-    static var fieldBg     : Color { UIConfig.fixedDark("fieldBg", 0xF2F2F2, 0x202C33) }
+    static var fieldBg     : Color { UIConfig.fixedDark("fieldBg", 0xF2F2F2, 0x2C2C2E) }
     static var searchIcon  : Color { UIConfig.color("searchIcon", 0xB2B2B2, 0x9A9A9E) }
     static var searchIcon2 : Color { UIConfig.color("searchIcon2", 0x8C8C8C, 0x9A9A9E) }
     static let searchBorder = Color(UIColor { t in
@@ -454,41 +454,41 @@ enum C {
     static let searchBorderChats = Color(UIColor { t in
         t.userInterfaceStyle == .dark ? UIColor(white: 1, alpha: 0.12) : UIColor.clear
     })
-    static var name        : Color { UIConfig.fixedDark("nameColor", 0x1C1C1E, 0xE9EDEF) }
-    static var label       : Color { UIConfig.fixedDark("labelColor", 0x191919, 0xE9EDEF) }
-    static var preview     : Color { UIConfig.fixedDark("previewColor", 0xB2B2B2, 0x8696A0) }
-    static var time        : Color { UIConfig.fixedDark("timeColor", 0xC7C7CC, 0x8696A0) }
+    static var name        : Color { UIConfig.fixedDark("nameColor", 0x1C1C1E, 0xF2F2F7) }
+    static var label       : Color { UIConfig.fixedDark("labelColor", 0x191919, 0xF2F2F7) }
+    static var preview     : Color { UIConfig.fixedDark("previewColor", 0xB2B2B2, 0x8E8E93) }
+    static var time        : Color { UIConfig.fixedDark("timeColor", 0xC7C7CC, 0x8E8E93) }
 
     static var ctIdxColor  : Color { UIConfig.color("ctIdxColor", 0x555555, 0x8E8E93) }
-    static var subLabel    : Color { UIConfig.fixedDark("subLabelColor", 0x999999, 0x8696A0) }
-    static var hairline    : Color { UIConfig.fixedDark("lineColor", 0xE5E5E5, 0x233138) }
-    static var navLine     : Color { UIConfig.fixedDark("navLineColor", 0xE8E8E8, 0x233138) }
+    static var subLabel    : Color { UIConfig.fixedDark("subLabelColor", 0x999999, 0x8E8E93) }
+    static var hairline    : Color { UIConfig.fixedDark("lineColor", 0xE5E5E5, 0x38383A) }
+    static var navLine     : Color { UIConfig.fixedDark("navLineColor", 0xE8E8E8, 0x38383A) }
 
     static var green       : Color { UIConfig.color("greenColor", 0x24C77F, 0x3AD48C) }
     static var red         : Color { UIConfig.color("redColor", 0xFA5151, 0xFA5151) }
     static var orange      : Color { UIConfig.color("orangeColor", 0xB27C37, 0xE3B464) }
     static var tabInk      : Color { UIConfig.color("tabInkColor", 0x191919, 0xB5B5B5) }
 
-    static var chatsTopBg  : Color { UIConfig.fixedDark("chatsTopBg", 0xFFFFFF, 0x111B21) }
+    static var chatsTopBg  : Color { UIConfig.fixedDark("chatsTopBg", 0xFFFFFF, 0x000000) }
 
-    static var chatsPageBg : Color { UIConfig.fixedDark("chatsPageBg", 0xFFFFFF, 0x0B141A) }
-    static var chatsRowBg  : Color { UIConfig.fixedDark("chatsRowBg", 0xFFFFFF, 0x0B141A) }
+    static var chatsPageBg : Color { UIConfig.fixedDark("chatsPageBg", 0xFFFFFF, 0x000000) }
+    static var chatsRowBg  : Color { UIConfig.fixedDark("chatsRowBg", 0xFFFFFF, 0x000000) }
 
-    static var contactsBg  : Color { UIConfig.fixedDark("contactsBg", 0xFFFFFF, 0x0B141A) }
+    static var contactsBg  : Color { UIConfig.fixedDark("contactsBg", 0xFFFFFF, 0x000000) }
 
-    static var discoverBg  : Color { UIConfig.fixedDark("discoverBg", 0xEDEDED, 0x0B141A) }
+    static var discoverBg  : Color { UIConfig.fixedDark("discoverBg", 0xEDEDED, 0x000000) }
 
-    static var discoverCardBg: Color { UIConfig.fixedDark("discoverCardBg", 0xFFFFFF, 0x111B21) }
+    static var discoverCardBg: Color { UIConfig.fixedDark("discoverCardBg", 0xFFFFFF, 0x1C1C1E) }
 
-    static var meCardBg    : Color { UIConfig.fixedDark("meCardBg", 0xFFFFFF, 0x111B21) }
+    static var meCardBg    : Color { UIConfig.fixedDark("meCardBg", 0xFFFFFF, 0x1C1C1E) }
 
     static var bubbleMine  : Color { UIConfig.color("bubbleMineColor", 0x0C7A70, 0x0D5C56) }
-    static var bubbleOther : Color { UIConfig.fixedDark("bubbleOtherColor", 0xFFFFFF, 0x202C33) }
-    static var bubbleText  : Color { UIConfig.color("bubbleTextColor", 0x191919, 0xF2F2F7) }
+    static var bubbleOther : Color { UIConfig.fixedDark("bubbleOtherColor", 0xFFFFFF, 0x1C1C1E) }
+    static var bubbleText  : Color { UIConfig.fixedDark("bubbleTextColor", 0x191919, 0xF2F2F7) }
 
     static var msgTime     : Color { UIConfig.color("msgTimeColor", 0xAEAEB2, 0x8E8E93) }
 
-    static var chatTimeBg  : Color { UIConfig.fixedDark("chatTimeBg", 0xE5E5E5, 0x182229) }
+    static var chatTimeBg  : Color { UIConfig.fixedDark("chatTimeBg", 0xE5E5E5, 0x1C1C1E) }
     static var chatTimeInk : Color { UIConfig.color("chatTimeColor", 0x8A8A8E, 0x8A8A8E) }
 
     static var link        : Color { UIConfig.color("linkColor", 0x576B95, 0x7D90A9) }

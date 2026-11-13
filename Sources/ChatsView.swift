@@ -11,13 +11,13 @@ private enum ChatListVisual {
     static let avatarGap: CGFloat = 9
     static let dividerLeading: CGFloat = 76
 
-    static let ink = Color.dyn(0x1A1A1A, 0xF4F4F6)
-    static let previewInk = Color.dyn(0xB2B2B2, 0x9E9FA5)
-    static let timeInk = Color.dyn(0xCCCCCC, 0x74757B)
+    static let ink = Color.dyn(0x1A1A1A, 0xF2F2F7)
+    static let previewInk = Color.dyn(0xB2B2B2, 0x8E8E93)
+    static let timeInk = Color.dyn(0xCCCCCC, 0x8E8E93)
     static let rule = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark ? .clear : UIColor(hex: 0xE9EDEF)
     })
-    static let badgeRing = Color.dyn(0xFFFFFF, 0x0B141A)
+    static let badgeRing = Color.dyn(0xFFFFFF, 0x000000)
     static let chipInk = Color.dyn(0x62636A, 0xA8A9AF)
     static let selectedChipFill = Color.dyn(0x161823, 0xF1F1F3)
     static let selectedChipInk = Color.dyn(0xFFFFFF, 0x17171A)

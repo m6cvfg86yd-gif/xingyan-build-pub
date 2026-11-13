@@ -45,7 +45,7 @@ func defaultChatCanvasColor() -> Color {
 }
 
 func worldAndMeCanvasColor() -> Color {
-    Color.dyn(0xFFFFFF, 0x0B141A)
+    Color.dyn(0xFFFFFF, 0x000000)
 }
 
 func effectiveDefaultChatBackground(_ path: String) -> String {
@@ -72,7 +72,7 @@ func chatBackgroundSolidColor(_ path: String) -> Color? {
 func renderedChatBackgroundSolidColor(_ path: String, dark: Bool) -> Color? {
     switch normalizedChatBackground(path) {
     case "solid:white":
-        return dark ? Color(hex: 0x101110) : Color(hex: 0xF2F3EF)
+        return dark ? .black : Color(hex: 0xF2F3EF)
     case "solid:black":
         return .black
     default:
@@ -578,7 +578,7 @@ struct ChatBackgroundSheet: View {
         let effect = selectedEffect.resolved(for: scheme)
         return ZStack {
             (effect == .blackBlur
-             ? Color(hex: 0x080908)
+             ? Color.black
              : Color(hex: 0xEFF1EE))
 
             if let solid = renderedChatBackgroundSolidColor(
@@ -601,7 +601,7 @@ struct ChatBackgroundSheet: View {
             }
 
             if effect == .blackBlur {
-                Color(hex: 0x090A09).opacity(0.075)
+                Color.black.opacity(0.075)
             } else if effect == .whiteBlur {
                 Color.white.opacity(0.055)
             }
@@ -719,7 +719,7 @@ struct ChatBackgroundSheet: View {
             }
 
             if effect == .blackBlur {
-                Color(hex: 0x090A09).opacity(0.075)
+                Color.black.opacity(0.075)
             } else if effect == .whiteBlur {
                 Color.white.opacity(0.055)
             }

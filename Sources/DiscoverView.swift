@@ -1410,7 +1410,7 @@ struct MomentsView: View {
     var body: some View {
         ZStack(alignment: .top) {
 
-            Color.dyn(0xFFFFFF, 0x191919).ignoresSafeArea()
+            C.pageBg.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
@@ -2747,7 +2747,7 @@ struct MomentGroupPage: View {
                         Spacer().frame(height: 30)
                     }
                 }
-                .background(Color.dyn(0xFFFFFF, 0x191919))
+                .background(C.pageBg)
             }
 
             if let i = viewerIndex, !viewerPaths.isEmpty {

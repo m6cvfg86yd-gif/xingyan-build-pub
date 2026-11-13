@@ -51,9 +51,9 @@ struct ChatDefaultWallpaper: View {
             } else {
                 LinearGradient(
                     colors: [
-                        Color(hex: 0x101A20),
-                        Color(hex: 0x0B141A),
-                        Color(hex: 0x070D11)
+                        Color(hex: 0x050505),
+                        Color.black,
+                        Color.black
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -61,8 +61,8 @@ struct ChatDefaultWallpaper: View {
 
                 RadialGradient(
                     colors: [
-                        Color(hex: 0x1B3734).opacity(0.34),
-                        Color(hex: 0x152928).opacity(0.14),
+                        Color.white.opacity(0.022),
+                        Color.white.opacity(0.008),
                         Color.clear
                     ],
                     center: UnitPoint(x: 0.15, y: 0.06),
@@ -72,7 +72,7 @@ struct ChatDefaultWallpaper: View {
 
                 RadialGradient(
                     colors: [
-                        Color(hex: 0x152A3A).opacity(0.26),
+                        Color(hex: 0x8E8E93).opacity(0.020),
                         Color.clear
                     ],
                     center: UnitPoint(x: 0.92, y: 0.84),
@@ -280,7 +280,7 @@ private struct ChatWallpaperToneOverlay: View {
         ZStack {
             LinearGradient(
                 colors: dark
-                    ? [Color(hex: 0x18302D).opacity(0.075),
+                    ? [Color.white.opacity(0.018),
                        Color.clear,
                        Color.black.opacity(0.10)]
                     : [Color.white.opacity(0.10),
