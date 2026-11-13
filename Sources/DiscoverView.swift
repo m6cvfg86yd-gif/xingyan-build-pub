@@ -1582,11 +1582,22 @@ struct MomentsView: View {
             sentinelGone = false
             solid = false
             coverOverride = UserDefaults.standard.string(forKey: coverOverrideKey) ?? ""
+            if !coverOverride.isEmpty, !coverOverride.hasPrefix("local-"),
+               coverOverride != (owner?.momentCover ?? "") {
+                clearCoverOverride()
+            }
         }
         .onDisappear {
             guard scrollGateActive else { return }
             scrollGateActive = false
             ScrollGate.shared.setScrolling(false)
+        }
+        .onChange(of: owner?.momentCover) { remote in
+            guard coverEditable, !coverOverride.isEmpty,
+                  !coverOverride.hasPrefix("local-") else { return }
+            if coverOverride != (remote ?? "") {
+                clearCoverOverride()
+            }
         }
         .task {
 
@@ -2726,7 +2737,12 @@ struct MomentsView: View {
                 app.me = me
             }
             do {
-                try await API.shared.updateMeChecked(["momentCover": url])
+                if let updated = try await API.shared.updateMeChecked(["momentCover": url]) {
+                    app.applyMyProfileUser(updated)
+                    clearCoverOverride()
+                } else {
+                    app.applyMyProfileFields(["momentCover": url])
+                }
                 app.show(Tr("封面换好了"))
             } catch {
                 setCoverOverride(localPath)
@@ -2743,6 +2759,11 @@ struct MomentsView: View {
     private func setCoverOverride(_ path: String) {
         coverOverride = path
         UserDefaults.standard.set(path, forKey: coverOverrideKey)
+    }
+
+    private func clearCoverOverride() {
+        coverOverride = ""
+        UserDefaults.standard.removeObject(forKey: coverOverrideKey)
     }
 
     private func like(_ moment: Moment) {

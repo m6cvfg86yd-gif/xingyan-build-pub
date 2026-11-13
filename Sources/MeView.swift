@@ -339,7 +339,9 @@ struct MeView: View {
         .toolbarBackground(scheme == .dark ? .hidden : .visible,
                            for: .navigationBar)
         .refreshable {
-            app.me = try? await API.shared.me()
+            if let user = try? await API.shared.me() {
+                app.applyMyProfileUser(user)
+            }
             await app.loadContacts()
             await MemberStore.shared.refresh()
         }
@@ -695,7 +697,11 @@ struct MeView: View {
 
         .onChange(of: realtime.event) { ev in
             if ev.user != nil || ev.type == "profile" {
-                Task { app.me = try? await API.shared.me() }
+                Task {
+                    if let user = try? await API.shared.me() {
+                        app.applyMyProfileUser(user)
+                    }
+                }
             }
             if ev.type == "ui" { Task { await loadItems() } }
         }

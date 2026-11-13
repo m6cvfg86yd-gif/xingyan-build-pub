@@ -27,7 +27,7 @@ struct ProfileEditView: View {
 
     @State private var showUsername = false
 
-    @State private var filledProfile = false
+    @State private var baselineProfile: [String: String] = [:]
 
     private let gold = Color(hex: 0xF0C24B)
 
@@ -115,9 +115,9 @@ struct ProfileEditView: View {
             }
         }
         .hidesTabBar()
-        .onAppear { fillFromMe() }
+        .onAppear { fillFromMe(force: true) }
 
-        .onChange(of: app.me?.id) { _ in fillFromMe() }
+        .onChange(of: app.me) { _ in fillFromMe(force: false) }
         .sheet(isPresented: $showPhoto) { PhotoPicker { image in cropImage = image } }
         .sheet(isPresented: Binding(get: { cropImage != nil },
                                     set: { if !$0 { cropImage = nil } })) {
@@ -180,16 +180,35 @@ struct ProfileEditView: View {
         .buttonStyle(.plain)
     }
 
-    private func fillFromMe() {
-        guard let me = app.me, !filledProfile else { return }
-        filledProfile = true
-        nickname = me.nickname ?? ""
-        bio = me.bio ?? ""
-        region = me.region ?? ""
-        gender = me.gender == "female" ? "female" : "male"
-        phone = me.phone ?? ""
-        birthday = me.birthday ?? ""
-        patText = me.patText ?? ""
+    private func fillFromMe(force: Bool) {
+        guard let me = app.me else { return }
+        let remote = [
+            "nickname": me.nickname ?? "",
+            "bio": me.bio ?? "",
+            "region": me.region ?? "",
+            "gender": me.gender == "female" ? "female" : "male",
+            "phone": me.phone ?? "",
+            "birthday": me.birthday ?? "",
+            "patText": me.patText ?? ""
+        ]
+        if !force, !baselineProfile.isEmpty {
+            let untouched = nickname == (baselineProfile["nickname"] ?? "")
+                && bio == (baselineProfile["bio"] ?? "")
+                && region == (baselineProfile["region"] ?? "")
+                && gender == (baselineProfile["gender"] ?? "")
+                && phone == (baselineProfile["phone"] ?? "")
+                && birthday == (baselineProfile["birthday"] ?? "")
+                && patText == (baselineProfile["patText"] ?? "")
+            guard untouched else { return }
+        }
+        baselineProfile = remote
+        nickname = remote["nickname"] ?? ""
+        bio = remote["bio"] ?? ""
+        region = remote["region"] ?? ""
+        gender = remote["gender"] ?? "male"
+        phone = remote["phone"] ?? ""
+        birthday = remote["birthday"] ?? ""
+        patText = remote["patText"] ?? ""
     }
 
     private func saveNow(_ fields: [String: Any]) {
@@ -200,7 +219,6 @@ struct ProfileEditView: View {
                 } else {
                     app.applyMyProfileFields(fields)
                 }
-                filledProfile = true
             } catch {
                 app.show(error.localizedDescription)
             }

@@ -933,9 +933,15 @@ final class AppState: ObservableObject {
     private func loadHomeDataParallel() async {
         let epoch = accountEpoch
         loadingChats = true
+        async let meRequest = API.shared.me()
         async let chatsRequest = API.shared.chats()
         async let contactsRequest = API.shared.contactsFull()
         async let momentsRequest = API.shared.momentsFeed()
+
+        if let user = try? await meRequest {
+            guard isCurrentAccount(epoch) else { return }
+            applyMyProfileUser(user)
+        }
 
         do {
             let fresh = try await chatsRequest
@@ -1450,7 +1456,12 @@ final class AppState: ObservableObject {
     /// 资料保存后以服务端返回值作为唯一真源，避免只改本地状态、
     /// 下一次轮询又从旧用户行覆盖回来。
     func applyMyProfileUser(_ user: User) {
-        let user = mergeLocalProfileOverrides(user)
+        /*
+         服务端返回的是已提交的完整资料。这里必须清掉乐观覆盖，
+         否则本机为了秒显而写入的旧头像/封面/昵称会在 120 秒内
+         反过来压住真正保存成功的数据，也会挡住另一台设备发来的更新。
+         */
+        localProfileOverrides.removeAll()
         guard var merged = me else {
             me = user
             rememberLastUser()
@@ -1469,6 +1480,15 @@ final class AppState: ObservableObject {
         merged.chatBackground = user.chatBackground ?? merged.chatBackground
         me = merged
         rememberLastUser()
+    }
+
+    /// 前后台切换或弱网漏掉 WebSocket 事件时，主动从服务端校准自己的资料。
+    func refreshMyProfile() async {
+        guard isCurrentAccount(accountEpoch) else { return }
+        if let user = try? await API.shared.me() {
+            guard isCurrentAccount(accountEpoch) else { return }
+            applyMyProfileUser(user)
+        }
     }
 
     private func mergeLocalProfileOverrides(_ user: User) -> User {
@@ -2060,6 +2080,7 @@ struct RootView: View {
                     GrowthStore.shared.start()
                     Task { await app.touchCurrentDevice() }
                     await app.refreshUI()
+                    await app.refreshMyProfile()
                     await app.loadChats()
                     await app.loadContacts()
                     await app.refreshDotCounts()
