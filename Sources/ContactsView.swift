@@ -93,11 +93,11 @@ struct ContactsView: View {
         UIConfig.colorIfSet("contactsBg") ?? Color.dyn(0xFFFFFF, 0x0B141A)
     }
     private var contactsField: Color {
-        scheme == .dark ? (UIConfig.colorIfSet("cardBg") ?? Color(hex: 0x202C33))
+        scheme == .dark ? (UIConfig.colorIfSet("searchBg") ?? Color(hex: 0x202C33))
                         : Color(hex: 0xF0F2F5)
     }
     private var contactsRule: Color {
-        scheme == .dark ? (UIConfig.colorIfSet("lineColor") ?? Color(hex: 0x1F2C34))
+        scheme == .dark ? (UIConfig.colorIfSet("lineColor") ?? Color(hex: 0x233138))
                         : Color(hex: 0xE9EDEF)
     }
     private var contactsLabel: Color {

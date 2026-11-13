@@ -334,7 +334,7 @@ struct DiscoverView: View {
 
     private var worldHairline: Color {
         scheme == .dark
-            ? (UIConfig.colorIfSet("lineColor") ?? Color(hex: 0x1C1C20))
+            ? (UIConfig.colorIfSet("lineColor") ?? Color(hex: 0x233138))
             : Color(hex: 0xE7E7E7)
     }
 
