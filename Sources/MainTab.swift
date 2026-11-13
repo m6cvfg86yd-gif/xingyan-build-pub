@@ -25,6 +25,11 @@ struct MainTabView: View {
         unreadTotal == 0 && app.chats.contains { $0.muted == true && ($0.unread ?? 0) > 0 }
     }
 
+    private var tabAvatarPath: String {
+        let current = app.me?.avatarPath ?? ""
+        return current.isEmpty ? app.lastAvatar : current
+    }
+
     private var rootTabBarVisible: Bool {
         !app.tabBarHidden && app.openChat == nil && app.openMiniApp == nil
     }
@@ -76,7 +81,8 @@ struct MainTabView: View {
                                  badge: app.showDot("chats", auto: unreadTotal > 0) ? unreadTotal : 0,
                                  contactsDot: app.showDot("contacts", auto: app.friendRequests > 0),
                                  momentsDot: app.showDot("discover", auto: app.momentsUnread > 0),
-                                 meDot: app.showDot("me", auto: false))
+                                 meDot: app.showDot("me", auto: false),
+                                 avatarPath: tabAvatarPath)
                         .frame(height: 49 + L.safeBottom)
                         .offset(y: L.safeBottom)
                         .ignoresSafeArea(edges: .bottom)

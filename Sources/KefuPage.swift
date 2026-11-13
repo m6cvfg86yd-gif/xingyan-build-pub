@@ -22,123 +22,205 @@ struct KefuPage: View {
     private var myId: String { app.me?.id ?? "" }
 
     var body: some View {
-        VStack(spacing: 0) {
-            NavBar(title: agentName, back: { dismiss() }) {
-                Button {
-                    askHuman()
-                } label: {
-                    Text(Tr("转人工"))
-                        .font(pf(15, .medium))
-                        .foregroundColor(C.green)
-                        .frame(height: L.navH)
-                        .padding(.trailing, 16)
-                }
-                .buttonStyle(.plain)
-            }
+        NavigationStack {
+            VStack(spacing: 0) {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            header
+                                .padding(.bottom, 12)
 
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(spacing: 0) {
-                        header
-                        if !connectTip.isEmpty {
-                            VStack(spacing: 10) {
-                                Text(connectTip).font(pf(13.5)).foregroundColor(C.subLabel)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 30)
-                                Button {
-                                    connectTip = ""
-                                    Task { await start() }
-                                } label: {
-                                    Text(Tr("重试"))
-                                        .font(pf(15, .medium)).foregroundColor(.white)
-                                        .padding(.horizontal, 24).frame(height: 40)
-                                        .background(Capsule().fill(C.green))
-                                }
-                                .buttonStyle(.plain)
+                            if loading {
+                                ProgressView(Tr("正在连接星言支持…"))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.vertical, 28)
+                            } else if !connectTip.isEmpty {
+                                reconnectBlock
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 30)
+
+                            ForEach(messages) { message in
+                                kefuBubble(message)
+                            }
+
+                            Color.clear
+                                .frame(height: 10)
+                                .id("bottom")
                         }
-                        ForEach(messages) { m in
-                            kefuBubble(m)
+                        .padding(.horizontal, 12)
+                    }
+                    .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: messages.count) { _ in
+                        withAnimation(.easeOut(duration: 0.22)) {
+                            proxy.scrollTo("bottom", anchor: .bottom)
                         }
-                        Color.clear.frame(height: 12).id("bottom")
                     }
                 }
-                .background(C.pageBg)
-                .onChange(of: messages.count) { _ in
-                    withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                .background(Color(uiColor: .systemGroupedBackground))
+            }
+            .navigationTitle(agentName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel(Tr("关闭"))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        askHuman()
+                    } label: {
+                        Image(systemName: "person.badge.headphones")
+                    }
+                    .accessibilityLabel(Tr("转人工"))
                 }
             }
-
-            quickRow
-            inputBar
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                composer
+            }
+            .task { await start() }
+            .sheet(isPresented: $showFAQ) {
+                FAQView().environmentObject(app)
+            }
         }
-        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
-        .background(C.pageBg.ignoresSafeArea(edges: .top))
-        .toolbar(.hidden, for: .navigationBar)
-        .swipeBack { dismiss() }
         .hidesTabBar()
-        .task { await start() }
-        .sheet(isPresented: $showFAQ) { FAQView().environmentObject(app) }
     }
 
     private var header: some View {
-        VStack(spacing: 8) {
-            RPAvatar(path: agentAvatar, size: 52)
-            Text(agentName).font(pf(15, .medium)).foregroundColor(C.label)
-            Text(workTime.isEmpty ? Tr("人工在线时间 09:00 - 22:00") : workTime)
-                .font(pf(12)).foregroundColor(C.subLabel)
+        VStack(spacing: 12) {
+            HStack(spacing: 13) {
+                RPAvatar(path: agentAvatar, size: 48)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(agentName)
+                        .font(.headline)
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 7, height: 7)
+                        Text(workTime.isEmpty ? Tr("在线支持") : workTime)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Button { showFAQ = true } label: {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 21))
+                }
+                .buttonStyle(.plain)
+            }
+
             if !greet.isEmpty {
                 Text(greet)
-                    .font(pf(13.5))
-                    .foregroundColor(C.label)
-                    .multilineTextAlignment(.leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background { CardGlassBox(radius: 8) }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(.background, in: RoundedRectangle(cornerRadius: 14,
+                                                                  style: .continuous))
             }
-            HStack(spacing: 14) {
-                Button { showFAQ = true } label: {
-                    Text(Tr("看常见问题")).font(pf(13)).foregroundColor(C.green)
-                }
-                .buttonStyle(.plain)
-                Button { askHuman() } label: {
-                    Text(Tr("转人工客服")).font(pf(13)).foregroundColor(C.green)
-                }
-                .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(.background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
+        }
+        .padding(.top, 8)
+    }
+
+    private var reconnectBlock: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 26, weight: .light))
+                .foregroundStyle(.secondary)
+            Text(connectTip)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button(Tr("重新连接")) {
+                connectTip = ""
+                Task { await start() }
             }
-            .padding(.top, 2)
+            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(C.cardBg)
-        .padding(.bottom, 10)
+        .padding(.vertical, 28)
+    }
+
+    private var composer: some View {
+        VStack(spacing: 0) {
+            quickRow
+            HStack(alignment: .bottom, spacing: 10) {
+                TextField(Tr("描述你遇到的问题…"), text: $input, axis: .vertical)
+                    .font(.body)
+                    .lineLimit(1...5)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 9)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 19, style: .continuous)
+                            .stroke(Color.primary.opacity(0.07), lineWidth: 0.6)
+                    }
+
+                Button {
+                    sendMessage(input)
+                } label: {
+                    Group {
+                        if sending {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 16, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? Color.secondary.opacity(0.45) : Color.accentColor,
+                        in: Circle()
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(sending || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 7)
+            .padding(.bottom, 8)
+            .background(.bar)
+        }
     }
 
     @ViewBuilder private func kefuBubble(_ m: Message) -> some View {
         let mine = (m.senderId == myId)
-        HStack(alignment: .top, spacing: 8) {
-            if mine { Spacer(minLength: 50) }
-            if !mine { RPAvatar(path: agentAvatar, size: 34) }
-            Text(m.body)
-                .font(pf(15))
-
-                .foregroundColor(mine ? .white : C.label)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(mine ? C.bubbleMine : C.cardBg)
-                )
-                .fixedSize(horizontal: false, vertical: true)
-            if mine { RPAvatar(path: app.me?.avatar ?? "", size: 34) }
-            if !mine { Spacer(minLength: 50) }
+        VStack(alignment: mine ? .trailing : .leading, spacing: 4) {
+            HStack(alignment: .bottom, spacing: 7) {
+                if mine { Spacer(minLength: 54) }
+                if !mine {
+                    RPAvatar(path: agentAvatar, size: 28)
+                }
+                Text(m.body)
+                    .font(.body)
+                    .foregroundStyle(mine ? .white : .primary)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 9)
+                    .background(
+                        mine ? Color.accentColor : Color(uiColor: .secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    )
+                    .fixedSize(horizontal: false, vertical: true)
+                if !mine { Spacer(minLength: 54) }
+            }
+            Text(TimeFmt.bubble(m.createdAt))
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .padding(.leading, mine ? 0 : 35)
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 10)
+        .padding(.bottom, 12)
     }
 
     @ViewBuilder private var quickRow: some View {
@@ -148,19 +230,24 @@ struct KefuPage: View {
                     ForEach(Array(quick.enumerated()), id: \.offset) { _, it in
                         Button { sendMessage(it.q) } label: {
                             Text(it.q)
-                                .font(pf(13))
-                                .foregroundColor(C.green)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
                                 .padding(.horizontal, 12)
-                                .frame(height: 32)
-                                .background { CardGlassBox(radius: 999) }
+                                .frame(height: 30)
+                                .background(Color(uiColor: .secondarySystemGroupedBackground),
+                                            in: Capsule())
+                                .overlay {
+                                    Capsule()
+                                        .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+                                }
                         }
                         .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
             }
-            .background(C.pageBg)
+            .padding(.top, 7)
         }
     }
 

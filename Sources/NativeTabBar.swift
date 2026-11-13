@@ -162,14 +162,74 @@ private final class CompactDotTabBar: UITabBar {
     }
 }
 
+@MainActor
+fileprivate final class TabAvatarLoader: ObservableObject {
+    static let shared = TabAvatarLoader()
+
+    @Published private(set) var revision = 0
+
+    private var images: [String: UIImage] = [:]
+    private var inFlight: Set<String> = []
+    private var retryTasks: [String: Task<Void, Never>] = [:]
+
+    private init() {}
+
+    func image(for value: String) -> UIImage? {
+        if let image = images[value] { return image }
+        guard let cached = ImageStore.shared.get(value) else { return nil }
+        images[value] = cached
+        return cached
+    }
+
+    func prepare(_ value: String) {
+        guard !value.isEmpty, images[value] == nil, !inFlight.contains(value) else { return }
+        if let cached = ImageStore.shared.get(value) {
+            images[value] = cached
+            revision &+= 1
+            return
+        }
+        guard let url = API.shared.assetURL(value) else { return }
+        inFlight.insert(value)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.inFlight.remove(value) }
+            do {
+                let data = try await API.shared.assetData(url)
+                guard !Task.isCancelled, let image = UIImage(data: data) else {
+                    self.scheduleRetry(value)
+                    return
+                }
+                ImageStore.shared.put(value, image)
+                ImageStore.shared.diskWrite(value, data)
+                self.images[value] = image
+                self.revision &+= 1
+            } catch {
+                self.scheduleRetry(value)
+            }
+        }
+    }
+
+    private func scheduleRetry(_ value: String) {
+        retryTasks[value]?.cancel()
+        retryTasks[value] = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 12_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            self.retryTasks.removeValue(forKey: value)
+            self.prepare(value)
+        }
+    }
+}
+
 /// 只替换底栏；页面、顶栏、导航和键盘布局继续使用 B2103 原实现。
 struct NativeTabBar: UIViewRepresentable {
     @Binding var selection: Int
     @Environment(\.colorScheme) private var scheme
+    @StateObject private var avatarLoader = TabAvatarLoader.shared
     let badge: Int
     let contactsDot: Bool
     let momentsDot: Bool
     let meDot: Bool
+    let avatarPath: String
 
     func makeCoordinator() -> Coordinator {
         Coordinator(selection: $selection)
@@ -209,6 +269,13 @@ struct NativeTabBar: UIViewRepresentable {
         if let item = bar.items?[safe: selection], bar.selectedItem !== item {
             bar.selectedItem = item
         }
+        avatarLoader.prepare(avatarPath)
+        context.coordinator.applyAvatar(
+            in: bar,
+            loader: avatarLoader,
+            revision: avatarLoader.revision,
+            avatarPath: avatarPath
+        )
         refresh(bar)
     }
 
@@ -287,6 +354,11 @@ struct NativeTabBar: UIViewRepresentable {
     final class Coordinator: NSObject, UITabBarDelegate {
         var selection: Binding<Int>
         private let selectionFeedback = UISelectionFeedbackGenerator()
+        private var appliedAvatarKey = ""
+        private let systemMyImage = UIImage(systemName: "person.crop.circle")?
+            .withRenderingMode(.alwaysTemplate)
+        private let systemMySelected = UIImage(systemName: "person.crop.circle.fill")?
+            .withTintColor(UIColor(OrbitTheme.jade), renderingMode: .alwaysOriginal)
 
         init(selection: Binding<Int>) {
             self.selection = selection
@@ -297,6 +369,43 @@ struct NativeTabBar: UIViewRepresentable {
             selectionFeedback.prepare()
             selectionFeedback.selectionChanged()
             selection.wrappedValue = index
+        }
+
+        fileprivate func applyAvatar(in bar: UITabBar, loader: TabAvatarLoader,
+                                     revision: Int, avatarPath: String) {
+            guard let items = bar.items, items.count == 4 else { return }
+            let key = "\(revision)|\(avatarPath)"
+            guard key != appliedAvatarKey else { return }
+
+            guard !avatarPath.isEmpty, let avatar = loader.image(for: avatarPath) else {
+                if avatarPath.isEmpty {
+                    items[3].image = systemMyImage
+                    items[3].selectedImage = systemMySelected
+                    appliedAvatarKey = key
+                }
+                return
+            }
+
+            let circled = circularAvatar(avatar)
+            items[3].image = circled.withRenderingMode(.alwaysOriginal)
+            items[3].selectedImage = circled.withRenderingMode(.alwaysOriginal)
+            appliedAvatarKey = key
+        }
+
+        private func circularAvatar(_ image: UIImage) -> UIImage {
+            let side: CGFloat = 25
+            let size = CGSize(width: side, height: side)
+            return UIGraphicsImageRenderer(size: size).image { _ in
+                UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).addClip()
+                let scale = max(size.width / max(1, image.size.width),
+                                size.height / max(1, image.size.height))
+                let drawSize = CGSize(width: image.size.width * scale,
+                                      height: image.size.height * scale)
+                image.draw(in: CGRect(x: (side - drawSize.width) / 2,
+                                      y: (side - drawSize.height) / 2,
+                                      width: drawSize.width,
+                                      height: drawSize.height))
+            }
         }
     }
 }
