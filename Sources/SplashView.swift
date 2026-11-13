@@ -6,6 +6,7 @@ struct SplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var revealed = false
     @State private var breathing = false
+    @State private var shimmering = false
     @State private var progress: CGFloat = 0
 
     var body: some View {
@@ -18,58 +19,53 @@ struct SplashView: View {
 
                     VStack(spacing: 20) {
                         StarLaunchMark(
-                            size: min(116, max(96, geo.size.width * 0.27)),
-                            breathing: breathing
+                            size: min(112, max(96, geo.size.width * 0.26)),
+                            breathing: breathing,
+                            shimmering: shimmering
                         )
-                        .scaleEffect(revealed ? 1 : 0.94)
+                        .scaleEffect(revealed ? 1 : 0.965)
                         .opacity(revealed ? 1 : 0)
 
-                        VStack(spacing: 8) {
+                        VStack(spacing: 7) {
                             Text("星言")
-                                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                                .tracking(1.2)
+                                .font(.system(size: 29, weight: .semibold, design: .default))
+                                .tracking(0.2)
                                 .foregroundStyle(.white)
 
-                            Text("连接，自有轨道")
-                                .font(.system(size: 12.5, weight: .medium))
-                                .tracking(1.6)
-                                .foregroundStyle(Color.white.opacity(0.50))
+                            Text("STAR CHAT")
+                                .font(.system(size: 9.5, weight: .semibold, design: .default))
+                                .tracking(2.7)
+                                .foregroundStyle(Color.white.opacity(0.38))
                         }
-                        .offset(y: revealed ? 0 : 8)
+                        .offset(y: revealed ? 0 : 7)
                         .opacity(revealed ? 1 : 0)
                     }
-                    .offset(y: -geo.size.height * 0.025)
+                    .offset(y: -geo.size.height * 0.034)
 
                     Spacer(minLength: 0)
 
-                    VStack(spacing: 14) {
+                    VStack(spacing: 0) {
                         Capsule(style: .continuous)
-                            .fill(Color.white.opacity(0.07))
-                            .frame(width: 132, height: 1.5)
+                            .fill(Color.white.opacity(0.10))
+                            .frame(width: 96, height: 1)
                             .overlay(alignment: .leading) {
                                 Capsule(style: .continuous)
                                     .fill(
                                         LinearGradient(
                                             colors: [
-                                                Color.white.opacity(0.18),
-                                                Color.white.opacity(0.82),
-                                                Color(hex: 0x49D79B).opacity(0.72)
+                                                Color.white.opacity(0.25),
+                                                Color.white.opacity(0.94)
                                             ],
                                             startPoint: .leading,
                                             endPoint: .trailing
                                         )
                                     )
-                                    .frame(width: 132 * progress, height: 1.5)
-                                    .shadow(color: Color.white.opacity(0.24), radius: 4)
+                                    .frame(width: 96 * progress, height: 1)
+                                    .shadow(color: Color.white.opacity(0.28), radius: 3)
                             }
-
-                        Text("XINGYAN")
-                            .font(.system(size: 8, weight: .semibold, design: .rounded))
-                            .tracking(4.2)
-                            .foregroundStyle(Color.white.opacity(0.25))
                     }
                     .opacity(revealed ? 1 : 0)
-                    .padding(.bottom, max(30, L.safeBottom + 18))
+                    .padding(.bottom, max(34, L.safeBottom + 22))
                 }
                 .padding(.horizontal, 28)
             }
@@ -79,15 +75,18 @@ struct SplashView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("星言"))
         .onAppear {
-            withAnimation(.easeOut(duration: 0.52)) {
+            withAnimation(.easeOut(duration: 0.72)) {
                 revealed = true
             }
-            withAnimation(.easeInOut(duration: 1.05).delay(0.12)) {
+            withAnimation(.easeInOut(duration: 1.30).delay(0.10)) {
                 progress = 1
             }
             guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
+            withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
                 breathing = true
+            }
+            withAnimation(.linear(duration: 1.9).delay(0.36).repeatForever(autoreverses: false)) {
+                shimmering = true
             }
         }
     }
@@ -99,56 +98,58 @@ struct StarLaunchBackdrop: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                LinearGradient(
-                    stops: [
-                        .init(color: Color(hex: 0x050706), location: 0),
-                        .init(color: Color(hex: 0x0A110D), location: 0.48),
-                        .init(color: Color(hex: 0x070A08), location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                Color(hex: 0x030404)
 
                 if !remote.isEmpty {
                     RemoteImage(path: remote, mode: .fill, maxSide: 1600)
-                        .frame(width: geo.size.width * 1.10,
-                               height: geo.size.height * 1.06)
-                        .blur(radius: 58, opaque: false)
-                        .saturation(0.72)
-                        .opacity(0.11)
-                        .blendMode(.screen)
+                        .frame(width: geo.size.width * 1.12,
+                               height: geo.size.height * 1.08)
+                        .blur(radius: 42, opaque: false)
+                        .saturation(0.86)
+                        .opacity(0.24)
                         .clipped()
+
+                    RadialGradient(
+                        colors: [
+                            Color.black.opacity(0.10),
+                            Color.black.opacity(0.62),
+                            Color.black.opacity(0.90)
+                        ],
+                        center: .center,
+                        startRadius: geo.size.width * 0.12,
+                        endRadius: max(geo.size.width, geo.size.height) * 0.78
+                    )
                 }
 
                 RadialGradient(
                     stops: [
-                        .init(color: Color(hex: 0x3ABE8A).opacity(0.22), location: 0),
-                        .init(color: Color(hex: 0x164A35).opacity(0.10), location: 0.42),
+                        .init(color: Color(hex: 0x2DB77E).opacity(0.13), location: 0),
+                        .init(color: Color(hex: 0x123D2B).opacity(0.055), location: 0.46),
                         .init(color: .clear, location: 1)
                     ],
-                    center: UnitPoint(x: 0.28, y: 0.29),
+                    center: UnitPoint(x: 0.50, y: 0.42),
                     startRadius: 2,
-                    endRadius: max(geo.size.width, geo.size.height) * 0.63
+                    endRadius: max(geo.size.width, geo.size.height) * 0.55
                 )
 
                 RadialGradient(
                     stops: [
-                        .init(color: Color(hex: 0xD9D0B8).opacity(0.12), location: 0),
+                        .init(color: Color.white.opacity(0.055), location: 0),
                         .init(color: .clear, location: 1)
                     ],
-                    center: UnitPoint(x: 0.88, y: 0.78),
+                    center: UnitPoint(x: 0.84, y: 0.18),
                     startRadius: 0,
-                    endRadius: max(geo.size.width, geo.size.height) * 0.44
+                    endRadius: max(geo.size.width, geo.size.height) * 0.38
                 )
 
                 LaunchSilkField()
-                    .opacity(0.62)
+                    .opacity(0.22)
 
                 LinearGradient(
                     stops: [
-                        .init(color: Color.black.opacity(0.10), location: 0),
-                        .init(color: .clear, location: 0.42),
-                        .init(color: Color.black.opacity(0.22), location: 1)
+                        .init(color: Color.black.opacity(0.18), location: 0),
+                        .init(color: .clear, location: 0.36),
+                        .init(color: Color.black.opacity(0.30), location: 1)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -204,6 +205,7 @@ private struct LaunchSilkField: View {
 struct StarLaunchMark: View {
     let size: CGFloat
     let breathing: Bool
+    var shimmering: Bool = false
 
     var body: some View {
         ZStack {
@@ -283,6 +285,30 @@ struct StarLaunchMark: View {
             }
             .shadow(color: Color.black.opacity(0.50), radius: 24, y: 14)
             .shadow(color: Color(hex: 0x52D9A0).opacity(0.16), radius: 28)
+            .overlay {
+                GeometryReader { proxy in
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0),
+                                    Color.white.opacity(0.26),
+                                    Color.white.opacity(0)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: proxy.size.width * 0.32)
+                        .rotationEffect(.degrees(18))
+                        .offset(x: shimmering ? proxy.size.width * 1.20
+                                              : -proxy.size.width * 0.72)
+                        .blendMode(.screen)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.17,
+                                            style: .continuous))
+                .allowsHitTesting(false)
+            }
         }
         .frame(width: size * 1.48, height: size * 1.48)
         .accessibilityHidden(true)
