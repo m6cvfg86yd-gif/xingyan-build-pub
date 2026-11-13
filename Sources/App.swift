@@ -428,6 +428,11 @@ final class AppState: ObservableObject {
 
             if let incoming = ev.chat {
                 applyRealtimeChat(incoming)
+                if let message = ev.message {
+                    collectAdminSticker(from: message)
+                    ensureIncomingUnread(message, chatId: ev.chatId)
+                    applyRealtimeMessage(message, chatId: ev.chatId, countUnread: false)
+                }
             } else if let message = ev.message {
                 collectAdminSticker(from: message)
                 applyRealtimeMessage(message, chatId: ev.chatId)
@@ -1487,12 +1492,29 @@ final class AppState: ObservableObject {
     }
 
     /// 兼容只带 message、没有 chat 摘要的实时事件。
-    private func applyRealtimeMessage(_ message: Message, chatId: String) {
+    private func ensureIncomingUnread(_ message: Message, chatId: String) {
+        guard message.senderId != me?.id else { return }
+        let ids = [message.chatId ?? "", chatId]
+        guard let id = ids.first(where: { !$0.isEmpty }),
+              let index = chats.firstIndex(where: { $0.id == id }),
+              chats[index].lastMessage?.id == message.id,
+              chats[index].unreadCount == 0 else { return }
+        chats[index].unread = 1
+        if var optimistic = optimisticChats[id],
+           optimistic.lastMessage?.id == message.id {
+            optimistic.unread = 1
+            optimisticChats[id] = optimistic
+        }
+        syncIconBadge()
+    }
+
+    private func applyRealtimeMessage(_ message: Message, chatId: String,
+                                      countUnread: Bool = true) {
         let ids = [message.chatId ?? "", chatId]
         guard let id = ids.first(where: { !$0.isEmpty }),
               let index = chats.firstIndex(where: { $0.id == id }) else { return }
         var row = chats[index]
-        if row.lastMessage?.id != message.id, message.senderId != me?.id {
+        if countUnread, row.lastMessage?.id != message.id, message.senderId != me?.id {
             row.unread = row.unreadCount + 1
         }
         var preview = Self.realtimePreview(message)

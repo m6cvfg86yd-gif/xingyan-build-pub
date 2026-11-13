@@ -138,6 +138,7 @@ async function main() {
 
     a = await startServer(dataDir, portA, turnA);
     b = await startServer(dataDir, portB, turnB);
+    const relaySecret = fs.readFileSync(path.join(dataDir, 'secret.key'), 'utf8').trim();
 
     const alice = await login(a.base, 'shard_alice');
     const bob = await login(b.base, 'shard_bob');
@@ -240,6 +241,10 @@ async function main() {
     const like = (liked.likes || []).find((row) => row.userId === bob.user.id);
     assert.ok(like && like.avatar, 'like response must include the liker avatar');
 
+    response = await call(b.base, 'GET',
+      '/api/chats/' + directId + '/messages?limit=50', undefined, bob.cookie);
+    assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    assert.ok(!(response.data.messages || []).some((m) => m.kind === 'transfer'));
     response = await call(a.base, 'POST', '/api/pay/transfer', {
       chatId: directId,
       amount: 10,
@@ -249,6 +254,28 @@ async function main() {
     }, alice.cookie);
     assert.strictEqual(response.status, 200, JSON.stringify(response.data));
     const transferId = response.data.transfer.id;
+    const relay = await fetch(b.base + '/__shard/relay', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shard-Relay': relaySecret
+      },
+      body: JSON.stringify({
+        userId: bob.user.id,
+        payload: { type: 'message', chatId: directId }
+      })
+    });
+    assert.strictEqual(relay.status, 200, await relay.text());
+    response = await call(b.base, 'GET',
+      '/api/chats/' + directId + '/messages?limit=50', undefined, bob.cookie);
+    assert.ok((response.data.messages || []).some((m) =>
+      m.kind === 'transfer' && JSON.parse(m.content).id === transferId),
+    'transfer card must invalidate the recipient shard message cache');
+    response = await call(b.base, 'GET', '/api/chats', undefined, bob.cookie);
+    const transferChat = (response.data.chats || []).find((chat) => chat.id === directId);
+    assert.ok(transferChat && transferChat.unread > 0,
+      'incoming transfer must produce an unread badge on the recipient shard');
+    assert.strictEqual(transferChat.lastMessage.kind, 'transfer');
     response = await call(b.base, 'POST', '/api/transfers/' + transferId + '/claim', {}, bob.cookie);
     assert.strictEqual(response.status, 200, JSON.stringify(response.data));
     const firstBalance = Number(response.data.balance);

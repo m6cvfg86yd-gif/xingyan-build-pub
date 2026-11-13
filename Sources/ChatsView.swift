@@ -454,7 +454,8 @@ struct ChatRow: View, Equatable {
             let prefix = sessionCopy(zh: "草稿：", en: "Draft: ", ru: "Черновик: ")
             return previewInkText(prefix + draftText, kind: "draft")
         }
-        if isGroupAvatar {
+        let raw = (chat.lastMessage?.preview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if raw.isEmpty, isGroupAvatar {
             let count = chat.memberCount ?? chat.memberIds?.count ?? 0
             if count > 0 {
                 return Text(sessionCopy(
@@ -464,7 +465,6 @@ struct ChatRow: View, Equatable {
                 ))
             }
         }
-        let raw = (chat.lastMessage?.preview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let kind = chat.lastMessage?.kind ?? ""
         let preview = localizedPreview(raw: raw, kind: kind)
         let body = previewInkText(preview.text, kind: kind)

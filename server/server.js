@@ -21941,6 +21941,16 @@ async function handleHttpRequest(req, res) {
       if (!userId || !body.payload || typeof body.payload !== 'object') {
         return fail(res, 422, '分片事件不完整');
       }
+      const relayType = String(body.payload.type || '');
+      const relayChatId = str(body.payload.chatId
+        || (body.payload.message && body.payload.message.chatId)
+        || '', 80);
+      if (relayChatId && ['message', 'transfer', 'redpacket'].includes(relayType)) {
+        /* 各分片有独立消息缓存。发送片已经把消息写进共享消息文件，
+           接收片必须丢掉旧缓存；否则离线后重进会话时看不到这张卡片，
+           unreadCount() 也会按旧消息尾巴算出 0，红点不出现。 */
+        messageCache.delete(relayChatId);
+      }
       if (body.payload.type === 'moment') refreshMomentsFromDisk(true);
       if (body.payload.type === 'chat') refreshChatAccessStateFromDisk(true);
       const sent = sendToLocal(userId, body.payload);
