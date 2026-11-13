@@ -1681,7 +1681,7 @@ struct MomentsView: View {
                 Button(Tr("评论")) {
                     commentsSheet = m
                 }
-                if m.mine == true {
+                if m.mine == true, mineOnly {
                     Button(m.pinned == true ? Tr("取消置顶") : Tr("置顶")) {
                         togglePin(m)
                     }
@@ -1909,6 +1909,14 @@ struct MomentsView: View {
         return f.string(from: d)
     }
 
+    private func fullDateLabel(_ s: String?) -> String {
+        guard let d = TimeFmt.date(s) else { return "" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy年M月d日"
+        return formatter.string(from: d)
+    }
+
     private func dayHeader(_ t: String) -> some View {
         HStack {
             Text(t)
@@ -1996,8 +2004,12 @@ struct MomentsView: View {
                 }
 
             ForEach(Array(moments.enumerated()), id: \.element.id) { index, moment in
-                let day = dayLabel(moment.createdAt)
-                if index == 0 || day != dayLabel(moments[index - 1].createdAt) {
+                let day = mineOnly ? fullDateLabel(moment.createdAt) : dayLabel(moment.createdAt)
+                let previous = index > 0
+                    ? (mineOnly ? fullDateLabel(moments[index - 1].createdAt)
+                                : dayLabel(moments[index - 1].createdAt))
+                    : ""
+                if index == 0 || day != previous {
                     dayHeader(day)
                         .padding(.horizontal, L.momentPadH)
                 }
@@ -2831,10 +2843,23 @@ struct MomentGroupPage: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(visibleMoments.enumerated()), id: \.element.id) { i, m in
+                            let day = fullDateLabel(m.createdAt)
+                            let previous = i > 0 ? fullDateLabel(visibleMoments[i - 1].createdAt) : ""
+                            if i == 0 || day != previous {
+                                HStack {
+                                    Text(day)
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, L.momentPadH)
+                                .padding(.top, 14)
+                                .padding(.bottom, 2)
+                            }
                             MomentRow(moment: m,
                                       onOpenImage: { p in open(p, in: m) },
                                       myId: app.me?.id ?? "",
-                                      onDeleteMoment: { delete(m) })
+                                      onDeleteMoment: nil)
                                 .padding(.horizontal, L.momentPadH)
                             if i < visibleMoments.count - 1 {
                                 HairLine(inset: L.momentPadH + L.momentAvatar + 9)
@@ -2867,6 +2892,14 @@ struct MomentGroupPage: View {
         guard !all.isEmpty else { return }
         viewerPaths = all
         viewerIndex = all.firstIndex(of: path) ?? 0
+    }
+
+    private func fullDateLabel(_ s: String?) -> String {
+        guard let d = TimeFmt.date(s) else { return "" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy年M月d日"
+        return formatter.string(from: d)
     }
 
     private func delete(_ moment: Moment) {

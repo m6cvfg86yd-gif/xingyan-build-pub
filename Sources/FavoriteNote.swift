@@ -16,8 +16,10 @@ struct FavoriteNoteComposeSheet: View {
     @State private var msg = ""
     @FocusState private var focused: Bool
     @State private var showPic = false
+    @State private var showCamera = false
     @State private var picBusy = false
     @State private var pics: [String] = []
+    @State private var bodyStyle = 0
 
     init(editingId: String = "", initial: String = "", onSaved: @escaping SaveHandler) {
         self.editingId = editingId
@@ -66,11 +68,16 @@ struct FavoriteNoteComposeSheet: View {
                             .allowsHitTesting(false)
                     }
                     TextEditor(text: $bodyText)
-                        .font(pfStyled(size: 17))
+                        .font(bodyStyle == 1
+                              ? .system(size: 22, weight: .semibold)
+                              : (bodyStyle == 2
+                                 ? .system(size: 16, design: .monospaced)
+                                 : .system(size: 17)))
                         .scrollContentBackground(.hidden)
                         .padding(.horizontal, 13)
                         .padding(.top, 4)
                         .focused($focused)
+                        .scrollDismissesKeyboard(.interactively)
                 }
 
                 if !pics.isEmpty {
@@ -133,10 +140,26 @@ struct FavoriteNoteComposeSheet: View {
                             Image(systemName: "photo")
                         }
                         .disabled(picBusy)
+                        Button { showCamera = true } label: {
+                            Image(systemName: "camera")
+                        }
+                        .disabled(picBusy)
                         Button {
-                            bodyText += (bodyText.isEmpty ? "" : "\n") + "————————"
+                            insertChecklist()
+                        } label: {
+                            Image(systemName: "checklist")
+                        }
+                        Button {
+                            insertSeparator()
                         } label: {
                             Image(systemName: "minus")
+                        }
+                        Menu {
+                            Button(Tr("正文")) { bodyStyle = 0 }
+                            Button(Tr("标题")) { bodyStyle = 1 }
+                            Button(Tr("等宽")) { bodyStyle = 2 }
+                        } label: {
+                            Image(systemName: "textformat")
                         }
                         if picBusy { ProgressView() }
                         Spacer()
@@ -159,6 +182,9 @@ struct FavoriteNoteComposeSheet: View {
         .sheet(isPresented: $showPic) {
             PhotoPicker { img in insertImage(img) }
         }
+        .sheet(isPresented: $showCamera) {
+            CameraPicker { img in insertImage(img) }
+        }
     }
 
     private func insertImage(_ img: UIImage) {
@@ -173,6 +199,18 @@ struct FavoriteNoteComposeSheet: View {
             }
             picBusy = false
         }
+    }
+
+    private func insertChecklist() {
+        let separator = bodyText.isEmpty || bodyText.hasSuffix("\n") ? "" : "\n"
+        bodyText += separator + "☐ "
+        focused = true
+    }
+
+    private func insertSeparator() {
+        let separator = bodyText.isEmpty || bodyText.hasSuffix("\n") ? "" : "\n"
+        bodyText += separator + "————————"
+        focused = true
     }
 
     private func save() async {
@@ -218,6 +256,7 @@ struct FavoriteNoteDetailSheet: View {
 
     let id: String
     let content: String
+    var createdAt: String = ""
 
     var pinned: Bool = false
 
@@ -253,11 +292,31 @@ struct FavoriteNoteDetailSheet: View {
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
+                    if !createdAt.isEmpty {
+                        Text(TimeFmt.bill(createdAt))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
                     let titleIndex = lines.firstIndex(of: titleText)
                     ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
                         if index == titleIndex { EmptyView() }
                         else if line.hasPrefix("[图]") {
                             NoteImageBlock(path: String(line.dropFirst(3))) { p in viewerPath = p }
+                        } else if line.hasPrefix("☐") || line.hasPrefix("☑") {
+                            HStack(alignment: .top, spacing: 9) {
+                                Image(systemName: line.hasPrefix("☑")
+                                      ? "checkmark.square.fill" : "square")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundStyle(line.hasPrefix("☑")
+                                                     ? Color.accentColor : Color.secondary)
+                                Text(String(line.dropFirst()).trimmingCharacters(in: .whitespaces))
+                                    .font(pfStyled(size: 17))
+                                    .textSelection(.enabled)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        } else if line.trimmingCharacters(in: .whitespacesAndNewlines) == "————————" {
+                            Divider().padding(.vertical, 6)
                         } else if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             Text(line)
                                 .font(pfStyled(size: 17))

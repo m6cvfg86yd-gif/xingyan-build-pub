@@ -49,6 +49,33 @@ struct FavoritesView: View {
         }
     }
 
+    private var regularDateGroups: [(String, [[String: Any]])] {
+        let regular = shown.filter { ($0["pinned"] as? Bool) != true }
+        var groups: [(String, [[String: Any]])] = []
+        for item in regular {
+            let title = favoriteDateGroup(item)
+            if groups.last?.0 == title {
+                var group = groups.removeLast()
+                group.1.append(item)
+                groups.append(group)
+            } else {
+                groups.append((title, [item]))
+            }
+        }
+        return groups
+    }
+
+    private func favoriteDateGroup(_ item: [String: Any]) -> String {
+        guard let date = TimeFmt.date(item["at"] as? String) else { return Tr("更早") }
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return Tr("今天") }
+        if calendar.isDateInYesterday(date) { return Tr("昨天") }
+        let days = calendar.dateComponents([.day],
+                                           from: calendar.startOfDay(for: date),
+                                           to: calendar.startOfDay(for: Date())).day ?? 99
+        return days < 7 ? Tr("过去 7 天") : Tr("更早")
+    }
+
     private func favoriteRow(_ item: [String: Any]) -> some View {
         let kind = (item["kind"] as? String) ?? "text"
         let content = (item["content"] as? String) ?? ""
@@ -155,13 +182,13 @@ struct FavoritesView: View {
                 }
             }
             if !regular.isEmpty {
-                Section {
-                    ForEach(Array(regular.enumerated()), id: \.offset) { _, item in
-                        favoriteListRow(item)
-                    }
-                } header: {
-                    if !pinned.isEmpty {
-                        Text(Tr("最近项目"))
+                ForEach(regularDateGroups, id: \.0) { group in
+                    Section {
+                        ForEach(Array(group.1.enumerated()), id: \.offset) { _, item in
+                            favoriteListRow(item)
+                        }
+                    } header: {
+                        Text(group.0)
                     }
                 }
             }
@@ -253,6 +280,7 @@ struct FavoritesView: View {
             if let it = noteDetail {
                 FavoriteNoteDetailSheet(id: (it["id"] as? String) ?? "",
                                         content: (it["content"] as? String) ?? "",
+                                        createdAt: (it["at"] as? String) ?? "",
                                         pinned: (it["pinned"] as? Bool) == true) {
                     Task { await load() }
                 }
