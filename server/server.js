@@ -22358,8 +22358,12 @@ server.listen(PORT, BIND_HOST, () => {
   } catch (err) {
     console.log('  ✗ TURN 没起来：' + err.message);
   }
-  const replayed = replayMomentsLog();          // 把上次没合并的朋友圈日志并回 moments.json
-  if (replayed) console.log('  朋友圈 合并追加日志 ' + replayed + ' 条');
+  if (process.env.DISABLE_MOMENT_LOG_REPLAY === '1') {
+    console.log('  朋友圈追加日志回放已锁定，保留 11/12 基线');
+  } else {
+    const replayed = replayMomentsLog();          // 把上次没合并的朋友圈日志并回 moments.json
+    if (replayed) console.log('  朋友圈 合并追加日志 ' + replayed + ' 条');
+  }
   console.log('  前台   http://' + HOST + ':' + PORT + '/');
   console.log('  管理   http://' + HOST + ':' + PORT + '/admin.html');
   if (BIND_HOST === '0.0.0.0') {
@@ -22377,12 +22381,16 @@ server.listen(PORT, BIND_HOST, () => {
   }
   console.log('  数据   ' + DATA_DIR);
   console.log('  用户 ' + db.users.length + ' 人 · 会话 ' + db.chats.length + ' 个');
-  try { expireTransfers(); } catch (err) { /* 忽略 */ }
-  try { expireRedPackets(); } catch (err) { /* 忽略 */ }
-  setInterval(() => {
+  if (process.env.DISABLE_MONEY_EXPIRY === '1') {
+    console.log('  转账/红包过期任务已暂停，等待人工核对基线');
+  } else {
     try { expireTransfers(); } catch (err) { /* 忽略 */ }
     try { expireRedPackets(); } catch (err) { /* 忽略 */ }
-  }, 60 * 1000);
+    setInterval(() => {
+      try { expireTransfers(); } catch (err) { /* 忽略 */ }
+      try { expireRedPackets(); } catch (err) { /* 忽略 */ }
+    }, 60 * 1000);
+  }
   if (adminJustCreated) {
     console.log('');
     console.log('  ┌────────────────────────────────────────────┐');
