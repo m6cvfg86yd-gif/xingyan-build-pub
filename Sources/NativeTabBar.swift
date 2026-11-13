@@ -162,127 +162,14 @@ private final class CompactDotTabBar: UITabBar {
     }
 }
 
-/*
- 底栏图标加载器：
- 网络下载只负责把图片放进缓存，绝不持有或回写 UITabBarItem。
-
- 真机崩溃栈多次落在 swift_abortRetainUnowned →
- UITabBarItem._setInternalTemplateImage。根因是异步任务完成时，
- SwiftUI 已经把旧 UITabBar 拆掉，任务却还在修改旧 item。
-
- 现在图片加载完成后只发布 revision；NativeTabBar.updateUIView 会拿
- 当前仍存活的 UIView 重新同步赋值。这样不会跨 View 生命周期碰 UIKit。
- */
-@MainActor
-fileprivate final class TabIconLoader: ObservableObject {
-    static let shared = TabIconLoader()
-
-    @Published private(set) var revision = 0
-
-    private var images: [String: UIImage] = [:]
-    private var inFlight: Set<String> = []
-    private var failed: Set<String> = []
-    private var retryTasks: [String: Task<Void, Never>] = [:]
-    private var preparedVersion = -1
-
-    private init() {}
-
-    func image(for value: String) -> UIImage? {
-        if let image = images[value] { return image }
-        guard let cached = ImageStore.shared.get(value) else { return nil }
-        images[value] = cached
-        return cached
-    }
-
-    func prepare(_ values: [String], version: Int) {
-        if version != preparedVersion {
-            preparedVersion = version
-            failed.subtract(values)
-        }
-        for value in values where Self.isRaster(value) {
-            if images[value] != nil || inFlight.contains(value) || failed.contains(value) {
-                continue
-            }
-            if let cached = ImageStore.shared.get(value) {
-                images[value] = cached
-                continue
-            }
-            if value.hasPrefix("data:") {
-                if let data = Self.decodeDataURL(value), let image = UIImage(data: data) {
-                    images[value] = image
-                } else {
-                    failed.insert(value)
-                }
-                continue
-            }
-            loadRemote(value)
-        }
-    }
-
-    private func loadRemote(_ value: String) {
-        guard let url = API.shared.assetURL(value) else {
-            failed.insert(value)
-            return
-        }
-        inFlight.insert(value)
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            defer { self.inFlight.remove(value) }
-            do {
-                let data = try await API.shared.assetData(url)
-                guard !Task.isCancelled, let image = UIImage(data: data) else {
-                    self.failed.insert(value)
-                    self.scheduleRetry(value)
-                    return
-                }
-                ImageStore.shared.put(value, image)
-                ImageStore.shared.diskWrite(value, data)
-                self.images[value] = image
-                self.failed.remove(value)
-                self.retryTasks.removeValue(forKey: value)?.cancel()
-                self.revision &+= 1
-            } catch {
-                self.failed.insert(value)
-                self.scheduleRetry(value)
-            }
-        }
-    }
-
-    fileprivate static func isRaster(_ value: String) -> Bool {
-        value.hasPrefix("http") || value.hasPrefix("/") || value.hasPrefix("data:")
-    }
-
-    private func scheduleRetry(_ value: String) {
-        retryTasks[value]?.cancel()
-        retryTasks[value] = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 12_000_000_000)
-            guard let self, !Task.isCancelled else { return }
-            self.failed.remove(value)
-            self.retryTasks.removeValue(forKey: value)
-            self.revision &+= 1
-        }
-    }
-
-    private static func decodeDataURL(_ value: String) -> Data? {
-        guard let comma = value.firstIndex(of: ","), value[..<comma].contains("base64") else {
-            return nil
-        }
-        let encoded = String(value[value.index(after: comma)...])
-        return Data(base64Encoded: encoded)
-    }
-}
-
 /// 只替换底栏；页面、顶栏、导航和键盘布局继续使用 B2103 原实现。
 struct NativeTabBar: UIViewRepresentable {
     @Binding var selection: Int
     @Environment(\.colorScheme) private var scheme
-    @StateObject private var iconLoader = TabIconLoader.shared
-    let uiVersion: Int
     let badge: Int
     let contactsDot: Bool
     let momentsDot: Bool
     let meDot: Bool
-    let avatarPath: String
 
     func makeCoordinator() -> Coordinator {
         Coordinator(selection: $selection)
@@ -300,7 +187,9 @@ struct NativeTabBar: UIViewRepresentable {
             UITabBarItem(title: C.tabText2, image: UIImage(systemName: "safari"),
                          selectedImage: UIImage(systemName: "safari")),
             UITabBarItem(title: C.tabText3, image: UIImage(systemName: "person.crop.circle"),
-                         selectedImage: UIImage(systemName: "person.crop.circle.fill"))
+                         selectedImage: UIImage(systemName: "person.crop.circle.fill")?
+                            .withTintColor(UIColor(OrbitTheme.jade),
+                                           renderingMode: .alwaysOriginal))
         ]
         applyColors(bar)
         refresh(bar)
@@ -320,25 +209,6 @@ struct NativeTabBar: UIViewRepresentable {
         if let item = bar.items?[safe: selection], bar.selectedItem !== item {
             bar.selectedItem = item
         }
-        let size = UIConfig.num("tabIcon3", L.tabIconBox)
-        var imagePaths = (0..<4).compactMap {
-            context.coordinator.customIcon($0)
-        }
-        if context.coordinator.customIcon(3) == nil && !avatarPath.isEmpty {
-            imagePaths.append(avatarPath)
-        }
-        iconLoader.prepare(imagePaths, version: uiVersion)
-        context.coordinator.applyIcons(
-            in: bar,
-            loader: iconLoader,
-            revision: iconLoader.revision,
-            uiVersion: uiVersion,
-            size: size,
-            scheme: scheme == .dark ? "dark" : "light",
-            avatarPath: context.coordinator.customIcon(3) == nil ? avatarPath : "",
-            normalColor: UIColor(OrbitTheme.secondary),
-            selectedColor: UIColor.systemBlue
-        )
         refresh(bar)
     }
 
@@ -416,13 +286,6 @@ struct NativeTabBar: UIViewRepresentable {
 
     final class Coordinator: NSObject, UITabBarDelegate {
         var selection: Binding<Int>
-        fileprivate let customKeys = ["tab2.chat", "tab2.contacts", "tab2.world", "tab2.me"]
-        private let legacyKeys = ["tab.chat", "tab.contacts", "tab.discover", "tab.me"]
-        private let symbols = ["message", "person.2", "globe.americas", "person.crop.circle"]
-        private let selectedSymbols = ["message.fill", "person.2.fill",
-                                       "globe.americas.fill", "person.crop.circle.fill"]
-        private var appliedIconKeys: [Int: String] = [:]
-        private var appliedStyleKey = ""
         private let selectionFeedback = UISelectionFeedbackGenerator()
 
         init(selection: Binding<Int>) {
@@ -434,117 +297,6 @@ struct NativeTabBar: UIViewRepresentable {
             selectionFeedback.prepare()
             selectionFeedback.selectionChanged()
             selection.wrappedValue = index
-        }
-
-        fileprivate func customIcon(_ index: Int) -> String? {
-            // 前三个入口固定使用系统图标，只有“我的”允许显示头像。
-            if index < 3 { return nil }
-            return IconOverrides.custom(customKeys[index]) ?? IconOverrides.custom(legacyKeys[index])
-        }
-
-        fileprivate func applyIcons(in bar: UITabBar, loader: TabIconLoader, revision: Int,
-                                    uiVersion: Int, size: CGFloat, scheme: String,
-                                    avatarPath: String,
-                                    normalColor: UIColor, selectedColor: UIColor) {
-            guard let items = bar.items, items.count == 4 else { return }
-            let styleKey = "\(uiVersion)|\(revision)|\(size)|\(scheme)"
-            if styleKey != appliedStyleKey {
-                appliedStyleKey = styleKey
-                appliedIconKeys.removeAll(keepingCapacity: true)
-            }
-
-            for index in 0..<4 {
-                let custom = customIcon(index)
-                let avatarKey = index == 3 ? avatarPath : ""
-                let iconKey = "\(styleKey)|\(custom ?? "__default__")|\(avatarKey)"
-                guard appliedIconKeys[index] != iconKey else { continue }
-
-                if index == 3, custom == nil, !avatarPath.isEmpty,
-                   loader.image(for: avatarPath) == nil {
-                    // 图片还在缓存/网络加载中时保留上一张头像，避免底栏忽然变成占位图标。
-                    continue
-                }
-
-                let rendered = renderedIcon(custom: custom, index: index, size: size,
-                                            loader: loader,
-                                            avatarPath: avatarPath,
-                                            normalColor: normalColor,
-                                            selectedColor: selectedColor)
-                items[index].image = rendered.normal.withRenderingMode(.alwaysOriginal)
-                items[index].selectedImage = rendered.selected.withRenderingMode(.alwaysOriginal)
-                appliedIconKeys[index] = iconKey
-            }
-        }
-
-        private func renderedIcon(custom: String?, index: Int, size: CGFloat,
-                                  loader: TabIconLoader,
-                                  avatarPath: String,
-                                  normalColor: UIColor,
-                                  selectedColor: UIColor) -> (normal: UIImage, selected: UIImage) {
-            if let custom, TabIconLoader.isRaster(custom), let raster = loader.image(for: custom) {
-                return (raster, raster)
-            }
-            if index == 3, custom == nil, !avatarPath.isEmpty,
-               let avatar = loader.image(for: avatarPath) {
-                let circled = circularAvatar(avatar)
-                return (circled, circled)
-            }
-
-            let normal = render(custom: custom, index: index, selected: false, size: size,
-                                color: normalColor)
-            let itemSelectedColor = index == 3 ? UIColor(OrbitTheme.jade) : selectedColor
-            let selected = render(custom: custom, index: index, selected: true, size: size,
-                                  color: itemSelectedColor)
-            return (normal, selected)
-        }
-
-        private func circularAvatar(_ image: UIImage) -> UIImage {
-            let size = CGSize(width: 25, height: 25)
-            return UIGraphicsImageRenderer(size: size).image { _ in
-                UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).addClip()
-                image.draw(in: CGRect(origin: .zero, size: size))
-            }
-        }
-
-        private func gradientSymbol(_ name: String, size: CGFloat) -> UIImage? {
-            let content = Image(systemName: name)
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: size, weight: .semibold))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [
-                            Color(hex: 0x20C96B),
-                            Color(hex: 0xA7D96A),
-                            Color(hex: 0xD9B95F)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: size + 2, height: size + 2)
-            let renderer = ImageRenderer(content: content)
-            renderer.scale = UIScreen.main.scale
-            return renderer.uiImage?.withRenderingMode(.alwaysOriginal)
-        }
-
-        private func render(custom: String?, index: Int, selected: Bool, size: CGFloat,
-                            color: UIColor) -> UIImage {
-            let content: AnyView
-            if let custom, !TabIconLoader.isRaster(custom) {
-                content = AnyView(FlexIcon(custom: custom, size: size,
-                                           color: Color(uiColor: color),
-                                           symbol: symbols[index])
-                    .frame(width: size + 2, height: size + 2))
-            } else {
-                content = AnyView(OrbitTabGlyph(kind: index, selected: selected,
-                                                color: Color(uiColor: color),
-                                                accent: OrbitTheme.gold)
-                    .frame(width: size, height: size))
-            }
-            let renderer = ImageRenderer(content: content)
-            renderer.scale = UIScreen.main.scale
-            return renderer.uiImage ?? UIImage(systemName: selected ? selectedSymbols[index] : symbols[index])
-                ?? UIImage()
         }
     }
 }

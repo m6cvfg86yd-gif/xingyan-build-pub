@@ -931,7 +931,7 @@ struct GameWebPage: View {
                 loading = false
                 let previousStamp = oldStamp
                 Task {
-                    guard let list = await miniAppFileList(baseDir: remoteDir) else { return }
+                    let list = await miniAppFileList(baseDir: remoteDir)
                     let stamp = GamesPageView.stableKey(list.joined(separator: "|"))
                     if stamp != previousStamp {
                         for f in list {
