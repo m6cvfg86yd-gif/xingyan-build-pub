@@ -800,18 +800,15 @@ struct ChatBackgroundSheet: View {
         primeBackgroundCache(path: path, cacheKey: cacheKey)
         let storedPath = serverChatBackgroundRef(path)
         if inChat {
-            let oldUser = app.me
-            let oldLocal = ChatBgStore.shared.get(chatId)
             applyChatBackground(storedPath)
             Task {
                 busy = true
                 if let saved = await API.shared.changeChatBackground(chatId: chatId, path: storedPath) {
+                    ChatBgStore.shared.set(chatId, storedPath)
                     applySyncedChatBackgrounds(saved)
                     app.show(path == "auto" ? Tr("已改用全局背景") : Tr("这个聊天的背景换好了"))
                 } else {
-                    app.me = oldUser
-                    ChatBgStore.shared.set(chatId, oldLocal)
-                    app.show(Tr("背景没保存上，检查网络"))
+                    app.show(Tr("已在本机切换，服务器暂未保存"))
                 }
                 busy = false
             }
