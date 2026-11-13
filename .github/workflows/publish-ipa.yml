@@ -82,27 +82,19 @@ jobs:
       - name: Publish and verify
         run: |
           set -euo pipefail
-          tar -C /tmp/ipa-payload -czf /tmp/ipa-payload.tgz .
           ok=0
-          for attempt in 1 2 3 4 5 6; do
-            if ssh -F /tmp/ssh_config front "
-              rm -rf /tmp/ipa-payload &&
-              mkdir -p /tmp/ipa-payload &&
-              tar -xzf - -C /tmp/ipa-payload &&
-              mkdir -p /opt/chris/backups &&
-              if test -f /opt/chris/app/public/Luchat.ipa; then
-                cp -p /opt/chris/app/public/Luchat.ipa /opt/chris/backups/Luchat.ipa.before-65c34d2;
-              fi &&
-              install -m 0644 /tmp/ipa-payload/Luchat.ipa /opt/chris/app/public/Luchat.ipa &&
-              sha256sum /opt/chris/app/public/Luchat.ipa &&
-              node /tmp/ipa-payload/diagnose.js &&
-              grep \"AML_RUNTIME_ENABLED\" /etc/systemd/system/chris-shard@.service.d/50-baseline-lock.conf &&
-              journalctl -u chris-shard@0.service -n 80 --no-pager | grep AML | tail -5
-            " < /tmp/ipa-payload.tgz; then
+          for attempt in 1 2 3 4; do
+            if scp -F /tmp/ssh_config \
+              -o ServerAliveInterval=0 \
+              /tmp/ipa-payload/Luchat.ipa \
+              front:/opt/chris/app/public/Luchat.ipa; then
               ok=1
               break
             fi
-            echo "SSH attempt $attempt failed; retrying"
-            sleep 30
+            echo "SCP attempt $attempt failed; retrying"
+            sleep 60
           done
           test "$ok" = "1"
+          range="$(curl -kLsS -r 0-0 -D - -o /dev/null https://43.242.194.89:8443/Luchat.ipa | tr -d '\r' | awk -F': ' 'tolower($1)=="content-range"{print $2}')"
+          echo "PUBLISHED_RANGE=$range"
+          echo "$range" | grep -q '/28444198$'
