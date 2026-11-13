@@ -512,6 +512,9 @@ final class AppState: ObservableObject {
                 }
             }
         case "recall":
+            if !ev.chatId.isEmpty {
+                dropOptimisticSummary(ev.chatId)
+            }
             coalesce { [weak self] in
                 await self?.loadChats()
             }
