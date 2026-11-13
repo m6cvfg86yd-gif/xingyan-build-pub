@@ -55,12 +55,13 @@ private final class ImageUploadProgress: @unchecked Sendable {
 }
 
 private enum ChatTheme {
-    static let page = defaultChatCanvasColor()
-    static let panel = Color.dyn(0xF0F2F5, 0x1C1C1E)
+    static var preset: ChatAppearancePreset { ChatThemeStore.shared.selected() }
+    static var page: Color { preset.canvas }
+    static var panel: Color { preset.panel }
     static var bubbleMine: Color {
-        UIConfig.color("bubbleMineColor", 0x0C7A70, 0x0D5C56)
+        preset.mine
     }
-    static let bubbleOther = Color.dyn(0xFFFFFF, 0x1C1C1E)
+    static var bubbleOther: Color { preset.other }
     static let ink = Color.dyn(0x111B21, 0xE9EDEF)
     static let mineInk = Color.dyn(0xFFFFFF, 0xE9EDEF)
     static let secondary = Color.dyn(0x667781, 0x8696A0)
@@ -68,7 +69,7 @@ private enum ChatTheme {
     static let groupSenderNameOnDark = Color.dyn(0xE9EDEF, 0xE9EDEF)
     static let secondaryOnMine = Color.dyn(0xD4F5EF, 0xE5E5EA)
     static let timeInk = Color.dyn(0x667781, 0x8696A0)
-    static let composerBg = Color.dyn(0xF0F2F5, 0x1C1C1E)
+    static var composerBg: Color { preset.panel }
     static let separator = Color.dyn(0xE9EDEF, 0x38383A)
     static let link = Color.dyn(0x0067DC, 0x7CCBFF)
     static let linkOnMine = Color.dyn(0xEFFFFC, 0xD9FFF8)
@@ -523,6 +524,7 @@ struct ChatDetailView: View {
     @ObservedObject private var lang = LangStore.shared
 
     @ObservedObject private var chatBg = ChatBgStore.shared
+    @ObservedObject private var chatTheme = ChatThemeStore.shared
     @ObservedObject private var drafts = ChatDraftStore.shared
     let chat: Chat
 
@@ -628,6 +630,7 @@ struct ChatDetailView: View {
     @State private var announcePage = ""
     @State private var showAnnouncePage = false
     @State private var showChatFavorites = false
+    @State private var showChatTheme = false
     @State private var showCall = false
 
     @State private var redialAsk: Message? = nil
@@ -1180,6 +1183,12 @@ struct ChatDetailView: View {
                 .accessibilityLabel(Tr("语音通话"))
 
                 Menu {
+                    Button {
+                        showChatTheme = true
+                    } label: {
+                        Label(Tr("聊天主题"), systemImage: "paintpalette.fill")
+                    }
+
                     Button {
                         if isGroup { showGroupInfo = true } else { showChatInfo = true }
                     } label: {
@@ -2028,6 +2037,9 @@ struct ChatDetailView: View {
                     .environmentObject(app)
             }
         }
+        .fullScreenCover(isPresented: $showChatTheme) {
+            ChatThemePickerView(chatId: chat.id)
+        }
         .sheet(item: $sysToolsPage) { page in
             sysToolsPageView(page)
                 .environmentObject(app)
@@ -2393,6 +2405,12 @@ struct ChatDetailView: View {
         .onChange(of: messages) { _ in
             rememberSenderAvatars(messages)
             schedulePersist()
+        }
+        .onChange(of: chatTheme.version) { _ in
+            frameCaptureTick &+= 1
+        }
+        .onAppear {
+            chatTheme.activate(chat.id)
         }
         .onReceive(NotificationCenter.default.publisher(for: .chrisStickersChanged)) { _ in
             Task { await loadMyStickers() }
