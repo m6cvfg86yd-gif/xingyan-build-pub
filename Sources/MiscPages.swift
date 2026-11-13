@@ -69,49 +69,41 @@ struct FavoritesView: View {
             return previewText(content, excluding: title)
         }()
 
-        let dateText = TimeFmt.listApple(item["at"] as? String)
-
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: 11) {
             if let thumb = thumbOf(item) {
                 RemoteImage(path: thumb)
-                    .frame(width: 46, height: 46)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             } else {
                 Image(systemName: iconName(kind))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.accentColor)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 38, height: 38)
                     .background(Color.accentColor.opacity(0.10),
-                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             }
 
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 5) {
                     if (item["pinned"] as? Bool) == true {
                         Image(systemName: "pin.fill")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.secondary)
                     }
                     Text(heading)
-                        .font(.headline)
+                        .font(pfStyled(size: 17, weight: .semibold))
                         .lineLimit(1)
                     Spacer(minLength: 0)
-                    if !dateText.isEmpty {
-                        Text(dateText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
                 }
                 if !preview.isEmpty {
                     Text(preview)
-                        .font(.subheadline)
+                        .font(pfStyled(size: 15))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
                 if let from = item["fromName"] as? String, !from.isEmpty {
-                    Label(from, systemImage: "person.crop.circle")
-                        .font(.caption)
+                    Text(from)
+                        .font(pfStyled(size: 12))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
@@ -151,7 +143,7 @@ struct FavoritesView: View {
                         favoriteListRow(item)
                     }
                 } header: {
-                    Label(Tr("已置顶"), systemImage: "pin.fill")
+                    Text(Tr("已置顶"))
                 }
             }
             if !regular.isEmpty {
@@ -161,7 +153,7 @@ struct FavoritesView: View {
                     }
                 } header: {
                     if !pinned.isEmpty {
-                        Text(Tr("最近项目"))
+                        Text(Tr("收藏"))
                     }
                 }
             }

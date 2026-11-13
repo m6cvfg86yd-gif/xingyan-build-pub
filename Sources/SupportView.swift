@@ -14,7 +14,6 @@ struct SupportView: View {
     @State private var busyHuman = false
 
     @State private var showKefu = false
-    @State private var selectedTicket: API.SupportTicket?
 
     private var cats: [API.SupportCategory] { cfg?.categories ?? [] }
     private var tickets: [API.SupportTicket] { cfg?.tickets ?? [] }
@@ -36,274 +35,64 @@ struct SupportView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    supportHero
-                        .listRowInsets(EdgeInsets(top: 16, leading: 18,
-                                                 bottom: 16, trailing: 18))
-                        .listRowBackground(Color.clear)
-                }
+        VStack(spacing: 0) {
+            NavBar(title: cfg?.title ?? Tr("客服中心"), back: { dismiss() })
 
-                if !q.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Section(Tr("搜索结果")) {
-                        if hits.isEmpty {
-                            supportEmptyResult
-                        } else {
-                            ForEach(Array(hits.enumerated()), id: \.offset) { _, hit in
-                                QAItem(category: hit.cat, item: hit.item, forceOpen: true)
-                            }
-                        }
-                    }
-                } else {
-                    if isOpenHuman {
-                        Section(Tr("联系支持")) {
-                            Button { openHuman() } label: {
-                                supportActionRow(
-                                    symbol: "bubble.left.and.bubble.right.fill",
-                                    color: .accentColor,
-                                    title: cfg?.agent?.nickname ?? Tr("在线客服"),
-                                    subtitle: (cfg?.workTime?.isEmpty == false)
-                                        ? cfg!.workTime!
-                                        : Tr("通常几分钟内回复")
-                                )
-                            }
-                            .disabled(busyHuman)
-                        }
-                    }
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    searchBar
 
-                    if !cats.isEmpty {
-                        Section(Tr("浏览支持主题")) {
-                            ForEach(Array(cats.enumerated()), id: \.element.id) { index, category in
-                                Button { openCat = category } label: {
-                                    supportActionRow(
-                                        symbol: catSymbol(category.title),
-                                        color: catColor(index),
-                                        title: category.title,
-                                        subtitle: "\((category.items ?? []).count) " + Tr("个解决方案")
-                                    )
-                                }
-                            }
-                        }
+                    if !q.trimmingCharacters(in: .whitespaces).isEmpty {
+                        hitList
+                    } else {
+                        if isOpenHuman { humanCard }
+                        faqCard
+                        if isTicketOn { ticketCard }
+                        if !tickets.isEmpty { myTickets }
+                        contactCard
+                        footNote
                     }
-
-                    if isTicketOn || !tickets.isEmpty {
-                        Section(Tr("我的支持")) {
-                            if isTicketOn {
-                                Button { showTicket = true } label: {
-                                    supportActionRow(
-                                        symbol: "square.and.pencil",
-                                        color: .orange,
-                                        title: Tr("提交问题"),
-                                        subtitle: Tr("写下问题，支持团队会跟进")
-                                    )
-                                }
-                            }
-                            ForEach(tickets) { ticket in
-                                Button { selectedTicket = ticket } label: {
-                                    ticketListRow(ticket)
-                                }
-                            }
-                        }
-                    }
-
-                    if !(cfg?.phone ?? "").isEmpty || !(cfg?.email ?? "").isEmpty {
-                        Section(Tr("更多联系方式")) {
-                            contactListRows
-                        }
-                    }
-
-                    Section {
-                        Label {
-                            Text(Tr("星言支持不会索要密码、验证码或支付密码，也不会要求你转账。"))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        } icon: {
-                            Image(systemName: "lock.shield.fill")
-                                .foregroundStyle(.green)
-                        }
-                        .padding(.vertical, 4)
-                    }
+                    Color.clear.frame(height: 24)
                 }
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle(cfg?.title ?? Tr("星言支持"))
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $q,
-                        placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: Text(cfg?.searchHint?.isEmpty == false
-                                     ? cfg!.searchHint!
-                                     : Tr("搜索问题或描述故障")))
-            .refreshable { await load() }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                    }
-                    .accessibilityLabel(Tr("关闭"))
-                }
-            }
-            .task { await load() }
-            .navigationDestination(isPresented: Binding(
-                get: { nextChat != nil },
-                set: { if !$0 { nextChat = nil } }
-            )) {
-                if let c = nextChat { ChatDetailView(chat: c) }
-            }
-            .navigationDestination(isPresented: Binding(
-                get: { openCat != nil },
-                set: { if !$0 { openCat = nil } }
-            )) {
-                if let c = openCat { SupportCategoryView(cat: c, keyword: q) }
-            }
-            .sheet(isPresented: $showTicket) {
-                SupportTicketSheet(hint: cfg?.ticketHint ?? "",
-                                   categories: cats.map { $0.title }) { cat, text in
-                    let list = try await API.shared.supportTicket(category: cat, content: text)
-                    await MainActor.run {
-                        if var c = cfg {
-                            c.tickets = list
-                            cfg = c
-                        }
-                        app.show(Tr("已经提交，客服处理完会回到这里"))
-                    }
-                }
-                .environmentObject(app)
-            }
-            .sheet(item: $selectedTicket) { ticket in
-                SupportTicketDetailView(ticket: ticket)
-            }
-            .sheet(isPresented: $showKefu) {
-                KefuPage().environmentObject(app)
-            }
+            .background(C.pageBg)
         }
+        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
+        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .toolbar(.hidden, for: .navigationBar)
+        .swipeBack { dismiss() }
         .hidesTabBar()
-    }
-
-    private var supportHero: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: 0x28B8F6), Color(hex: 0x087CF0)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: "lifepreserver.fill")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 64, height: 64)
-            .shadow(color: Color(hex: 0x087CF0).opacity(0.24), radius: 14, y: 7)
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text(Tr("需要什么帮助？"))
-                    .font(.title3.weight(.semibold))
-                Text(Tr("先搜索解决方案，或直接联系星言支持团队。"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
+        .task { await load() }
+        .navigationDestination(isPresented: Binding(
+            get: { nextChat != nil },
+            set: { if !$0 { nextChat = nil } }
+        )) {
+            if let c = nextChat { ChatDetailView(chat: c) }
         }
-    }
-
-    private func supportActionRow(symbol: String, color: Color,
-                                  title: String, subtitle: String) -> some View {
-        HStack(spacing: 13) {
-            Image(systemName: symbol)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 32, height: 32)
-                .background(color, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            Spacer(minLength: 4)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.tertiary)
+        .navigationDestination(isPresented: Binding(
+            get: { openCat != nil },
+            set: { if !$0 { openCat = nil } }
+        )) {
+            if let c = openCat { SupportCategoryView(cat: c, keyword: q) }
         }
-        .contentShape(Rectangle())
-        .padding(.vertical, 3)
-    }
-
-    private func ticketListRow(_ ticket: API.SupportTicket) -> some View {
-        let status = ticket.status ?? "pending"
-        return HStack(spacing: 12) {
-            Image(systemName: status == "done" ? "checkmark.circle.fill" : "clock.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(status == "done" ? .green :
-                                 (status == "replied" ? .blue : .orange))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(ticket.category ?? Tr("其它问题"))
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                Text(ticket.content ?? ticket.title ?? "")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 4)
-            Text(status == "done" ? Tr("已处理") :
-                 (status == "replied" ? Tr("已回复") : Tr("待处理")))
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-        }
-        .contentShape(Rectangle())
-        .padding(.vertical, 2)
-    }
-
-    @ViewBuilder
-    private var contactListRows: some View {
-        if let phone = cfg?.phone, !phone.isEmpty {
-            Button {
-                if let url = URL(string: "tel://" + phone.filter { $0.isNumber }) {
-                    UIApplication.shared.open(url)
+        .sheet(isPresented: $showTicket) {
+            SupportTicketSheet(hint: cfg?.ticketHint ?? "",
+                               categories: cats.map { $0.title }) { cat, text in
+                let list = try await API.shared.supportTicket(category: cat, content: text)
+                await MainActor.run {
+                    if var c = cfg {
+                        c.tickets = list
+                        cfg = c
+                    }
+                    app.show(Tr("已经提交，客服处理完会回到这里"))
                 }
-            } label: {
-                Label(phone, systemImage: "phone.fill")
             }
+            .environmentObject(app)
         }
-        if let mail = cfg?.email, !mail.isEmpty {
-            Button {
-                let subject = (cfg?.title ?? Tr("星言支持")) + " " + (app.me?.username ?? "")
-                let encoded = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-                if let url = URL(string: "mailto:\(mail)?subject=\(encoded)") {
-                    UIApplication.shared.open(url)
-                }
-            } label: {
-                Label(mail, systemImage: "envelope.fill")
-            }
-        }
-    }
 
-    private var supportEmptyResult: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "text.magnifyingglass")
-                .font(.system(size: 30, weight: .light))
-                .foregroundStyle(.secondary)
-            Text(Tr("没有找到相关支持内容"))
-                .font(.headline)
-            Text(Tr("换个关键词，或联系在线客服继续处理。"))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            if isOpenHuman {
-                Button(Tr("联系在线客服")) { openHuman() }
-                    .buttonStyle(.borderedProminent)
-            }
+        .sheet(isPresented: $showKefu) {
+            KefuPage().environmentObject(app)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 22)
     }
 
     private var searchBar: some View {
@@ -620,83 +409,6 @@ struct SupportView: View {
     }
 }
 
-struct SupportTicketDetailView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    let ticket: API.SupportTicket
-
-    private var status: String { ticket.status ?? "pending" }
-
-    private var statusText: String {
-        if status == "done" { return Tr("已处理") }
-        if status == "replied" { return Tr("支持团队已回复") }
-        return Tr("等待支持团队处理")
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Label(statusText, systemImage: status == "done"
-                              ? "checkmark.circle.fill"
-                              : (status == "replied" ? "bubble.left.fill" : "clock.fill"))
-                            .font(.headline)
-                            .foregroundStyle(status == "done" ? .green :
-                                             (status == "replied" ? .blue : .orange))
-                        if let created = ticket.createdAt {
-                            Text(TimeFmt.bill(created))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 6)
-                }
-
-                Section(Tr("问题")) {
-                    Text(ticket.content ?? ticket.title ?? "")
-                        .font(.body)
-                        .textSelection(.enabled)
-                        .padding(.vertical, 6)
-                    if let category = ticket.category {
-                        LabeledContent(Tr("分类"), value: category)
-                    }
-                }
-
-                Section(Tr("支持团队回复")) {
-                    if let reply = ticket.reply, !reply.isEmpty {
-                        Text(reply)
-                            .font(.body)
-                            .textSelection(.enabled)
-                            .padding(.vertical, 6)
-                        if let repliedAt = ticket.repliedAt {
-                            Text(TimeFmt.bill(repliedAt))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } else {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(Tr("还没有回复"))
-                                .font(.body)
-                            Text(Tr("处理完成后，回复会显示在这里。"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 6)
-                    }
-                }
-            }
-            .navigationTitle(Tr("支持请求"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(Tr("完成")) { dismiss() }
-                }
-            }
-        }
-    }
-}
-
 struct SupportCategoryView: View {
     @ObservedObject private var lang = LangStore.shared
     @Environment(\.dismiss) private var dismiss
@@ -705,65 +417,44 @@ struct SupportCategoryView: View {
     var keyword: String = ""
 
     @State private var open: Set<String> = []
-    @State private var showKefu = false
 
     var body: some View {
-        List {
-            Section {
-                ForEach(cat.items ?? []) { item in
-                    DisclosureGroup(
-                        isExpanded: Binding(
-                            get: { open.contains(item.q) || !keyword.isEmpty },
-                            set: { expanded in
-                                if expanded { open.insert(item.q) }
-                                else { open.remove(item.q) }
-                            }
-                        )
-                    ) {
-                        Text(item.a)
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                            .padding(.vertical, 6)
-                    } label: {
-                        Text(item.q)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                            .padding(.vertical, 3)
-                    }
-                }
-            } header: {
-                Text(Tr("解决方案"))
-            }
+        VStack(spacing: 0) {
+            NavBar(title: cat.title, back: { dismiss() })
 
-            Section {
-                Button {
-                    showKefu = true
-                } label: {
-                    Label(Tr("联系在线客服"), systemImage: "bubble.left.and.bubble.right.fill")
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    GroupCard {
+                        ForEach(Array((cat.items ?? []).enumerated()), id: \.offset) { idx, it in
+                            if idx > 0 { HairLine(inset: 14) }
+                            QAItem(category: cat.title, item: it,
+                                   forceOpen: open.contains(it.q) || !keyword.isEmpty)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    if open.contains(it.q) { open.remove(it.q) } else { open.insert(it.q) }
+                                }
+                        }
+                    }
+                    .padding(.top, 10)
+
+                    Text(Tr("还有问题？联系在线客服"))
+                        .font(pf(13))
+                        .foregroundColor(C.subLabel)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 18)
+                    Color.clear.frame(height: 24)
                 }
-            } footer: {
-                Label(Tr("支持人员不会索要密码、验证码或支付密码。"),
-                      systemImage: "lock.shield.fill")
-                    .font(.footnote)
             }
+            .background(C.pageBg)
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle(cat.title)
-        .navigationBarTitleDisplayMode(.large)
-        .sheet(isPresented: $showKefu) {
-            KefuPage()
-        }
+        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
+        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .toolbar(.hidden, for: .navigationBar)
+        .swipeBack { dismiss() }
         .hidesTabBar()
         .onAppear {
-            if !keyword.isEmpty {
-                for item in cat.items ?? [] where
-                    item.q.localizedCaseInsensitiveContains(keyword) ||
-                    item.a.localizedCaseInsensitiveContains(keyword) {
-                    open.insert(item.q)
-                }
-                if let first = (cat.items ?? []).first { open.insert(first.q) }
-            }
+
+            if !keyword.isEmpty, let first = (cat.items ?? []).first { open.insert(first.q) }
         }
     }
 }
@@ -812,79 +503,83 @@ struct SupportTicketSheet: View {
     @State private var category = ""
     @State private var text = ""
     @State private var busy = false
-    @FocusState private var focused: Bool
 
     var body: some View {
-        NavigationStack {
-            Form {
-                if !hint.isEmpty {
-                    Section {
-                        Text(hint)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+        VStack(spacing: 0) {
+            NavBar(title: Tr("提交问题"), back: { dismiss() }) {
+                Button {
+                    send()
+                } label: {
+                    Text(busy ? Tr("提交中…") : Tr("提交"))
+                        .font(pf(16, .medium))
+                        .foregroundColor(text.isEmpty ? C.subLabel : C.green)
+                        .frame(height: L.navH)
+                        .padding(.trailing, 16)
                 }
+                .buttonStyle(.plain)
+            }
 
-                Section(Tr("问题描述")) {
+            ScrollView {
+                VStack(spacing: 0) {
                     ZStack(alignment: .topLeading) {
                         if text.isEmpty {
-                            Text(Tr("写清楚什么时候、在哪个页面、点了什么、出现什么"))
-                                .font(.body)
-                                .foregroundStyle(.tertiary)
-                                .padding(.top, 8)
-                                .padding(.leading, 5)
+                            Text(Tr("把遇到的问题写清楚：什么时候、在哪个页面、点了什么、出现什么"))
+                                .font(pf(15))
+                                .foregroundColor(C.subLabel)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 14)
                         }
                         TextEditor(text: $text)
-                            .font(.body)
+                            .font(pf(15))
                             .scrollContentBackground(.hidden)
-                            .frame(minHeight: 170)
-                            .focused($focused)
+                            .frame(height: 180)
+                            .padding(.horizontal, 11)
+                            .padding(.top, 6)
                     }
-                }
+                    .background(C.cardBg)
 
-                if !categories.isEmpty {
-                    Section(Tr("问题分类")) {
-                        Picker(Tr("分类"), selection: $category) {
-                            Text(Tr("请选择")).tag("")
-                            ForEach(categories, id: \.self) { value in
-                                Text(value).tag(value)
+                    if !categories.isEmpty {
+                        GroupCard {
+                            HStack(spacing: 10) {
+                                Text(Tr("问题分类")).font(pf(16)).foregroundColor(C.label)
+                                Spacer(minLength: 8)
+                                Menu {
+                                    ForEach(categories, id: \.self) { c in
+                                        Button(c) { category = c }
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(category.isEmpty ? Tr("请选择") : category)
+                                            .font(pf(15))
+                                            .foregroundColor(category.isEmpty ? C.subLabel : C.label)
+                                        Chevron(size: 8, line: 1.5)
+                                    }
+                                }
                             }
+                            .padding(.horizontal, 16)
+                            .frame(height: 52)
                         }
-                        .pickerStyle(.menu)
+                        .padding(.top, 8)
                     }
-                }
 
-                Section {
-                    Label(Tr("请勿发送密码、完整银行卡号或验证码。"),
-                          systemImage: "lock.shield.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .navigationTitle(Tr("提交问题"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(Tr("取消")) { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        send()
-                    } label: {
-                        if busy {
-                            ProgressView()
-                        } else {
-                            Text(Tr("提交")).fontWeight(.semibold)
-                        }
+                    if !hint.isEmpty {
+                        Text(hint)
+                            .font(pf(12.5))
+                            .foregroundColor(C.subLabel)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 22)
+                            .padding(.top, 10)
                     }
-                    .disabled(busy || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Color.clear.frame(height: 20)
                 }
             }
-            .task {
-                try? await Task.sleep(nanoseconds: 280_000_000)
-                focused = true
-            }
+            .background(C.pageBg)
         }
+        .background(C.pageBg.ignoresSafeArea(edges: .bottom))
+        .background(C.pageBg.ignoresSafeArea(edges: .top))
+        .toolbar(.hidden, for: .navigationBar)
+
+        .swipeBack { dismiss() }
     }
 
     private func send() {
