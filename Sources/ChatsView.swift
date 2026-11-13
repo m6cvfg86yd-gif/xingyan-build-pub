@@ -759,7 +759,7 @@ struct SwipeChatRow: View {
     private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
     private let actionGap: CGFloat = 4
     private var fullW: CGFloat { max(80, btnW) }
-    private var leadingFullW: CGFloat { btnW * 3 }
+    private var leadingFullW: CGFloat { btnW * 3 + 16 }
 
     private var blueBg: Color {
         UIConfig.colorIfSet("swipeUnread") ?? Color(hex: 0x28986C)
@@ -926,12 +926,13 @@ struct SwipeChatRow: View {
     }
 
     private var pinActionButtons: some View {
-        HStack {
+        HStack(spacing: 8) {
             pinSwipeButton {
                 ChatSwipeFeedback.selection.selectionChanged()
                 onPin(chat.pinned != true)
                 close()
             }
+            Spacer(minLength: 0)
         }
         .frame(height: ChatListVisual.rowHeight)
         .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
@@ -939,16 +940,31 @@ struct SwipeChatRow: View {
     }
 
     private var chatActionButtons: some View {
-        HStack(spacing: 0) {
-            bar("标为未读", blueBg, btnW) {
+        HStack(spacing: 8) {
+            circleAction(
+                symbol: "envelope.badge.fill",
+                title: Tr("标为未读"),
+                background: blueBg,
+                width: btnW
+            ) {
                 onUnread()
                 close()
             }
-            bar("不显示", yellowBg, btnW) {
+            circleAction(
+                symbol: "eye.slash.fill",
+                title: Tr("不显示"),
+                background: yellowBg,
+                width: btnW
+            ) {
                 onHide(false)
                 close()
             }
-            bar("删除", redBg, btnW) {
+            circleAction(
+                symbol: "trash.fill",
+                title: Tr("删除"),
+                background: redBg,
+                width: btnW
+            ) {
                 onDelete()
                 close()
             }
@@ -959,32 +975,41 @@ struct SwipeChatRow: View {
     }
 
     private func pinSwipeButton(action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        pinBg.opacity(0.96),
-                        pinBg
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+        circleAction(
+            symbol: chat.pinned == true ? "pin.slash.fill" : "pin.fill",
+            title: chat.pinned == true ? Tr("取消置顶") : Tr("置顶"),
+            background: pinBg,
+            width: fullW,
+            action: action
+        )
+    }
 
-                VStack(spacing: 4) {
-                    Image(systemName: chat.pinned == true
-                          ? "pin.slash.fill" : "pin.fill")
-                        .font(.system(size: 17, weight: .semibold))
-                    Text(chat.pinned == true ? Tr("取消置顶") : Tr("置顶"))
-                        .font(pfExact(12.5, .semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.76)
-                }
+    private func circleAction(symbol: String, title: String, background: Color,
+                              width: CGFloat,
+                              action: @escaping () -> Void) -> some View {
+        let side: CGFloat = 50
+        return Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 19, weight: .semibold))
                 .foregroundStyle(.white)
-            }
-            .frame(width: fullW, height: ChatListVisual.rowHeight)
-            .contentShape(Rectangle())
+                .frame(width: side, height: side)
+                .background(
+                    LinearGradient(
+                        colors: [background.opacity(0.90), background],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: Circle()
+                )
+                .overlay {
+                    Circle().stroke(Color.white.opacity(0.16), lineWidth: 0.7)
+                }
+                .shadow(color: background.opacity(0.24), radius: 7, y: 3)
+                .frame(width: width, height: ChatListVisual.rowHeight)
+                .contentShape(Rectangle())
         }
         .buttonStyle(RowSwipeActionButtonStyle())
+        .accessibilityLabel(title)
     }
 
     private func settle(velocity vx: CGFloat) {
@@ -1023,23 +1048,6 @@ struct SwipeChatRow: View {
             offset = open ? -leadingFullW : 0
             if !open { mode = .none }
         }
-    }
-
-    private func bar(_ title: String, _ bg: Color, _ width: CGFloat,
-                     action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(pfExact(btnFont, .semibold))
-                .foregroundColor(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.68)
-                .allowsTightening(true)
-                .frame(width: max(0, width),
-                       height: ChatListVisual.rowHeight)
-                .background(bg)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(RowSwipeActionButtonStyle())
     }
 
     private func close() {
