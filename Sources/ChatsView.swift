@@ -800,6 +800,12 @@ struct SwipeChatRow: View {
     private var actionReveal: CGFloat {
         max(0, min(1, -offset / leadingFullW))
     }
+    private var pinStretch: CGFloat {
+        max(0, offset - fullW)
+    }
+    private var deleteStretch: CGFloat {
+        max(0, -offset - leadingFullW)
+    }
     private var rowBg: Color {
         if cardStyle { return .clear }
         if scheme == .dark { return C.chatRowBg }
@@ -927,7 +933,7 @@ struct SwipeChatRow: View {
 
     private var pinActionButtons: some View {
         HStack(spacing: 8) {
-            pinSwipeButton {
+            pinSwipeButton(stretch: pinStretch) {
                 ChatSwipeFeedback.selection.selectionChanged()
                 onPin(chat.pinned != true)
                 close()
@@ -963,46 +969,56 @@ struct SwipeChatRow: View {
                 symbol: "trash.fill",
                 title: Tr("删除"),
                 background: redBg,
-                width: btnW
+                width: btnW + deleteStretch,
+                stretch: deleteStretch
             ) {
                 onDelete()
                 close()
             }
         }
-        .frame(width: leadingFullW, height: ChatListVisual.rowHeight, alignment: .leading)
+        .frame(width: leadingFullW + deleteStretch,
+               height: ChatListVisual.rowHeight,
+               alignment: .leading)
         .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .trailing)
         .clipped()
     }
 
-    private func pinSwipeButton(action: @escaping () -> Void) -> some View {
+    private func pinSwipeButton(stretch: CGFloat,
+                                action: @escaping () -> Void) -> some View {
         circleAction(
             symbol: chat.pinned == true ? "pin.slash.fill" : "pin.fill",
             title: chat.pinned == true ? Tr("取消置顶") : Tr("置顶"),
             background: pinBg,
-            width: fullW,
+            width: fullW + stretch,
+            stretch: stretch,
             action: action
         )
     }
 
     private func circleAction(symbol: String, title: String, background: Color,
                               width: CGFloat,
+                              stretch: CGFloat = 0,
                               action: @escaping () -> Void) -> some View {
         let side: CGFloat = 50
+        let capsuleWidth = stretch > 0.5
+            ? min(max(side, width - 4), side + stretch * 0.84)
+            : side
         return Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 19, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: side, height: side)
+                .frame(width: capsuleWidth, height: side)
                 .background(
                     LinearGradient(
                         colors: [background.opacity(0.90), background],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    in: Circle()
+                    in: Capsule(style: .continuous)
                 )
                 .overlay {
-                    Circle().stroke(Color.white.opacity(0.16), lineWidth: 0.7)
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.16), lineWidth: 0.7)
                 }
                 .shadow(color: background.opacity(0.24), radius: 7, y: 3)
                 .frame(width: width, height: ChatListVisual.rowHeight)
