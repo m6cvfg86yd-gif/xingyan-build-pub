@@ -242,7 +242,7 @@ struct NativeTabBar: UIViewRepresentable {
             UITabBarItem(title: C.tabText1, image: UIImage(systemName: "person.2"),
                          selectedImage: UIImage(systemName: "person.2.fill")),
             UITabBarItem(title: C.tabText2, image: UIImage(systemName: "safari"),
-                         selectedImage: UIImage(systemName: "safari")),
+                         selectedImage: Self.worldIconWithOrbit()),
             UITabBarItem(title: C.tabText3, image: UIImage(systemName: "person.crop.circle"),
                          selectedImage: UIImage(systemName: "person.crop.circle.fill")?
                             .withTintColor(UIColor(OrbitTheme.jade),
@@ -265,6 +265,31 @@ struct NativeTabBar: UIViewRepresentable {
             context.setFillColor(UIColor.clear.cgColor)
             context.fillEllipse(in: CGRect(x: 9.2, y: 11.3, width: 3.4, height: 3.4))
             context.fillEllipse(in: CGRect(x: 15.4, y: 11.3, width: 3.4, height: 3.4))
+        }
+        .withRenderingMode(.alwaysTemplate)
+    }
+
+    private static func worldIconWithOrbit() -> UIImage? {
+        guard let safari = UIImage(systemName: "safari")?
+            .withTintColor(.black, renderingMode: .alwaysOriginal) else { return nil }
+        let side: CGFloat = 30
+        let size = CGSize(width: side, height: side)
+        return UIGraphicsImageRenderer(size: size).image { renderer in
+            safari.draw(in: CGRect(x: 3, y: 3, width: 24, height: 24))
+
+            let context = renderer.cgContext
+            context.saveGState()
+            context.translateBy(x: 15, y: 15)
+            context.rotate(by: -.pi / 9)
+            context.setStrokeColor(UIColor.black.cgColor)
+            context.setLineWidth(0.9)
+            context.strokeEllipse(in: CGRect(x: -12.5, y: -4.2, width: 25, height: 8.4))
+            context.restoreGState()
+
+            if let sparkle = UIImage(systemName: "sparkle")?
+                .withTintColor(.black, renderingMode: .alwaysOriginal) {
+                sparkle.draw(in: CGRect(x: 22.5, y: 2.5, width: 5.5, height: 5.5))
+            }
         }
         .withRenderingMode(.alwaysTemplate)
     }
