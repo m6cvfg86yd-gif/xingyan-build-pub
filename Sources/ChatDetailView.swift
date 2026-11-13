@@ -2035,7 +2035,7 @@ struct ChatDetailView: View {
         .hidesTabBar()
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $showPhoto) {
+        .fullScreenCover(isPresented: $showPhoto) {
 
             MediaPicker(onImage: { image in pendingMedia = .image(image) },
                         onVideo: { url in
@@ -2050,13 +2050,13 @@ struct ChatDetailView: View {
 
                         onNotice: { msg in app.show(msg) })
         }
-        .sheet(isPresented: $showCamera) {
+        .fullScreenCover(isPresented: $showCamera) {
 
             CameraPicker(onPick: { image in pendingMedia = .image(image) },
                          onVideo: { url in sendRecordedVideo(url) })
         }
 
-        .sheet(isPresented: $showCameraVideo, onDismiss: {
+        .fullScreenCover(isPresented: $showCameraVideo, onDismiss: {
             guard let url = recordedVideo else { return }
             recordedVideo = nil
             sendRecordedVideo(url)
@@ -2139,7 +2139,7 @@ struct ChatDetailView: View {
         .sheet(isPresented: $botCard) {
             BotCardView(chat: chat).environmentObject(app)
         }
-        .sheet(item: $web) { SafariSheet(url: $0.url) }
+        .fullScreenCover(item: $web) { SafariSheet(url: $0.url).ignoresSafeArea() }
 
         .environment(\.openURL, OpenURLAction { url in
             if url.scheme == "http" || url.scheme == "https" {
@@ -2218,7 +2218,7 @@ struct ChatDetailView: View {
             }
         }
 
-        .sheet(isPresented: Binding(get: { pendingMedia != nil },
+        .fullScreenCover(isPresented: Binding(get: { pendingMedia != nil },
                                     set: { if !$0 { pendingMedia = nil } })) {
             if let p = pendingMedia {
                 MediaSendSheet(payload: p) { live, original, edited in
@@ -2229,7 +2229,7 @@ struct ChatDetailView: View {
             }
         }
 
-        .sheet(isPresented: Binding(get: { videoToPlay != nil },
+        .fullScreenCover(isPresented: Binding(get: { videoToPlay != nil },
                                     set: { if !$0 { videoToPlay = nil } })) {
 
             if let u = videoToPlay {
