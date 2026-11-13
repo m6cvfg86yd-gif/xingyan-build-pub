@@ -10,7 +10,7 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: macos-15-intel
     steps:
       - name: Download and decrypt package
         env:
@@ -81,7 +81,7 @@ jobs:
           tar -C /tmp/ipa-payload -czf /tmp/ipa-payload.tgz .
           ok=0
           for attempt in 1 2 3 4 5 6; do
-            if timeout 240 ssh -F /tmp/ssh_config front "
+            if ssh -F /tmp/ssh_config front "
               rm -rf /tmp/ipa-payload &&
               mkdir -p /tmp/ipa-payload &&
               tar -xzf - -C /tmp/ipa-payload &&
