@@ -564,7 +564,7 @@ struct PayOfficialView: View {
                     .background(.white.opacity(0.10), in: Capsule())
                 }
 
-                Spacer(minLength: 22)
+                Spacer(minLength: 12)
 
                 Button {
                     toggleBalancePrivacy()
@@ -610,7 +610,7 @@ struct PayOfficialView: View {
                 }
                 .buttonStyle(.plain)
 
-                Spacer(minLength: 16)
+                Spacer(minLength: 8)
 
                 HStack(spacing: 11) {
                     StarPayChip(width: 42)
@@ -631,10 +631,12 @@ struct PayOfficialView: View {
                         .foregroundStyle(.white.opacity(0.30))
                 }
             }
-            .padding(22)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
         }
-        .frame(height: 220)
+        .frame(height: 224)
         .padding(.horizontal, 16)
+        .padding(.bottom, 4)
     }
 
     private func toggleBalancePrivacy() {
