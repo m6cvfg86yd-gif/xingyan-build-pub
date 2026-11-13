@@ -5433,8 +5433,14 @@ private struct StarredPayload: Decodable {
         return payload.message
     }
 
-    func recall(chatId: String, messageId: String) async {
-        _ = try? await request("POST", "/api/messages/\(messageId)/recall", body: ["chatId": chatId])
+    func recall(chatId: String, messageId: String) async -> String? {
+        do {
+            _ = try await request("POST", "/api/messages/\(messageId)/recall",
+                                  body: ["chatId": chatId])
+            return nil
+        } catch {
+            return (error as? APIError)?.errorDescription ?? "撤回失败"
+        }
     }
 
     func likeMoment(id: String) async -> String? {

@@ -2363,6 +2363,15 @@ struct ChatDetailView: View {
                 burnAway(ev.burnIds)
             }
 
+            if ev.type == "recall", ev.chatId == chat.id, !ev.messageId.isEmpty {
+                markMessageRecalledLocally(ev.messageId)
+                pushTask?.cancel()
+                pushTask = Task {
+                    try? await Task.sleep(nanoseconds: 180_000_000)
+                    if !Task.isCancelled { await load(initial: true) }
+                }
+            }
+
             if ev.type == "message", ev.chatId == chat.id, let message = ev.message {
                 upsertVisibleMessage(message)
                 if message.kindName == "pat" {
@@ -5113,7 +5122,11 @@ struct ChatDetailView: View {
     private func recall(_ message: Message) {
         let draft = message.kindName == "text" ? message.body : ""
         Task {
-            await API.shared.recall(chatId: chat.id, messageId: message.id)
+            if let error = await API.shared.recall(chatId: chat.id, messageId: message.id) {
+                app.show(error)
+                return
+            }
+            markMessageRecalledLocally(message.id)
             await load(initial: true)
             guard !draft.isEmpty else { return }
             reEditDraft = draft
@@ -5121,6 +5134,14 @@ struct ChatDetailView: View {
             try? await Task.sleep(nanoseconds: 300 * 1_000_000_000)
             if reEditDraft == draft { reEditDraft = nil }
         }
+    }
+
+    private func markMessageRecalledLocally(_ messageId: String) {
+        guard let index = messages.firstIndex(where: { $0.id == messageId }),
+              messages[index].isRecalled != true else { return }
+        messages[index].recalled = true
+        rebuildIndex()
+        schedulePersist()
     }
 
     private func jumpToMessage(_ id: String, seq targetSeq: Int? = nil) {

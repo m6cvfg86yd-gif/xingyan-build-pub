@@ -511,6 +511,10 @@ final class AppState: ObservableObject {
                     if ev.type == "presence" { await self?.loadChats() }
                 }
             }
+        case "recall":
+            coalesce { [weak self] in
+                await self?.loadChats()
+            }
         case "toast":
 
             if !ev.announce.isEmpty { show(ev.announce) }
