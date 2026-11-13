@@ -214,7 +214,7 @@ struct PanelDangerRow: View {
     var subtitle: String? = nil
     var tap: () -> Void
 
-    private var dangerInk: Color { Color.dyn(0xE03A3A, 0xFF6B6B) }
+    private var dangerInk: Color { Color.dyn(0xEA0038, 0xF15C6D) }
 
     var body: some View {
         Button(action: tap) {
@@ -262,7 +262,7 @@ struct PanelConfirmDialog: View {
     var onCancel: () -> Void
 
     private var okColor: Color {
-        danger ? Color.dyn(0xE03A3A, 0xFF6B6B) : C.green
+        danger ? Color.dyn(0xEA0038, 0xF15C6D) : C.green
     }
 
     var body: some View {
