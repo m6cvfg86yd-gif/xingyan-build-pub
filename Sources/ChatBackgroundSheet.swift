@@ -553,17 +553,15 @@ struct ChatBackgroundSheet: View {
             ) {
                 solid
             } else if !immersivePath.isEmpty {
-                RemoteImage(path: immersivePath,
-                            mode: .fill,
-                            maxSide: chatWallpaperDecodeSide())
-                    .id("immersive-" + immersivePath)
-                    .scaleEffect(effect == .original ? 1 : 1.045)
-                    .blur(radius: effect == .blackBlur
-                          ? 23 : (effect == .whiteBlur ? 19 : 0))
-                    .saturation(effect == .original ? 1 : 0.86)
-                    .contrast(effect == .blackBlur ? 1.04 : 1)
-                    .brightness(effect == .blackBlur
-                                ? -0.035 : (effect == .whiteBlur ? 0.045 : 0))
+                if effect == .original {
+                    RemoteImage(path: immersivePath,
+                                mode: .fill,
+                                maxSide: chatWallpaperDecodeSide())
+                        .id("immersive-" + immersivePath)
+                } else {
+                    ChatWallpaperEffectImage(path: immersivePath, effect: effect)
+                        .id("immersive-" + immersivePath + "#" + effect.rawValue)
+                }
             } else {
                 ChatDefaultWallpaper()
             }
@@ -674,14 +672,14 @@ struct ChatBackgroundSheet: View {
             ) {
                 solid
             } else if !path.isEmpty {
-                RemoteImage(path: path, mode: .fill)
-                    .scaleEffect(effect == .original ? 1 : 1.045)
-                    .blur(radius: effect == .blackBlur
-                          ? 23 : (effect == .whiteBlur ? 19 : 0))
-                    .saturation(effect == .original ? 1 : 0.86)
-                    .contrast(effect == .blackBlur ? 1.04 : 1)
-                    .brightness(effect == .blackBlur
-                                ? -0.035 : (effect == .whiteBlur ? 0.045 : 0))
+                if effect == .original {
+                    RemoteImage(path: path,
+                                mode: .fill,
+                                maxSide: chatWallpaperDecodeSide())
+                } else {
+                    ChatWallpaperEffectImage(path: path, effect: effect)
+                        .id(path + "#preview-" + effect.rawValue)
+                }
             } else {
                 ChatDefaultWallpaper()
             }
