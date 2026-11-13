@@ -3,7 +3,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const { buildPlacementReport } = require('../lib/shard-data-placement');
+const {
+  buildPlacementReport,
+  buildPlacementReportFromEntries
+} = require('../lib/shard-data-placement');
 
 function arg(name, fallback) {
   const index = process.argv.indexOf('--' + name);
@@ -12,10 +15,19 @@ function arg(name, fallback) {
 
 function main() {
   const dataDir = arg('data');
-  if (!dataDir) throw new Error('usage: shard-data-placement.js --data DIR [--out FILE]');
-  const report = buildPlacementReport(dataDir, {
-    shallowKnownDirectories: process.argv.includes('--shallow')
-  });
+  const manifest = arg('manifest');
+  if (!dataDir && !manifest) {
+    throw new Error('usage: shard-data-placement.js '
+      + '(--data DIR [--shallow] | --manifest FILE) [--out FILE]');
+  }
+  const report = manifest
+    ? buildPlacementReportFromEntries(
+      JSON.parse(fs.readFileSync(path.resolve(manifest), 'utf8')),
+      { shallowKnownDirectories: true }
+    )
+    : buildPlacementReport(dataDir, {
+      shallowKnownDirectories: process.argv.includes('--shallow')
+    });
   const text = JSON.stringify(report, null, 2);
   const out = arg('out');
   if (out) {
