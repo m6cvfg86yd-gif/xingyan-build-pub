@@ -376,7 +376,13 @@ struct ChatRow: View, Equatable {
     }
 
     private var groupHasOnlineMember: Bool {
-        isGroupAvatar
+        guard isGroupAvatar else { return false }
+        if let online = chat.onlineMemberIds {
+            return !online.isEmpty
+        }
+        return (chat.memberIds ?? []).contains { id in
+            id != app.me?.id && app.contact(for: id)?.online == true
+        }
     }
 
     private func loadPeerIfNeeded() async {

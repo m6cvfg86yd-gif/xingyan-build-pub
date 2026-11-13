@@ -505,7 +505,10 @@ final class AppState: ObservableObject {
                 if ev.type == "profile", let user = ev.user {
                     applyProfileUpdate(user)
                 }
-                coalesce { [weak self] in await self?.loadContacts() }
+                coalesce { [weak self] in
+                    await self?.loadContacts()
+                    if ev.type == "presence" { await self?.loadChats() }
+                }
             }
         case "toast":
 
@@ -1599,6 +1602,7 @@ final class AppState: ObservableObject {
             if (x.title ?? "") != (y.title ?? "") { return false }
             if (x.avatar ?? "") != (y.avatar ?? "") { return false }
             if (x.moodIcon ?? "") != (y.moodIcon ?? "") { return false }
+            if (x.onlineMemberIds ?? []) != (y.onlineMemberIds ?? []) { return false }
             if (x.lastMessage?.preview ?? "") != (y.lastMessage?.preview ?? "") { return false }
             if (x.lastMessage?.createdAt ?? "") != (y.lastMessage?.createdAt ?? "") { return false }
         }

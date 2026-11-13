@@ -136,6 +136,7 @@ struct Chat: Codable, Identifiable, Hashable {
     var memberCount: Int?
 
     var memberIds: [String]?
+    var onlineMemberIds: [String]?
     var lastMessage: LastMessage?
     var updatedAt: String?
 
