@@ -45,6 +45,7 @@ final class AppState: ObservableObject {
             if me != nil { startDotWatch() } else { dotTask?.cancel() }
         }
     }
+    private var localProfileOverrides: [String: (value: String, at: Date)] = [:]
 
     @Published var lastAvatar: String = UserDefaults.standard.string(forKey: "chris.lastAvatar") ?? ""
     @Published var lastName: String = UserDefaults.standard.string(forKey: "chris.lastName") ?? ""
@@ -398,7 +399,7 @@ final class AppState: ObservableObject {
         guard me != nil else { return }
 
         if let u = ev.user, u.id == me?.id {
-            me = u
+            me = mergeLocalProfileOverrides(u)
             coalesce { [weak self] in
                 await self?.loadChats()
                 await self?.loadContacts()
@@ -663,7 +664,7 @@ final class AppState: ObservableObject {
             let s = try await API.shared.session()
             CrashCatcher.note("启动", "5 会话查询返回")
             if s.ok, let user = s.user {
-                me = user
+                me = mergeLocalProfileOverrides(user)
                 rememberLastUser()
                 Task { await API.shared.touchCurrentDevice() }
 
@@ -1423,6 +1424,14 @@ final class AppState: ObservableObject {
     func applyMyProfileFields(_ fields: [String: Any]) {
         guard var me = me else { return }
         func text(_ key: String) -> String? { fields[key] as? String }
+        let now = Date()
+        for key in ["nickname", "bio", "region", "gender", "birthday",
+                    "patText", "phone", "username", "avatar", "momentCover",
+                    "chatBackground"] {
+            if let value = fields[key] as? String {
+                localProfileOverrides[key] = (value, now)
+            }
+        }
         if let value = text("nickname") { me.nickname = value }
         if let value = text("bio") { me.bio = value }
         if let value = text("region") { me.region = value }
@@ -1441,6 +1450,7 @@ final class AppState: ObservableObject {
     /// 资料保存后以服务端返回值作为唯一真源，避免只改本地状态、
     /// 下一次轮询又从旧用户行覆盖回来。
     func applyMyProfileUser(_ user: User) {
+        let user = mergeLocalProfileOverrides(user)
         guard var merged = me else {
             me = user
             rememberLastUser()
@@ -1459,6 +1469,37 @@ final class AppState: ObservableObject {
         merged.chatBackground = user.chatBackground ?? merged.chatBackground
         me = merged
         rememberLastUser()
+    }
+
+    private func mergeLocalProfileOverrides(_ user: User) -> User {
+        let now = Date()
+        localProfileOverrides = localProfileOverrides.filter {
+            now.timeIntervalSince($0.value.at) < 120
+        }
+        guard !localProfileOverrides.isEmpty else { return user }
+        var out = user
+
+        func merge(_ key: String, current: String?, apply: (String) -> Void) {
+            guard let hit = localProfileOverrides[key] else { return }
+            if (current ?? "") == hit.value {
+                localProfileOverrides.removeValue(forKey: key)
+            } else {
+                apply(hit.value)
+            }
+        }
+
+        merge("nickname", current: user.nickname) { out.nickname = $0 }
+        merge("bio", current: user.bio) { out.bio = $0 }
+        merge("region", current: user.region) { out.region = $0 }
+        merge("gender", current: user.gender) { out.gender = $0 }
+        merge("birthday", current: user.birthday) { out.birthday = $0 }
+        merge("patText", current: user.patText) { out.patText = $0 }
+        merge("phone", current: user.phone) { out.phone = $0 }
+        merge("username", current: user.username) { out.username = $0 }
+        merge("avatar", current: user.avatar) { out.avatar = $0 }
+        merge("momentCover", current: user.momentCover) { out.momentCover = $0 }
+        merge("chatBackground", current: user.chatBackground) { out.chatBackground = $0 }
+        return out
     }
 
     /// WebSocket 已带会话摘要时先更新预览与红点，再等后台全量校准。
