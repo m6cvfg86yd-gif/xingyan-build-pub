@@ -45,6 +45,8 @@ jobs:
             IdentityFile /tmp/deploy_key
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
+            BatchMode yes
+            ConnectTimeout 20
             ServerAliveInterval 10
 
           Host front
@@ -54,6 +56,8 @@ jobs:
             ProxyJump jump
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
+            BatchMode yes
+            ConnectTimeout 20
             ServerAliveInterval 10
           EOF
           cat > /tmp/ipa-payload/diagnose.js <<'NODE'
