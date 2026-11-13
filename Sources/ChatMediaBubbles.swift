@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import AVKit
+import Photos
 
 private func jsonDict(_ s: String) -> [String: Any] {
     guard let d = s.data(using: .utf8),
@@ -289,6 +290,7 @@ struct VideoPlayerSheet: View {
     @State private var hideTask: Task<Void, Never>?
     @State private var showForward = false
     @State private var showShare = false
+    @State private var saving = false
 
     @State private var speed: Double = 1
 
@@ -432,8 +434,13 @@ struct VideoPlayerSheet: View {
 
                 if controls {
 
-                    HStack(spacing: 46) {
+                    HStack(spacing: 34) {
                         action("转发", "arrowshape.turn.up.right.fill") { showForward = true }
+                        action(saving ? "保存中" : "保存",
+                               saving ? "hourglass" : "square.and.arrow.down") {
+                            saveVideo()
+                        }
+                        .disabled(saving)
                         action("分享", "square.and.arrow.up") { showShare = true }
                     }
                     .padding(.horizontal, 24)
@@ -535,6 +542,50 @@ struct VideoPlayerSheet: View {
                 p.rate = Float(value)
             }
         }
+    }
+
+    private func saveVideo() {
+        guard !saving else { return }
+        saving = true
+        Task {
+            defer { Task { @MainActor in saving = false } }
+            guard let file = await videoFileForSaving() else {
+                await MainActor.run { app.show(Tr("视频下载失败，暂时不能保存")) }
+                return
+            }
+            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+            guard status == .authorized || status == .limited else {
+                await MainActor.run { app.show(Tr("没有相册保存权限")) }
+                return
+            }
+            do {
+                try await PHPhotoLibrary.shared().performChanges {
+                    PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: file)
+                }
+                await MainActor.run { app.show(Tr("已保存到相册")) }
+            } catch {
+                await MainActor.run { app.show(Tr("视频保存失败")) }
+            }
+        }
+    }
+
+    private func videoFileForSaving() async -> URL? {
+        if url.isFileURL, FileManager.default.fileExists(atPath: url.path) {
+            return url
+        }
+        if let local = LocalStore.localURL(url.path),
+           FileManager.default.fileExists(atPath: local.path) {
+            return local
+        }
+        guard !url.path.isEmpty,
+              let data = try? await API.shared.assetData(url),
+              !data.isEmpty else { return nil }
+        let ext = url.pathExtension.isEmpty ? "mp4" : url.pathExtension
+        let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent("save-\(UUID().uuidString).\(ext)")
+        guard (try? data.write(to: file)) != nil else { return nil }
+        LocalStore.keep(url.path, data: data)
+        return file
     }
 
     private func togglePlayback() {
