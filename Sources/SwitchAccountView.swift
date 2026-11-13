@@ -176,15 +176,10 @@ struct SwitchAccountView: View {
                    circle: true,
                    level: levelOf(account))
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(displayName(account))
-                    .font(pfStyled(size: 17, weight: .regular))
+                    .font(pfStyled(size: 16.5, weight: .semibold))
                     .foregroundStyle(primaryInk)
-                    .lineLimit(1)
-
-                Text("@" + account.username)
-                    .font(pfStyled(size: 14, weight: .regular))
-                    .foregroundStyle(secondaryInk)
                     .lineLimit(1)
 
                 HStack(spacing: 5) {
@@ -237,7 +232,7 @@ struct SwitchAccountView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(Tr("添加新账号"))
-                    .font(pfStyled(size: 16.5, weight: .regular))
+                    .font(pfStyled(size: 16.5, weight: .semibold))
                     .foregroundStyle(primaryInk)
                 Text(addSubtitle)
                     .font(pfStyled(size: 12.5))
@@ -491,7 +486,7 @@ struct SwitchAccountView: View {
                             }
                         }
 
-                        Text("@" + account.username)
+                        Text(account.username)
                             .font(pfStyled(size: 11.5, weight: .medium, design: .monospaced))
                             .foregroundStyle(OrbitTheme.secondary)
                             .lineLimit(1)
