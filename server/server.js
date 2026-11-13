@@ -6722,7 +6722,7 @@ function isLegacyTransferText(m) {
   return c.indexOf('💰 转账') === 0 || c.indexOf('💰 已发起一笔转账') === 0;
 }
 
-function chatSummary(chat, forUserId, lastHint, onlineSet) {
+function chatSummary(chat, forUserId, lastHint) {
   /* 发消息时调用方知道刚写进去的那条，就不用把整个聊天记录读一遍了
      —— 这是压测里最热的一段（每发一条消息要读 2 次聊天文件）。 */
   let last = lastHint || null;
@@ -6831,9 +6831,6 @@ function chatSummary(chat, forUserId, lastHint, onlineSet) {
     qqLevel,
     ...memberInfo,
     memberIds: chat.memberIds,
-    onlineMemberIds: onlineSet
-      ? chat.memberIds.filter((id) => id !== forUserId && onlineSet.has(id))
-      : undefined,
     memberCount: chat.memberIds.length,
     lastMessage: last ? {
       id: last.id,
@@ -7171,69 +7168,6 @@ function sendTo(userId, payload) {
   const sent = sendToLocal(userId, payload);
   relayToShardPeers(userId, payload);
   return sent;
-}
-
-function onlineIdsLocally(ids) {
-  const wanted = new Set((Array.isArray(ids) ? ids : []).map(String));
-  return onlineUserIds().filter((id) =>
-    wanted.has(id) && visibleStatus(id) !== 'offline'
-  );
-}
-
-function peerOnlineIds(port, ids) {
-  return new Promise((resolve) => {
-    const body = JSON.stringify({ ids });
-    const request = http.request({
-      host: '127.0.0.1',
-      port,
-      path: '/__shard/online',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        'X-Shard-Relay': db.secret || ''
-      }
-    }, (response) => {
-      const chunks = [];
-      response.on('data', (chunk) => chunks.push(chunk));
-      response.on('end', () => {
-        try {
-          const payload = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
-          const online = payload && payload.data && payload.data.online;
-          resolve(Array.isArray(online) ? online.map(String) : []);
-        } catch (error) {
-          resolve([]);
-        }
-      });
-    });
-    request.setTimeout(280, () => request.destroy());
-    request.on('error', () => resolve([]));
-    request.end(body);
-  });
-}
-
-async function onlineIdsAcrossShards(ids) {
-  const unique = Array.from(new Set((Array.isArray(ids) ? ids : [])
-    .map(String).filter(Boolean)));
-  if (!unique.length) return new Set();
-  const online = new Set(onlineIdsLocally(unique));
-  const peers = shardPorts().filter((port) => port !== PORT);
-  await Promise.all(peers.map(async (port) => {
-    const rows = await peerOnlineIds(port, unique);
-    rows.forEach((id) => online.add(id));
-  }));
-  return online;
-}
-
-async function onlineSetForChats(userId, chats) {
-  const ids = [];
-  (chats || []).forEach((chat) => {
-    if (!chat || chat.type !== 'group') return;
-    (chat.memberIds || []).forEach((id) => {
-      if (id && id !== userId) ids.push(id);
-    });
-  });
-  return onlineIdsAcrossShards(ids);
 }
 
 /** 给所有在线的人发一条（配置变更之类的全局通知） */
@@ -19609,11 +19543,10 @@ async function handleApi(req, res, pathname, query) {
         return String(b.updatedAt).localeCompare(String(a.updatedAt));
       });
       const mine = sortChats(chatsOf(user.id).slice());
-      const onlineSet = await onlineSetForChats(user.id, mine);
-      const list = mine.map((c) => chatSummary(c, user.id, null, onlineSet));
+      const list = mine.map((c) => chatSummary(c, user.id));
       const batch = mine.slice(0, chatCount).map((c) => ({
         id: c.id,
-        title: chatSummary(c, user.id, null, onlineSet).title,
+        title: chatSummary(c, user.id).title,
         messages: loadMessages(c.id).slice(-perChat).map((m) => Object.assign({}, m, {
           senderName: displayNameFor(user.id, findUser(m.senderId)),
           senderAvatar: (findUser(m.senderId) || {}).avatar || ''
@@ -19623,10 +19556,8 @@ async function handleApi(req, res, pathname, query) {
       ok(res, { chats: list, sync: { chats: batch, syncedAt: now() } });
       return;
     }
-    const mine = chatsOf(user.id);
-    const onlineSet = await onlineSetForChats(user.id, mine);
-    const list = mine
-      .map((c) => chatSummary(c, user.id, null, onlineSet))
+    const list = chatsOf(user.id)
+      .map((c) => chatSummary(c, user.id))
       .sort((a, b) => {
         if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;   // 置顶会话永远在最上面（QQ 就是这样）
         const ra = a.botRank == null ? 9 : a.botRank, rb = b.botRank == null ? 9 : b.botRank;
@@ -22024,18 +21955,6 @@ async function handleHttpRequest(req, res) {
       if (body.payload.type === 'chat') refreshChatAccessStateFromDisk(true);
       const sent = sendToLocal(userId, body.payload);
       return ok(res, { sent });
-    }
-    if (parsed.pathname === '/__shard/online') {
-      if (req.method !== 'POST') return fail(res, 405, 'Method Not Allowed');
-      const supplied = String(req.headers['x-shard-relay'] || '');
-      const expected = String(db.secret || '');
-      const a = Buffer.from(supplied);
-      const b = Buffer.from(expected);
-      if (!expected || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-        return fail(res, 403, '禁止访问');
-      }
-      const body = await readBody(req);
-      return ok(res, { online: onlineIdsLocally(body.ids) });
     }
     /* 被封的 IP：接口和上传文件一律 403；静态页面还让过，
        这样正常用户只是看到「操作失败」，不会整个 App 白屏。
