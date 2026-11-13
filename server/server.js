@@ -6854,6 +6854,7 @@ function chatSummary(chat, forUserId, lastHint) {
     }
   }
   if (mentionMe && preview) preview = '[有人@我] ' + preview;
+  const online = chat.type === 'group' ? onlinePresenceSet() : null;
   return {
     id: chat.id,
     type: chat.type,
@@ -6872,6 +6873,9 @@ function chatSummary(chat, forUserId, lastHint) {
     qqLevel,
     ...memberInfo,
     memberIds: chat.memberIds,
+    onlineMemberIds: online
+      ? chat.memberIds.filter((id) => id !== forUserId && online.has(id))
+      : undefined,
     memberCount: chat.memberIds.length,
     lastMessage: last ? {
       id: last.id,
@@ -7130,6 +7134,7 @@ function pushMomentNotice(toUserId, fromUserId, kind, momentId, text, extra) {
 /* --------------------------------------------------------------- 实时连接 */
 
 const connections = new Map();
+const peerOnlineCache = new Map();
 /* 每个账号最近一次连上来的出口 IP：通话前用来判断「两端是不是同一个网络」，
    同一个网络就直连（快、不占服务器带宽），不同网络才强制走中继。 */
 const userIps = new Map();
@@ -7211,6 +7216,88 @@ function sendTo(userId, payload) {
   return sent;
 }
 
+function peerOnlineSet(port) {
+  if (!peerOnlineCache.has(port)) peerOnlineCache.set(port, new Set());
+  return peerOnlineCache.get(port);
+}
+
+function localOnlineIds() {
+  return Array.from(connections.keys()).filter((id) =>
+    visibleStatus(id) !== 'offline'
+  );
+}
+
+function onlinePresenceSet() {
+  const out = new Set(localOnlineIds());
+  peerOnlineCache.forEach((set) => set.forEach((id) => out.add(id)));
+  return out;
+}
+
+function broadcastPresenceToPeers(userId, online) {
+  if (!userId) return;
+  const body = JSON.stringify({ userId, online: !!online, port: PORT });
+  shardPorts().forEach((port) => {
+    if (port === PORT) return;
+    const req = http.request({
+      host: '127.0.0.1',
+      port,
+      path: '/__shard/presence-event',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        'X-Shard-Relay': db.secret || ''
+      }
+    }, (res) => res.resume());
+    req.setTimeout(350, () => req.destroy());
+    req.on('error', () => {});
+    req.end(body);
+  });
+}
+
+function pullPresenceFromPeer(port) {
+  return new Promise((resolve) => {
+    const req = http.request({
+      host: '127.0.0.1',
+      port,
+      path: '/__shard/presence-state',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': '0',
+        'X-Shard-Relay': db.secret || ''
+      }
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        try {
+          const payload = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+          const ids = payload && payload.data && payload.data.online;
+          resolve(Array.isArray(ids) ? ids.map(String) : null);
+        } catch (_) {
+          resolve(null);
+        }
+      });
+    });
+    req.setTimeout(450, () => req.destroy());
+    req.on('error', () => resolve(null));
+    req.end();
+  });
+}
+
+function syncPresenceFromPeers() {
+  shardPorts().forEach(async (port) => {
+    if (port === PORT) return;
+    const ids = await pullPresenceFromPeer(port);
+    if (ids) peerOnlineCache.set(port, new Set(ids));
+    else peerOnlineCache.delete(port);
+  });
+}
+
+setTimeout(syncPresenceFromPeers, 1200).unref();
+setInterval(syncPresenceFromPeers, 15000).unref();
+
 /** 给所有在线的人发一条（配置变更之类的全局通知） */
 function sendToAll(payload) {
   const text = applyMediaBase(signUploadsInText(JSON.stringify(payload)));
@@ -7282,7 +7369,15 @@ function friendStatusMap(userId) {
 
 function notifyPresence(userId, online) {
   const payload = { type: 'presence', userId, online, status: online ? visibleStatus(userId) : 'offline' };
-  friendIds(userId).forEach((fid) => sendTo(fid, payload));
+  const targets = new Set(friendIds(userId));
+  db.chats.forEach((chat) => {
+    if (!chat || chat.type !== 'group' || !Array.isArray(chat.memberIds)
+        || !chat.memberIds.includes(userId)) return;
+    chat.memberIds.forEach((id) => {
+      if (id && id !== userId) targets.add(id);
+    });
+  });
+  targets.forEach((id) => sendTo(id, payload));
 }
 
 /* ============================================================
@@ -8635,7 +8730,10 @@ function handleSocket(user, socket) {
   const set = connections.get(user.id);
   const first = set.size === 0;
   set.add(socket);
-  if (first) notifyPresence(user.id, true);
+  if (first) {
+    broadcastPresenceToPeers(user.id, true);
+    notifyPresence(user.id, true);
+  }
   /* 重连回来了：把「闪断宽限期」取消掉，这一通电话继续（声音会接着传） */
   if (first) {
     calls.forEach((call) => {
@@ -8674,6 +8772,7 @@ function handleSocket(user, socket) {
       if (s.size === 0) {
         connections.delete(user.id);
         callTrace('ws 断开 ' + user.id + '（' + (user.nickname || user.username) + '）');
+        broadcastPresenceToPeers(user.id, false);
         notifyPresence(user.id, false);
         /* 长连接偶尔会闪断（切 4G/Wi-Fi、进电梯、锁屏一下）：
            以前一断就把通话直接结束 → 表现是「打着打着自动挂断 + 中间那段没声音」。
@@ -10566,6 +10665,7 @@ function recallMessage(user, chatId, messageId) {
   }
     msg.recalled = true;
     saveMessagesFile(chat.id, messages);
+  messageCache.delete(chat.id);
   sendToChat(chat, { type: 'recall', chatId: chat.id, messageId: msg.id });
   return { message: msg };
 }
@@ -21261,16 +21361,34 @@ async function handleApi(req, res, pathname, query) {
     const MAX = 60 * 1024 * 1024;
     let size = 0, tooBig = false;
     const ws2 = fs.createWriteStream(outPath);
-    await new Promise((resolve) => {
+    try {
+      await new Promise((resolve, reject) => {
+      let done = false;
+      const finish = (error) => {
+        if (done) return;
+        done = true;
+        if (error) reject(error);
+        else resolve();
+      };
       req.on('data', (chunk) => {
         size += chunk.length;
-        if (size > MAX) { tooBig = true; try { ws2.destroy(); } catch (err) { } req.destroy(); resolve(); }
+        if (size > MAX) {
+          tooBig = true;
+          try { ws2.destroy(); } catch (err) { }
+          req.destroy();
+          finish();
+        }
       });
-      req.on('end', () => resolve());
-      req.on('error', () => resolve());
+      req.on('error', finish);
+      ws2.on('error', finish);
+      ws2.on('finish', () => finish());
       req.pipe(ws2);
-      ws2.on('close', () => resolve());
-    });
+      });
+    } catch (err) {
+      try { ws2.destroy(); } catch (_) { }
+      try { fs.unlinkSync(outPath); } catch (_) { }
+      return fail(res, 422, '文件上传中断，请重试');
+    }
     if (tooBig) { try { fs.unlinkSync(outPath); } catch (err) { } return fail(res, 413, '文件超过 60MB'); }
     if (!size) { try { fs.unlinkSync(outPath); } catch (err) { } return fail(res, 422, '没有收到文件'); }
     /* 这个口原来是"写进去就不管了"：图片炸弹能从这里溜进来。
@@ -21333,6 +21451,15 @@ async function handleApi(req, res, pathname, query) {
     }
     /* 上传目录里的东西一律加密落盘（以前这个口是直接写明文，重启才补加密） */
     sealUploadInPlace(name);
+    try {
+      const uploaded = fs.statSync(path.join(UPLOAD_DIR, name));
+      if (!uploaded.isFile() || uploaded.size <= 20) {
+        try { fs.unlinkSync(path.join(UPLOAD_DIR, name)); } catch (_) { }
+        return fail(res, 422, '文件内容为空，请重新选择文件');
+      }
+    } catch (_) {
+      return fail(res, 422, '文件保存失败，请重试');
+    }
     noteUpload(user.id, size);
     ok(res, { url: '/uploads/' + name, bytes: size });
     return;
@@ -21986,7 +22113,7 @@ async function handleHttpRequest(req, res) {
       const relayChatId = str(body.payload.chatId
         || (body.payload.message && body.payload.message.chatId)
         || '', 80);
-      if (relayChatId && ['message', 'transfer', 'redpacket'].includes(relayType)) {
+      if (relayChatId && ['message', 'transfer', 'redpacket', 'recall', 'burn'].includes(relayType)) {
         /* 各分片有独立消息缓存。发送片已经把消息写进共享消息文件，
            接收片必须丢掉旧缓存；否则离线后重进会话时看不到这张卡片，
            unreadCount() 也会按旧消息尾巴算出 0，红点不出现。 */
@@ -21996,6 +22123,36 @@ async function handleHttpRequest(req, res) {
       if (body.payload.type === 'chat') refreshChatAccessStateFromDisk(true);
       const sent = sendToLocal(userId, body.payload);
       return ok(res, { sent });
+    }
+    if (parsed.pathname === '/__shard/presence-event') {
+      if (req.method !== 'POST') return fail(res, 405, 'Method Not Allowed');
+      const supplied = String(req.headers['x-shard-relay'] || '');
+      const expected = String(db.secret || '');
+      const a = Buffer.from(supplied);
+      const b = Buffer.from(expected);
+      if (!expected || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        return fail(res, 403, '禁止访问');
+      }
+      const body = await readBody(req);
+      const uid = str(body.userId, 80);
+      const port = Number(body.port) || 0;
+      if (uid && port) {
+        const set = peerOnlineSet(port);
+        if (body.online) set.add(uid);
+        else set.delete(uid);
+      }
+      return ok(res, { updated: !!uid });
+    }
+    if (parsed.pathname === '/__shard/presence-state') {
+      if (req.method !== 'POST') return fail(res, 405, 'Method Not Allowed');
+      const supplied = String(req.headers['x-shard-relay'] || '');
+      const expected = String(db.secret || '');
+      const a = Buffer.from(supplied);
+      const b = Buffer.from(expected);
+      if (!expected || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        return fail(res, 403, '禁止访问');
+      }
+      return ok(res, { online: localOnlineIds() });
     }
     /* 被封的 IP：接口和上传文件一律 403；静态页面还让过，
        这样正常用户只是看到「操作失败」，不会整个 App 白屏。
