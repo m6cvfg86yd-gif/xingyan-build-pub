@@ -238,7 +238,7 @@ struct NativeTabBar: UIViewRepresentable {
         bar.itemPositioning = .fill
         bar.items = [
             UITabBarItem(title: C.tabText0, image: UIImage(systemName: "message"),
-                         selectedImage: UIImage(systemName: "message.fill")),
+                         selectedImage: Self.messageIconWithEyes()),
             UITabBarItem(title: C.tabText1, image: UIImage(systemName: "person.2"),
                          selectedImage: UIImage(systemName: "person.2.fill")),
             UITabBarItem(title: C.tabText2, image: UIImage(systemName: "safari"),
@@ -251,6 +251,22 @@ struct NativeTabBar: UIViewRepresentable {
         applyColors(bar)
         refresh(bar)
         return bar
+    }
+
+    private static func messageIconWithEyes() -> UIImage? {
+        guard let bubble = UIImage(systemName: "message.fill")?
+            .withTintColor(.black, renderingMode: .alwaysOriginal) else { return nil }
+        let side: CGFloat = 28
+        let size = CGSize(width: side, height: side)
+        return UIGraphicsImageRenderer(size: size).image { renderer in
+            bubble.draw(in: CGRect(origin: .zero, size: size))
+            let context = renderer.cgContext
+            context.setBlendMode(.clear)
+            context.setFillColor(UIColor.clear.cgColor)
+            context.fillEllipse(in: CGRect(x: 9.2, y: 11.3, width: 3.4, height: 3.4))
+            context.fillEllipse(in: CGRect(x: 15.4, y: 11.3, width: 3.4, height: 3.4))
+        }
+        .withRenderingMode(.alwaysTemplate)
     }
 
     func updateUIView(_ bar: UITabBar, context: Context) {
