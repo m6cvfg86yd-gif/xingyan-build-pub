@@ -169,6 +169,8 @@ struct ChatBackgroundSheet: View {
 
     @State private var picking = false
     @State private var busy = false
+    @State private var composingImage: UIImage?
+    @State private var showingComposer = false
 
     static let presets: [String] = ["solid:white", "solid:black"]
 
@@ -331,7 +333,23 @@ struct ChatBackgroundSheet: View {
             }
         }
         .sheet(isPresented: $picking) {
-            PhotoPicker { image in upload(image) }
+            PhotoPicker { image in beginComposing(image) }
+        }
+        .fullScreenCover(isPresented: $showingComposer) {
+            if let image = composingImage {
+                WallpaperCropView(
+                    image: image,
+                    onCancel: {
+                        showingComposer = false
+                        composingImage = nil
+                    },
+                    onApply: { rendered in
+                        showingComposer = false
+                        composingImage = nil
+                        upload(rendered)
+                    }
+                )
+            }
         }
         .tint(.accentColor)
     }
@@ -536,7 +554,23 @@ struct ChatBackgroundSheet: View {
         .toolbar(.hidden, for: .navigationBar)
         .preferredColorScheme(scheme)
         .sheet(isPresented: $picking) {
-            PhotoPicker { image in upload(image) }
+            PhotoPicker { image in beginComposing(image) }
+        }
+        .fullScreenCover(isPresented: $showingComposer) {
+            if let image = composingImage {
+                WallpaperCropView(
+                    image: image,
+                    onCancel: {
+                        showingComposer = false
+                        composingImage = nil
+                    },
+                    onApply: { rendered in
+                        showingComposer = false
+                        composingImage = nil
+                        upload(rendered)
+                    }
+                )
+            }
         }
     }
 
@@ -872,6 +906,14 @@ struct ChatBackgroundSheet: View {
                 app.show(Tr("已在本机换好，联网后自动同步"))
             }
             busy = false
+        }
+    }
+
+    private func beginComposing(_ image: UIImage) {
+        picking = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            composingImage = image
+            showingComposer = true
         }
     }
 
