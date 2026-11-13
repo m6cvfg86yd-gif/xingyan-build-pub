@@ -2803,7 +2803,6 @@ struct MomentsView: View {
             } else {
                 await reload()
                 await app.loadMoments()
-                app.show(Tr("已删除"))
             }
         }
     }
@@ -2876,7 +2875,6 @@ struct MomentGroupPage: View {
                 app.show(error)
             } else {
                 visibleMoments.removeAll { $0.id == moment.id }
-                app.show(Tr("已删除"))
                 onDeleted?()
             }
         }
