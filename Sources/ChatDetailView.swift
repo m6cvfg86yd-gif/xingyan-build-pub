@@ -976,6 +976,7 @@ struct ChatDetailView: View {
 
     @State private var loadingAllGroupHistory = false
     @State private var holdScroll = false
+    @State private var allowSettledBottom = false
     @State private var atBottom = true
 
     @State private var wasAtBottom = true
@@ -2532,7 +2533,7 @@ struct ChatDetailView: View {
             }
             .coordinateSpace(name: "chatScroll")
             .scrollDismissesKeyboard(.interactively)
-            .onChange(of: messages.count) { _ in
+        .onChange(of: messages.count) { _ in
 
                 backfillVoiceText()
                 ChatScrollDiag.shared.note("消息数变了=\(messages.count) atBottom=\(atBottomNow ? 1 : 0)")
@@ -2541,6 +2542,15 @@ struct ChatDetailView: View {
                 scrollToEnd(proxy, animated: false)
                 scheduleSettledBottom()
                 markConversationReadSoon()
+            }
+            .onChange(of: loading) { value in
+                if value {
+                    allowSettledBottom = false
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        allowSettledBottom = true
+                    }
+                }
             }
             .onChange(of: scrollTick) { _ in
                 atBottom = true
@@ -2575,7 +2585,11 @@ struct ChatDetailView: View {
                 wasAtBottom = true
                 atBottom = true
                 scrollToEnd(proxy, animated: false)
-                scheduleSettledBottom()
+                if !loading {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        allowSettledBottom = true
+                    }
+                }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
                     CrashCatcher.note("聊天页",
                         "打开 \(chat.id) 条数=\(messages.count) 内容高=\(Int(lastContentHeight))"
@@ -2692,6 +2706,7 @@ struct ChatDetailView: View {
     }
 
     private func scheduleSettledBottom(delayMs: UInt64 = 120) {
+        guard allowSettledBottom else { return }
         guard atBottomNow, !holdScroll, !ChatScrollHandle.shared.moving else { return }
         let followOwnSend = Date() < followOwnSendUntil
         settleTask?.cancel()
