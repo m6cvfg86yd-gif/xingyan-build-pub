@@ -815,15 +815,42 @@ struct PayOfficialView: View {
             selectedLedger = entry
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: incoming ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
-                    .font(.system(size: 19, weight: .semibold))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, incoming ? PayVisual.success : PayVisual.tint)
-                    .frame(width: 36, height: 36)
-                    .background(
-                        (incoming ? PayVisual.success : PayVisual.tint).opacity(0.12),
-                        in: Circle()
-                    )
+                ZStack(alignment: .bottomTrailing) {
+                    Group {
+                        if avatar.isEmpty {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: 0x25B7F4), Color(hex: 0x087CF0)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .overlay {
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+                        } else {
+                            Avatar(path: avatar, size: 38, radius: 19, circle: true)
+                        }
+                    }
+                    .frame(width: 38, height: 38)
+                    .overlay {
+                        Circle().stroke(Color.primary.opacity(0.08), lineWidth: 0.7)
+                    }
+
+                    Image(systemName: incoming ? "arrow.down.left" : "arrow.up.right")
+                        .font(.system(size: 7.5, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 15, height: 15)
+                        .background(incoming ? PayVisual.success : PayVisual.tint, in: Circle())
+                        .overlay {
+                            Circle().stroke(PayVisual.canvas, lineWidth: 1.4)
+                        }
+                        .offset(x: 2, y: 2)
+                }
+                .frame(width: 42, height: 40, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.reason.isEmpty ? (incoming ? Tr("收款") : Tr("付款")) : entry.reason)
