@@ -920,39 +920,11 @@ struct GameWebPage: View {
         do {
             try fm.createDirectory(at: root, withIntermediateDirectories: true)
 
+            let list = await miniAppFileList(baseDir: remoteDir)
+
+            let stamp = GamesPageView.stableKey(list.joined(separator: "|"))
             let stampFile = root.appendingPathComponent(".list")
             let oldStamp = (try? String(contentsOf: stampFile, encoding: .utf8)) ?? ""
-            let cachedIndex = root.appendingPathComponent("index.html")
-            if !force, !oldStamp.isEmpty,
-               let size = try? cachedIndex.resourceValues(forKeys: [.fileSizeKey]).fileSize,
-               size > 0 {
-                localDir = root
-                localIndex = cachedIndex
-                loading = false
-                let previousStamp = oldStamp
-                Task {
-                    let list = await miniAppFileList(baseDir: remoteDir)
-                    let stamp = GamesPageView.stableKey(list.joined(separator: "|"))
-                    if stamp != previousStamp {
-                        for f in list {
-                            let dst = root.appendingPathComponent(f)
-                            guard let data = try? await API.shared.assetData(
-                                remoteDir.appendingPathComponent(f)
-                            ) else { continue }
-                            try? FileManager.default.createDirectory(
-                                at: dst.deletingLastPathComponent(),
-                                withIntermediateDirectories: true
-                            )
-                            try? data.write(to: dst, options: .atomic)
-                        }
-                        try? stamp.write(to: stampFile, atomically: true, encoding: .utf8)
-                    }
-                }
-                return
-            }
-
-            let list = await miniAppFileList(baseDir: remoteDir)
-            let stamp = GamesPageView.stableKey(list.joined(separator: "|"))
             let needAll = force || oldStamp != stamp
             for f in list {
                 let dst = root.appendingPathComponent(f)
