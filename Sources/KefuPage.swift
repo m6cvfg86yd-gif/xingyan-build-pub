@@ -205,7 +205,7 @@ struct KefuPage: View {
                 }
                 Text(m.body)
                     .font(.body)
-                    .foregroundStyle(mine ? .white : .primary)
+                    .foregroundStyle(mine ? Color.white : Color.primary)
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
                     .background(

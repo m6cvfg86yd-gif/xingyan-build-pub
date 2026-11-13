@@ -241,8 +241,8 @@ struct SupportView: View {
         return HStack(spacing: 12) {
             Image(systemName: status == "done" ? "checkmark.circle.fill" : "clock.fill")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(status == "done" ? .green :
-                                 (status == "replied" ? .blue : .orange))
+                .foregroundStyle(status == "done" ? Color.green :
+                                 (status == "replied" ? Color.blue : Color.orange))
             VStack(alignment: .leading, spacing: 4) {
                 Text(ticket.category ?? Tr("其它问题"))
                     .font(.body)
@@ -642,8 +642,8 @@ struct SupportTicketDetailView: View {
                               ? "checkmark.circle.fill"
                               : (status == "replied" ? "bubble.left.fill" : "clock.fill"))
                             .font(.headline)
-                            .foregroundStyle(status == "done" ? .green :
-                                             (status == "replied" ? .blue : .orange))
+                            .foregroundStyle(status == "done" ? Color.green :
+                                             (status == "replied" ? Color.blue : Color.orange))
                         if let created = ticket.createdAt {
                             Text(TimeFmt.bill(created))
                                 .font(.caption)
