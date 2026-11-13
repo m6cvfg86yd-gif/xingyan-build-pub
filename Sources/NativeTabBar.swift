@@ -459,17 +459,6 @@ struct NativeTabBar: UIViewRepresentable {
                 let iconKey = "\(styleKey)|\(custom ?? "__default__")|\(avatarKey)"
                 guard appliedIconKeys[index] != iconKey else { continue }
 
-                if index < 3, custom == nil {
-                    items[index].image = UIImage(systemName: symbols[index])?
-                        .withRenderingMode(.alwaysTemplate)
-                    items[index].selectedImage = gradientSymbol(
-                        selectedSymbols[index],
-                        size: size
-                    )
-                    appliedIconKeys[index] = iconKey
-                    continue
-                }
-
                 if index == 3, custom == nil, !avatarPath.isEmpty,
                    loader.image(for: avatarPath) == nil {
                     // 图片还在缓存/网络加载中时保留上一张头像，避免底栏忽然变成占位图标。
