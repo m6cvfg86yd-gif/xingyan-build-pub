@@ -111,7 +111,7 @@ struct VirtualCardView: View {
 
     private var cardFace: some View {
         ZStack(alignment: .topLeading) {
-            cardBackground
+            StarPayPhysicalCardSurface(radius: 26)
             VStack(alignment: .leading, spacing: 0) {
                 cardHeader
                 Spacer(minLength: 24)
@@ -122,19 +122,6 @@ struct VirtualCardView: View {
             .padding(22)
         }
         .frame(height: 220)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [.white.opacity(0.25), .white.opacity(0.04), .white.opacity(0.13)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.9
-                )
-        }
-        .shadow(color: .black.opacity(0.26), radius: 20, y: 10)
         .overlay(alignment: .topTrailing) {
             if frozen {
                 Label(Tr("已冻结"), systemImage: "snowflake")
@@ -148,34 +135,8 @@ struct VirtualCardView: View {
         }
     }
 
-    @ViewBuilder
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 26, style: .continuous)
-            .fill(LinearGradient(
-                colors: [Color(hex: 0x050506), Color(hex: 0x1A1B1F), Color(hex: 0x080809)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ))
-        RoundedRectangle(cornerRadius: 26, style: .continuous)
-            .fill(LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0.06),
-                    .init(color: .white.opacity(0.10), location: 0.47),
-                    .init(color: .clear, location: 0.66)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ))
-            .blendMode(.screen)
-        Circle()
-            .fill(.white.opacity(0.04))
-            .frame(width: 240, height: 240)
-            .blur(radius: 54)
-            .offset(x: 170, y: -135)
-    }
-
     private var cardHeader: some View {
-        HStack {
+        HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Tr("星言虚拟卡"))
                     .font(pf(15, .semibold))
@@ -186,8 +147,10 @@ struct VirtualCardView: View {
                     .foregroundStyle(.white.opacity(0.45))
             }
             Spacer()
+            StarPayChip(width: 36)
+            StarPayHologram(size: 27)
             Image(systemName: "wave.3.right.circle.fill")
-                .font(.system(size: 24, weight: .medium))
+                .font(.system(size: 21, weight: .medium))
                 .foregroundStyle(.white.opacity(0.42))
         }
     }
@@ -197,6 +160,8 @@ struct VirtualCardView: View {
             .font(Font(UIFont.monospacedDigitSystemFont(ofSize: 18, weight: .semibold)))
             .tracking(1.1)
             .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.60), radius: 0.4, y: 0.8)
+            .shadow(color: .white.opacity(0.10), radius: 0.3, y: -0.5)
             .lineLimit(1)
             .minimumScaleFactor(0.72)
     }

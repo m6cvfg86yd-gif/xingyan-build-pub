@@ -80,9 +80,7 @@ struct XYPaySheet: View {
 
     private var cardFace: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(LinearGradient(colors: [Color(hex: 0x1C1E26), Color(hex: 0x30354A)],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+            StarPayPhysicalCardSurface(radius: 20)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 8) {
 
@@ -100,6 +98,7 @@ struct XYPaySheet: View {
                     }
                     Text(XYPay.cardLine).font(pf(13.5, .medium)).foregroundColor(.white)
                     Spacer(minLength: 0)
+                    StarPayChip(width: 32)
                     Image(systemName: "wave.3.right").font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.65))
                 }
@@ -114,10 +113,9 @@ struct XYPaySheet: View {
                 }
                 .padding(.top, 6)
             }
-            .padding(14)
+            .padding(16)
         }
-        .frame(height: 138)
-        .shadow(color: .black.opacity(0.16), radius: 12, y: 6)
+        .frame(height: 194)
     }
 
     private var amountBlock: some View {

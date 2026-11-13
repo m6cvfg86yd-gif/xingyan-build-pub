@@ -22,6 +22,201 @@ enum PayVisual {
     static var secondaryInk: Color { Color.dyn(0x6C6C70, 0x98989F) }
 }
 
+struct StarPayPhysicalCardSurface: View {
+    var radius: CGFloat = 28
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(hex: 0x4A4B4F),
+                            Color(hex: 0x121316),
+                            Color(hex: 0x030405)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .offset(y: 3)
+
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color(hex: 0x16171A), location: 0),
+                            .init(color: Color(hex: 0x070708), location: 0.52),
+                            .init(color: Color(hex: 0x101114), location: 1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            StarPayBrushedSurface()
+                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+                .opacity(0.62)
+
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0.15), location: 0),
+                            .init(color: .clear, location: 0.17),
+                            .init(color: .white.opacity(0.055), location: 0.46),
+                            .init(color: .clear, location: 0.62),
+                            .init(color: .white.opacity(0.07), location: 1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .blendMode(.screen)
+
+            RadialGradient(
+                colors: [.white.opacity(0.09), .clear],
+                center: UnitPoint(x: 0.76, y: 0.12),
+                startRadius: 0,
+                endRadius: 160
+            )
+            .blendMode(.screen)
+
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.30),
+                            .white.opacity(0.055),
+                            .black.opacity(0.55),
+                            .white.opacity(0.10)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.9
+                )
+
+            RoundedRectangle(cornerRadius: max(1, radius - 1.2), style: .continuous)
+                .stroke(.white.opacity(0.045), lineWidth: 0.55)
+                .padding(1.2)
+        }
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.38), radius: 22, y: 13)
+        .shadow(color: .black.opacity(0.24), radius: 2, y: 1)
+    }
+}
+
+private struct StarPayBrushedSurface: View {
+    var body: some View {
+        Canvas { context, size in
+            var lines = Path()
+            let spacing: CGFloat = 3
+            var y: CGFloat = -size.height
+            while y < size.height * 2 {
+                lines.move(to: CGPoint(x: -size.width * 0.1, y: y))
+                lines.addLine(to: CGPoint(x: size.width * 1.1, y: y + size.height * 0.46))
+                y += spacing
+            }
+            context.stroke(
+                lines,
+                with: .linearGradient(
+                    Gradient(colors: [
+                        .clear,
+                        .white.opacity(0.042),
+                        .white.opacity(0.012),
+                        .clear
+                    ]),
+                    startPoint: .zero,
+                    endPoint: CGPoint(x: size.width, y: size.height)
+                ),
+                lineWidth: 0.32
+            )
+        }
+        .blendMode(.overlay)
+        .allowsHitTesting(false)
+    }
+}
+
+struct StarPayChip: View {
+    var width: CGFloat = 44
+
+    var body: some View {
+        let height = width * 0.70
+        RoundedRectangle(cornerRadius: width * 0.17, style: .continuous)
+            .fill(
+                LinearGradient(
+                    stops: [
+                        .init(color: Color(hex: 0xFFE7A4), location: 0),
+                        .init(color: Color(hex: 0xC69A45), location: 0.42),
+                        .init(color: Color(hex: 0xF4D889), location: 0.72),
+                        .init(color: Color(hex: 0x9F772E), location: 1)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .frame(width: width, height: height)
+            .overlay {
+                Canvas { context, size in
+                    let line = Color.black.opacity(0.26)
+                    for index in 1..<4 {
+                        let x = size.width * CGFloat(index) / 4
+                        var vertical = Path()
+                        vertical.move(to: CGPoint(x: x, y: size.height * 0.12))
+                        vertical.addLine(to: CGPoint(x: x, y: size.height * 0.88))
+                        context.stroke(vertical, with: .color(line), lineWidth: 0.45)
+                    }
+                    for index in 1..<3 {
+                        let y = size.height * CGFloat(index) / 3
+                        var horizontal = Path()
+                        horizontal.move(to: CGPoint(x: size.width * 0.12, y: y))
+                        horizontal.addLine(to: CGPoint(x: size.width * 0.88, y: y))
+                        context.stroke(horizontal, with: .color(line), lineWidth: 0.45)
+                    }
+                }
+                .padding(3)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: width * 0.17, style: .continuous)
+                    .stroke(.white.opacity(0.30), lineWidth: 0.55)
+            }
+            .shadow(color: .black.opacity(0.30), radius: 1.2, y: 1)
+            .accessibilityHidden(true)
+    }
+}
+
+struct StarPayHologram: View {
+    var size: CGFloat = 34
+
+    var body: some View {
+        Circle()
+            .fill(
+                AngularGradient(
+                    colors: [
+                        Color(hex: 0xB8F2DF).opacity(0.46),
+                        Color(hex: 0xE7C7FF).opacity(0.32),
+                        Color(hex: 0xFFD7B3).opacity(0.38),
+                        Color(hex: 0xA5D8FF).opacity(0.34),
+                        Color(hex: 0xB8F2DF).opacity(0.46)
+                    ],
+                    center: .center
+                )
+            )
+            .frame(width: size, height: size)
+            .overlay {
+                Image(systemName: "sparkle")
+                    .font(.system(size: size * 0.34, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.72))
+            }
+            .overlay {
+                Circle().stroke(.white.opacity(0.20), lineWidth: 0.55)
+            }
+            .shadow(color: Color(hex: 0xD8C8FF).opacity(0.20), radius: 7)
+            .accessibilityHidden(true)
+    }
+}
+
 struct StarPayAmount: View {
     enum Role {
         case hero, metric, row, detail, sheet
@@ -327,34 +522,7 @@ struct PayOfficialView: View {
 
     private var paymentHero: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: 0x060607), Color(hex: 0x17191C), Color(hex: 0x09090A)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: 0.08),
-                            .init(color: .white.opacity(0.075), location: 0.46),
-                            .init(color: .clear, location: 0.65)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .blendMode(.screen)
-
-            Circle()
-                .fill(.white.opacity(0.030))
-                .frame(width: 260, height: 260)
-                .blur(radius: 62)
-                .offset(x: 176, y: -125)
+            StarPayPhysicalCardSurface(radius: 28)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 11) {
@@ -444,17 +612,20 @@ struct PayOfficialView: View {
 
                 Spacer(minLength: 16)
 
-                HStack {
+                HStack(spacing: 11) {
+                    StarPayChip(width: 42)
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(XYPay.cardLine)
                             .font(pf(10.5, .medium))
                             .foregroundStyle(.white.opacity(0.46))
-                        Text("STAR PAY")
+                        Text("•• \(XYPay.tail(app.me?.id ?? app.me?.username ?? "xingyan"))")
                             .font(pfExact(8.5, .bold))
-                            .tracking(1.6)
-                            .foregroundStyle(.white.opacity(0.27))
+                            .tracking(1.2)
+                            .foregroundStyle(.white.opacity(0.30))
                     }
-                    Spacer()
+                    Spacer(minLength: 8)
+                    StarPayHologram(size: 32)
                     Image(systemName: "wave.3.right.circle.fill")
                         .font(.system(size: 22, weight: .medium))
                         .foregroundStyle(.white.opacity(0.30))
@@ -463,24 +634,6 @@ struct PayOfficialView: View {
             .padding(22)
         }
         .frame(height: 220)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [.white.opacity(0.22), .white.opacity(0.045),
-                                 .white.opacity(0.12)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.9
-                )
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 27.2, style: .continuous)
-                .stroke(.white.opacity(0.035), lineWidth: 0.6)
-        }
-        .shadow(color: .black.opacity(0.28), radius: 22, y: 12)
         .padding(.horizontal, 16)
     }
 
