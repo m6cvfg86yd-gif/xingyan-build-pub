@@ -119,6 +119,7 @@ function inventoryData(options) {
     messageVault = null;
   }
   const issues = [];
+  const errorRows = [];
   const issueCounts = {};
   let issueCount = 0;
   let errorCount = 0;
@@ -128,7 +129,12 @@ function inventoryData(options) {
     issueCount += 1;
     issueCounts[kind] = (issueCounts[kind] || 0) + 1;
     if (level === 'warning') warningCount += 1;
-    else errorCount += 1;
+    else {
+      errorCount += 1;
+      if (errorRows.length < 5000) {
+        errorRows.push({ kind, id: id || '', message, severity: level });
+      }
+    }
     if (issues.length < 2000) {
       issues.push({ kind, id: id || '', message, severity: level });
     }
@@ -487,6 +493,7 @@ function inventoryData(options) {
     shardPreview,
     ledger: ledgerCheck,
     issues,
+    errors: errorRows,
     issueCount,
     issueCounts,
     errorCount,
