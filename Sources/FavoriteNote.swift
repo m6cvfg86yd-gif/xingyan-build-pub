@@ -343,7 +343,10 @@ struct FavoriteNoteDetailSheet: View {
     }
 
     private func remove() async {
-        await API.shared.deleteFavorite(id)
+        if let error = await API.shared.deleteFavorite(id) {
+            app.show(error)
+            return
+        }
         DiagLog.shared.note("收藏：删掉了一条笔记")
         onChanged()
         dismiss()

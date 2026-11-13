@@ -6,6 +6,7 @@ struct FavoritesView: View {
 
     @State private var items: [[String: Any]] = []
     @State private var pendingNotes: [[String: Any]] = []
+    @State private var deletedFavoriteIds: Set<String> = []
     @State private var loading = true
     @State private var viewerPaths: [String] = []
     @State private var viewerIndex: Int?
@@ -384,7 +385,10 @@ struct FavoritesView: View {
     }
 
     private func load() async {
-        let fresh: [[String: Any]] = await API.shared.favorites()
+        let fresh: [[String: Any]] = await API.shared.favorites().filter { item in
+            guard let id = item["id"] as? String else { return true }
+            return !deletedFavoriteIds.contains(id)
+        }
         pendingNotes.removeAll { pending in
             let content = (pending["content"] as? String) ?? ""
             return fresh.contains { item in
@@ -397,9 +401,15 @@ struct FavoritesView: View {
     }
 
     private func removeFavorite(_ id: String) {
+        deletedFavoriteIds.insert(id)
         items.removeAll { (($0["id"] as? String) ?? "") == id }
         Task {
-            await API.shared.deleteFavorite(id)
+            if let error = await API.shared.deleteFavorite(id) {
+                await MainActor.run {
+                    deletedFavoriteIds.remove(id)
+                    app.show(error)
+                }
+            }
             await load()
         }
     }

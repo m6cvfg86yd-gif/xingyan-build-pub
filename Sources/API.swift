@@ -3417,8 +3417,14 @@ private struct StarredPayload: Decodable {
         return p?.favorites ?? []
     }
 
-    func deleteFavorite(_ id: String) async {
-        _ = try? await request("DELETE", "/api/favorites/" + id)
+    func deleteFavorite(_ id: String) async -> String? {
+        let safe = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+        do {
+            _ = try await request("DELETE", "/api/favorites/" + safe)
+            return nil
+        } catch {
+            return (error as? APIError)?.errorDescription ?? "删除收藏失败"
+        }
     }
 
     struct MyFileItem: Decodable, Identifiable, Hashable {
