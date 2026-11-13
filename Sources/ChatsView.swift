@@ -746,6 +746,7 @@ struct SwipeChatRow: View {
     @State private var mode: Mode = .none
     @State private var dragging = false
     @ObservedObject private var drafts = ChatDraftStore.shared
+    @Environment(\.colorScheme) private var scheme
 
     private var btnW: CGFloat { UIConfig.num("swipeBtnW", 74) }
     private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
