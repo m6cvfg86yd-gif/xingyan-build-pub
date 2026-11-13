@@ -2925,6 +2925,12 @@ setInterval(() => {
 }, 5000).unref();      // 5 秒扫一遍（20 秒的期限不能被扫描间隔拖长）
 const saveMoments = () => {
   writeJson(path.join(DATA_DIR, 'moments.json'), { moments: db.moments });
+  /* moments.json 已是完整快照；旧日志若继续保留，会把刚删除的动态在其它
+     分片 refresh 时重新并回来。所有朋友圈写操作都在 0 片，这里清日志安全。 */
+  try {
+    fs.writeFileSync(momentsLogPath(), '', 'utf8');
+    momentsLogCount = 0;
+  } catch (_) { /* 写失败时 moments.json 仍是权威状态，下次保存再清 */ }
   momentsDiskSignature = momentsStorageSignature();
   captureShardSnapshots(['moments'], { moments: db.moments });
 };
