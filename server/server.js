@@ -29,6 +29,11 @@ const { PaymentDeviceEnrollment } = require('./lib/payment-device-enrollment');
 const { PaymentKeyRing } = require('./lib/payment-keyring');
 const { PaymentIntentEngine } = require('./lib/payment-intent-engine');
 const {
+  normalizeBillTimeZone,
+  billMonthKey,
+  summarizeBills
+} = require('./lib/bill-period');
+const {
   isOpsUser,
   isOpsWebAuthPath,
   isProtectedOpsPath
@@ -15453,8 +15458,9 @@ async function handleApi(req, res, pathname, query) {
     }
     const limit = Math.min(500, Math.max(1, Number(query.get('limit')) || 100));
     const month = str(query.get('month'), 7);
+    const timeZone = normalizeBillTimeZone(query.get('tz'));
     let rows = paymentLedger.entriesForUser(me.id, 500);
-    if (month) rows = rows.filter((row) => String(row.at || '').slice(0, 7) === month);
+    if (month) rows = rows.filter((row) => billMonthKey(row.at, timeZone) === month);
     const income = moneyRound(rows.filter((row) => row.direction === 'in')
       .reduce((sum, row) => sum + row.delta, 0));
     const expense = moneyRound(rows.filter((row) => row.direction === 'out')
@@ -15481,6 +15487,7 @@ async function handleApi(req, res, pathname, query) {
     if (!me) return fail(res, 401, '请先登录');
     const limit = Math.min(200, Math.max(1, Number(query.get('limit')) || 100));
     const month = str(query.get('month'), 7);          // 形如 2026-09，不传就是全部
+    const timeZone = normalizeBillTimeZone(query.get('tz'));
     let all = (db.transfers || [])
       .filter((t) => t && (t.fromId === me.id || t.toId === me.id))
       .map((t) => {
@@ -15581,25 +15588,19 @@ async function handleApi(req, res, pathname, query) {
       all = all.concat(walletBills, rpBills, memberBills)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    const list = (month ? all.filter((x) => String(x.createdAt).slice(0, 7) === month) : all).slice(0, limit);
-    const total = (dir, statuses) => Math.round(all
-      .filter((x) => x.direction === dir && (!statuses || statuses.indexOf(x.status) >= 0))
-      .reduce((a, x) => a + x.amount, 0) * 100) / 100;
+    const list = (month
+      ? all.filter((x) => billMonthKey(x.createdAt, timeZone) === month)
+      : all).slice(0, limit);
     const months = [];
     all.forEach((x) => {
-      const m = String(x.createdAt).slice(0, 7);
+      const m = billMonthKey(x.createdAt, timeZone);
       if (/^\d{4}-\d{2}$/.test(m) && months.indexOf(m) < 0) months.push(m);
     });
+    const summaryMonth = month || billMonthKey(new Date(), timeZone);
     ok(res, {
       bills: list,
       months: months.slice(0, 36),
-      summary: {
-        out: total('out', ['pending', 'received']),
-        in: total('in', ['received']),
-        pendingOut: all.filter((x) => x.direction === 'out' && x.status === 'pending').length,
-        pendingIn: all.filter((x) => x.direction === 'in' && x.status === 'pending').length,
-        count: all.length
-      },
+      summary: summarizeBills(all, summaryMonth, timeZone),
       month: month || '',
       style: (db.billsPage || normalizeBillsPage(null)).style,
       faq: (db.billsPage || normalizeBillsPage(null)).faq,

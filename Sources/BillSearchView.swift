@@ -232,7 +232,7 @@ struct BillSearchView: View {
     private var groups: [MonthGroup] {
         var out: [MonthGroup] = []
         for b in filtered {
-            let m = String((b.createdAt ?? "").prefix(7))
+            let m = TimeFmt.billMonthKey(b.createdAt)
             if out.last?.month == m { out[out.count - 1].rows.append(b) }
             else { out.append(MonthGroup(month: m, rows: [b])) }
         }

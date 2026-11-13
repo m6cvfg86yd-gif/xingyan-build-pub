@@ -259,7 +259,7 @@ struct BillsStatsView: View {
         return !b.mine && (b.status ?? "") == "received"
     }
 
-    private func monthOf(_ b: BillRecord) -> String { String((b.createdAt ?? "").prefix(7)) }
+    private func monthOf(_ b: BillRecord) -> String { TimeFmt.billMonthKey(b.createdAt) }
 
     private func prevMonth(_ m: String) -> String {
         let p = m.split(separator: "-")
@@ -365,7 +365,7 @@ struct BillsStatsView: View {
 
                 var keys: [String] = []
                 for b in d.bills {
-                    let m = String((b.createdAt ?? "").prefix(7))
+                    let m = TimeFmt.billMonthKey(b.createdAt)
                     if m.count == 7, !keys.contains(m) { keys.append(m) }
                 }
                 month = keys.first ?? ""

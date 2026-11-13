@@ -760,7 +760,7 @@ struct PayOfficialView: View {
         var order: [String] = []
         var map: [String: [LedgerBillEntry]] = [:]
         for entry in entries {
-            let day = String(entry.at.prefix(10))
+            let day = TimeFmt.billDayKey(entry.at)
             if map[day] == nil { order.append(day) }
             map[day, default: []].append(entry)
         }
@@ -768,7 +768,12 @@ struct PayOfficialView: View {
     }
 
     private func dayTitle(_ day: String) -> String {
-        guard let date = ISO8601DateFormatter().date(from: day + "T00:00:00Z") else { return day }
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.calendar = Calendar.current
+        parser.timeZone = TimeZone.current
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: day) else { return day }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: Lang.isEnglish ? "en_US" : (Lang.isRussian ? "ru_RU" : "zh_CN"))
         formatter.dateFormat = Lang.isEnglish ? "MMM d" : (Lang.isRussian ? "d MMM" : "M月d日")
@@ -776,7 +781,7 @@ struct PayOfficialView: View {
     }
 
     private func clock(_ value: String) -> String {
-        guard let date = ISO8601DateFormatter().date(from: value) else { return value }
+        guard let date = TimeFmt.date(value) else { return value }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.dateFormat = "HH:mm"

@@ -2079,6 +2079,17 @@ enum TimeFmt {
         return fMonthDayWeek.string(from: d)
     }
 
+    static func billDayKey(_ s: String?) -> String {
+        guard let d = date(s) else { return "" }
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: d)
+        return String(format: "%04d-%02d-%02d",
+                      parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
+    static func billMonthKey(_ s: String?) -> String {
+        String(billDayKey(s).prefix(7))
+    }
+
     static func billClock(_ s: String?) -> String {
         guard let d = date(s) else { return "" }
         return fClock.string(from: d)

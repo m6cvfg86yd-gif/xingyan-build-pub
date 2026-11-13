@@ -607,8 +607,8 @@ struct BillsView: View {
     private var groups: [MonthGroup] {
         var out: [MonthGroup] = []
         for b in filtered {
-            let m = String((b.createdAt ?? "").prefix(7))
-            let d = String((b.createdAt ?? "").prefix(10))
+            let m = TimeFmt.billMonthKey(b.createdAt)
+            let d = TimeFmt.billDayKey(b.createdAt)
 
             var g: MonthGroup
             if out.last?.month == m { g = out.removeLast() } else { g = MonthGroup(month: m, days: []) }
@@ -627,7 +627,7 @@ struct BillsView: View {
     private func monthSum(_ m: String) -> (out: Double, income: Double) {
         var o = 0.0
         var i = 0.0
-        for b in bills where String((b.createdAt ?? "").prefix(7)) == m {
+        for b in bills where TimeFmt.billMonthKey(b.createdAt) == m {
             if b.mine { o += b.amount }
             else if (b.status ?? "") == "received" { i += b.amount }
         }

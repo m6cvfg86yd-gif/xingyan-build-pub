@@ -1315,11 +1315,12 @@ struct BillSummary: Decodable, Hashable {
     var pendingOut: Int
     var pendingIn: Int
     var count: Int
+    var month: String?
 
     enum CodingKeys: String, CodingKey {
         case out
         case inSum = "in"
-        case pendingOut, pendingIn, count
+        case pendingOut, pendingIn, count, month
     }
 }
 
@@ -5200,6 +5201,12 @@ private struct StarredPayload: Decodable {
             qs.append("month=" + m.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!)
         }
         if let l = limit { qs.append("limit=\(max(1, min(200, l)))") }
+        var queryAllowed = CharacterSet.urlQueryAllowed
+        queryAllowed.remove(charactersIn: "&+=?")
+        if let timeZone = TimeZone.current.identifier
+            .addingPercentEncoding(withAllowedCharacters: queryAllowed) {
+            qs.append("tz=" + timeZone)
+        }
         let path = "/api/bills" + (qs.isEmpty ? "" : "?" + qs.joined(separator: "&"))
         return try await get(path, as: BillsPayload.self)
     }
@@ -5210,6 +5217,12 @@ private struct StarredPayload: Decodable {
             query.append("month=" + (month.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? month))
         }
         if let limit { query.append("limit=\(limit)") }
+        var queryAllowed = CharacterSet.urlQueryAllowed
+        queryAllowed.remove(charactersIn: "&+=?")
+        if let timeZone = TimeZone.current.identifier
+            .addingPercentEncoding(withAllowedCharacters: queryAllowed) {
+            query.append("tz=" + timeZone)
+        }
         let path = "/api/bills/ledger" + (query.isEmpty ? "" : "?" + query.joined(separator: "&"))
         return try await get(path, as: LedgerBillsPayload.self)
     }
