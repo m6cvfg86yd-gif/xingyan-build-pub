@@ -73,7 +73,7 @@ struct NewsFeedView: View {
 
     private var premiumFeed: some View {
         ScrollView {
-            LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
+            LazyVStack(spacing: 20, pinnedViews: [.sectionHeaders]) {
                 Section {
                     if items.isEmpty && loading {
                         premiumLoading
@@ -145,7 +145,8 @@ struct NewsFeedView: View {
 
     private var premiumEditorial: some View {
         let rows = Array(items)
-        return VStack(spacing: 15) {
+        return VStack(alignment: .leading, spacing: 20) {
+            editionHeader
             if let first = rows.first {
                 premiumSectionTitle(Tr("今日焦点"), trailing: first.src)
                 premiumHero(first)
@@ -163,22 +164,53 @@ struct NewsFeedView: View {
                         }
                     }
                 }
-                .background(Color(uiColor: .secondarySystemGroupedBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(Color(uiColor: .systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(C.hairline, lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(Color.primary.opacity(0.065), lineWidth: 0.6)
                 }
             }
             premiumFooter
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18)
+    }
+
+    private var editionHeader: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(Tr("今日简报"))
+                    .font(.system(size: 31, weight: .bold, design: .serif))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 8)
+                Image(systemName: "newspaper.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 6) {
+                Text(editionDateText)
+                Text("·")
+                Text(Tr("由星联世界编辑更新"))
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.top, 4)
+    }
+
+    private var editionDateText: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: Lang.isEnglish ? "en_US" :
+                                  (Lang.isRussian ? "ru_RU" : "zh_CN"))
+        formatter.dateFormat = Lang.isEnglish ? "EEEE, MMMM d" :
+            (Lang.isRussian ? "EEEE, d MMMM" : "M月d日 EEEE")
+        return formatter.string(from: Date())
     }
 
     private func premiumSectionTitle(_ title: String, trailing: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
-                .font(pfStyled(size: 20, weight: .semibold))
+                .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
             Spacer(minLength: 8)
             Text(trailing)
@@ -193,85 +225,85 @@ struct NewsFeedView: View {
         Button { open(item) } label: {
             Group {
                 if item.cover.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 14) {
                         premiumTag(item)
                         Text(item.title)
-                            .font(pfStyled(size: 22, weight: .semibold))
+                            .font(.system(size: 26, weight: .bold, design: .serif))
                             .foregroundStyle(.primary)
                             .multilineTextAlignment(.leading)
-                            .lineLimit(3)
+                            .lineLimit(4)
                         if let summary = item.summary, !summary.isEmpty {
                             Text(summary)
-                                .font(pfStyled(size: 15))
+                                .font(.system(size: 15.5))
                                 .foregroundStyle(.secondary)
-                                .lineLimit(2)
+                                .lineLimit(3)
                         }
                         premiumMeta(item, onDark: false)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(18)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .padding(22)
+                    .background(Color(uiColor: .systemBackground))
                 } else {
                     ZStack(alignment: .bottomLeading) {
                         RemoteImage(path: item.cover, mode: .fill, maxSide: 1600)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 226)
+                            .frame(height: 252)
                             .clipped()
-                        LinearGradient(colors: [.clear, .black.opacity(0.20),
-                                                .black.opacity(0.86)],
+                        LinearGradient(colors: [.clear, .black.opacity(0.16),
+                                                .black.opacity(0.90)],
                                        startPoint: .top, endPoint: .bottom)
                         VStack(alignment: .leading, spacing: 9) {
                             premiumTag(item, dark: true)
                             Text(item.title)
-                                .font(pfStyled(size: 22, weight: .semibold))
+                                .font(.system(size: 26, weight: .bold, design: .serif))
                                 .foregroundStyle(.white)
                                 .multilineTextAlignment(.leading)
-                                .lineLimit(3)
+                                .lineLimit(4)
                             premiumMeta(item, onDark: true)
                         }
-                        .padding(17)
+                        .padding(20)
                     }
-                    .frame(height: 226)
+                    .frame(height: 252)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(C.hairline, lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.6)
             }
-            .shadow(color: Color.black.opacity(0.08), radius: 14, y: 5)
+            .shadow(color: Color.black.opacity(0.10), radius: 18, y: 7)
         }
         .buttonStyle(.plain)
     }
 
     private func premiumArticleRow(_ item: NewsItem) -> some View {
         HStack(alignment: .top, spacing: 13) {
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(item.title)
-                        .font(pfStyled(size: 16, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-                    if !item.tagText.isEmpty { tagChip(item.tagText) }
-                }
+            VStack(alignment: .leading, spacing: 8) {
+                premiumMeta(item, onDark: false)
+                Text(item.title)
+                    .font(.system(size: 17.5, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(3)
                 if let summary = item.summary, !summary.isEmpty {
                     Text(summary)
-                        .font(pfStyled(size: 13.5))
+                        .font(.system(size: 14))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
-                premiumMeta(item, onDark: false)
+                if !item.tagText.isEmpty {
+                    tagChip(item.tagText)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if !item.cover.isEmpty {
                 RemoteImage(path: item.cover, mode: .fill, maxSide: 700)
-                    .frame(width: 104, height: 78)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .frame(width: 108, height: 82)
+                    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
             }
         }
-        .padding(.horizontal, 15)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
         .contentShape(Rectangle())
     }
 
@@ -292,9 +324,8 @@ struct NewsFeedView: View {
 
     private func premiumMeta(_ item: NewsItem, onDark: Bool) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "newspaper.fill")
-                .font(.system(size: 10, weight: .semibold))
             Text(item.src)
+                .fontWeight(.semibold)
             let t = timeText(item.at)
             if !t.isEmpty {
                 Text("·")
@@ -307,8 +338,9 @@ struct NewsFeedView: View {
                 Text(hotText(item.hotValue))
             }
         }
-        .font(pfStyled(size: 12))
-        .foregroundStyle(onDark ? Color.white.opacity(0.78) : C.subLabel)
+        .font(.system(size: 11.5))
+        .textCase(.uppercase)
+        .foregroundStyle(onDark ? Color.white.opacity(0.76) : Color.secondary)
         .lineLimit(1)
     }
 
