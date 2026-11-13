@@ -7109,7 +7109,7 @@ function buildOfSocket(socket) {
   const m = raw.match(/B(\d+)/);
   return m ? Number(m[1]) : 0;
 }
-function sendTo(userId, payload) {
+function sendToLocal(userId, payload) {
   const set = connections.get(userId);
   if (!set) return 0;
   let sent = 0;
@@ -7124,6 +7124,41 @@ function sendTo(userId, payload) {
     }
     if (ws.sendText(socket, text)) sent += 1;
   });
+  return sent;
+}
+
+function shardPorts() {
+  const count = Math.max(1, Number(process.env.SHARD_COUNT) || 1);
+  const base = Number(process.env.SHARD_BASE_PORT) || 5299;
+  if (count <= 1) return [];
+  return Array.from({ length: count }, (_, index) => base + index * 100);
+}
+
+function relayToShardPeers(userId, payload) {
+  if (!userId || !payload) return;
+  const body = JSON.stringify({ userId: String(userId), payload });
+  shardPorts().forEach((port) => {
+    if (port === PORT) return;
+    const relay = http.request({
+      host: '127.0.0.1',
+      port,
+      path: '/__shard/relay',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        'X-Shard-Relay': db.secret || ''
+      }
+    }, (response) => response.resume());
+    relay.setTimeout(700, () => relay.destroy());
+    relay.on('error', () => {});
+    relay.end(body);
+  });
+}
+
+function sendTo(userId, payload) {
+  const sent = sendToLocal(userId, payload);
+  relayToShardPeers(userId, payload);
   return sent;
 }
 
@@ -13839,6 +13874,20 @@ async function handleApi(req, res, pathname, query) {
     });
     return;
   }
+  if (parts[0] === 'endpoints' && method === 'GET') {
+    const configured = readJson(path.join(DATA_DIR, 'endpoints.json'), null);
+    let list = configured && Array.isArray(configured.endpoints)
+      ? configured.endpoints
+      : (configured && Array.isArray(configured) ? configured : []);
+    list = list.map((value) => str(value, 500).replace(/\/+$/, ''))
+      .filter((value) => /^https?:\/\//i.test(value));
+    if (!list.length) {
+      const host = String(req.headers.host || '').trim();
+      if (host) list = [('https://' + host).replace(/\/+$/, '')];
+    }
+    ok(res, { endpoints: Array.from(new Set(list)).slice(0, 20) });
+    return;
+  }
   // 前端资源版本号（手机端定时比对，发现变了就自动刷新，省得手动清缓存）
   if (parts[0] === 'version' && method === 'GET') { ok(res, { version: assetVersion() }); return; }
 
@@ -14069,6 +14118,78 @@ async function handleApi(req, res, pathname, query) {
     const body = await readBody(req);
     callTrace('diag ' + (user.nickname || user.username) + '：' + str(body.text, 400));
     ok(res, { saved: true });
+    return;
+  }
+
+  if (parts[0] === 'call' && parts[1] === 'pending' && method === 'GET') {
+    const user = currentUser(req);
+    if (!user) return fail(res, 401, '请先登录');
+    let found = null;
+    calls.forEach((call) => {
+      if (found || call.state !== 'ringing' || call.to !== user.id) return;
+      const peer = findUser(call.from);
+      if (!peer) return;
+      found = {
+        callId: call.id,
+        media: call.media === 'video' ? 'video' : 'audio',
+        peerId: peer.id,
+        peerName: peer.nickname || peer.username || '',
+        peerAvatar: peer.avatar || '',
+        sdp: call.sdp || null,
+        startedAt: Number(call.startedAt) || 0
+      };
+    });
+    ok(res, { call: found });
+    return;
+  }
+
+  if (parts[0] === 'weather' && method === 'GET') {
+    const city = str(query.get('city'), 40).trim() || '上海';
+    const lat = Number(query.get('lat'));
+    const lon = Number(query.get('lon'));
+    let weather = null;
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3500);
+        const response = await fetch(
+          'https://api.open-meteo.com/v1/forecast?latitude=' + encodeURIComponent(lat)
+          + '&longitude=' + encodeURIComponent(lon)
+          + '&current=temperature_2m,is_day,weather_code,cloud_cover,wind_speed_10m',
+          { signal: controller.signal }
+        );
+        clearTimeout(timer);
+        const data = await response.json();
+        const current = data && data.current || {};
+        const code = Number(current.weather_code);
+        const labels = code === 0 ? 'clear'
+          : code <= 3 ? 'partly'
+            : code === 45 || code === 48 ? 'fog'
+              : code >= 71 && code <= 77 ? 'snow'
+                : code >= 95 ? 'storm'
+                  : code >= 51 ? 'rain'
+                    : 'cloudy';
+        weather = {
+          condition: labels,
+          code: Number.isFinite(code) ? code : 2,
+          isDay: Number(current.is_day) === 1,
+          temp: Math.round((Number(current.temperature_2m) || 18) * 10) / 10,
+          cloud: Math.max(0, Math.min(100, Math.round(Number(current.cloud_cover) || 0))),
+          wind: Math.round((Number(current.wind_speed_10m) || 0) * 10) / 10,
+          at: now(),
+          city,
+          lat,
+          lon
+        };
+      } catch (error) {
+        weather = null;
+      }
+    }
+    ok(res, weather || {
+      condition: 'partly', code: 2, isDay: true, temp: 18,
+      cloud: 45, wind: 3, at: now(), city, lat: Number.isFinite(lat) ? lat : 0,
+      lon: Number.isFinite(lon) ? lon : 0
+    });
     return;
   }
 
@@ -19211,6 +19332,22 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
 
+  if (parts[0] === 'friends' && parts[1] === 'starred' && method === 'GET') {
+    const ids = friendIds(user.id).filter((id) => metaOf(user.id, id).star === true);
+    ok(res, {
+      ids,
+      list: ids.map((id) => {
+        const friend = findUser(id);
+        return friend ? {
+          id,
+          name: displayNameFor(user.id, friend),
+          avatar: friend.avatar || ''
+        } : null;
+      }).filter(Boolean)
+    });
+    return;
+  }
+
   /* 一键清除“已添加好友”：只清已通过的真实用户，机器人/系统号保留。
      一次请求内保存好友关系和本机会话状态，避免客户端逐个删除时删到一半。 */
   if (parts[0] === 'friends' && parts[1] === 'clear' && method === 'POST') {
@@ -21774,6 +21911,24 @@ async function handleHttpRequest(req, res) {
   res.__req = req;      // sendJson 里判断客户端要不要 gzip 用（别的地方不用管）
   const parsed = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
   try {
+    /* 分片间实时事件：只允许本机六片用服务端密钥转发，不经过公网鉴权。 */
+    if (parsed.pathname === '/__shard/relay') {
+      if (req.method !== 'POST') return fail(res, 405, 'Method Not Allowed');
+      const supplied = String(req.headers['x-shard-relay'] || '');
+      const expected = String(db.secret || '');
+      const a = Buffer.from(supplied);
+      const b = Buffer.from(expected);
+      if (!expected || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        return fail(res, 403, '禁止访问');
+      }
+      const body = await readBody(req);
+      const userId = str(body.userId, 80);
+      if (!userId || !body.payload || typeof body.payload !== 'object') {
+        return fail(res, 422, '分片事件不完整');
+      }
+      const sent = sendToLocal(userId, body.payload);
+      return ok(res, { sent });
+    }
     /* 被封的 IP：接口和上传文件一律 403；静态页面还让过，
        这样正常用户只是看到「操作失败」，不会整个 App 白屏。
        （状态存在 security-state.json，重启也不清） */
