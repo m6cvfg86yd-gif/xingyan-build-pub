@@ -251,6 +251,7 @@ struct FavoritesView: View {
                         "content": body,
                         "title": title,
                         "fromName": "",
+                        "at": ISO8601DateFormatter().string(from: Date()),
                         "pinned": false
                     ], at: 0)
                 }
