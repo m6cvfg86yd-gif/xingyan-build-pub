@@ -7,11 +7,11 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
     static let shared = RecentPhotoStore()
 
     @Published private(set) var assets: [PHAsset] = []
+    @Published private(set) var isLoading = false
 
     private let manager = PHCachingImageManager()
     private let thumbCache = NSCache<NSString, UIImage>()
     private var loaded = false
-    private var loading = false
     private var reloadTask: Task<Void, Never>?
 
     private override init() {
@@ -20,9 +20,9 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
     }
 
     func loadIfNeeded(force: Bool = false) async {
-        guard !loading, force || !loaded else { return }
-        loading = true
-        defer { loading = false }
+        guard !isLoading, force || !loaded else { return }
+        isLoading = true
+        defer { isLoading = false }
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         switch status {
         case .authorized, .limited:
@@ -195,7 +195,6 @@ struct RecentPhotoRail: View {
 /// 输入框上方的紧凑照片条。只显示照片本身，不再重复标题或玻璃边框。
 struct ChatRecentPhotoStrip: View {
     @ObservedObject var store: RecentPhotoStore
-    var onOpenLibrary: (() -> Void)? = nil
     var onPick: (UIImage) -> Void
 
     @State private var loadingId = ""
@@ -204,34 +203,16 @@ struct ChatRecentPhotoStrip: View {
     var body: some View {
         Group {
             if store.assets.isEmpty {
-                if let onOpenLibrary {
-                    Button(action: onOpenLibrary) {
-                        HStack(spacing: 9) {
-                            Image(systemName: "photo.stack")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(C.green)
-                                .frame(width: 34, height: 34)
-
-                            Text(Tr("最近照片"))
-                                .font(pf(13, .medium))
-                                .foregroundColor(C.label)
-
-                            Text(Tr("打开相册"))
-                                .font(pf(12))
-                                .foregroundColor(C.subLabel)
-
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(C.subLabel.opacity(0.72))
+                if store.isLoading {
+                    HStack(spacing: 5) {
+                        ForEach(0..<7, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.primary.opacity(0.055))
+                                .frame(width: tile, height: tile)
                         }
-                        .padding(.horizontal, 12)
-                        .frame(height: 46)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Tr("打开最近照片"))
+                    .padding(.horizontal, 12)
+                    .frame(height: tile + 14)
                 }
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -268,7 +249,6 @@ struct ChatRecentPhotoStrip: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: tile + 14)
         .task { await store.loadIfNeeded() }
     }
 }

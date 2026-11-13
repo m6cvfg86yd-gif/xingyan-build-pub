@@ -3801,11 +3801,6 @@ struct ChatDetailView: View {
             if panel == .plus {
                 ChatRecentPhotoStrip(
                     store: recentPhotos,
-                    onOpenLibrary: {
-                        Task { await recentPhotos.loadIfNeeded(force: true) }
-                        panel = .none
-                        showPhoto = true
-                    },
                     onPick: { image in
                         stageDraftImages([image])
                         panel = .none
