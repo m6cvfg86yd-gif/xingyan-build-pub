@@ -79,9 +79,9 @@ jobs:
         run: |
           set -euo pipefail
           tar -C /tmp/ipa-payload -czf /tmp/ipa-payload.tgz .
-          timeout 240 sh -c '
-            cat /tmp/ipa-payload.tgz |
-            ssh -F /tmp/ssh_config front "
+          ok=0
+          for attempt in 1 2 3 4 5 6; do
+            if timeout 240 ssh -F /tmp/ssh_config front "
               rm -rf /tmp/ipa-payload &&
               mkdir -p /tmp/ipa-payload &&
               tar -xzf - -C /tmp/ipa-payload &&
@@ -94,5 +94,11 @@ jobs:
               node /tmp/ipa-payload/diagnose.js &&
               grep \"AML_RUNTIME_ENABLED\" /etc/systemd/system/chris-shard@.service.d/50-baseline-lock.conf &&
               journalctl -u chris-shard@0.service -n 80 --no-pager | grep AML | tail -5
-            "
-          '
+            " < /tmp/ipa-payload.tgz; then
+              ok=1
+              break
+            fi
+            echo "SSH attempt $attempt failed; retrying"
+            sleep 30
+          done
+          test "$ok" = "1"
