@@ -135,41 +135,46 @@ struct FavoriteNoteComposeSheet: View {
                             .padding(.horizontal, 18)
                             .padding(.bottom, 6)
                     }
-                    HStack(spacing: 18) {
-                        Button { showPic = true } label: {
-                            Image(systemName: "photo")
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 5) {
+                            noteTool("checklist", Tr("清单")) { insertChecklist() }
+                            noteTool("tablecells", Tr("表格")) { insertTable() }
+                            noteTool("camera", Tr("相机")) { showCamera = true }
+                                .disabled(picBusy)
+                            noteTool("photo", Tr("照片")) { showPic = true }
+                                .disabled(picBusy)
+                            noteTool("doc.viewfinder", Tr("扫描文稿")) { showCamera = true }
+                                .disabled(picBusy)
+                            noteTool("pencil.tip.crop.circle", Tr("标记")) {
+                                bodyStyle = bodyStyle == 2 ? 0 : 2
+                            }
+                            Menu {
+                                Button(Tr("正文")) { bodyStyle = 0 }
+                                Button(Tr("标题")) { bodyStyle = 1 }
+                                Button(Tr("等宽")) { bodyStyle = 2 }
+                            } label: {
+                                Image(systemName: "textformat")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .frame(width: 42, height: 38)
+                                    .contentShape(Rectangle())
+                            }
+                            .accessibilityLabel(Tr("文字格式"))
+                            noteTool("link", Tr("链接")) { insertLink() }
+                            noteTool("minus", Tr("分隔线")) { insertSeparator() }
                         }
-                        .disabled(picBusy)
-                        Button { showCamera = true } label: {
-                            Image(systemName: "camera")
-                        }
-                        .disabled(picBusy)
-                        Button {
-                            insertChecklist()
-                        } label: {
-                            Image(systemName: "checklist")
-                        }
-                        Button {
-                            insertSeparator()
-                        } label: {
-                            Image(systemName: "minus")
-                        }
-                        Menu {
-                            Button(Tr("正文")) { bodyStyle = 0 }
-                            Button(Tr("标题")) { bodyStyle = 1 }
-                            Button(Tr("等宽")) { bodyStyle = 2 }
-                        } label: {
-                            Image(systemName: "textformat")
-                        }
+                        .padding(.horizontal, 12)
+                    }
+                    .frame(height: 44)
+
+                    HStack {
                         if picBusy { ProgressView() }
                         Spacer()
                         Text("\((titleText + bodyText).count) / 20000")
                             .font(pfStyled(size: 12))
                             .foregroundStyle(.secondary)
                     }
-                    .font(pfStyled(size: 18, weight: .medium))
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 7)
                 }
                 .background(.bar)
             }
@@ -211,6 +216,30 @@ struct FavoriteNoteComposeSheet: View {
         let separator = bodyText.isEmpty || bodyText.hasSuffix("\n") ? "" : "\n"
         bodyText += separator + "————————"
         focused = true
+    }
+
+    private func insertTable() {
+        let separator = bodyText.isEmpty || bodyText.hasSuffix("\n") ? "" : "\n"
+        bodyText += separator + "| 列 1 | 列 2 |\n|---|---|\n|   |   |"
+        focused = true
+    }
+
+    private func insertLink() {
+        let separator = bodyText.isEmpty || bodyText.hasSuffix("\n") ? "" : "\n"
+        bodyText += separator + "[]()"
+        focused = true
+    }
+
+    private func noteTool(_ symbol: String, _ title: String,
+                          action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .medium))
+                .frame(width: 42, height: 38)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 
     private func save() async {
