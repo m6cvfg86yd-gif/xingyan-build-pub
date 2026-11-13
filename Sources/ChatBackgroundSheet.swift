@@ -908,9 +908,34 @@ struct ChatBackgroundSheet: View {
 
     private func beginComposing(_ image: UIImage) {
         picking = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-            composingImage = image
-            showingComposer = true
+        busy = true
+        let maxSide = chatWallpaperDecodeSide()
+        Task {
+            let prepared = await Task.detached(priority: .userInitiated) {
+                Self.downsampledWallpaper(image, maxSide: maxSide)
+            }.value
+            await MainActor.run {
+                composingImage = prepared
+                showingComposer = true
+                busy = false
+            }
+        }
+    }
+
+    private nonisolated static func downsampledWallpaper(_ image: UIImage,
+                                                        maxSide: CGFloat) -> UIImage {
+        let sourceSide = max(image.size.width, image.size.height)
+        guard sourceSide > maxSide, sourceSide > 1 else { return image }
+        let scale = maxSide / sourceSide
+        let target = CGSize(width: max(1, image.size.width * scale),
+                            height: max(1, image.size.height * scale))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: target, format: format).image { _ in
+            UIColor.black.setFill()
+            UIRectFill(CGRect(origin: .zero, size: target))
+            image.draw(in: CGRect(origin: .zero, size: target))
         }
     }
 

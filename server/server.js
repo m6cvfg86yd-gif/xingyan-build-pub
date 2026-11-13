@@ -2797,6 +2797,44 @@ if (fs.existsSync(adminFile)) {
   readBizAll();
   loadOrders();
   migrateSecureJsonl(MONEY_JOURNAL);
+  usersDiskSignature = usersStorageSignature();
+}
+
+let usersDiskSignature = '';
+
+function usersStorageSignature() {
+  try {
+    const st = fs.statSync(path.join(DATA_DIR, 'users.json'), { bigint: true });
+    return String(st.size) + ':' + String(st.mtimeNs);
+  } catch (_) {
+    return '';
+  }
+}
+
+function usersFromDisk() {
+  const raw = readJson(path.join(DATA_DIR, 'users.json'), { users: [] });
+  const users = Array.isArray(raw.users) ? raw.users : [];
+  users.forEach((u) => {
+    if (!u || typeof u !== 'object') return;
+    if (u.username === 'kefu') { u.bot = true; u.service = true; }
+    if (typeof u.phone === 'string' && u.phone) u.phone = openPii(u.phone);
+    if (typeof u.realName === 'string' && u.realName) u.realName = openPii(u.realName);
+    if (Array.isArray(u.bankCards)) u.bankCards = u.bankCards.map(openBankCardFields);
+  });
+  return users;
+}
+
+function refreshUsersFromDisk(force) {
+  const signature = usersStorageSignature();
+  if (!signature || (!force && signature === usersDiskSignature)) return false;
+  try {
+    db.users = usersFromDisk();
+    usersDiskSignature = signature;
+    friendSetCache.clear();
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 /* 保存时把手机号 / 实名姓名加密（内存里仍是明文） */
@@ -2812,6 +2850,7 @@ const saveUsers = () => {
     })
   });
   captureShardSnapshots(['users'], { users: db.users });
+  usersDiskSignature = usersStorageSignature();
 };
 const saveFriendships = () => {
   writeJson(path.join(DATA_DIR, 'friendships.json'), { friendships: db.friendships });
@@ -6332,6 +6371,8 @@ function currentUser(req) {
   if (!token) token = parseCookies(req)[COOKIE_NAME];
   const data = verifyTokenData(token);
   if (!data) return null;
+  // 其它分片可能刚改过头像、资料、封面或壁纸；认证后先按共享文件的版本刷新。
+  refreshUsersFromDisk(false);
   const user = db.users.find((u) => u.id === data.sub) || null;
   if (!user) return null;
   // 会话版本对不上说明密码改过 / 在其他设备点了「退出其他设备」
