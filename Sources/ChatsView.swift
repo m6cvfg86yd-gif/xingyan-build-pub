@@ -11,9 +11,9 @@ private enum ChatListVisual {
     static let avatarGap: CGFloat = 9
     static let dividerLeading: CGFloat = 76
 
-    static let ink = Color.dyn(0x1A1A1A, 0xF2F2F7)
-    static let previewInk = Color.dyn(0xB2B2B2, 0x8E8E93)
-    static let timeInk = Color.dyn(0xCCCCCC, 0x8E8E93)
+    static let ink = Color.dyn(0x1A1A1A, 0xE9EDEF)
+    static let previewInk = Color.dyn(0xB2B2B2, 0x8696A0)
+    static let timeInk = Color.dyn(0xCCCCCC, 0x8696A0)
     static let rule = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark ? .clear : UIColor(hex: 0xE9EDEF)
     })
@@ -318,6 +318,7 @@ struct ChatRow: View, Equatable {
     let app: AppState
     var contactRevision: Int = 0
     var draft: String = ""
+    @Environment(\.colorScheme) private var scheme
     @State private var fetchedPeer: User?
     @State private var peerRequestStarted = false
 
@@ -404,10 +405,11 @@ struct ChatRow: View, Equatable {
 
     private var textColumn: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: scheme == .dark ? 4 : 6) {
                 HStack(spacing: 5) {
                     Text(displayTitle)
-                        .font(pfStyled(size: 17, weight: .semibold))
+                        .font(pfStyled(size: scheme == .dark ? 16.5 : 17,
+                                       weight: .semibold))
                         .foregroundStyle(chat.showsOfficialMark
                                          ? AnyShapeStyle(OfficialAccountVisual.name)
                                          : AnyShapeStyle(ChatListVisual.ink))
@@ -429,7 +431,8 @@ struct ChatRow: View, Equatable {
                 }
 
                 mentionPreview
-                    .font(pfStyled(size: 15, weight: .regular))
+                    .font(pfStyled(size: scheme == .dark ? 14 : 15,
+                                   weight: .regular))
                     .foregroundStyle(ChatListVisual.previewInk)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -438,7 +441,8 @@ struct ChatRow: View, Equatable {
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(TimeFmt.listApple(chat.lastMessage?.createdAt ?? chat.updatedAt))
-                    .font(pfStyled(size: 13, weight: .regular))
+                    .font(pfStyled(size: scheme == .dark ? 12 : 13,
+                                   weight: .regular))
                     .foregroundStyle(ChatListVisual.timeInk)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
@@ -1977,15 +1981,17 @@ struct ChatsView: View {
                                circle: true)
                     }
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: scheme == .dark ? 4 : 6) {
                         HStack(spacing: 5) {
                             Text(officialRowName)
-                                .font(pfStyled(size: 17, weight: .semibold))
+                                .font(pfStyled(size: scheme == .dark ? 16.5 : 17,
+                                               weight: .semibold))
                                 .foregroundStyle(OfficialAccountVisual.name)
                                 .lineLimit(1)
                         }
                         Text(officialRowSubtitle)
-                            .font(pfStyled(size: 15, weight: .regular))
+                            .font(pfStyled(size: scheme == .dark ? 14 : 15,
+                                           weight: .regular))
                             .foregroundStyle(ChatListVisual.previewInk)
                             .lineLimit(1)
                     }
@@ -2096,10 +2102,11 @@ struct ChatsView: View {
                                radius: 14, circle: true)
                     }
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: scheme == .dark ? 4 : 6) {
                         HStack(spacing: 5) {
                             Text(payOfficialRowName)
-                                .font(pfStyled(size: 17, weight: .semibold))
+                                .font(pfStyled(size: scheme == .dark ? 16.5 : 17,
+                                               weight: .semibold))
                                 .foregroundStyle(OfficialAccountVisual.name)
                                 .lineLimit(1)
                             Image(systemName: "checkmark.seal.fill")
@@ -2107,7 +2114,8 @@ struct ChatsView: View {
                                 .foregroundStyle(PayVisual.tint)
                         }
                         Text(payOfficialRowSubtitle)
-                            .font(pfStyled(size: 15, weight: .regular))
+                            .font(pfStyled(size: scheme == .dark ? 14 : 15,
+                                           weight: .regular))
                             .foregroundStyle(ChatListVisual.previewInk)
                             .lineLimit(1)
                     }
@@ -2186,15 +2194,17 @@ struct ChatsView: View {
                                radius: 14, circle: true)
                     }
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: scheme == .dark ? 4 : 6) {
                         HStack(spacing: 5) {
                             Text(weatherRowName)
-                                .font(pfStyled(size: 17, weight: .semibold))
+                                .font(pfStyled(size: scheme == .dark ? 16.5 : 17,
+                                               weight: .semibold))
                                 .foregroundStyle(ChatListVisual.ink)
                                 .lineLimit(1)
                         }
                         Text(weatherRowSubtitle)
-                            .font(pfStyled(size: 15, weight: .regular))
+                            .font(pfStyled(size: scheme == .dark ? 14 : 15,
+                                           weight: .regular))
                             .foregroundStyle(ChatListVisual.previewInk)
                             .lineLimit(1)
                     }

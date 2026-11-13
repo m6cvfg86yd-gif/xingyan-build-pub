@@ -454,13 +454,13 @@ enum C {
     static let searchBorderChats = Color(UIColor { t in
         t.userInterfaceStyle == .dark ? UIColor(white: 1, alpha: 0.12) : UIColor.clear
     })
-    static var name        : Color { UIConfig.fixedDark("nameColor", 0x1C1C1E, 0xF2F2F7) }
-    static var label       : Color { UIConfig.fixedDark("labelColor", 0x191919, 0xF2F2F7) }
-    static var preview     : Color { UIConfig.fixedDark("previewColor", 0xB2B2B2, 0x8E8E93) }
-    static var time        : Color { UIConfig.fixedDark("timeColor", 0xC7C7CC, 0x8E8E93) }
+    static var name        : Color { UIConfig.fixedDark("nameColor", 0x1C1C1E, 0xE9EDEF) }
+    static var label       : Color { UIConfig.fixedDark("labelColor", 0x191919, 0xE9EDEF) }
+    static var preview     : Color { UIConfig.fixedDark("previewColor", 0xB2B2B2, 0x8696A0) }
+    static var time        : Color { UIConfig.fixedDark("timeColor", 0xC7C7CC, 0x8696A0) }
 
     static var ctIdxColor  : Color { UIConfig.color("ctIdxColor", 0x555555, 0x8E8E93) }
-    static var subLabel    : Color { UIConfig.fixedDark("subLabelColor", 0x999999, 0x8E8E93) }
+    static var subLabel    : Color { UIConfig.fixedDark("subLabelColor", 0x999999, 0x8696A0) }
     static var hairline    : Color { UIConfig.fixedDark("lineColor", 0xE5E5E5, 0x38383A) }
     static var navLine     : Color { UIConfig.fixedDark("navLineColor", 0xE8E8E8, 0x38383A) }
 
@@ -484,12 +484,12 @@ enum C {
 
     static var bubbleMine  : Color { UIConfig.color("bubbleMineColor", 0x0C7A70, 0x0D5C56) }
     static var bubbleOther : Color { UIConfig.fixedDark("bubbleOtherColor", 0xFFFFFF, 0x1C1C1E) }
-    static var bubbleText  : Color { UIConfig.fixedDark("bubbleTextColor", 0x191919, 0xF2F2F7) }
+    static var bubbleText  : Color { UIConfig.fixedDark("bubbleTextColor", 0x191919, 0xE9EDEF) }
 
-    static var msgTime     : Color { UIConfig.color("msgTimeColor", 0xAEAEB2, 0x8E8E93) }
+    static var msgTime     : Color { UIConfig.fixedDark("msgTimeColor", 0xAEAEB2, 0x8696A0) }
 
     static var chatTimeBg  : Color { UIConfig.fixedDark("chatTimeBg", 0xE5E5E5, 0x1C1C1E) }
-    static var chatTimeInk : Color { UIConfig.color("chatTimeColor", 0x8A8A8E, 0x8A8A8E) }
+    static var chatTimeInk : Color { UIConfig.fixedDark("chatTimeColor", 0x8A8A8E, 0x667781) }
 
     static var link        : Color { UIConfig.color("linkColor", 0x576B95, 0x7D90A9) }
     static let arrow       = Color.dyn(0xB2B2B2, 0x8A8A8E)

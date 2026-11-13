@@ -704,10 +704,11 @@ private var funcs: [(String, String, Color, String)] {
                    size: max(50, min(54, L.ctAvatar)),
                    radius: 26, circle: true,
                    level: (user.qqLevel ?? 0) > 1 ? (user.qqLevel ?? 0) : 0)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: scheme == .dark ? 3 : 2) {
                 HStack(spacing: 5) {
                     Text(user.name)
-                        .font(pfStyled(size: 17, weight: .regular))
+                        .font(pfStyled(size: scheme == .dark ? 16.5 : 17,
+                                       weight: .regular))
                         .foregroundColor(contactsLabel)
                         .lineLimit(1)
 
@@ -726,7 +727,8 @@ private var funcs: [(String, String, Color, String)] {
 
                 if let subtitle = contactSubtitle(user) {
                     Text(subtitle)
-                        .font(pfStyled(size: 14, weight: .regular))
+                        .font(pfStyled(size: scheme == .dark ? 13.5 : 14,
+                                       weight: .regular))
                         .foregroundColor(contactsSecondary)
                         .lineLimit(1)
                 }

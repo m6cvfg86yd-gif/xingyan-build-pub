@@ -380,13 +380,15 @@ struct DiscoverView: View {
                 }
                 .frame(width: 60, height: 60)
 
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: scheme == .dark ? 4 : 5) {
                     Text(Tr(item.label))
-                        .font(pfStyled(size: 17, weight: .semibold))
+                        .font(pfStyled(size: scheme == .dark ? 16.5 : 17,
+                                       weight: .semibold))
                         .foregroundStyle(OrbitTheme.ink)
                         .lineLimit(1)
                     Text(heroStatusText)
-                        .font(pfStyled(size: 13.5, weight: .regular))
+                        .font(pfStyled(size: scheme == .dark ? 13 : 13.5,
+                                       weight: .regular))
                         .foregroundStyle(OrbitTheme.secondary)
                         .lineLimit(1)
                 }
@@ -443,13 +445,15 @@ struct DiscoverView: View {
                 }
                 .frame(width: 52, height: 52)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: scheme == .dark ? 3 : 4) {
                     Text(Tr(item.label))
-                        .font(pfStyled(size: 16.5, weight: .medium))
+                        .font(pfStyled(size: 16.5,
+                                       weight: scheme == .dark ? .semibold : .medium))
                         .foregroundStyle(OrbitTheme.ink)
                         .lineLimit(1)
                     Text(worldSubtitle(item))
-                        .font(pfStyled(size: 13, weight: .regular))
+                        .font(pfStyled(size: scheme == .dark ? 13.5 : 13,
+                                       weight: .regular))
                         .foregroundStyle(OrbitTheme.secondary)
                         .lineLimit(1)
                 }
