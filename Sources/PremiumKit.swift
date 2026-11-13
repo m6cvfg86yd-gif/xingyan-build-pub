@@ -211,6 +211,7 @@ struct PanelToggleRow: View {
 struct PanelDangerRow: View {
     var symbol: String
     var title: String
+    var subtitle: String? = nil
     var tap: () -> Void
 
     private var dangerInk: Color { Color.dyn(0xE03A3A, 0xFF6B6B) }
@@ -218,14 +219,32 @@ struct PanelDangerRow: View {
     var body: some View {
         Button(action: tap) {
             HStack(spacing: 11) {
-                PanelIcon(symbol: symbol, colors: PanelTint.red, size: 28)
-                Text(title)
-                    .font(pf(16))
-                    .foregroundColor(dangerInk)
-                Spacer(minLength: 0)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(dangerInk.opacity(0.10))
+                        .frame(width: 30, height: 30)
+                    Image(systemName: symbol)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(dangerInk)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(pf(16))
+                        .foregroundColor(dangerInk)
+                        .lineLimit(1)
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(pf(12.5))
+                            .foregroundColor(C.subLabel)
+                            .lineLimit(2)
+                    }
+                }
+                Spacer(minLength: 8)
+                Chevron(size: 8.5, line: 1.5)
+                    .opacity(0.48)
             }
             .padding(.horizontal, 14)
-            .frame(minHeight: 54)
+            .frame(minHeight: subtitle == nil ? 54 : 62)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -237,6 +256,8 @@ struct PanelConfirmDialog: View {
     var okText: String
 
     var danger: Bool = true
+    var message: String? = nil
+    var symbol: String? = nil
     var onOk: () -> Void
     var onCancel: () -> Void
 
@@ -246,44 +267,72 @@ struct PanelConfirmDialog: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.42)
+            Color.black.opacity(0.46)
                 .ignoresSafeArea()
                 .onTapGesture { onCancel() }
+
             VStack(spacing: 0) {
-                Text(title)
-                    .font(pf(16.5, .medium))
-                    .foregroundColor(C.label)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 24)
-                    .frame(minWidth: 250)
+                VStack(spacing: 10) {
+                    if let symbol, !symbol.isEmpty {
+                        ZStack {
+                            Circle()
+                                .fill(okColor.opacity(0.10))
+                                .frame(width: 46, height: 46)
+                            Image(systemName: symbol)
+                                .font(.system(size: 19, weight: .semibold))
+                                .foregroundColor(okColor)
+                        }
+                    }
+                    Text(title)
+                        .font(pf(17, .semibold))
+                        .foregroundColor(C.label)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let message, !message.isEmpty {
+                        Text(message)
+                            .font(pf(13.5))
+                            .foregroundColor(C.subLabel)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .lineSpacing(3)
+                    }
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, symbol == nil ? 24 : 20)
+                .padding(.bottom, 20)
+
                 Rectangle().fill(C.hairline).frame(height: 0.5)
                 HStack(spacing: 0) {
                     Button { onCancel() } label: {
                         Text(Tr("取消"))
                             .font(pf(16.5))
                             .foregroundColor(C.label)
-                            .frame(maxWidth: .infinity).frame(height: 50)
+                            .frame(maxWidth: .infinity).frame(height: 52)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    Rectangle().fill(C.hairline).frame(width: 0.5, height: 50)
+                    Rectangle().fill(C.hairline).frame(width: 0.5, height: 52)
                     Button { onOk() } label: {
                         Text(okText)
                             .font(pf(16.5, .semibold))
                             .foregroundColor(okColor)
-                            .frame(maxWidth: .infinity).frame(height: 50)
+                            .frame(maxWidth: .infinity).frame(height: 52)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
             }
             .background(C.cardBg)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .frame(width: 272)
-            .shadow(color: Color.black.opacity(0.22), radius: 22, y: 8)
+            .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 21, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 0.7)
+            )
+            .frame(width: 300)
+            .shadow(color: Color.black.opacity(0.30), radius: 32, y: 12)
+            .transition(.scale(scale: 0.96).combined(with: .opacity))
         }
+        .animation(.easeOut(duration: 0.18), value: title)
     }
 }
 

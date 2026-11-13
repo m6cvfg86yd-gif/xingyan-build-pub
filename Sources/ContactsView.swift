@@ -832,6 +832,7 @@ struct ContactCardView: View {
     @State private var meta: API.FriendMeta?
     @State private var showRemark = false
     @State private var showPerm = false
+    @State private var confirmBlock = false
     @State private var confirmDelete = false
 
     @State private var showStatus = false
@@ -904,9 +905,37 @@ struct ContactCardView: View {
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
         .hidesTabBar()
-        .confirmationDialog(Tr("删除好友？"), isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button(Tr("删除"), role: .destructive) { removeFriend() }
-            Button(Tr("取消"), role: .cancel) { }
+        .overlay {
+            if confirmBlock {
+                PanelConfirmDialog(
+                    title: Tr("加入黑名单？"),
+                    okText: Tr("加入黑名单"),
+                    danger: true,
+                    message: Tr("对方将无法给你发消息，也看不到你的朋友圈。聊天记录会保留。"),
+                    symbol: "hand.raised.fill",
+                    onOk: {
+                        confirmBlock = false
+                        toggleBlock()
+                    },
+                    onCancel: { confirmBlock = false }
+                )
+            }
+        }
+        .overlay {
+            if confirmDelete {
+                PanelConfirmDialog(
+                    title: Tr("删除好友？"),
+                    okText: Tr("删除好友"),
+                    danger: true,
+                    message: Tr("删除后将解除好友关系并移除本机会话，之后需要重新添加。"),
+                    symbol: "person.badge.minus",
+                    onOk: {
+                        confirmDelete = false
+                        removeFriend()
+                    },
+                    onCancel: { confirmDelete = false }
+                )
+            }
         }
 
         .navigationDestination(isPresented: $showRemark) {
@@ -1122,21 +1151,40 @@ struct ContactCardView: View {
                                  title: meta?.star == true ? Tr("取消星标朋友") : Tr("设为星标朋友")) {
                             closeMore { toggleStar() }
                         }
-                        PanelDivider()
-                        PanelRow(symbol: meta?.block == true ? "hand.raised.slash.fill" : "hand.raised.fill",
-                                 colors: PanelTint.purple,
-                                 title: meta?.block == true ? Tr("移出黑名单") : Tr("加入黑名单")) {
-                            closeMore { toggleBlock() }
-                        }
-                        PanelDivider()
                         PanelRow(symbol: "exclamationmark.bubble.fill", colors: PanelTint.gray,
                                  title: Tr("投诉")) {
                             closeMore { app.show(Tr("已收到你的投诉，我们会尽快处理")) }
                         }
-                        PanelDivider()
-                        PanelDangerRow(symbol: "person.badge.minus", title: Tr("删除好友")) {
-                            closeMore { confirmDelete = true }
+                    }
+                }
+
+                PanelSectionTitle(Tr("好友管理"))
+                PanelCard(solid: true) {
+                    if meta?.block == true {
+                        PanelRow(
+                            symbol: "hand.raised.slash.fill",
+                            colors: PanelTint.gray,
+                            title: Tr("移出黑名单"),
+                            subtitle: Tr("恢复接收消息和查看朋友圈")
+                        ) {
+                            closeMore { toggleBlock() }
                         }
+                    } else {
+                        PanelDangerRow(
+                            symbol: "hand.raised.fill",
+                            title: Tr("加入黑名单"),
+                            subtitle: Tr("阻止对方发消息并隐藏你的朋友圈")
+                        ) {
+                            closeMore { confirmBlock = true }
+                        }
+                    }
+                    PanelDivider()
+                    PanelDangerRow(
+                        symbol: "person.badge.minus",
+                        title: Tr("删除好友"),
+                        subtitle: Tr("解除好友关系并移除本机会话")
+                    ) {
+                        closeMore { confirmDelete = true }
                     }
                 }
 

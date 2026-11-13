@@ -1367,6 +1367,7 @@ struct FriendPermSheet: View {
     @State private var noMoments = false
     @State private var hideMine = false
     @State private var blocked = false
+    @State private var confirmBlock = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1378,11 +1379,34 @@ struct FriendPermSheet: View {
                 toggleRow(Tr("不看他的朋友圈"), noMoments) { noMoments = $0; save() }
                 HairLine(inset: 16)
                 toggleRow(Tr("不让他看我的朋友圈"), hideMine) { hideMine = $0; save() }
-                HairLine(inset: 16)
-                toggleRow(Tr("加入黑名单"), blocked) { blocked = $0; save() }
             }
             .padding(.top, 12)
             .background(C.cardBg)
+
+            VStack(spacing: 8) {
+                PanelSectionTitle(Tr("安全"))
+                PanelCard(solid: true) {
+                    if blocked {
+                        PanelRow(
+                            symbol: "hand.raised.slash.fill",
+                            colors: PanelTint.gray,
+                            title: Tr("移出黑名单"),
+                            subtitle: Tr("恢复接收消息和查看朋友圈")
+                        ) {
+                            setBlocked(false)
+                        }
+                    } else {
+                        PanelDangerRow(
+                            symbol: "hand.raised.fill",
+                            title: Tr("加入黑名单"),
+                            subtitle: Tr("阻止对方发消息并隐藏你的朋友圈")
+                        ) {
+                            confirmBlock = true
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
 
             Text(Tr("拉黑以后他发不了消息给你，也看不到你的朋友圈；聊天里你会看到「消息已发出，但被对方拒收了」。"))
                 .font(pf(12.5))
@@ -1401,6 +1425,22 @@ struct FriendPermSheet: View {
             noMoments = meta?.noMoments == true
             hideMine = meta?.hideMyMoments == true
             blocked = meta?.block == true
+        }
+        .overlay {
+            if confirmBlock {
+                PanelConfirmDialog(
+                    title: Tr("加入黑名单？"),
+                    okText: Tr("加入黑名单"),
+                    danger: true,
+                    message: Tr("对方将无法给你发消息，也看不到你的朋友圈。聊天记录会保留。"),
+                    symbol: "hand.raised.fill",
+                    onOk: {
+                        confirmBlock = false
+                        setBlocked(true)
+                    },
+                    onCancel: { confirmBlock = false }
+                )
+            }
         }
     }
 
@@ -1438,6 +1478,12 @@ struct FriendPermSheet: View {
             await onSaved()
             app.show(Tr("已保存"))
         }
+    }
+
+    private func setBlocked(_ value: Bool) {
+        guard blocked != value else { return }
+        blocked = value
+        save()
     }
 }
 
