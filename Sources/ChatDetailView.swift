@@ -2033,7 +2033,9 @@ struct ChatDetailView: View {
                     .environmentObject(app)
             }
         }
-        .fullScreenCover(isPresented: $showChatTheme) {
+        .fullScreenCover(isPresented: $showChatTheme, onDismiss: {
+            chatTheme.refresh(chat.id)
+        }) {
             ChatThemePickerView(chatId: chat.id)
         }
         .sheet(item: $sysToolsPage) { page in
@@ -2403,7 +2405,11 @@ struct ChatDetailView: View {
             schedulePersist()
         }
         .onChange(of: chatTheme.version) { _ in
-            frameCaptureTick &+= 1
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                frameCaptureTick &+= 1
+            }
         }
         .onAppear {
             chatTheme.activate(chat.id)

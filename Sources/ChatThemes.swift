@@ -124,6 +124,7 @@ final class ChatThemeStore: ObservableObject {
     static let shared = ChatThemeStore()
 
     @Published private(set) var version = 0
+    @Published private(set) var currentPreset: ChatAppearancePreset = .whatsapp
     private var activeChatId = ""
 
     private init() {}
@@ -135,18 +136,37 @@ final class ChatThemeStore: ObservableObject {
     func activate(_ chatId: String) {
         guard activeChatId != chatId else { return }
         activeChatId = chatId
+        currentPreset = loadPreset(chatId)
         version &+= 1
+    }
+
+    func refresh(_ chatId: String) {
+        let next = loadPreset(chatId)
+        let changed = activeChatId != chatId || currentPreset != next
+        activeChatId = chatId
+        if changed {
+            currentPreset = next
+            version &+= 1
+        }
     }
 
     func selected(chatId: String = "") -> ChatAppearancePreset {
         let id = chatId.isEmpty ? activeChatId : chatId
-        let raw = UserDefaults.standard.string(forKey: key(id)) ?? ""
+        if id == activeChatId { return currentPreset }
+        return loadPreset(id)
+    }
+
+    private func loadPreset(_ chatId: String) -> ChatAppearancePreset {
+        let raw = UserDefaults.standard.string(forKey: key(chatId)) ?? ""
         return ChatAppearancePreset(rawValue: raw) ?? .whatsapp
     }
 
     func set(_ preset: ChatAppearancePreset, chatId: String = "") {
         let id = chatId.isEmpty ? activeChatId : chatId
         UserDefaults.standard.set(preset.rawValue, forKey: key(id))
+        if id == activeChatId {
+            currentPreset = preset
+        }
         version &+= 1
     }
 }
@@ -156,9 +176,10 @@ struct ChatThemePickerView: View {
 
     @ObservedObject private var store = ChatThemeStore.shared
     @Environment(\.dismiss) private var dismiss
+    @State private var previewPreset: ChatAppearancePreset = .whatsapp
 
     private var selected: ChatAppearancePreset {
-        store.selected(chatId: chatId)
+        previewPreset
     }
 
     var body: some View {
@@ -179,6 +200,7 @@ struct ChatThemePickerView: View {
                         ForEach(Array(ChatAppearancePreset.allCases.enumerated()), id: \.element.id) { index, preset in
                             Button {
                                 withAnimation(.easeOut(duration: 0.18)) {
+                                    previewPreset = preset
                                     store.set(preset, chatId: chatId)
                                 }
                                 UISelectionFeedbackGenerator().selectionChanged()
@@ -212,6 +234,9 @@ struct ChatThemePickerView: View {
                         .fontWeight(.semibold)
                 }
             }
+            .onAppear {
+                previewPreset = store.selected(chatId: chatId)
+            }
         }
     }
 
@@ -220,17 +245,53 @@ struct ChatThemePickerView: View {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .fill(preset.previewBackground)
 
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            preset.mine.opacity(0.22),
+                            preset.mine.opacity(0.045),
+                            Color.clear
+                        ],
+                        center: UnitPoint(x: 0.86, y: 0.12),
+                        startRadius: 2,
+                        endRadius: 240
+                    )
+                )
+
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.46),
+                            Color.white.opacity(0.04),
+                            Color.black.opacity(0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.8
+                )
+
             VStack(spacing: 11) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(Tr("聊天主题预览"))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(preset.mine)
+                            .frame(width: 7, height: 7)
+                            .shadow(color: preset.mine.opacity(0.38), radius: 4)
                         Text(preset.title)
-                            .font(.headline)
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(preset == .midnight ? Color.white : Color.primary)
                     }
                     Spacer()
+                    Text(Tr("主题"))
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .frame(height: 21)
+                        .background(.ultraThinMaterial,
+                                    in: Capsule(style: .continuous))
                 }
 
                 HStack {
@@ -239,8 +300,15 @@ struct ChatThemePickerView: View {
                         .foregroundStyle(Color.primary)
                         .padding(.horizontal, 13)
                         .padding(.vertical, 9)
-                        .background(preset.other,
-                                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(preset.other)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(Color.white.opacity(0.24), lineWidth: 0.5)
+                                }
+                                .shadow(color: Color.black.opacity(0.07), radius: 5, y: 2)
+                        }
                     Spacer(minLength: 42)
                 }
 
@@ -251,8 +319,33 @@ struct ChatThemePickerView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 13)
                         .padding(.vertical, 9)
-                        .background(preset.mine,
-                                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            preset.mine,
+                                            preset.mine.opacity(0.82)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .overlay(alignment: .top) {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.white.opacity(0.16),
+                                                    Color.clear
+                                                ],
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                        )
+                                }
+                                .shadow(color: preset.mine.opacity(0.22), radius: 6, y: 2)
+                        }
                 }
 
                 HStack(spacing: 8) {
@@ -262,12 +355,27 @@ struct ChatThemePickerView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Spacer()
+                    Circle()
+                        .fill(preset.mine)
+                        .frame(width: 21, height: 21)
+                        .overlay {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 9.5, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
                 }
                 .font(.system(size: 17, weight: .medium))
                 .padding(.horizontal, 13)
                 .frame(height: 42)
-                .background(preset.panel,
-                            in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+                .background {
+                    RoundedRectangle(cornerRadius: 21, style: .continuous)
+                        .fill(preset.panel)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 21, style: .continuous)
+                                .stroke(Color.white.opacity(0.16), lineWidth: 0.5)
+                        }
+                        .shadow(color: Color.black.opacity(0.08), radius: 7, y: 3)
+                }
             }
             .padding(18)
         }
@@ -285,31 +393,70 @@ struct ChatThemePickerView: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
                     .fill(preset.previewBackground)
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack {
+
+                RadialGradient(
+                    colors: [preset.mine.opacity(0.24), Color.clear],
+                    center: UnitPoint(x: 0.88, y: 0.08),
+                    startRadius: 1,
+                    endRadius: 60
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 3) {
+                        Circle()
+                            .fill(preset.other)
+                            .frame(width: 4, height: 4)
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .fill(preset.other)
-                            .frame(width: 27, height: 12)
-                        Spacer(minLength: 16)
+                            .frame(width: 28, height: 10)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .stroke(Color.white.opacity(0.20), lineWidth: 0.4)
+                            }
+                        Spacer(minLength: 15)
                     }
                     HStack {
-                        Spacer(minLength: 16)
+                        Spacer(minLength: 15)
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(preset.mine)
-                            .frame(width: 27, height: 12)
+                            .fill(
+                                LinearGradient(
+                                    colors: [preset.mine, preset.mine.opacity(0.80)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: 29, height: 10)
+                            .shadow(color: preset.mine.opacity(0.20), radius: 2, y: 1)
                     }
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(preset.panel)
-                        .frame(height: 12)
+                    HStack(spacing: 3) {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(preset.panel)
+                            .frame(height: 11)
+                        Circle()
+                            .fill(preset.mine)
+                            .frame(width: 8, height: 8)
+                    }
                 }
                 .padding(7)
             }
-            .frame(width: 62, height: 48)
+            .frame(width: 72, height: 56)
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.5)
+                    .stroke(
+                        isSelected
+                            ? Color.accentColor.opacity(0.82)
+                            : Color.primary.opacity(0.07),
+                        lineWidth: isSelected ? 1.4 : 0.5
+                    )
             }
+            .shadow(
+                color: isSelected
+                    ? Color.accentColor.opacity(0.18)
+                    : Color.black.opacity(0.07),
+                radius: isSelected ? 7 : 3,
+                y: 2
+            )
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(preset.title)
@@ -325,7 +472,7 @@ struct ChatThemePickerView: View {
                 .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.35))
         }
         .padding(.horizontal, 14)
-        .frame(minHeight: 62)
+        .frame(minHeight: 68)
         .contentShape(Rectangle())
     }
 }
