@@ -731,6 +731,7 @@ extension Notification.Name {
 private enum ChatSwipeFeedback {
     static let selection = UISelectionFeedbackGenerator()
     static let notification = UINotificationFeedbackGenerator()
+    static let impact = UIImpactFeedbackGenerator(style: .soft)
 }
 
 struct SwipeChatRow: View {
@@ -751,15 +752,16 @@ struct SwipeChatRow: View {
     @State private var offset: CGFloat = 0
     @State private var startOffset: CGFloat = 0
     @State private var mode: Mode = .none
-    @State private var dragging = false
     @ObservedObject private var drafts = ChatDraftStore.shared
     @Environment(\.colorScheme) private var scheme
 
-    private var btnW: CGFloat { UIConfig.num("swipeBtnW", 74) }
-    private var btnFont: CGFloat { min(16, max(15, UIConfig.num("swipeFont", 15))) }
-    private let actionGap: CGFloat = 4
-    private var fullW: CGFloat { max(80, btnW) }
-    private var leadingFullW: CGFloat { btnW * 3 + 16 }
+    private let actionSide: CGFloat = 50
+    private let actionGap: CGFloat = 10
+    private let actionInset: CGFloat = 12
+    private var fullW: CGFloat { actionSide + actionInset * 2 }
+    private var leadingFullW: CGFloat {
+        actionSide * 3 + actionGap * 2 + actionInset
+    }
 
     private var blueBg: Color {
         UIConfig.colorIfSet("swipeUnread") ?? Color(hex: 0x28986C)
@@ -780,6 +782,7 @@ struct SwipeChatRow: View {
     @State private var crossedOpen = false
 
     @State private var dragVelocity: CGFloat = 0
+    @State private var fullSwipeArmed = false
 
     private var swipeSpring: Animation {
 
@@ -787,19 +790,13 @@ struct SwipeChatRow: View {
     }
 
     private func swipeSpringFor(velocity vx: CGFloat) -> Animation {
-        let speed = min(1, max(0, abs(vx) / 1_300))
-        return .interactiveSpring(response: 0.38 - speed * 0.12,
-                                  dampingFraction: 0.92 - speed * 0.05,
-                                  blendDuration: 0.12)
+        let speed = min(1, max(0, abs(vx) / 1_600))
+        return .interactiveSpring(response: 0.34 - speed * 0.10,
+                                  dampingFraction: 0.94 - speed * 0.04,
+                                  blendDuration: 0.08)
     }
 
     private var rowWidth: CGFloat { max(1, L.width - max(0, horizontalInset) * 2) }
-    private var pinReveal: CGFloat {
-        max(0, min(1, offset / fullW))
-    }
-    private var actionReveal: CGFloat {
-        max(0, min(1, -offset / leadingFullW))
-    }
     private var pinStretch: CGFloat {
         max(0, offset - fullW)
     }
@@ -814,15 +811,48 @@ struct SwipeChatRow: View {
             ?? .white
     }
 
+    private func resistedOffset(_ raw: CGFloat) -> CGFloat {
+        let direction: CGFloat = raw >= 0 ? 1 : -1
+        let base = raw >= 0 ? fullW : leadingFullW
+        let distance = abs(raw)
+        guard distance > base else { return raw }
+
+        // 原生列表在展开动作后不会继续 1:1 跟手。越接近屏幕边缘，
+        // 增量越小；这样既能明确表达“还能继续滑”，又不会突然失控。
+        let extra = distance - base
+        let limit = max(84, min(118, rowWidth * 0.29))
+        let damped = limit * extra / (extra + 92)
+        return direction * (base + damped)
+    }
+
+    private func updateFullSwipeIntent(raw: CGFloat) {
+        let base = raw >= 0 ? fullW : leadingFullW
+        let distance = abs(raw)
+        guard distance > base else {
+            fullSwipeArmed = false
+            return
+        }
+
+        // 首动作只在接近屏幕边缘时预备，正常展开三个动作绝不会误触。
+        let trigger = max(126, rowWidth * 0.73)
+        let armed = distance >= trigger
+        if armed != fullSwipeArmed {
+            fullSwipeArmed = armed
+            if armed {
+                ChatSwipeFeedback.impact.impactOccurred(intensity: 0.72)
+            }
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .trailing) {
-            pinActionButtons
-                .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
-                .opacity(0.34 + 0.66 * pinReveal)
-                .scaleEffect(0.97 + 0.03 * pinReveal, anchor: .leading)
-                .offset(x: -8 * (1 - pinReveal))
-                .allowsHitTesting(offset > 0)
-                .zIndex(offset > 0 ? 2 : 0)
+            if offset > 0 {
+                pinActionButtons
+                    .frame(width: rowWidth,
+                           height: ChatListVisual.rowHeight,
+                           alignment: .leading)
+                    .zIndex(2)
+            }
 
             EquatableView(content: ChatRow(
                 chat: chat,
@@ -843,12 +873,10 @@ struct SwipeChatRow: View {
                 .contentShape(Rectangle())
                 .zIndex(1)
 
-            chatActionButtons
-                .opacity(0.26 + 0.74 * actionReveal)
-                .scaleEffect(0.96 + 0.04 * actionReveal, anchor: .trailing)
-                .offset(x: 10 * (1 - actionReveal))
-                .allowsHitTesting(offset < 0)
-                .zIndex(offset < 0 ? 2 : 0)
+            if offset < 0 {
+                chatActionButtons
+                    .zIndex(2)
+            }
         }
         .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
 
@@ -868,9 +896,9 @@ struct SwipeChatRow: View {
                     }
                 },
                 onBegan: {
-                    dragging = true
                     startOffset = offset
                     dragVelocity = 0
+                    fullSwipeArmed = false
                     crossedOpen = abs(offset) > (offset >= 0
                                                  ? fullW * 0.42
                                                  : leadingFullW * 0.38)
@@ -880,19 +908,9 @@ struct SwipeChatRow: View {
                 onChanged: { dx in
                     // 固定方向：右滑（offset > 0）只露出置顶；左滑（offset < 0）
                     // 只露出“标为未读 / 不显示 / 删除”。后续调整不得交换。
-                    var x = startOffset + dx
-                    if x > 0 {
-                        if x > fullW {
-                            let extra = x - fullW
-                            x = fullW
-                                + min(86, CGFloat(pow(Double(extra), 0.72)) * 1.25)
-                        }
-                    } else if x < -leadingFullW {
-                        let extra = -x - leadingFullW
-                        x = -(leadingFullW
-                              + min(92, CGFloat(pow(Double(extra), 0.72)) * 1.30))
-                    }
-                    offset = x
+                    let raw = startOffset + dx
+                    offset = resistedOffset(raw)
+                    updateFullSwipeIntent(raw: raw)
 
                     let threshold = offset >= 0
                         ? fullW * 0.42
@@ -904,7 +922,6 @@ struct SwipeChatRow: View {
                     }
                 },
                 onEnded: { _, vx in
-                    dragging = false
                     dragVelocity = vx
                     settle(velocity: vx)
                 }
@@ -932,7 +949,7 @@ struct SwipeChatRow: View {
     }
 
     private var pinActionButtons: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             pinSwipeButton(stretch: pinStretch) {
                 ChatSwipeFeedback.selection.selectionChanged()
                 onPin(chat.pinned != true)
@@ -940,18 +957,19 @@ struct SwipeChatRow: View {
             }
             Spacer(minLength: 0)
         }
+        .padding(.leading, actionInset)
         .frame(height: ChatListVisual.rowHeight)
         .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .leading)
         .clipped()
     }
 
     private var chatActionButtons: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: actionGap) {
             circleAction(
                 symbol: "envelope.badge.fill",
                 title: Tr("标为未读"),
                 background: blueBg,
-                width: btnW
+                width: actionSide
             ) {
                 onUnread()
                 close()
@@ -960,7 +978,7 @@ struct SwipeChatRow: View {
                 symbol: "eye.slash.fill",
                 title: Tr("不显示"),
                 background: yellowBg,
-                width: btnW
+                width: actionSide
             ) {
                 onHide(false)
                 close()
@@ -969,16 +987,16 @@ struct SwipeChatRow: View {
                 symbol: "trash.fill",
                 title: Tr("删除"),
                 background: redBg,
-                width: btnW + deleteStretch,
-                stretch: deleteStretch
+                width: actionSide + deleteStretch
             ) {
                 onDelete()
                 close()
             }
         }
+        .padding(.trailing, actionInset)
         .frame(width: leadingFullW + deleteStretch,
                height: ChatListVisual.rowHeight,
-               alignment: .leading)
+               alignment: .trailing)
         .frame(width: rowWidth, height: ChatListVisual.rowHeight, alignment: .trailing)
         .clipped()
     }
@@ -989,25 +1007,19 @@ struct SwipeChatRow: View {
             symbol: chat.pinned == true ? "pin.slash.fill" : "pin.fill",
             title: chat.pinned == true ? Tr("取消置顶") : Tr("置顶"),
             background: pinBg,
-            width: fullW + stretch,
-            stretch: stretch,
+            width: actionSide + stretch,
             action: action
         )
     }
 
     private func circleAction(symbol: String, title: String, background: Color,
                               width: CGFloat,
-                              stretch: CGFloat = 0,
                               action: @escaping () -> Void) -> some View {
-        let side: CGFloat = 50
-        let capsuleWidth = stretch > 0.5
-            ? min(max(side, width - 4), side + stretch * 0.84)
-            : side
         return Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 19, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: capsuleWidth, height: side)
+                .frame(width: width, height: actionSide)
                 .background(
                     LinearGradient(
                         colors: [background.opacity(0.90), background],
@@ -1021,7 +1033,6 @@ struct SwipeChatRow: View {
                         .stroke(Color.white.opacity(0.16), lineWidth: 0.7)
                 }
                 .shadow(color: background.opacity(0.24), radius: 7, y: 3)
-                .frame(width: width, height: ChatListVisual.rowHeight)
                 .contentShape(Rectangle())
         }
         .buttonStyle(RowSwipeActionButtonStyle())
@@ -1036,9 +1047,15 @@ struct SwipeChatRow: View {
         if offset >= 0 {
             let projected = offset + vx * 0.14
             let open: Bool
-            if vx >= 360 {
+            if fullSwipeArmed && vx > -120 {
+                ChatSwipeFeedback.impact.impactOccurred(intensity: 0.82)
+                onPin(chat.pinned != true)
+                close()
+                return
+            }
+            if vx >= 320 {
                 open = true
-            } else if vx <= -360 {
+            } else if vx <= -320 {
                 open = false
             } else {
                 open = projected > fullW * 0.42
@@ -1052,12 +1069,18 @@ struct SwipeChatRow: View {
         }
         let open: Bool
         let projected = offset + vx * 0.14
-        if vx <= -320 {
+        if fullSwipeArmed && vx < 120 {
+            ChatSwipeFeedback.impact.impactOccurred(intensity: 0.82)
+            onDelete()
+            close()
+            return
+        }
+        if vx <= -300 {
             open = true
-        } else if vx >= 320 {
+        } else if vx >= 300 {
             open = false
         } else {
-            open = -projected > fullW * 0.42
+            open = -projected > leadingFullW * 0.36
         }
         if open { ChatSwipeFeedback.selection.selectionChanged() }
         withAnimation(swipeSpring) {
