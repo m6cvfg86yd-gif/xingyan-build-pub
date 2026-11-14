@@ -98,6 +98,7 @@ where Item.ID: Hashable {
         var onRefresh: () -> Void
         weak var collection: UICollectionView?
         var dataSource: UICollectionViewDiffableDataSource<Int, Item.ID>?
+        private var order: [Item.ID] = []
         private var lastZone = -1
 
         init(items: [Item],
@@ -109,12 +110,16 @@ where Item.ID: Hashable {
             self.row = row
             super.init()
             self.lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+            self.order = items.map(\.id)
         }
 
         func apply(_ next: [Item], animated: Bool) {
             guard let dataSource, let collection else { return }
             let nextLookup = Dictionary(uniqueKeysWithValues: next.map { ($0.id, $0) })
             let nextOrder = next.map(\.id)
+            if nextOrder == order && next.allSatisfy({ lookup[$0.id] == $0 }) {
+                return
+            }
             let reload = next.compactMap { item -> Item.ID? in
                 guard let old = lookup[item.id] else { return nil }
                 return old == item ? nil : item.id
@@ -130,6 +135,7 @@ where Item.ID: Hashable {
             }
             dataSource.apply(snapshot, animatingDifferences: animated)
             collection.setContentOffset(previousOffset, animated: false)
+            order = nextOrder
         }
 
         @objc func refreshPulled(_ sender: UIRefreshControl) {
