@@ -258,6 +258,7 @@ struct MessageEventEnvelope: Decodable, Hashable {
         var messageId: String?
         var userId: String?
         var clearedSeq: Int?
+        var readSeq: Int?
         var recalled: Bool?
     }
     var sequence: Int?

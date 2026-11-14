@@ -2408,6 +2408,10 @@ struct ChatDetailView: View {
                 }
             }
 
+            if ev.type == "sync", ev.action == "read", ev.chatId == chat.id {
+                unreadHere = 0
+            }
+
             if ev.type == "message", ev.chatId == chat.id, let message = ev.message {
                 upsertVisibleMessage(message)
                 if message.kindName == "pat" {

@@ -538,6 +538,10 @@ final class AppState: ObservableObject {
             coalesce { [weak self] in
                 await self?.loadChats()
             }
+        case "sync":
+            if ev.action == "read", !ev.chatId.isEmpty {
+                markChatReadLocally(ev.chatId)
+            }
         case "toast":
 
             if !ev.announce.isEmpty { show(ev.announce) }
@@ -1097,6 +1101,9 @@ final class AppState: ObservableObject {
                         guard payload.userId == userId else { continue }
                         forgetChatHistory(chatId, notify: false)
                         NotificationCenter.default.post(name: .chrisChatCleared, object: chatId)
+                    case "chat.read":
+                        guard payload.userId == userId else { continue }
+                        markChatReadLocally(chatId)
                     default:
                         break
                     }

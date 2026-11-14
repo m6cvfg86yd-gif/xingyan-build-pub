@@ -71,6 +71,48 @@ async function login(base, username, deviceId) {
   return { cookie, user: response.data.user };
 }
 
+function openSocket(base, cookie) {
+  const pair = String(cookie || '').split(';')
+    .map((part) => part.trim())
+    .find((part) => part.includes('=')) || '';
+  const token = pair.slice(pair.indexOf('=') + 1);
+  assert.ok(token, 'login cookie did not contain a session token');
+  const wsUrl = base.replace(/^http/, 'ws') + '/?token=' + encodeURIComponent(token);
+  const events = [];
+  const socket = new WebSocket(wsUrl);
+  socket.addEventListener('message', (event) => {
+    try {
+      events.push(JSON.parse(String(event.data || '')));
+    } catch (_) { /* ignore malformed */ }
+  });
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('websocket ready timeout')), 5000);
+    socket.addEventListener('error', () => {
+      clearTimeout(timer);
+      reject(new Error('websocket failed'));
+    });
+    socket.addEventListener('message', (event) => {
+      try {
+        const message = JSON.parse(String(event.data || ''));
+        if (message.type === 'ready') {
+          clearTimeout(timer);
+          resolve({ socket, events });
+        }
+      } catch (_) { /* ignore malformed */ }
+    });
+  });
+}
+
+async function waitForSocketEvent(events, predicate) {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const hit = events.find(predicate);
+    if (hit) return hit;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error('websocket event timeout');
+}
+
 async function startServer(dataDir, port) {
   const base = 'http://127.0.0.1:' + port;
   const logs = [];
@@ -154,14 +196,31 @@ async function main() {
     assert.deepStrictEqual(response.data.messages.map((m) => m.seq), [4, 5]);
     assert.strictEqual(response.data.hasMore, false);
 
+    const desktopSocket = await openSocket(base, bobDesktop.cookie);
     response = await call(base, bobPhone.cookie, 'POST',
       `/api/chats/${chatId}/read`, {}, 'bob-phone');
     assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    const readSync = await waitForSocketEvent(desktopSocket.events, (event) =>
+      event.type === 'sync'
+      && event.action === 'read'
+      && event.chatId === chatId
+      && event.seq === 5);
+    assert.strictEqual(readSync.userId, bobPhone.user.id);
+    desktopSocket.socket.close();
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     response = await call(base, bobPhone.cookie, 'GET',
       `/api/chats/${chatId}/cursor`, undefined, 'bob-phone');
     assert.strictEqual(response.data.cursor.readSeq, 5);
     assert.strictEqual(response.data.cursor.deliveredSeq, 5);
+
+    response = await call(base, bobPhone.cookie, 'GET',
+      '/api/message-events?after=0&limit=100', undefined, 'bob-phone');
+    assert.ok(response.data.events.some((event) =>
+      event.type === 'chat.read'
+      && event.payload.chatId === chatId
+      && event.payload.userId === bobPhone.user.id
+      && event.payload.readSeq === 5));
 
     response = await call(base, bobDesktop.cookie, 'GET',
       `/api/chats/${chatId}/cursor`, undefined, 'bob-desktop');

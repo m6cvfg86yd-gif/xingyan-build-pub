@@ -8409,6 +8409,33 @@ function checkCaptcha(id, answer) {
 
 function callSend(userId, payload) { return sendTo(userId, payload); }
 
+function publishReadCursor(chat, user, seq) {
+  const value = Math.max(0, Math.floor(Number(seq) || 0));
+  const payload = {
+    type: 'sync',
+    action: 'read',
+    chatId: chat.id,
+    userId: user.id,
+    seq: value
+  };
+  /* 同一账号的所有设备都收到，另一端不用等下一次列表刷新才掉红点。 */
+  sendTo(user.id, payload);
+  /* 会话对方仍然收到原来的已读回执格式，避免影响聊天页已有逻辑。 */
+  sendToChat(chat, {
+    type: 'read',
+    chatId: chat.id,
+    userId: user.id,
+    seq: value
+  }, user.id);
+  if (messageReliability) {
+    messageReliability.recordEvent('chat.read', chat.id, value, {
+      chatId: chat.id,
+      userId: user.id,
+      readSeq: value
+    });
+  }
+}
+
 /** 通话结束后往两个人的会话里插一条系统消息（微信也是这么记的）。
     meta 里带通话本身的信息（音频/视频、接通没接通、时长），
     客户端拿它画电话图标和「通话时长 00:12」这种行，而不是靠猜文字。 */
@@ -8618,7 +8645,7 @@ function handleClientMessage(user, socket, raw) {
         messageReliability.markDeviceRead(user.id, socket.__deviceId, chat.id, lastSeq);
       }
     }
-    sendToChat(chat, { type: 'read', chatId: chat.id, userId: user.id, seq: lastSeq }, user.id);
+    publishReadCursor(chat, user, lastSeq);
     return;
   }
 
@@ -21132,7 +21159,7 @@ async function handleApi(req, res, pathname, query) {
       chat.flaggedUnread = chat.flaggedUnread.filter((id) => id !== user.id);
       saveChats();
     }
-    sendToChat(chat, { type: 'read', chatId: chat.id, userId: user.id, seq: lastSeq }, user.id);
+    publishReadCursor(chat, user, lastSeq);
     observeShardShadow('chats.unread', {
       chatId: chat.id,
       ownerId: user.id,
