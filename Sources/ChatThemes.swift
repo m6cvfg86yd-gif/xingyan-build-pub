@@ -157,12 +157,11 @@ final class ChatThemeStore: ObservableObject {
 
     func refresh(_ chatId: String) {
         let next = loadPreset(chatId)
-        let changed = activeChatId != chatId || currentPreset != next
         activeChatId = chatId
-        if changed {
-            currentPreset = next
-            version &+= 1
-        }
+        currentPreset = next
+        // 全屏主题页会盖住聊天页，底层可能漏掉选择时的刷新。
+        // 关闭主题页时无条件广播一次，保证回来的第一帧就是新背景和新气泡色。
+        version &+= 1
     }
 
     func selected(chatId: String = "") -> ChatAppearancePreset {
