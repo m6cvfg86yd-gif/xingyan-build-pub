@@ -150,7 +150,7 @@ final class NativeCameraController: NSObject, ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.microphoneDenied = !granted
-                self.beginRecording()
+                self.beginRecording(withAudio: granted)
             }
         }
     }
@@ -271,25 +271,41 @@ final class NativeCameraController: NSObject, ObservableObject {
         } catch { }
     }
 
-    private func beginRecording() {
+    private func beginRecording(withAudio: Bool) {
         guard !isRecording else { return }
-        if microphoneDenied {
+        if !withAudio {
             errorText = Tr("视频将不包含声音，请在设置中开启麦克风")
         }
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("xingyan-native-\(UUID().uuidString).mov")
-        configureConnections()
-        setTorch(flashMode == .on)
-        torchOn = flashMode == .on
-        movieOutput.startRecording(to: url, recordingDelegate: self)
-        isRecording = true
-        recordingSeconds = 0
-        recordingTimer?.invalidate()
-        recordingTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        let lightOn = flashMode == .on
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            if withAudio, self.audioInput == nil,
+               let audio = AVCaptureDevice.default(for: .audio),
+               let input = try? AVCaptureDeviceInput(device: audio) {
+                self.session.beginConfiguration()
+                if self.session.canAddInput(input) {
+                    self.session.addInput(input)
+                    self.audioInput = input
+                }
+                self.session.commitConfiguration()
+            }
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("xingyan-native-\(UUID().uuidString).mov")
+            self.configureConnections()
+            self.setTorch(lightOn)
+            self.movieOutput.startRecording(to: url, recordingDelegate: self)
             Task { @MainActor in
-                guard let self, self.isRecording else { return }
-                self.recordingSeconds += 1
-                if self.recordingSeconds >= 60 { self.toggleRecording() }
+                self.torchOn = lightOn
+                self.isRecording = true
+                self.recordingSeconds = 0
+                self.recordingTimer?.invalidate()
+                self.recordingTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                    Task { @MainActor in
+                        guard let self, self.isRecording else { return }
+                        self.recordingSeconds += 1
+                        if self.recordingSeconds >= 60 { self.toggleRecording() }
+                    }
+                }
             }
         }
     }
