@@ -91,10 +91,10 @@ async function login(base, username) {
   return raw.split(';')[0];
 }
 
-function signedWebhook(base, payload) {
+function signedWebhook(base, payload, secret = WEBHOOK_SECRET) {
   const body = JSON.stringify(payload);
   const timestamp = String(Date.now());
-  const signature = crypto.createHmac('sha256', WEBHOOK_SECRET)
+  const signature = crypto.createHmac('sha256', secret)
     .update(timestamp + '\n' + body)
     .digest('base64url');
   return fetch(base + '/api/payment/provider/webhook', {
@@ -207,6 +207,20 @@ async function main() {
     const depositOrder = response.data.order;
     assert.strictEqual(depositOrder.status, 'pending');
     assert.ok(providerCalls.some((row) => row.url === '/v1/deposits'));
+
+    const rejectedWebhook = await signedWebhook(base, {
+      id: 'provider-deposit-bad-signature',
+      type: 'deposit.succeeded',
+      data: {
+        kind: 'deposit',
+        orderId: depositOrder.id,
+        status: 'succeeded',
+        providerRef: 'provider-deposit-ref'
+      }
+    }, 'wrong-webhook-secret');
+    assert.strictEqual(rejectedWebhook.status, 401);
+    response = await call(base, 'GET', '/api/me', undefined, cookie);
+    assert.strictEqual(Number(response.data.user.balance), 100);
 
     let webhook = await signedWebhook(base, {
       id: 'provider-deposit-event',
