@@ -119,6 +119,12 @@ class MessageReliabilityStore {
 
             CREATE INDEX IF NOT EXISTS message_events_sync
                 ON message_events(sequence);
+
+            CREATE TABLE IF NOT EXISTS reliability_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
         `);
     }
 
@@ -258,6 +264,84 @@ class MessageReliabilityStore {
         });
     }
 
+    importMessages(chatId, messages) {
+        const chat = String(chatId || '');
+        if (!chat) throw new Error('chatId is required');
+        const rows = (Array.isArray(messages) ? messages : [])
+            .filter((message) => message && message.id && Number(message.seq) > 0);
+        let imported = 0;
+        let existing = 0;
+        let conflicts = 0;
+
+        this.transaction(() => {
+            const byId = this.db.prepare(
+                'SELECT chat_id, seq FROM reliable_messages WHERE message_id = ?'
+            );
+            const bySequence = this.db.prepare(
+                'SELECT message_id FROM reliable_messages WHERE chat_id = ? AND seq = ?'
+            );
+            const byClient = this.db.prepare(`
+                SELECT message_id FROM reliable_messages
+                WHERE chat_id = ? AND sender_id = ? AND client_id = ?
+            `);
+            const insert = this.db.prepare(`
+                INSERT INTO reliable_messages
+                    (message_id, chat_id, sender_id, client_id, seq, payload_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `);
+            rows.forEach((message) => {
+                const id = String(message.id);
+                const sameId = byId.get(id);
+                if (sameId) {
+                    if (String(sameId.chat_id) === chat) existing += 1;
+                    else conflicts += 1;
+                    return;
+                }
+                const seq = Math.floor(Number(message.seq));
+                const occupied = bySequence.get(chat, seq);
+                if (occupied) {
+                    conflicts += 1;
+                    return;
+                }
+                const senderId = String(message.senderId || 'unknown');
+                const clientId = String(message.clientId || '').slice(0, 80) || null;
+                if (clientId && byClient.get(chat, senderId, clientId)) {
+                    existing += 1;
+                    return;
+                }
+                const createdAt = String(message.createdAt || this.now());
+                const persisted = Object.assign({}, message, {
+                    id,
+                    chatId: chat,
+                    senderId,
+                    seq,
+                    createdAt
+                });
+                insert.run(id, chat, senderId, clientId, seq,
+                    stableJson(persisted), createdAt);
+                imported += 1;
+            });
+
+            const row = this.db.prepare(`
+                SELECT MAX(seq) AS last_seq
+                FROM reliable_messages
+                WHERE chat_id = ?
+            `).get(chat);
+            const lastSeq = row ? Number(row.last_seq) || 0 : 0;
+            if (lastSeq > 0) {
+                this.db.prepare(`
+                    INSERT INTO chat_sequence(chat_id, last_seq, updated_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(chat_id) DO UPDATE SET
+                        last_seq = MAX(chat_sequence.last_seq, excluded.last_seq),
+                        updated_at = excluded.updated_at
+                `).run(chat, lastSeq, this.now());
+            }
+        });
+
+        return { imported, existing, conflicts, total: rows.length };
+    }
+
     messagesAfter(chatId, afterSeq, limit) {
         const cap = Math.min(500, Math.max(1, Number(limit) || 200));
         return this.db.prepare(`
@@ -293,6 +377,23 @@ class MessageReliabilityStore {
         return this.db.prepare(
             'DELETE FROM reliable_messages WHERE chat_id = ?'
         ).run(String(chatId || '')).changes;
+    }
+
+    metadata(key) {
+        const row = this.db.prepare(
+            'SELECT value FROM reliability_metadata WHERE key = ?'
+        ).get(String(key || ''));
+        return row ? String(row.value) : '';
+    }
+
+    setMetadata(key, value) {
+        this.db.prepare(`
+            INSERT INTO reliability_metadata(key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at
+        `).run(String(key || ''), String(value == null ? '' : value), this.now());
     }
 
     ackDevice(userId, deviceId, chatId, seq) {

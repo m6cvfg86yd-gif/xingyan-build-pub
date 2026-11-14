@@ -82,10 +82,28 @@ try {
     assert.strictEqual(events[0].type, 'message.created');
     assert.strictEqual(events[3].entityId, 'm5');
     assert.strictEqual(events[4].type, 'message.recalled');
+
+    const imported = store.importMessages('c2', [
+      { id: 'legacy-1', chatId: 'c2', senderId: 'u1', seq: 1, content: 'legacy one' },
+      { id: 'legacy-2', chatId: 'c2', senderId: 'u1', seq: 1, content: 'conflict' },
+      { id: 'legacy-3', chatId: 'c2', senderId: 'u2', seq: 2, content: 'legacy two' }
+    ]);
+    assert.deepStrictEqual(imported, { imported: 2, existing: 0, conflicts: 1, total: 3 });
+    assert.strictEqual(store.lastSequence('c2'), 2);
+    assert.deepStrictEqual(store.messagesAfter('c2', 0, 10).map((m) => m.id),
+      ['legacy-1', 'legacy-3']);
+    assert.strictEqual(store.eventsAfter(0, 10).length, 5);
+    assert.deepStrictEqual(store.importMessages('c2', [
+      { id: 'legacy-1', chatId: 'c2', senderId: 'u1', seq: 1, content: 'legacy one' }
+    ]), { imported: 0, existing: 1, conflicts: 0, total: 1 });
+    store.setMetadata('audit', 'ok');
+    assert.strictEqual(store.metadata('audit'), 'ok');
     store.close();
 
     const reopened = new MessageReliabilityStore({ databaseFile });
     assert.deepStrictEqual(reopened.messagesAfter('c1', 0, 10).map((m) => m.seq), [1, 2, 3, 4]);
+    assert.deepStrictEqual(reopened.messagesAfter('c2', 0, 10).map((m) => m.seq), [1, 2]);
+    assert.strictEqual(reopened.metadata('audit'), 'ok');
     const afterRestart = reopened.reserveMessage({
         id: 'm6',
         chatId: 'c1',

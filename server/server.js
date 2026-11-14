@@ -5486,8 +5486,7 @@ function migrateMessagesToEncrypted() {
   return files;
 }
 
-function loadMessages(chatId) {
-  if (messageCache.has(chatId)) return messageCache.get(chatId);
+function readMessageFile(chatId) {
   const file = messagesFile(chatId);
   const list = [];
   if (fs.existsSync(file)) {
@@ -5498,6 +5497,12 @@ function loadMessages(chatId) {
       try { list.push(openMessage(chatId, t)); } catch (err) { /* 跳过坏行 */ }
     }
   }
+  return list;
+}
+
+function loadMessages(chatId) {
+  if (messageCache.has(chatId)) return messageCache.get(chatId);
+  const list = readMessageFile(chatId);
   const trimmed = list.slice(-MAX_CACHE);
   messageCache.set(chatId, trimmed);
   return trimmed;
@@ -5544,6 +5549,50 @@ function appendChatMessage(chat, message) {
   const duplicate = appendMessage(chat.id, message);
   chat.seq = Math.max(Number(chat.seq) || 0, Number(message.seq) || 0);
   return duplicate;
+}
+
+function backfillMessageReliability() {
+  if (!messageReliability) return;
+  const marker = 'legacy-backfill-v1';
+  if (messageReliability.metadata(marker)) return;
+
+  const ids = new Set((db.chats || []).map((chat) => String(chat.id || '')).filter(Boolean));
+  try {
+    fs.readdirSync(MSG_DIR)
+      .filter((name) => name.endsWith('.jsonl'))
+      .forEach((name) => ids.add(name.slice(0, -'.jsonl'.length)));
+  } catch (err) { /* 没有消息目录就只按会话表回填 */ }
+
+  let chats = 0;
+  let imported = 0;
+  let existing = 0;
+  let conflicts = 0;
+  let total = 0;
+  ids.forEach((chatId) => {
+    const messages = readMessageFile(chatId);
+    if (!messages.length) return;
+    const result = messageReliability.importMessages(chatId, messages);
+    chats += 1;
+    imported += result.imported;
+    existing += result.existing;
+    conflicts += result.conflicts;
+    total += result.total;
+  });
+  const summary = {
+    version: marker,
+    completedAt: now(),
+    chats,
+    total,
+    imported,
+    existing,
+    conflicts
+  };
+  messageReliability.setMetadata(marker, JSON.stringify(summary));
+  console.log('[消息可靠性] 历史回填完成：' + chats + ' 个会话、' + total
+    + ' 条，新增 ' + imported + '，已有 ' + existing + '，序号冲突 ' + conflicts);
+  if (conflicts > 0) {
+    throw new Error('历史消息存在 ' + conflicts + ' 个序号或消息 ID 冲突，已安全停止可靠性模式');
+  }
 }
 
 /* 会话自身 seq 是批量落盘的，进程若在 1.5 秒窗口内重启，可能比消息文件慢。
@@ -22900,7 +22949,12 @@ if (reliabilityFlag === '1' || reliabilityFlag === 'true' || reliabilityFlag ===
       now
     });
     console.log('[消息可靠性] 已启用原子序号、幂等消息和设备级游标');
+    const backfillFlag = String(process.env.MESSAGE_RELIABILITY_BACKFILL || '0').toLowerCase();
+    if (backfillFlag === '1' || backfillFlag === 'true' || backfillFlag === 'on') {
+      backfillMessageReliability();
+    }
   } catch (error) {
+    try { if (messageReliability) messageReliability.close(); } catch (_) { }
     messageReliability = null;
     console.log('[消息可靠性] 初始化失败，继续使用兼容链路：'
       + String(error && error.message || error));
