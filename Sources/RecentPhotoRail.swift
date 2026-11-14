@@ -154,11 +154,11 @@ struct ChatRecentPhotoStrip: View {
     var onOpenLibrary: () -> Void
 
     @State private var loadingId = ""
-    private let tile: CGFloat = 54
+    private let tile: CGFloat = 73
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 5) {
+            LazyHStack(spacing: 7) {
                 Button(action: onOpenLibrary) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
