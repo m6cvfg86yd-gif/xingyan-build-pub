@@ -461,7 +461,7 @@ enum MediaTool {
 
 struct MediaSendSheet: View {
     enum Payload {
-        case image(UIImage)
+        case image(UIImage, nativeCamera: Bool)
 
         case images([UIImage])
         case video(URL, UIImage?)
@@ -482,13 +482,16 @@ struct MediaSendSheet: View {
     init(payload: Payload, onSend: @escaping (Bool, Bool, UIImage?) -> Void) {
         self.payload = payload
         self.onSend = onSend
-        if case .image(let image) = payload {
+        if case .image(let image, _) = payload {
             _editedImage = State(initialValue: image)
         }
     }
 
     private var isLive: Bool { if case .live = payload { return true }; return false }
-    private var singleImage: UIImage? { if case .image(let image) = payload { return image }; return nil }
+    private var singleImage: UIImage? {
+        if case .image(let image, _) = payload { return image }
+        return nil
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -567,7 +570,7 @@ struct MediaSendSheet: View {
     @ViewBuilder
     private var preview: some View {
         switch payload {
-        case .image(let img):
+        case .image(let img, _):
             Image(uiImage: editedImage ?? img).resizable().scaledToFit()
         case .images(let list):
 

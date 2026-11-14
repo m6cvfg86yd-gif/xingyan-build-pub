@@ -136,6 +136,13 @@ final class NativeCameraController: NSObject, ObservableObject {
                self.photoOutput.supportedFlashModes.contains(self.flashMode) {
                 settings.flashMode = self.flashMode
             }
+            settings.photoQualityPrioritization = .quality
+            if #available(iOS 16.0, *) {
+                let maxDimensions = self.photoOutput.maxPhotoDimensions
+                if maxDimensions.width > 0, maxDimensions.height > 0 {
+                    settings.maxPhotoDimensions = maxDimensions
+                }
+            }
             self.photoOutput.capturePhoto(with: settings, delegate: self)
         }
     }
@@ -167,7 +174,9 @@ final class NativeCameraController: NSObject, ObservableObject {
 
     private func configureSession() {
         session.beginConfiguration()
-        if session.canSetSessionPreset(.hd1920x1080) {
+        if session.canSetSessionPreset(.hd4K3840x2160) {
+            session.sessionPreset = .hd4K3840x2160
+        } else if session.canSetSessionPreset(.hd1920x1080) {
             session.sessionPreset = .hd1920x1080
         } else {
             session.sessionPreset = .high
@@ -200,13 +209,13 @@ final class NativeCameraController: NSObject, ObservableObject {
         }
         session.addOutput(photoOutput)
         session.addOutput(movieOutput)
-        photoOutput.isHighResolutionCaptureEnabled = true
+        configurePhotoQuality(for: device)
         movieOutput.maxRecordedDuration = CMTime(seconds: 60, preferredTimescale: 600)
         configureConnections()
         session.commitConfiguration()
         configured = true
 
-        let maxZoom = min(8, device.activeFormat.videoMaxZoomFactor)
+        let maxZoom = min(10, device.activeFormat.videoMaxZoomFactor)
         Task { @MainActor in
             self.maxZoom = max(1, maxZoom)
             self.usingFront = false
@@ -231,9 +240,15 @@ final class NativeCameraController: NSObject, ObservableObject {
             } else if let old = self.videoInput {
                 self.session.addInput(old)
             }
+            if self.session.canSetSessionPreset(.hd4K3840x2160) {
+                self.session.sessionPreset = .hd4K3840x2160
+            } else if self.session.canSetSessionPreset(.hd1920x1080) {
+                self.session.sessionPreset = .hd1920x1080
+            }
+            self.configurePhotoQuality(for: device)
             self.configureConnections()
             self.session.commitConfiguration()
-            let maxZoom = min(8, device.activeFormat.videoMaxZoomFactor)
+            let maxZoom = min(10, device.activeFormat.videoMaxZoomFactor)
             Task { @MainActor in
                 self.usingFront = device.position == .front
                 self.maxZoom = max(1, maxZoom)
@@ -255,6 +270,24 @@ final class NativeCameraController: NSObject, ObservableObject {
             if connection.isVideoMirroringSupported {
                 connection.isVideoMirrored = currentDevice()?.position == .front
             }
+            if output === movieOutput, connection.isVideoStabilizationSupported {
+                connection.preferredVideoStabilizationMode = .auto
+            }
+        }
+    }
+
+    private func configurePhotoQuality(for device: AVCaptureDevice) {
+        photoOutput.isHighResolutionCaptureEnabled = true
+        guard #available(iOS 16.0, *) else { return }
+        let serverSafe = device.activeFormat.supportedMaxPhotoDimensions.filter { size in
+            let pixels = Int64(size.width) * Int64(size.height)
+            return size.width <= 10_000 && size.height <= 10_000
+                && pixels > 0 && pixels <= 38_000_000
+        }
+        if let largest = serverSafe.max(by: {
+            Int64($0.width) * Int64($0.height) < Int64($1.width) * Int64($1.height)
+        }) {
+            photoOutput.maxPhotoDimensions = largest
         }
     }
 
@@ -354,14 +387,19 @@ private enum NativeCameraWatermark {
 
     static func apply(to image: UIImage) -> UIImage {
         guard image.size.width > 1, image.size.height > 1 else { return image }
+        let sourceWidth = CGFloat(image.cgImage?.width ?? Int(image.size.width * image.scale))
+        let sourceHeight = CGFloat(image.cgImage?.height ?? Int(image.size.height * image.scale))
+        guard sourceWidth > 1, sourceHeight > 1 else { return image }
+        let pixelSize = CGSize(width: sourceWidth, height: sourceHeight)
         let format = UIGraphicsImageRendererFormat()
-        format.scale = image.scale
+        format.scale = 1
         format.opaque = true
-        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
+        format.preferredRange = .extended
+        let renderer = UIGraphicsImageRenderer(size: pixelSize, format: format)
         return renderer.image { context in
-            image.draw(in: CGRect(origin: .zero, size: image.size))
+            image.draw(in: CGRect(origin: .zero, size: pixelSize))
 
-            let shortSide = min(image.size.width, image.size.height)
+            let shortSide = min(pixelSize.width, pixelSize.height)
             let unit = max(0.72, min(1.65, shortSide / 1080))
             let margin = 26 * unit
             let cardHeight = 54 * unit
@@ -393,7 +431,7 @@ private enum NativeCameraWatermark {
             let cardWidth = horizontalPad * 2 + max(brandBox.width, timeBox.width)
             let cardRect = CGRect(
                 x: margin,
-                y: image.size.height - margin - cardHeight,
+                y: pixelSize.height - margin - cardHeight,
                 width: cardWidth,
                 height: cardHeight
             )
@@ -460,6 +498,106 @@ struct NativeCameraPreview: UIViewRepresentable {
 
     func updateUIView(_ uiView: PreviewView, context: Context) {
         uiView.previewLayer.session = session
+    }
+}
+
+private struct NativeZoomCompass: View {
+    let value: CGFloat
+    let maxValue: CGFloat
+    let onChange: (CGFloat) -> Void
+
+    @State private var lastTick = 1
+
+    private var upper: CGFloat { max(1, min(10, maxValue)) }
+    private var clampedValue: CGFloat { min(max(1, value), upper) }
+
+    private var readout: String {
+        if abs(clampedValue.rounded() - clampedValue) < 0.04 {
+            return "\(Int(clampedValue.rounded()))×"
+        }
+        return String(format: "%.1f×", clampedValue)
+    }
+
+    var body: some View {
+        VStack(spacing: 7) {
+            Text(readout)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+
+            GeometryReader { geo in
+                let width = geo.size.width
+                ZStack(alignment: .leading) {
+                    Capsule(style: .continuous)
+                        .fill(Color.black.opacity(0.36))
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.13), lineWidth: 0.7)
+
+                    HStack(spacing: 0) {
+                        ForEach(1...10, id: \.self) { mark in
+                            let active = abs(clampedValue - CGFloat(mark)) < 0.22
+                            VStack(spacing: 4) {
+                                Capsule(style: .continuous)
+                                    .fill(active ? Color.white : Color.white.opacity(0.28))
+                                    .frame(width: active ? 2 : 1, height: active ? 13 : 7)
+                                Text("\(mark)")
+                                    .font(.system(size: mark == 10 ? 9.5 : 10,
+                                                  weight: active ? .bold : .medium,
+                                                  design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(active ? Color.white : Color.white.opacity(0.52))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .padding(.horizontal, 5)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                        .onChanged { gesture in
+                            let inset: CGFloat = 13
+                            let usable = max(1, width - inset * 2)
+                            let x = min(max(gesture.location.x - inset, 0), usable)
+                            let factor = 1 + (x / usable) * (upper - 1)
+                            onChange(factor)
+                            let tick = Int(factor.rounded())
+                            if tick != lastTick {
+                                lastTick = tick
+                                UISelectionFeedbackGenerator().selectionChanged()
+                            }
+                        }
+                )
+            }
+            .frame(height: 31)
+        }
+        .padding(.horizontal, 11)
+        .padding(.top, 8)
+        .padding(.bottom, 7)
+        .frame(maxWidth: 342)
+        .background(
+            RoundedRectangle(cornerRadius: 19, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 19, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 0.7)
+        }
+        .shadow(color: .black.opacity(0.20), radius: 12, y: 5)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Tr("变焦"))
+        .accessibilityValue(readout)
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                onChange(min(clampedValue + 0.5, upper))
+            case .decrement:
+                onChange(max(clampedValue - 0.5, 1))
+            @unknown default:
+                break
+            }
+        }
     }
 }
 
@@ -678,25 +816,12 @@ struct NativeCameraView: View {
     }
 
     private var zoomBadge: some View {
-        HStack(spacing: 6) {
-            ForEach([CGFloat(1), CGFloat(2)], id: \.self) { value in
-                Button {
-                    zoomStart = value
-                    camera.setZoom(value)
-                } label: {
-                    Text("\(Int(value))×")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(abs(camera.zoomFactor - value) < 0.2
-                                         ? Color.black : Color.white)
-                        .frame(width: 34, height: 34)
-                        .background(
-                            Circle().fill(abs(camera.zoomFactor - value) < 0.2
-                                          ? Color.white : Color.black.opacity(0.28))
-                        )
-                }
-                .buttonStyle(.plain)
-            }
+        NativeZoomCompass(value: camera.zoomFactor,
+                          maxValue: camera.maxZoom) { value in
+            zoomStart = value
+            camera.setZoom(value)
         }
+        .padding(.horizontal, 14)
         .padding(.bottom, 14)
     }
 

@@ -2054,7 +2054,9 @@ struct ChatDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: $showPhoto) {
 
-            NativeMediaPicker(onImage: { image in pendingMedia = .image(image) },
+            NativeMediaPicker(onImage: { image in
+                                  pendingMedia = .image(image, nativeCamera: false)
+                              },
                               onVideo: { url in
                                   Task {
                                       let cover = await MediaTool.firstFrame(url)
@@ -2068,7 +2070,9 @@ struct ChatDetailView: View {
         }
         .fullScreenCover(isPresented: $showCamera) {
             NativeCameraView(initialMode: .photo,
-                             onPick: { image in pendingMedia = .image(image) },
+                             onPick: { image in
+                                 pendingMedia = .image(image, nativeCamera: true)
+                             },
                              onVideo: { url in sendRecordedVideo(url) })
         }
 
@@ -2078,7 +2082,9 @@ struct ChatDetailView: View {
             sendRecordedVideo(url)
         }) {
             NativeCameraView(initialMode: .video,
-                             onPick: { image in pendingMedia = .image(image) },
+                             onPick: { image in
+                                 pendingMedia = .image(image, nativeCamera: true)
+                             },
                              onVideo: { url in
                                  recordedVideo = url
                                  showCameraVideo = false
@@ -2240,7 +2246,15 @@ struct ChatDetailView: View {
                                     set: { if !$0 { pendingMedia = nil } })) {
             if let p = pendingMedia {
                 MediaSendSheet(payload: p) { live, original, edited in
-                    let payload = edited.map { MediaSendSheet.Payload.image($0) } ?? p
+                    let nativeCamera: Bool
+                    if case .image(_, let isNativeCamera) = p {
+                        nativeCamera = isNativeCamera
+                    } else {
+                        nativeCamera = false
+                    }
+                    let payload = edited.map {
+                        MediaSendSheet.Payload.image($0, nativeCamera: nativeCamera)
+                    } ?? p
                     pendingMedia = nil
                     sendMedia(payload, live: live, original: original)
                 }
@@ -4705,7 +4719,7 @@ struct ChatDetailView: View {
 
     private func sendMedia(_ p: MediaSendSheet.Payload, live: Bool, original: Bool) {
         switch p {
-        case .image(let img):
+        case .image(let img, let nativeCamera):
             uploading = true
             sendingPreview = img
             sendingMedia = Tr("图片上传中…")
@@ -4717,6 +4731,7 @@ struct ChatDetailView: View {
                 do {
                     let up = try await API.shared.uploadImageForSend(
                         img, original: original,
+                        preserveResolution: nativeCamera,
                         onProgress: { p in
                             DispatchQueue.main.async {
                                 sendProgress = min(0.82, 0.02 + p * 0.80)

@@ -5325,11 +5325,17 @@ private struct StarredPayload: Decodable {
     func uploadImageForSend(_ image: UIImage, original: Bool,
                             maxSide: CGFloat? = nil,
                             quality: CGFloat? = nil,
+                            preserveResolution: Bool = false,
                             onProgress: ((Double) -> Void)? = nil) async throws -> (url: String, data: Data) {
         let effectiveSide = maxSide ?? (original ? 1920 : 1280)
-        let effectiveQuality = quality ?? (original ? 0.88 : 0.75)
+        let effectiveQuality = quality ?? (
+            preserveResolution ? (original ? 1.0 : 0.96) : (original ? 0.88 : 0.75)
+        )
         let data = await Task.detached(priority: .userInitiated) {
-            image.resizedJPEG(maxSide: effectiveSide, quality: effectiveQuality)
+            if preserveResolution {
+                return image.jpegData(compressionQuality: effectiveQuality)
+            }
+            return image.resizedJPEG(maxSide: effectiveSide, quality: effectiveQuality)
         }.value
         guard let data = data else { throw APIError.message("图片处理失败") }
         let url = try await uploadData(data, onProgress: onProgress)
@@ -5829,7 +5835,13 @@ private struct StarredPayload: Decodable {
 extension UIImage {
 
     var sendPixelSize: (w: Int, h: Int) {
-        (max(1, Int(size.width.rounded())), max(1, Int(size.height.rounded())))
+        if let cgImage {
+            return (max(1, cgImage.width), max(1, cgImage.height))
+        }
+        return (
+            max(1, Int((size.width * scale).rounded())),
+            max(1, Int((size.height * scale).rounded()))
+        )
     }
 
     func resizedJPEG(maxSide: CGFloat, quality: CGFloat) -> Data? {
