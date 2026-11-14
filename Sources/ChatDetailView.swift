@@ -632,6 +632,7 @@ struct ChatDetailView: View {
     @State private var serverPeerRelation: String?
     @State private var peerBanned = false
     @State private var peerBanReason = ""
+    @State private var peerBlockedByMe = false
 
     @State private var announcePage = ""
     @State private var showAnnouncePage = false
@@ -1854,27 +1855,35 @@ struct ChatDetailView: View {
                 .ignoresSafeArea(edges: .top)
             }
             if !isGroup && peerBanned {
-                HStack(spacing: 9) {
+                HStack(spacing: 11) {
                     Image(systemName: "exclamationmark.shield.fill")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(C.red)
-                    Text(Tr("该账号已被管理员封禁"))
-                        .font(pf(13.5, .semibold))
-                        .foregroundColor(C.label)
-                    if !peerBanReason.isEmpty {
-                        Text(peerBanReason)
-                            .font(pf(12.5))
-                            .foregroundColor(C.subLabel)
-                            .lineLimit(1)
+                        .frame(width: 34, height: 34)
+                        .background(C.red.opacity(0.10), in: Circle())
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(Tr("该账号已被管理员封禁"))
+                            .font(pf(13.5, .semibold))
+                            .foregroundColor(C.label)
+                        if !peerBanReason.isEmpty {
+                            Text(Tr("原因：") + peerBanReason)
+                                .font(pf(12))
+                                .foregroundColor(C.subLabel)
+                                .lineLimit(1)
+                        } else {
+                            Text(Tr("暂时无法发送消息或发起通话"))
+                                .font(pf(12))
+                                .foregroundColor(C.subLabel)
+                        }
                     }
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 14)
-                .frame(height: 38)
+                .padding(.vertical, 8)
                 .background {
                     ZStack {
                         Rectangle().fill(.regularMaterial)
-                        Color.red.opacity(0.07)
+                        Color.red.opacity(0.055)
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -2032,7 +2041,9 @@ struct ChatDetailView: View {
             Button(Tr("取消"), role: .cancel) { redialAsk = nil }
         }
 
-        .fullScreenCover(isPresented: $showChatInfo) {
+        .fullScreenCover(isPresented: $showChatInfo, onDismiss: {
+            Task { await refreshPeerRelation() }
+        }) {
             NavigationStack {
                 DirectChatInfoView(chat: chat, onExitChat: exitChatNow)
                     .environmentObject(app)
@@ -3570,6 +3581,8 @@ struct ChatDetailView: View {
                 verifyComposer
             } else if peerBanned {
                 bannedComposer
+            } else if peerBlockedByMe {
+                blockedComposer
             } else if mutedForMe {
                 mutedComposer
             } else {
@@ -3611,6 +3624,11 @@ struct ChatDetailView: View {
         serverPeerRelation = user.relation
         peerBanned = user.banned == true
         peerBanReason = user.banReason?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if let meta = try? await API.shared.friendMeta(userId: peerId) {
+            peerBlockedByMe = meta.block == true
+        } else {
+            peerBlockedByMe = false
+        }
         if user.relation == "friend" {
             app.applyFriendAccepted(user)
         }
@@ -3638,6 +3656,50 @@ struct ChatDetailView: View {
         .padding(.vertical, 13)
         .background(ChatTheme.composerBg)
         .overlay(alignment: .top) { HairLine() }
+    }
+
+    private var blockedComposer: some View {
+        Button {
+            Task {
+                guard await API.shared.setFriendMeta(userId: peerId, block: false) else {
+                    app.show(Tr("没保存上，再试一次"))
+                    return
+                }
+                peerBlockedByMe = false
+                await app.loadContacts()
+                await app.loadChats()
+                app.show(Tr("已移出黑名单"))
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 11) {
+                Image(systemName: "hand.raised.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(C.red)
+                    .frame(width: 34, height: 34)
+                    .background(C.red.opacity(0.10), in: Circle())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(Tr("你已将对方加入黑名单"))
+                        .font(pf(14.5, .semibold))
+                        .foregroundColor(C.label)
+                    Text(Tr("对方无法给你发消息。点按这里可移出黑名单。"))
+                        .font(pf(12.5))
+                        .foregroundColor(C.subLabel)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(C.subLabel.opacity(0.55))
+                    .padding(.top, 9)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+            .background(ChatTheme.composerBg)
+            .overlay(alignment: .top) { HairLine() }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Tr("你已将对方加入黑名单，点按移出黑名单"))
     }
 
     private var verifyComposer: some View {

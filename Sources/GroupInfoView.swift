@@ -1287,6 +1287,9 @@ struct DirectChatInfoView: View {
     @State private var showChatBg = false
     @State private var confirmClear = false
     @State private var confirmDelete = false
+    @State private var confirmBlock = false
+    @State private var confirmDeleteFriend = false
+    @State private var friendMeta: API.FriendMeta?
 
     @State private var sysPage: SysPage? = nil
 
@@ -1303,6 +1306,9 @@ struct DirectChatInfoView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     peerCard
+                    if chat.sysTeam != true, peer?.banned == true || friendMeta?.block == true {
+                        relationshipStatusCard
+                    }
                     if chat.sysTeam == true {
                         teamSimpleIntro
                     } else {
@@ -1341,6 +1347,9 @@ struct DirectChatInfoView: View {
 
             if peer == nil, let other = chat.memberIds?.first(where: { $0 != app.me?.id }) {
                 peer = try? await API.shared.user(id: other)
+            }
+            if let id = peer?.id {
+                friendMeta = try? await API.shared.friendMeta(userId: id)
             }
         }
 
@@ -1408,6 +1417,74 @@ struct DirectChatInfoView: View {
                                    onCancel: { confirmDelete = false })
             }
         }
+        .overlay {
+            if confirmBlock {
+                PanelConfirmDialog(
+                    title: Tr("加入黑名单？"),
+                    okText: Tr("加入黑名单"),
+                    danger: true,
+                    message: Tr("对方将无法给你发消息，也看不到你的朋友圈。聊天记录会保留。"),
+                    symbol: "hand.raised.fill",
+                    onOk: {
+                        confirmBlock = false
+                        setBlocked(true)
+                    },
+                    onCancel: { confirmBlock = false }
+                )
+            }
+        }
+        .overlay {
+            if confirmDeleteFriend {
+                PanelConfirmDialog(
+                    title: Tr("删除好友？"),
+                    okText: Tr("删除好友"),
+                    danger: true,
+                    message: Tr("删除后将解除好友关系并从通讯录移除。聊天记录不会被自动删除。"),
+                    symbol: "person.badge.minus",
+                    onOk: {
+                        confirmDeleteFriend = false
+                        removeFriend()
+                    },
+                    onCancel: { confirmDeleteFriend = false }
+                )
+            }
+        }
+    }
+
+    private var relationshipStatusCard: some View {
+        GroupCard {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: friendMeta?.block == true
+                      ? "hand.raised.fill"
+                      : "exclamationmark.shield.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(C.red)
+                    .frame(width: 34, height: 34)
+                    .background(C.red.opacity(0.10), in: Circle())
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(friendMeta?.block == true ? Tr("已加入黑名单") : Tr("账号已被封禁"))
+                        .font(pf(15.5, .semibold))
+                        .foregroundColor(C.label)
+                    Text(relationshipStatusDetail)
+                        .font(pf(12.5))
+                        .foregroundColor(C.subLabel)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+        }
+        .padding(.top, 14)
+    }
+
+    private var relationshipStatusDetail: String {
+        if friendMeta?.block == true {
+            return Tr("你已阻止对方发消息并隐藏朋友圈。可在下方移出黑名单。")
+        }
+        let reason = peer?.banReason?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return reason.isEmpty ? Tr("该账号已被管理员封禁，暂时无法正常聊天。")
+                             : Tr("原因：") + reason
     }
 
     private var peerCard: some View {
@@ -1589,10 +1666,105 @@ struct DirectChatInfoView: View {
     }
 
     private var dangerCard: some View {
-        GroupCard {
-            ChatInfoTextRow(title: Tr("清空聊天记录"), destructive: true) { confirmClear = true }
-            ChatInfoDivider()
-            ChatInfoTextRow(title: Tr("删除该聊天"), destructive: true) { confirmDelete = true }
+        VStack(alignment: .leading, spacing: 10) {
+            GroupCard {
+                if peer != nil {
+                    if friendMeta?.block == true {
+                        safetyActionRow(
+                            symbol: "hand.raised.slash.fill",
+                            title: Tr("移出黑名单"),
+                            subtitle: Tr("恢复接收消息和查看朋友圈"),
+                            destructive: false
+                        ) { setBlocked(false) }
+                    } else {
+                        safetyActionRow(
+                            symbol: "hand.raised.fill",
+                            title: Tr("加入黑名单"),
+                            subtitle: Tr("阻止对方发消息并隐藏你的朋友圈"),
+                            destructive: true
+                        ) { confirmBlock = true }
+                    }
+                    if peer?.relation == "friend" {
+                        ChatInfoDivider()
+                        safetyActionRow(
+                            symbol: "person.badge.minus",
+                            title: Tr("删除好友"),
+                            subtitle: Tr("解除好友关系并从通讯录移除"),
+                            destructive: true
+                        ) { confirmDeleteFriend = true }
+                    }
+                    ChatInfoDivider()
+                }
+                ChatInfoTextRow(title: Tr("清空聊天记录"), destructive: true) { confirmClear = true }
+                ChatInfoDivider()
+                ChatInfoTextRow(title: Tr("删除该聊天"), destructive: true) { confirmDelete = true }
+            }
+            Text(Tr("危险操作会立即影响你和对方的联系。删除聊天只会移除本地会话，不会删除对方的好友关系。"))
+                .font(pf(12))
+                .foregroundColor(C.subLabel)
+                .lineSpacing(2)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    private func safetyActionRow(symbol: String, title: String, subtitle: String,
+                                 destructive: Bool,
+                                 action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 13) {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(destructive ? C.red : C.subLabel)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(pf(15.5, .medium))
+                        .foregroundColor(destructive ? C.red : C.label)
+                    Text(subtitle)
+                        .font(pf(12.5))
+                        .foregroundColor(C.subLabel)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func setBlocked(_ value: Bool) {
+        guard let id = peer?.id else { return }
+        let previous = friendMeta
+        var optimistic = friendMeta ?? API.FriendMeta()
+        optimistic.block = value
+        friendMeta = optimistic
+        Task {
+            if await API.shared.setFriendMeta(userId: id, block: value) {
+                app.show(value ? Tr("已加入黑名单") : Tr("已移出黑名单"))
+                await app.loadContacts()
+                await app.loadChats()
+            } else {
+                friendMeta = previous
+                app.show(Tr("没保存上，再试一次"))
+            }
+        }
+    }
+
+    private func removeFriend() {
+        guard let id = peer?.id else { return }
+        Task {
+            if let err = await API.shared.removeFriend(userId: id) {
+                app.show(err)
+                return
+            }
+            app.applyFriendRemoved(userId: id)
+            await app.loadContacts()
+            await app.loadChats()
+            dismiss()
+            onExitChat()
+            app.show(Tr("已删除好友"))
         }
     }
 
