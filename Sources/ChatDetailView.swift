@@ -1805,7 +1805,6 @@ struct ChatDetailView: View {
         }
 
         .onAppear {
-            Task { await recentPhotos.loadIfNeeded() }
             if recorder.stale {
                 CrashCatcher.note("录音", "进聊天页发现孤儿录音，已清掉")
                 recorder.forceStop()
@@ -4133,12 +4132,16 @@ struct ChatDetailView: View {
                             panel = (panel == .plus) ? .none : .plus
                             if panel == .plus && plusItems.isEmpty {
                                 Task {
-                                    await recentPhotos.loadIfNeeded(force: true)
+                                    await recentPhotos.loadIfNeeded(force: true,
+                                                                    requestAccess: true)
                                     let items = (try? await API.shared.plusPanel()) ?? []
                                     plusItems = normalizedPlusItems(items)
                                 }
                             } else if panel == .plus {
-                                Task { await recentPhotos.loadIfNeeded(force: true) }
+                                Task {
+                                    await recentPhotos.loadIfNeeded(force: true,
+                                                                    requestAccess: true)
+                                }
                             }
                         } label: {
                             plusIcon

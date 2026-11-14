@@ -21,7 +21,7 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
         PHPhotoLibrary.shared().register(self)
     }
 
-    func loadIfNeeded(force: Bool = false) async {
+    func loadIfNeeded(force: Bool = false, requestAccess: Bool = false) async {
         guard !isLoading, force || !loaded else { return }
         isLoading = true
         defer { isLoading = false }
@@ -32,6 +32,11 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
             await reloadAssets()
             loaded = true
         case .notDetermined:
+            guard requestAccess else {
+                assets = []
+                loaded = false
+                return
+            }
             let next = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
             accessState = next
             if next == .authorized || next == .limited {
@@ -171,17 +176,17 @@ struct ChatRecentPhotoStrip: View {
                 if store.isLoading && store.assets.isEmpty {
                     ForEach(0..<7, id: \.self) { _ in
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.primary.opacity(0.055))
+                            .fill(Color.primary.opacity(0.10))
                             .frame(width: tile, height: tile)
                     }
                 } else if store.assets.isEmpty {
                     ForEach(0..<5, id: \.self) { _ in
                         ZStack {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.primary.opacity(0.045))
+                                .fill(Color.primary.opacity(0.075))
                             Image(systemName: "photo")
                                 .font(.system(size: 15, weight: .medium))
-                                .foregroundStyle(Color.primary.opacity(0.25))
+                                .foregroundStyle(Color.primary.opacity(0.38))
                         }
                         .frame(width: tile, height: tile)
                     }
@@ -217,7 +222,7 @@ struct ChatRecentPhotoStrip: View {
         }
         .frame(height: tile + 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .task { await store.loadIfNeeded() }
+        .task { await store.loadIfNeeded(requestAccess: true) }
     }
 }
 
