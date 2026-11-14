@@ -304,15 +304,18 @@ private struct ChatImmersiveEdgeMask: View {
     let tint: Color?
     let dark: Bool
     let effect: ChatBackgroundEffect
+    let preset: ChatAppearancePreset
+    let themeVersion: Int
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         GeometryReader { proxy in
             if path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                ChatDefaultWallpaper(preset: ChatTheme.preset)
+                ChatDefaultWallpaper(preset: preset)
                     .frame(width: max(1, proxy.size.width),
                            height: max(1, proxy.size.height),
                            alignment: edge == .top ? .top : .bottom)
+                    .id("edge-theme-\(preset.rawValue)-\(themeVersion)-\(edge == .top ? "top" : "bottom")")
             } else if normalizedChatBackground(path) == "solid:black" {
                 Rectangle()
                     .fill(Color.black)
@@ -1844,7 +1847,9 @@ struct ChatDetailView: View {
                                               edge: .top,
                                               tint: wallpaperTopTint,
                                               dark: topBarUsesLightInk,
-                                              effect: backgroundEffect)
+                                              effect: backgroundEffect,
+                                              preset: ChatTheme.preset,
+                                              themeVersion: chatTheme.version)
                     }
                 }
                 .ignoresSafeArea(edges: .top)
@@ -4206,7 +4211,9 @@ struct ChatDetailView: View {
                                               edge: .bottom,
                                               tint: wallpaperBottomTint,
                                               dark: composerUsesLightInk,
-                                              effect: backgroundEffect)
+                                              effect: backgroundEffect,
+                                              preset: ChatTheme.preset,
+                                              themeVersion: chatTheme.version)
                     }
                 }
                 .ignoresSafeArea(edges: .bottom)
