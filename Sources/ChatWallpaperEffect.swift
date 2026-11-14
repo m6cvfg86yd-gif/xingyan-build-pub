@@ -235,18 +235,23 @@ struct ChatThemeBackdrop: View {
     }
 
     private func midnightStars(size: CGSize) -> some View {
-        ForEach(0..<44, id: \.self) { index in
-            let x = CGFloat((index * 47 + 11) % 101) / 100 * size.width
-            let y = CGFloat((index * 71 + 19) % 97) / 96 * size.height
-            let side: CGFloat = index % 3 == 0 ? 1.7 : 1.1
-            let alpha: Double = dark
-                ? Double(0.16 + (index % 5) * 0.07)
-                : Double(0.22 + (index % 4) * 0.08)
-            Circle()
-                .fill(Color.white.opacity(alpha))
-                .frame(width: side)
-                .position(x: x, y: y)
+        Canvas { context, canvas in
+            for index in 0..<44 {
+                let x = CGFloat((index * 47 + 11) % 101) / 100 * canvas.width
+                let y = CGFloat((index * 71 + 19) % 97) / 96 * canvas.height
+                let side: CGFloat = index % 3 == 0 ? 1.7 : 1.1
+                let alpha: Double = dark
+                    ? Double(0.16 + (index % 5) * 0.07)
+                    : Double(0.22 + (index % 4) * 0.08)
+                let rect = CGRect(x: x - side / 2,
+                                  y: y - side / 2,
+                                  width: side,
+                                  height: side)
+                context.fill(Path(ellipseIn: rect),
+                             with: .color(Color.white.opacity(alpha)))
+            }
         }
+        .frame(width: size.width, height: size.height)
     }
 
     private func roseScene(size: CGSize) -> some View {
@@ -494,18 +499,24 @@ struct ChatThemeBackdrop: View {
     }
 
     private func mintRings(size: CGSize) -> some View {
-        ForEach(0..<5, id: \.self) { index in
-            let x = size.width * (index % 2 == 0 ? 0.18 : 0.82)
-            let y = size.height * (0.24 + CGFloat(index) * 0.15)
-            let side = CGFloat(94 + index * 54)
-            let alpha: Double = dark
-                ? Double(0.025 + (index % 2) * 0.012)
-                : Double(0.22 + (index % 2) * 0.08)
-            Circle()
-                .stroke(Color.white.opacity(alpha), lineWidth: 0.8)
-                .frame(width: side, height: side)
-                .position(x: x, y: y)
+        Canvas { context, canvas in
+            for index in 0..<5 {
+                let x = canvas.width * (index % 2 == 0 ? 0.18 : 0.82)
+                let y = canvas.height * (0.24 + CGFloat(index) * 0.15)
+                let side = CGFloat(94 + index * 54)
+                let alpha: Double = dark
+                    ? Double(0.025 + (index % 2) * 0.012)
+                    : Double(0.22 + (index % 2) * 0.08)
+                let rect = CGRect(x: x - side / 2,
+                                  y: y - side / 2,
+                                  width: side,
+                                  height: side)
+                context.stroke(Path(ellipseIn: rect),
+                               with: .color(Color.white.opacity(alpha)),
+                               lineWidth: 0.8)
+            }
         }
+        .frame(width: size.width, height: size.height)
     }
 
     private func sandScene(size: CGSize) -> some View {
