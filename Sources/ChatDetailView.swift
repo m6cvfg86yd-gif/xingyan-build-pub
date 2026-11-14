@@ -550,6 +550,7 @@ struct ChatDetailView: View {
     @State private var inputBoxHeight: CGFloat = 39
     @State private var dismissDragActive = false
     @State private var loading = true
+    @State private var initialFetching = true
     @State private var initialRetryTask: Task<Void, Never>?
     @State private var initialScrollReady = false
     @State private var initialScrollTask: Task<Void, Never>?
@@ -2628,14 +2629,6 @@ struct ChatDetailView: View {
                         + " 哨兵=\(atBottom) 跟随=\(wasAtBottom)")
                 }
             }
-            .overlay {
-                if !initialScrollReady {
-                    ProgressView()
-                        .controlSize(.regular)
-                        .tint(ChatTheme.secondary)
-                        .allowsHitTesting(false)
-                }
-            }
         }
     }
 
@@ -2646,7 +2639,7 @@ struct ChatDetailView: View {
         initialScrollTask = Task { @MainActor in
             atBottom = true
             wasAtBottom = true
-            for delay in [0, 24, 70, 150, 260] {
+            for delay in [0, 16, 56, 120] {
                 if delay > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000)
                 }
@@ -2660,7 +2653,8 @@ struct ChatDetailView: View {
     }
 
     private func autoLoadOlder() {
-        guard hasOlder, !loadingOlder, !loadingAllGroupHistory, !loading else { return }
+        guard hasOlder, !loadingOlder, !loadingAllGroupHistory,
+              !loading, !initialFetching else { return }
         guard Date().timeIntervalSince(lastOlderLoad) > 0.08 else { return }
         lastOlderLoad = Date()
         Task { await loadOlder() }
@@ -5356,6 +5350,9 @@ struct ChatDetailView: View {
     }
 
     private func load(initial: Bool) async {
+        if initial {
+            initialFetching = true
+        }
 
         if initial, messages.isEmpty, let cached = app.prefetched[chat.id], !cached.isEmpty {
             let rows = visibleMessages(cached)
@@ -5374,6 +5371,12 @@ struct ChatDetailView: View {
                 hasOlder = rows.count > messages.count
                 prefetchRecentFiles()
             }
+        }
+
+        // 先把本地缓存交给列表完成首屏定位，最新消息继续在后台同步。
+        // 不能等网络首屏请求回来才结束加载，否则弱网或服务端响应慢时每次进聊天都会白等。
+        if initial, loading {
+            loading = false
         }
         do {
 
@@ -5449,6 +5452,9 @@ struct ChatDetailView: View {
         }
         rebuildIndex()
         prefetchRecentFiles()
+        if initial {
+            initialFetching = false
+        }
         loading = false
         autoOpenShopCard()
 
