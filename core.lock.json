@@ -73,13 +73,13 @@
     },
     {
       "path": "Sources/ChatDetailView.swift",
-      "size": 307670,
-      "sha256": "21f1dca8b5e33fa48dba756f11d1deeb89539063c9fe15361737394f3f0ff06b"
+      "size": 307337,
+      "sha256": "50219f86da69892ca6bc70fe12b6f51d88a65a41f866a73639e83853a53a278f"
     },
     {
       "path": "Sources/GroupInfoView.swift",
-      "size": 83968,
-      "sha256": "6238f030f1a02c48ea53e798c424929c0655de95944eb023489c8bb45c773f11"
+      "size": 84661,
+      "sha256": "873dc99f247d075422255fbe66fece22a893b58d1a75f71987e2e5224600bbb0"
     },
     {
       "path": "Sources/OtherLogin.swift",

@@ -27,6 +27,7 @@ struct GroupInfoView: View {
     @State private var showComplaint = false
 
     @State private var showGroupBg = false
+    @State private var showGroupTheme = false
     @State private var confirmClear = false
     @State private var confirmQuit = false
     @State private var kickTarget: User?
@@ -155,6 +156,11 @@ struct GroupInfoView: View {
                 ChatBackgroundSheet(chatId: chat.id, modal: true)
                     .environmentObject(app)
             }
+        }
+        .fullScreenCover(isPresented: $showGroupTheme, onDismiss: {
+            ChatThemeStore.shared.refresh(chat.id)
+        }) {
+            ChatThemePickerView(chatId: chat.id)
         }
         .sheet(isPresented: $showComplaint) {
             GroupComplaintView(chatId: chat.id, groupName: chat.name)
@@ -740,6 +746,8 @@ struct GroupInfoView: View {
             ChatInfoDivider()
             ChatInfoTextRow(title: Tr("查找聊天记录")) { showSearch = true }
             ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("聊天主题")) { showGroupTheme = true }
+            ChatInfoDivider()
             ChatInfoTextRow(title: Tr("设置当前聊天背景")) { showGroupBg = true }
             ChatInfoDivider()
             ChatInfoTextRow(title: Tr("群语音通话"),
@@ -1285,6 +1293,7 @@ struct DirectChatInfoView: View {
     @State private var showCard = false
 
     @State private var showChatBg = false
+    @State private var showChatTheme = false
     @State private var confirmClear = false
     @State private var confirmDelete = false
     @State private var confirmBlock = false
@@ -1391,6 +1400,11 @@ struct DirectChatInfoView: View {
                 ChatBackgroundSheet(chatId: chat.id, modal: true)
                     .environmentObject(app)
             }
+        }
+        .fullScreenCover(isPresented: $showChatTheme, onDismiss: {
+            ChatThemeStore.shared.refresh(chat.id)
+        }) {
+            ChatThemePickerView(chatId: chat.id)
         }
         .navigationDestination(isPresented: $showCard) {
             if let p = peer {
@@ -1658,6 +1672,8 @@ struct DirectChatInfoView: View {
             ChatInfoTextRow(title: Tr("视频通话")) { start(video: true) }
             ChatInfoDivider()
             ChatInfoTextRow(title: Tr("查找聊天记录")) { showSearch = true }
+            ChatInfoDivider()
+            ChatInfoTextRow(title: Tr("聊天主题")) { showChatTheme = true }
             ChatInfoDivider()
             ChatInfoTextRow(title: Tr("设置当前聊天背景")) {
                 showChatBg = true

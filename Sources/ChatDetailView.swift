@@ -637,7 +637,6 @@ struct ChatDetailView: View {
     @State private var announcePage = ""
     @State private var showAnnouncePage = false
     @State private var showChatFavorites = false
-    @State private var showChatTheme = false
     @State private var showCall = false
 
     @State private var redialAsk: Message? = nil
@@ -1190,12 +1189,6 @@ struct ChatDetailView: View {
                 .accessibilityLabel(Tr("语音通话"))
 
                 Menu {
-                    Button {
-                        showChatTheme = true
-                    } label: {
-                        Label(Tr("聊天主题"), systemImage: "paintpalette.fill")
-                    }
-
                     Button {
                         if isGroup { showGroupInfo = true } else { showChatInfo = true }
                     } label: {
@@ -2042,17 +2035,13 @@ struct ChatDetailView: View {
         }
 
         .fullScreenCover(isPresented: $showChatInfo, onDismiss: {
+            chatTheme.refresh(chat.id)
             Task { await refreshPeerRelation() }
         }) {
             NavigationStack {
                 DirectChatInfoView(chat: chat, onExitChat: exitChatNow)
                     .environmentObject(app)
             }
-        }
-        .fullScreenCover(isPresented: $showChatTheme, onDismiss: {
-            chatTheme.refresh(chat.id)
-        }) {
-            ChatThemePickerView(chatId: chat.id)
         }
         .sheet(item: $sysToolsPage) { page in
             sysToolsPageView(page)
@@ -2184,7 +2173,9 @@ struct ChatDetailView: View {
         }
         .onChange(of: messages.count) { _ in autoOpenShopCard() }
 
-        .fullScreenCover(isPresented: $showGroupInfo) {
+        .fullScreenCover(isPresented: $showGroupInfo, onDismiss: {
+            chatTheme.refresh(chat.id)
+        }) {
             NavigationStack {
                 GroupInfoView(chat: chat, onExitChat: exitChatNow)
                     .environmentObject(app)
