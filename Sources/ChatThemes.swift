@@ -171,6 +171,11 @@ final class ChatThemeStore: ObservableObject {
         return loadPreset(id)
     }
 
+    func hasExplicitSelection(chatId: String = "") -> Bool {
+        let id = chatId.isEmpty ? activeChatId : chatId
+        return UserDefaults.standard.object(forKey: key(id)) != nil
+    }
+
     private func loadPreset(_ chatId: String) -> ChatAppearancePreset {
         let raw = UserDefaults.standard.string(forKey: key(chatId)) ?? ""
         return ChatAppearancePreset(rawValue: raw) ?? .whatsapp
@@ -257,8 +262,8 @@ struct ChatThemePickerView: View {
 
     private func themePreview(_ preset: ChatAppearancePreset) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(preset.previewBackground)
+            ChatThemeBackdrop(preset: preset)
+                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
 
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .fill(

@@ -1427,9 +1427,12 @@ struct ChatDetailView: View {
         }
         let per = ChatBgStore.shared.get(chat.id)
         if !per.isEmpty, per != "auto" { return normalizedChatBackground(per) }
+        if ChatThemeStore.shared.hasExplicitSelection(chatId: chat.id) {
+            return ""
+        }
         let v = effectiveGlobalChatBackground(app.me?.chatBackground)
         if !v.isEmpty, v != "auto" { return normalizedChatBackground(v) }
-        // 主题是一整套外观：没有单独聊天壁纸时，背景也由主题控制。
+        // 未主动选过主题时保留旧的全局面板壁纸；选过主题后由整套主题接管背景。
         return ""
     }
 
@@ -2547,7 +2550,6 @@ struct ChatDetailView: View {
                         .allowsHitTesting(false)
                 }
             }
-            .opacity(initialScrollReady ? 1 : 0)
             .coordinateSpace(name: "chatScroll")
             .scrollDismissesKeyboard(.interactively)
         .onChange(of: messages.count) { _ in
