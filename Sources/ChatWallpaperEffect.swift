@@ -235,23 +235,9 @@ struct ChatThemeBackdrop: View {
     }
 
     private func midnightStars(size: CGSize) -> some View {
-        Canvas { context, canvas in
-            for index in 0..<44 {
-                let x = CGFloat((index * 47 + 11) % 101) / 100 * canvas.width
-                let y = CGFloat((index * 71 + 19) % 97) / 96 * canvas.height
-                let side: CGFloat = index % 3 == 0 ? 1.7 : 1.1
-                let alpha: Double = dark
-                    ? Double(0.16 + (index % 5) * 0.07)
-                    : Double(0.22 + (index % 4) * 0.08)
-                let rect = CGRect(x: x - side / 2,
-                                  y: y - side / 2,
-                                  width: side,
-                                  height: side)
-                context.fill(Path(ellipseIn: rect),
-                             with: .color(Color.white.opacity(alpha)))
-            }
-        }
-        .frame(width: size.width, height: size.height)
+        MidnightStarField()
+            .fill(Color.white.opacity(dark ? 0.25 : 0.30))
+            .frame(width: size.width, height: size.height)
     }
 
     private func roseScene(size: CGSize) -> some View {
@@ -499,24 +485,9 @@ struct ChatThemeBackdrop: View {
     }
 
     private func mintRings(size: CGSize) -> some View {
-        Canvas { context, canvas in
-            for index in 0..<5 {
-                let x = canvas.width * (index % 2 == 0 ? 0.18 : 0.82)
-                let y = canvas.height * (0.24 + CGFloat(index) * 0.15)
-                let side = CGFloat(94 + index * 54)
-                let alpha: Double = dark
-                    ? Double(0.025 + (index % 2) * 0.012)
-                    : Double(0.22 + (index % 2) * 0.08)
-                let rect = CGRect(x: x - side / 2,
-                                  y: y - side / 2,
-                                  width: side,
-                                  height: side)
-                context.stroke(Path(ellipseIn: rect),
-                               with: .color(Color.white.opacity(alpha)),
-                               lineWidth: 0.8)
-            }
-        }
-        .frame(width: size.width, height: size.height)
+        MintRingField()
+            .stroke(Color.white.opacity(dark ? 0.06 : 0.28), lineWidth: 0.8)
+            .frame(width: size.width, height: size.height)
     }
 
     private func sandScene(size: CGSize) -> some View {
@@ -548,6 +519,42 @@ struct ChatThemeBackdrop: View {
                 .frame(width: size.width * 1.55, height: size.height * 0.50)
                 .position(x: size.width * 0.90, y: size.height * 1.04)
         }
+    }
+}
+
+private struct MidnightStarField: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        for index in 0..<44 {
+            let x = CGFloat((index * 47 + 11) % 101) / 100 * rect.width
+            let y = CGFloat((index * 71 + 19) % 97) / 96 * rect.height
+            let side: CGFloat = index % 3 == 0 ? 1.7 : 1.1
+            path.addEllipse(in: CGRect(
+                x: x - side / 2,
+                y: y - side / 2,
+                width: side,
+                height: side
+            ))
+        }
+        return path
+    }
+}
+
+private struct MintRingField: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        for index in 0..<5 {
+            let x = rect.width * (index % 2 == 0 ? 0.18 : 0.82)
+            let y = rect.height * (0.24 + CGFloat(index) * 0.15)
+            let side = CGFloat(94 + index * 54)
+            path.addEllipse(in: CGRect(
+                x: x - side / 2,
+                y: y - side / 2,
+                width: side,
+                height: side
+            ))
+        }
+        return path
     }
 }
 
