@@ -236,15 +236,16 @@ struct ChatThemeBackdrop: View {
 
     private func midnightStars(size: CGSize) -> some View {
         ForEach(0..<44, id: \.self) { index in
+            let x = CGFloat((index * 47 + 11) % 101) / 100 * size.width
+            let y = CGFloat((index * 71 + 19) % 97) / 96 * size.height
+            let side: CGFloat = index % 3 == 0 ? 1.7 : 1.1
+            let alpha: Double = dark
+                ? Double(0.16 + (index % 5) * 0.07)
+                : Double(0.22 + (index % 4) * 0.08)
             Circle()
-                .fill(Color.white.opacity(dark
-                    ? Double(0.16 + (index % 5) * 0.07)
-                    : Double(0.22 + (index % 4) * 0.08)))
-                .frame(width: CGFloat(index % 3 == 0 ? 1.7 : 1.1))
-                .position(
-                    x: CGFloat((index * 47 + 11) % 101) / 100 * size.width,
-                    y: CGFloat((index * 71 + 19) % 97) / 96 * size.height
-                )
+                .fill(Color.white.opacity(alpha))
+                .frame(width: side)
+                .position(x: x, y: y)
         }
     }
 
@@ -494,17 +495,16 @@ struct ChatThemeBackdrop: View {
 
     private func mintRings(size: CGSize) -> some View {
         ForEach(0..<5, id: \.self) { index in
+            let x = size.width * (index % 2 == 0 ? 0.18 : 0.82)
+            let y = size.height * (0.24 + CGFloat(index) * 0.15)
+            let side = CGFloat(94 + index * 54)
+            let alpha: Double = dark
+                ? Double(0.025 + (index % 2) * 0.012)
+                : Double(0.22 + (index % 2) * 0.08)
             Circle()
-                .stroke(Color.white.opacity(dark
-                    ? Double(0.025 + (index % 2) * 0.012)
-                    : Double(0.22 + (index % 2) * 0.08)),
-                        lineWidth: 0.8)
-                .frame(width: CGFloat(94 + index * 54),
-                       height: CGFloat(94 + index * 54))
-                .position(
-                    x: size.width * (index % 2 == 0 ? 0.18 : 0.82),
-                    y: size.height * (0.24 + CGFloat(index) * 0.15)
-                )
+                .stroke(Color.white.opacity(alpha), lineWidth: 0.8)
+                .frame(width: side, height: side)
+                .position(x: x, y: y)
         }
     }
 
