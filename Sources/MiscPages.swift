@@ -293,7 +293,7 @@ struct FavoritesView: View {
             ForwardPickerView(items: forward) { }
                 .environmentObject(app)
         }
-        .sheet(item: $favoriteFilePreview) { f in
+        .fullScreenCover(item: $favoriteFilePreview) { f in
             FilePreviewSheet(name: f.name, local: f.local)
         }
         .overlay {

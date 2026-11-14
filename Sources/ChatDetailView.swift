@@ -2257,7 +2257,7 @@ struct ChatDetailView: View {
             }
         }
 
-        .sheet(item: $filePreview) { f in
+        .fullScreenCover(item: $filePreview) { f in
             FilePreviewSheet(name: f.name, local: f.local,
                              favoriteTitle: f.favoriteTitle,
                              favoriteFrom: f.favoriteFrom)

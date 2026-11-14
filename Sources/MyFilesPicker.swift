@@ -107,7 +107,7 @@ struct MyFilesPickerView: View {
         .toolbar(.hidden, for: .navigationBar)
         .swipeBack { dismiss() }
 
-        .sheet(item: $preview) { f in
+        .fullScreenCover(item: $preview) { f in
             FilePreviewSheet(name: f.name, local: f.local)
         }
         .task { await load() }

@@ -205,7 +205,7 @@ struct ExternalFileSendView: View {
                                                set: { if !$0 { alert = "" } })) {
                 Button(Tr("知道了"), role: .cancel) {}
             }
-            .sheet(item: $filePreview) { f in
+            .fullScreenCover(item: $filePreview) { f in
                 FilePreviewSheet(name: f.name, local: f.local)
             }
             .sheet(isPresented: $showShare) {
