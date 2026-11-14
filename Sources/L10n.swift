@@ -944,6 +944,8 @@ enum L10n {
         "照片访问已关闭": "Photos access is off",
         "去系统设置允许": "Allow in Settings",
         "照片访问已关闭，去系统设置允许": "Photos access is off. Allow it in Settings.",
+        "选择可访问照片": "Choose available photos",
+        "仅显示你在系统中选中的照片": "Only photos selected in Settings are shown",
         "友": "F",
         "还没有播放列表": "Nothing in the queue",
         "去「听一听」里点一首歌，就能在这里切上一首/下一首": "Play a song from Listen to control previous and next tracks here.",

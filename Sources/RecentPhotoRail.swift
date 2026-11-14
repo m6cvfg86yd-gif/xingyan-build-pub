@@ -216,6 +216,30 @@ struct ChatRecentPhotoStrip: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(Tr("照片访问已关闭，去系统设置允许"))
+                    } else if store.accessState == .limited {
+                        Button(action: presentLimitedLibraryPicker) {
+                            HStack(spacing: 9) {
+                                Image(systemName: "photo.badge.plus")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(Color.primary.opacity(0.64))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(Tr("选择可访问照片"))
+                                        .font(.system(size: 12.5, weight: .semibold))
+                                        .foregroundStyle(Color.primary.opacity(0.82))
+                                    Text(Tr("仅显示你在系统中选中的照片"))
+                                        .font(.system(size: 10.5))
+                                        .foregroundStyle(Color.primary.opacity(0.48))
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .frame(height: tile)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.primary.opacity(0.075))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("选择可访问照片"))
                     } else {
                         ForEach(0..<5, id: \.self) { _ in
                             ZStack {
@@ -266,6 +290,16 @@ struct ChatRecentPhotoStrip: View {
     private func openPhotoSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+
+    private func presentLimitedLibraryPicker() {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              var top = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController
+                ?? scene.windows.first?.rootViewController else { return }
+        while let presented = top.presentedViewController {
+            top = presented
+        }
+        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: top)
     }
 }
 
