@@ -95,18 +95,11 @@ struct RowSwipeCatcher: UIViewRepresentable {
             let t = g.translation(in: g.view)
             switch g.state {
             case .began:
-                horizontal = false
+                horizontal = true
+                freezeEnclosingScroll(g.view)
+                onBegan()
             case .changed:
-                if !horizontal {
-                    let v = g.velocity(in: g.view)
-                    let clearPan = abs(t.x) >= max(8, abs(t.y) * 1.22 + 1)
-                    let fastPan = abs(v.x) >= 110 && abs(v.x) >= abs(v.y) * 1.35
-                    let xWins = clearPan || fastPan
-                    guard xWins else { return }
-                    horizontal = true
-                    freezeEnclosingScroll(g.view)
-                    onBegan()
-                }
+                guard horizontal else { return }
                 onChanged(t.x)
             case .ended, .cancelled, .failed:
                 if horizontal { onEnded(t.x, g.velocity(in: g.view).x) }
@@ -127,9 +120,11 @@ struct RowSwipeCatcher: UIViewRepresentable {
         }
 
         func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
-            // 先让拖拽识别启动，再在 changed 阶段判断横向是否胜出。
-            // 若在这里提前拒绝，UIScrollView 会先吞掉手势，导致左右滑偶尔完全没反应。
-            return true
+            guard let pan = g as? UIPanGestureRecognizer else { return true }
+            let v = pan.velocity(in: pan.view)
+            // 纵向滚动直接让给 UIScrollView。只有明确的横向意图才接管，
+            // 避免每行在纵向滚动时继续逐帧判断侧滑。
+            return abs(v.x) >= 45 && abs(v.x) >= abs(v.y) * 1.12
         }
     }
 
@@ -228,6 +223,31 @@ private struct ConversationScrollFeel: UIViewRepresentable {
                     return
                 }
                 current = view.superview
+            }
+        }
+    }
+}
+
+private struct ChatsScrollTelemetry: ViewModifier {
+    let onZoneChange: (Int) -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.onScrollGeometryChange(for: Int.self) { geometry in
+                let y = geometry.contentOffset.y
+                if y < 1 { return 0 }
+                if y <= 8 { return 1 }
+                if y <= 14 { return 2 }
+                return 3
+            } action: { oldZone, newZone in
+                if oldZone != newZone {
+                    onZoneChange(newZone)
+                }
+            }
+        } else {
+            content.background {
+                ConversationScrollFeel(onZoneChange: onZoneChange)
             }
         }
     }
@@ -2380,72 +2400,12 @@ struct ChatsView: View {
                             Color.clear.frame(height: L.tabH + L.safeBottom + 10)
                         }
 
-                        .background(
-                            ConversationScrollFeel { zone in
-                                handleScrollZone(zone)
-                            }
-                        )
+                        .modifier(ChatsScrollTelemetry { zone in
+                            handleScrollZone(zone)
+                        })
                     }
                     .id(chatFilter)
                     .coordinateSpace(name: "chatsScroll")
-
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 8)
-                            .onChanged { g in
-                                guard scrolled < 8 else { return }
-                                let dy = g.translation.height
-                                let dx = abs(g.translation.width)
-                                if !floorDragActive {
-                                    if dx > max(10, abs(dy) * 1.15) {
-                                        if pullDown != 0 { pullDown = 0 }
-                                        floorTick = 0
-                                        return
-                                    }
-                                    guard dy > 10, dy > dx * 1.15 else { return }
-                                    floorDragActive = true
-                                }
-                                if floorOn, dy > 0 {
-                                    let pulled = heavyPull(dy)
-                                    if abs(pulled - pullDown) >= 0.75 {
-                                        pullDown = pulled
-                                    }
-
-                                    let step = max(1, floorPull / 3)
-                                    let lit = min(3, Int(dy / step))
-                                    if lit != floorTick {
-                                        floorTick = lit
-                                        if lit > 0 {
-
-                                            floorImpact(lit >= 3 ? 3 : 2)
-                                        }
-                                    }
-                                } else if !floorUp {
-                                    pullDown = 0
-                                    floorTick = 0
-                                }
-                            }
-                            .onEnded { g in
-
-                                let fling = abs(g.predictedEndTranslation.height - g.translation.height)
-                                let open = floorDragActive && floorOn && pullDown > floorPull && fling < 220
-                                floorDragActive = false
-
-                                if open {
-                                    floorImpact(3)
-                                    if floorHaptic >= 2 {
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-                                            UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
-                                        }
-                                    }
-                                }
-                                floorTick = 0
-                                withAnimation(floorAnim) {
-                                    floorUp = open
-                                    pullDown = 0
-                                }
-                            },
-                        including: (floorOn && scrolled < 8) ? .all : .none
-                    )
                     .ignoresSafeArea(edges: .top)
                     .background(Color.clear)
                     .refreshable { await app.loadChats() }

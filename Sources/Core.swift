@@ -1297,6 +1297,7 @@ struct GroupAvatarMosaic: View {
         .overlay {
             AvatarEdgeFinish(shape: shape, size: size)
         }
+        .drawingGroup(opaque: false, colorMode: .nonLinear)
         .shadow(color: Color.black.opacity(size >= 56 ? 0.06 : 0),
                 radius: 4, y: 2)
         .task(id: memberIds) {
