@@ -550,7 +550,7 @@ struct ChatDetailView: View {
     @State private var inputBoxHeight: CGFloat = 39
     @State private var dismissDragActive = false
     @State private var loading = true
-    @State private var initialFetching = true
+    @State private var initialCacheReady = false
     @State private var initialRetryTask: Task<Void, Never>?
     @State private var initialScrollReady = false
     @State private var initialScrollTask: Task<Void, Never>?
@@ -2500,10 +2500,6 @@ struct ChatDetailView: View {
                         .padding(.bottom, 12)
                         .padding(.trailing, 6)
                     }
-                    if loading && messages.isEmpty {
-                        ProgressView().padding(.top, 40)
-                    }
-
                     Color.clear
                         .frame(height: 1)
                         .onAppear { atBottom = true }
@@ -2612,12 +2608,12 @@ struct ChatDetailView: View {
                 backfillVoiceText()
                 wasAtBottom = true
                 atBottom = true
-                if loading {
-                    initialScrollReady = false
-                } else {
+                if initialCacheReady || !loading {
                     settleInitialScroll(proxy)
+                } else {
+                    initialScrollReady = false
                 }
-                if !loading {
+                if initialCacheReady || !loading {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         allowSettledBottom = true
                     }
@@ -2627,6 +2623,14 @@ struct ChatDetailView: View {
                         "打开 \(chat.id) 条数=\(messages.count) 内容高=\(Int(lastContentHeight))"
                         + " 离底=\(Int(ChatScrollHandle.shared.gap ?? -999))"
                         + " 哨兵=\(atBottom) 跟随=\(wasAtBottom)")
+                }
+            }
+            .onChange(of: initialCacheReady) { ready in
+                if ready {
+                    settleInitialScroll(proxy)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        allowSettledBottom = true
+                    }
                 }
             }
         }
@@ -2639,7 +2643,7 @@ struct ChatDetailView: View {
         initialScrollTask = Task { @MainActor in
             atBottom = true
             wasAtBottom = true
-            for delay in [0, 16, 56, 120] {
+            for delay in [0, 24, 70, 150, 260] {
                 if delay > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000)
                 }
@@ -2653,8 +2657,7 @@ struct ChatDetailView: View {
     }
 
     private func autoLoadOlder() {
-        guard hasOlder, !loadingOlder, !loadingAllGroupHistory,
-              !loading, !initialFetching else { return }
+        guard hasOlder, !loadingOlder, !loadingAllGroupHistory, !loading else { return }
         guard Date().timeIntervalSince(lastOlderLoad) > 0.08 else { return }
         lastOlderLoad = Date()
         Task { await loadOlder() }
@@ -5350,10 +5353,6 @@ struct ChatDetailView: View {
     }
 
     private func load(initial: Bool) async {
-        if initial {
-            initialFetching = true
-        }
-
         if initial, messages.isEmpty, let cached = app.prefetched[chat.id], !cached.isEmpty {
             let rows = visibleMessages(cached)
             messages = Array(rows.suffix(initialMessageWindow))
@@ -5373,10 +5372,9 @@ struct ChatDetailView: View {
             }
         }
 
-        // 先把本地缓存交给列表完成首屏定位，最新消息继续在后台同步。
-        // 不能等网络首屏请求回来才结束加载，否则弱网或服务端响应慢时每次进聊天都会白等。
-        if initial, loading {
-            loading = false
+        if initial {
+            // 缓存用于立即放开聊天页；网络首屏继续在后台补齐最新消息。
+            initialCacheReady = true
         }
         do {
 
@@ -5452,9 +5450,6 @@ struct ChatDetailView: View {
         }
         rebuildIndex()
         prefetchRecentFiles()
-        if initial {
-            initialFetching = false
-        }
         loading = false
         autoOpenShopCard()
 
