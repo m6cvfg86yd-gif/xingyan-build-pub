@@ -464,9 +464,13 @@ private final class NativeMediaCell: UICollectionViewCell {
         contentView.addSubview(duration)
 
         selection.textColor = .white
-        selection.font = .systemFont(ofSize: 11, weight: .bold)
+        selection.font = .systemFont(ofSize: 13, weight: .bold)
         selection.textAlignment = .center
-        selection.backgroundColor = UIColor.systemBlue
+        selection.backgroundColor = UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(red: 58.0 / 255.0, green: 212.0 / 255.0, blue: 140.0 / 255.0, alpha: 1)
+                : UIColor(red: 36.0 / 255.0, green: 199.0 / 255.0, blue: 127.0 / 255.0, alpha: 1)
+        }
         selection.layer.cornerRadius = 11
         selection.layer.borderWidth = 1.5
         selection.layer.borderColor = UIColor.white.cgColor
@@ -537,7 +541,7 @@ private final class NativeMediaCell: UICollectionViewCell {
         } else {
             duration.isHidden = true
         }
-        selection.text = order > 0 ? "\(order)" : ""
+        selection.text = order > 0 ? "✓" : ""
         selection.isHidden = order == 0
         dim.isHidden = order == 0
     }
