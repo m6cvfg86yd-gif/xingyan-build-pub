@@ -5329,7 +5329,7 @@ private struct StarredPayload: Decodable {
                             onProgress: ((Double) -> Void)? = nil) async throws -> (url: String, data: Data) {
         let effectiveSide = maxSide ?? (original ? 1920 : 1280)
         let effectiveQuality = quality ?? (
-            preserveResolution ? (original ? 1.0 : 0.96) : (original ? 0.88 : 0.75)
+            preserveResolution ? 1.0 : (original ? 0.88 : 0.75)
         )
         let data = await Task.detached(priority: .userInitiated) {
             if preserveResolution {

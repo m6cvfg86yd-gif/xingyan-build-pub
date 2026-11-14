@@ -673,6 +673,8 @@ struct NativeCameraView: View {
                             .transition(.scale(scale: 1.35).combined(with: .opacity))
                     }
 
+                    cameraChromeShade
+
                     VStack(spacing: 0) {
                         topBar
                         Spacer()
@@ -697,6 +699,7 @@ struct NativeCameraView: View {
             }
         }
         .statusBarHidden(true)
+        .preferredColorScheme(.dark)
         .onAppear { camera.start() }
         .onDisappear { camera.stop() }
         .onChange(of: camera.capturedPhoto) { image in
@@ -735,28 +738,10 @@ struct NativeCameraView: View {
     }
 
     private var bottomBar: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 4) {
-                ForEach(NativeCameraMode.allCases) { item in
-                    Button {
-                        guard !camera.isRecording else { return }
-                        withAnimation(.easeOut(duration: 0.18)) { mode = item }
-                    } label: {
-                        Text(item.title)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(mode == item ? Color.black : Color.white)
-                            .frame(width: 72, height: 30)
-                            .background(
-                                Capsule(style: .continuous)
-                                    .fill(mode == item ? Color.white : Color.white.opacity(0.14))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(4)
-            .background(Capsule(style: .continuous).fill(Color.black.opacity(0.26)))
-
+        VStack(spacing: 14) {
+            modeSwitcher
+                .opacity(camera.isRecording ? 0 : 1)
+                .allowsHitTesting(!camera.isRecording)
             HStack {
                 Button {
                     AlbumPicker.present { image in
@@ -768,8 +753,15 @@ struct NativeCameraView: View {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.system(size: 20, weight: .medium))
                         .foregroundStyle(.white)
-                        .frame(width: 52, height: 52)
-                        .background(Circle().fill(Color.black.opacity(0.28)))
+                        .frame(width: 46, height: 46)
+                        .background(
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .fill(Color.black.opacity(0.22))
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 0.7)
+                        }
                 }
                 .buttonStyle(.plain)
                 .disabled(camera.isRecording)
@@ -782,14 +774,14 @@ struct NativeCameraView: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .stroke(Color.white, lineWidth: 4)
-                            .frame(width: 78, height: 78)
+                            .stroke(Color.white.opacity(0.96), lineWidth: 3.5)
+                            .frame(width: 76, height: 76)
                         if mode == .photo {
-                            Circle().fill(Color.white).frame(width: 62, height: 62)
+                            Circle().fill(Color.white).frame(width: 63, height: 63)
                         } else {
                             Circle()
                                 .fill(Color.red)
-                                .frame(width: 62, height: 62)
+                                .frame(width: 63, height: 63)
                             RoundedRectangle(cornerRadius: camera.isRecording ? 6 : 31,
                                              style: .continuous)
                                 .fill(Color.white)
@@ -806,13 +798,57 @@ struct NativeCameraView: View {
                     Image(systemName: "arrow.triangle.2.circlepath.camera")
                         .font(.system(size: 20, weight: .medium))
                         .foregroundStyle(.white)
-                        .frame(width: 52, height: 52)
-                        .background(Circle().fill(Color.black.opacity(0.28)))
+                        .frame(width: 48, height: 48)
+                        .background(Circle().fill(Color.black.opacity(0.22)))
                 }
                 .buttonStyle(.plain)
                 .disabled(camera.isRecording)
             }
         }
+    }
+
+    private var modeSwitcher: some View {
+        HStack(spacing: 34) {
+            ForEach(NativeCameraMode.allCases) { item in
+                Button {
+                    withAnimation(.easeOut(duration: 0.16)) { mode = item }
+                } label: {
+                    VStack(spacing: 5) {
+                        Text(item.title.uppercased())
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .tracking(0.35)
+                            .foregroundStyle(mode == item ? Color.yellow : Color.white.opacity(0.66))
+                        Circle()
+                            .fill(mode == item ? Color.yellow : Color.clear)
+                            .frame(width: 4, height: 4)
+                    }
+                    .frame(minWidth: 68)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(height: 30)
+    }
+
+    private var cameraChromeShade: some View {
+        VStack(spacing: 0) {
+            LinearGradient(
+                colors: [Color.black.opacity(0.46), Color.black.opacity(0.08), Color.clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 150)
+            Spacer()
+            LinearGradient(
+                colors: [Color.clear, Color.black.opacity(0.30), Color.black.opacity(0.72)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 310)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 
     private var zoomBadge: some View {
