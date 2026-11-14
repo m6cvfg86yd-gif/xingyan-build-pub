@@ -317,8 +317,9 @@ extension NativeCameraController: AVCapturePhotoCaptureDelegate {
                      error: Error?) {
         guard let data = photo.fileDataRepresentation(),
               let image = UIImage(data: data) else { return }
+        let marked = NativeCameraWatermark.apply(to: image)
         Task { @MainActor in
-            self.capturedPhoto = image
+            self.capturedPhoto = marked
         }
     }
 }
@@ -339,6 +340,90 @@ extension NativeCameraController: AVCaptureFileOutputRecordingDelegate {
             } else {
                 self.errorText = Tr("视频保存失败")
             }
+        }
+    }
+}
+
+private enum NativeCameraWatermark {
+    private static let timeFormat: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "MM/dd HH:mm"
+        return formatter
+    }()
+
+    static func apply(to image: UIImage) -> UIImage {
+        guard image.size.width > 1, image.size.height > 1 else { return image }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
+        return renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+
+            let shortSide = min(image.size.width, image.size.height)
+            let margin = max(14, shortSide * 0.035)
+            let fontSize = max(13, min(26, shortSide * 0.032))
+            let labelFont = UIFont.systemFont(ofSize: fontSize, weight: .semibold)
+            let timeFont = UIFont.monospacedDigitSystemFont(ofSize: fontSize * 0.82,
+                                                            weight: .medium)
+            let brand = "✦  Star Chat" as NSString
+            let time = timeFormat.string(from: Date()) as NSString
+            let brandAttrs: [NSAttributedString.Key: Any] = [
+                .font: labelFont,
+                .foregroundColor: UIColor.white.withAlphaComponent(0.92)
+            ]
+            let timeAttrs: [NSAttributedString.Key: Any] = [
+                .font: timeFont,
+                .foregroundColor: UIColor.white.withAlphaComponent(0.78)
+            ]
+            let brandSize = brand.size(withAttributes: brandAttrs)
+            let timeSize = time.size(withAttributes: timeAttrs)
+            let padX = fontSize * 0.72
+            let padY = fontSize * 0.45
+            let height = max(brandSize.height, timeSize.height) + padY * 2
+            let y = image.size.height - margin - height
+
+            let shade = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: [
+                    UIColor.black.withAlphaComponent(0).cgColor,
+                    UIColor.black.withAlphaComponent(0.30).cgColor
+                ] as CFArray,
+                locations: [0, 1]
+            )
+            if let shade {
+                context.cgContext.drawLinearGradient(
+                    shade,
+                    start: CGPoint(x: 0, y: y - margin),
+                    end: CGPoint(x: 0, y: image.size.height),
+                    options: []
+                )
+            }
+
+            func pill(_ text: NSString,
+                      attributes: [NSAttributedString.Key: Any],
+                      textSize: CGSize,
+                      x: CGFloat) {
+                let rect = CGRect(x: x, y: y,
+                                  width: textSize.width + padX * 2,
+                                  height: height)
+                let path = UIBezierPath(roundedRect: rect,
+                                        cornerRadius: height / 2)
+                UIColor.black.withAlphaComponent(0.28).setFill()
+                path.fill()
+                UIColor.white.withAlphaComponent(0.22).setStroke()
+                path.lineWidth = 0.7
+                path.stroke()
+                text.draw(at: CGPoint(x: rect.minX + padX,
+                                      y: rect.midY - textSize.height / 2),
+                          withAttributes: attributes)
+            }
+
+            let timeWidth = timeSize.width + padX * 2
+            pill(brand, attributes: brandAttrs, textSize: brandSize, x: margin)
+            pill(time, attributes: timeAttrs, textSize: timeSize,
+                 x: image.size.width - margin - timeWidth)
         }
     }
 }
