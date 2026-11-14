@@ -347,8 +347,8 @@ extension NativeCameraController: AVCaptureFileOutputRecordingDelegate {
 private enum NativeCameraWatermark {
     private static let timeFormat: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "MM/dd HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy.MM.dd  HH:mm"
         return formatter
     }()
 
@@ -362,68 +362,142 @@ private enum NativeCameraWatermark {
             image.draw(in: CGRect(origin: .zero, size: image.size))
 
             let shortSide = min(image.size.width, image.size.height)
-            let margin = max(14, shortSide * 0.035)
-            let fontSize = max(13, min(26, shortSide * 0.032))
-            let labelFont = UIFont.systemFont(ofSize: fontSize, weight: .semibold)
-            let timeFont = UIFont.monospacedDigitSystemFont(ofSize: fontSize * 0.82,
-                                                            weight: .medium)
-            let brand = "✦  Star Chat" as NSString
+            let unit = max(0.72, min(1.65, shortSide / 1080))
+            let margin = 26 * unit
+            let cardHeight = 54 * unit
+            let cardRadius = cardHeight / 2
+            let logoSize = 36 * unit
+            let brandSize = 13.2 * unit
+            let detailSize = 9.8 * unit
+            let rounded = UIFont.systemFont(ofSize: brandSize, weight: .semibold)
+                .fontDescriptor.withDesign(.rounded) ?? UIFont.systemFont(ofSize: brandSize,
+                                                                          weight: .semibold)
+            let brandFont = UIFont(descriptor: rounded, size: brandSize)
+            let detailFont = UIFont.monospacedDigitSystemFont(ofSize: detailSize,
+                                                              weight: .medium)
+            let brand = "Star Chat" as NSString
             let time = timeFormat.string(from: Date()) as NSString
-            let brandAttrs: [NSAttributedString.Key: Any] = [
-                .font: labelFont,
-                .foregroundColor: UIColor.white.withAlphaComponent(0.92)
+            let brandAttributes: [NSAttributedString.Key: Any] = [
+                .font: brandFont,
+                .foregroundColor: UIColor.white.withAlphaComponent(0.94),
+                .kern: 0.1 * unit
             ]
-            let timeAttrs: [NSAttributedString.Key: Any] = [
-                .font: timeFont,
-                .foregroundColor: UIColor.white.withAlphaComponent(0.78)
+            let timeAttributes: [NSAttributedString.Key: Any] = [
+                .font: detailFont,
+                .foregroundColor: UIColor.white.withAlphaComponent(0.60),
+                .kern: 0.3 * unit
             ]
-            let brandSize = brand.size(withAttributes: brandAttrs)
-            let timeSize = time.size(withAttributes: timeAttrs)
-            let padX = fontSize * 0.72
-            let padY = fontSize * 0.45
-            let height = max(brandSize.height, timeSize.height) + padY * 2
-            let y = image.size.height - margin - height
+            let brandBox = brand.size(withAttributes: brandAttributes)
+            let timeBox = time.size(withAttributes: timeAttributes)
+            let textGap = 2.2 * unit
+            let horizontalPad = 10 * unit
+            let logoGap = 10 * unit
+            let cardWidth = horizontalPad + logoSize + logoGap
+                + max(brandBox.width, timeBox.width) + horizontalPad
+            let cardRect = CGRect(
+                x: margin,
+                y: image.size.height - margin - cardHeight,
+                width: cardWidth,
+                height: cardHeight
+            )
 
-            let shade = CGGradient(
+            context.cgContext.saveGState()
+            context.cgContext.setShadow(
+                offset: CGSize(width: 0, height: 4 * unit),
+                blur: 14 * unit,
+                color: UIColor.black.withAlphaComponent(0.24).cgColor
+            )
+            let card = UIBezierPath(roundedRect: cardRect, cornerRadius: cardRadius)
+            UIColor.black.withAlphaComponent(0.30).setFill()
+            card.fill()
+            context.cgContext.restoreGState()
+
+            let glass = CGGradient(
                 colorsSpace: CGColorSpaceCreateDeviceRGB(),
                 colors: [
-                    UIColor.black.withAlphaComponent(0).cgColor,
-                    UIColor.black.withAlphaComponent(0.30).cgColor
+                    UIColor.white.withAlphaComponent(0.14).cgColor,
+                    UIColor.white.withAlphaComponent(0.025).cgColor
                 ] as CFArray,
                 locations: [0, 1]
             )
-            if let shade {
+            if let glass {
+                context.cgContext.saveGState()
+                card.addClip()
                 context.cgContext.drawLinearGradient(
-                    shade,
-                    start: CGPoint(x: 0, y: y - margin),
-                    end: CGPoint(x: 0, y: image.size.height),
+                    glass,
+                    start: CGPoint(x: cardRect.midX, y: cardRect.minY),
+                    end: CGPoint(x: cardRect.midX, y: cardRect.maxY),
+                    options: []
+                )
+                context.cgContext.restoreGState()
+            }
+            UIColor.white.withAlphaComponent(0.18).setStroke()
+            card.lineWidth = 0.8 * unit
+            card.stroke()
+
+            let logoRect = CGRect(
+                x: cardRect.minX + horizontalPad,
+                y: cardRect.midY - logoSize / 2,
+                width: logoSize,
+                height: logoSize
+            )
+            let logoPath = UIBezierPath(
+                roundedRect: logoRect,
+                cornerRadius: logoSize * 0.30
+            )
+            context.cgContext.saveGState()
+            logoPath.addClip()
+            let brandGradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: [
+                    UIColor(red: 0.22, green: 0.86, blue: 0.52, alpha: 1).cgColor,
+                    UIColor(red: 0.02, green: 0.52, blue: 0.98, alpha: 1).cgColor
+                ] as CFArray,
+                locations: [0, 1]
+            )
+            if let brandGradient {
+                context.cgContext.drawLinearGradient(
+                    brandGradient,
+                    start: CGPoint(x: logoRect.minX, y: logoRect.minY),
+                    end: CGPoint(x: logoRect.maxX, y: logoRect.maxY),
                     options: []
                 )
             }
+            context.cgContext.restoreGState()
 
-            func pill(_ text: NSString,
-                      attributes: [NSAttributedString.Key: Any],
-                      textSize: CGSize,
-                      x: CGFloat) {
-                let rect = CGRect(x: x, y: y,
-                                  width: textSize.width + padX * 2,
-                                  height: height)
-                let path = UIBezierPath(roundedRect: rect,
-                                        cornerRadius: height / 2)
-                UIColor.black.withAlphaComponent(0.28).setFill()
-                path.fill()
-                UIColor.white.withAlphaComponent(0.22).setStroke()
-                path.lineWidth = 0.7
-                path.stroke()
-                text.draw(at: CGPoint(x: rect.minX + padX,
-                                      y: rect.midY - textSize.height / 2),
-                          withAttributes: attributes)
+            if let star = UIImage(systemName: "star.fill")?
+                .withTintColor(.white.withAlphaComponent(0.96),
+                               renderingMode: .alwaysOriginal) {
+                let starSide = logoSize * 0.58
+                star.draw(in: CGRect(
+                    x: logoRect.midX - starSide / 2,
+                    y: logoRect.midY - starSide / 2,
+                    width: starSide,
+                    height: starSide
+                ))
             }
 
-            let timeWidth = timeSize.width + padX * 2
-            pill(brand, attributes: brandAttrs, textSize: brandSize, x: margin)
-            pill(time, attributes: timeAttrs, textSize: timeSize,
-                 x: image.size.width - margin - timeWidth)
+            let textX = logoRect.maxX + logoGap
+            let brandY = cardRect.midY - textGap / 2 - brandBox.height
+            brand.draw(at: CGPoint(x: textX, y: brandY),
+                       withAttributes: brandAttributes)
+            time.draw(at: CGPoint(x: textX, y: cardRect.midY + textGap / 2),
+                      withAttributes: timeAttributes)
+
+            let cameraAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 8.2 * unit, weight: .semibold),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.48),
+                .kern: 1.6 * unit
+            ]
+            let camera = "XINGYAN CAMERA" as NSString
+            let cameraBox = camera.size(withAttributes: cameraAttributes)
+            camera.draw(
+                at: CGPoint(
+                    x: image.size.width - margin - cameraBox.width,
+                    y: image.size.height - margin - cameraBox.height
+                ),
+                withAttributes: cameraAttributes
+            )
         }
     }
 }
