@@ -555,6 +555,7 @@ final class AppState: ObservableObject {
                 await self?.refreshUI(force: true)
                 await self?.loadChats()
                 await self?.syncRecentMessages(chatCount: 20, limit: 50)
+                await self?.syncMessageEvents()
             }
         default:
             break
@@ -1006,6 +1007,7 @@ final class AppState: ObservableObject {
 
     var prefetched: [String: [Message]] = [:]
     private var syncInFlight = false
+    private var messageEventsInFlight = false
 
     private var syncHintKey: String {
         "chris.syncHintShown." + (me?.id ?? "")
@@ -1061,6 +1063,52 @@ final class AppState: ObservableObject {
                 try? await Task.sleep(nanoseconds: 550_000_000)
             }
         } catch {
+        }
+    }
+
+    /// WebSocket 断开期间错过了撤回、清空这类“不是新消息”的变更。
+    /// 事件序号和每条消息自己的 seq 分开推进，重连后按事件流补齐。
+    func syncMessageEvents() async {
+        guard let userId = me?.id, !userId.isEmpty,
+              !API.shared.token.isEmpty, !messageEventsInFlight else { return }
+        let epoch = accountEpoch
+        let key = "chris.messageEvents." + userId
+        var cursor = UserDefaults.standard.integer(forKey: key)
+        messageEventsInFlight = true
+        defer { messageEventsInFlight = false }
+
+        do {
+            for _ in 0..<20 {
+                guard isCurrentAccount(epoch) else { return }
+                let page = try await API.shared.messageEvents(after: cursor, limit: 200)
+                for event in page.events {
+                    guard let payload = event.payload,
+                          let chatId = payload.chatId, !chatId.isEmpty else { continue }
+                    switch event.type ?? "" {
+                    case "message.recalled":
+                        guard let messageId = payload.messageId, !messageId.isEmpty else { continue }
+                        applyRecallSummaryLocally(chatId, messageId: messageId)
+                        NotificationCenter.default.post(
+                            name: .chrisChatRecall,
+                            object: nil,
+                            userInfo: ["chatId": chatId, "messageId": messageId]
+                        )
+                    case "chat.cleared":
+                        guard payload.userId == userId else { continue }
+                        forgetChatHistory(chatId, notify: false)
+                        NotificationCenter.default.post(name: .chrisChatCleared, object: chatId)
+                    default:
+                        break
+                    }
+                }
+                if page.sequence > cursor {
+                    cursor = page.sequence
+                    UserDefaults.standard.set(cursor, forKey: key)
+                }
+                if !page.hasMore { break }
+            }
+        } catch {
+            /* 保留旧游标，下次 ready / 回前台继续补。 */
         }
     }
 
@@ -2139,6 +2187,7 @@ struct RootView: View {
                     await app.loadContacts()
                     await app.refreshDotCounts()
                     await app.syncRecentMessages()
+                    await app.syncMessageEvents()
                     Realtime.shared.start()
 
                     CallCenter.shared.restorePendingAfterActivation()

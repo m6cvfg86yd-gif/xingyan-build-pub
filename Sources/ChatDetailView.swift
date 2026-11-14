@@ -2203,6 +2203,14 @@ struct ChatDetailView: View {
             rebuildIndex()
             DispatchQueue.main.async { scroller?.scrollTo("__bottom", anchor: .bottom) }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .chrisChatRecall)) { note in
+            guard let info = note.userInfo,
+                  (info["chatId"] as? String) == chat.id,
+                  let messageId = info["messageId"] as? String,
+                  !messageId.isEmpty else { return }
+            markMessageRecalledLocally(messageId)
+            app.applyRecallSummaryLocally(chat.id, messageId: messageId)
+        }
 
         .sheet(isPresented: $showStickerStore, onDismiss: { Task { await loadMyStickers() } }) {
             StickerView().environmentObject(app)
@@ -5478,9 +5486,7 @@ struct ChatDetailView: View {
 
             let cachedLastSeq = messages.compactMap { $0.seq }.max() ?? 0
             let result: (chat: Chat?, messages: [Message], hasMore: Bool)
-            if initial {
-                result = try await initialMessageBatch()
-            } else if cachedLastSeq > 0 {
+            if cachedLastSeq > 0 {
                 var incoming: [Message] = []
                 var latestChat: Chat? = nil
                 var more = false

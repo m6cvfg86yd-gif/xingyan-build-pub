@@ -252,6 +252,23 @@ struct QuoteRef: Codable, Hashable {
     var thumbPath: String { thumb ?? "" }
 }
 
+struct MessageEventEnvelope: Decodable, Hashable {
+    struct Payload: Decodable, Hashable {
+        var chatId: String?
+        var messageId: String?
+        var userId: String?
+        var clearedSeq: Int?
+        var recalled: Bool?
+    }
+    var sequence: Int?
+    var eventId: String?
+    var type: String?
+    var entityId: String?
+    var version: Int?
+    var payload: Payload?
+    var createdAt: String?
+}
+
 struct Message: Codable, Identifiable, Hashable {
     var id: String
     var clientId: String? = nil
@@ -646,6 +663,22 @@ private struct MessagesPayload: Decodable {
     var chat: Chat?
     var messages: [Message]
     var hasMore: Bool?
+}
+private struct MessageEventsPayload: Decodable {
+    var events: [MessageEventEnvelope]?
+    var sequence: Int?
+    var hasMore: Bool?
+}
+private struct DeviceCursorPayload: Decodable {
+    struct Cursor: Decodable {
+        var deliveredSeq: Int?
+        var readSeq: Int?
+        var updatedAt: String?
+    }
+    var chatId: String?
+    var deviceId: String?
+    var lastSeq: Int?
+    var cursor: Cursor?
 }
 private struct MessagePayload: Decodable { var message: Message? }
 private struct AddFriendPayload: Decodable {
@@ -3815,6 +3848,29 @@ private struct StarredPayload: Decodable {
         let path = "/api/chats/\(chatId)/messages?limit=\(limit)&since=\(max(0, since))"
         let payload: MessagesPayload = try await get(path, as: MessagesPayload.self)
         return (payload.chat, payload.messages, payload.hasMore ?? false)
+    }
+
+    func messageEvents(after: Int, limit: Int = 200)
+        async throws -> (events: [MessageEventEnvelope], sequence: Int, hasMore: Bool) {
+        let payload: MessageEventsPayload = try await get(
+            "/api/message-events?after=\(max(0, after))&limit=\(max(1, limit))",
+            as: MessageEventsPayload.self
+        )
+        return (payload.events ?? [], payload.sequence ?? max(0, after), payload.hasMore ?? false)
+    }
+
+    func chatCursor(chatId: String)
+        async throws -> (lastSeq: Int, deliveredSeq: Int, readSeq: Int, updatedAt: String) {
+        let payload: DeviceCursorPayload = try await get(
+            "/api/chats/\(chatId)/cursor",
+            as: DeviceCursorPayload.self
+        )
+        return (
+            payload.lastSeq ?? 0,
+            payload.cursor?.deliveredSeq ?? 0,
+            payload.cursor?.readSeq ?? 0,
+            payload.cursor?.updatedAt ?? ""
+        )
     }
 
     func allMessages(chatId: String, limit: Int = 20_000, before: Int? = nil)

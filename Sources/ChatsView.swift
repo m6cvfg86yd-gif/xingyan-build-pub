@@ -654,6 +654,7 @@ extension Notification.Name {
 
     static let chrisRowSwipe = Notification.Name("chris.rowSwipe")
     static let chrisChatCleared = Notification.Name("chris.chatCleared")
+    static let chrisChatRecall = Notification.Name("chris.chatRecall")
 }
 
 private enum ChatSwipeFeedback {

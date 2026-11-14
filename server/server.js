@@ -24,6 +24,7 @@ const { PaymentLedger, cents: ledgerCents, money: ledgerMoney } = require('./pay
 const { AmlEngine } = require('./aml');
 const { createShardShadowService } = require('./lib/shard-shadow-service');
 const { resolveTopology } = require('./lib/shard-topology');
+const { MessageReliabilityStore } = require('./lib/message-reliability');
 const { PaymentTokenVault } = require('./lib/payment-token-vault');
 const { PaymentDeviceEnrollment } = require('./lib/payment-device-enrollment');
 const { PaymentKeyRing } = require('./lib/payment-keyring');
@@ -46,6 +47,7 @@ const MSG_DIR = path.join(DATA_DIR, 'messages');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 let shardShadow = null;
 let shardShadowAuditTimer = null;
+let messageReliability = null;
 let paymentDeviceEnrollment = null;
 let paymentTokenVault = null;
 let paymentIntentEngine = null;
@@ -5502,6 +5504,26 @@ function loadMessages(chatId) {
 }
 
 function appendMessage(chatId, message) {
+  let duplicate = false;
+  if (messageReliability) {
+    messageReliability.ensureChatSequence(chatId, Math.max(0, Number(message.seq || 0) - 1));
+    const reliable = messageReliability.reserveMessage(message);
+    Object.keys(message).forEach((key) => { delete message[key]; });
+    Object.assign(message, reliable.message);
+    duplicate = reliable.duplicate;
+  }
+  if (duplicate) {
+    const already = loadMessages(chatId).find((m) => m.id === message.id);
+    if (already) {
+      Object.defineProperty(message, '__reliableDuplicate', {
+        value: true, configurable: true
+      });
+      return true;
+    }
+    /* 可靠库已有、兼容消息文件却没有：这是上次在两次落盘之间中断。
+       这次要补写文件并继续广播，否则发送方重试成功，其他设备却收不到实时事件。 */
+    duplicate = false;
+  }
   fs.appendFileSync(messagesFile(chatId), sealMessage(chatId, message) + '\n', 'utf8');
   // loadMessages 会重新读文件（里面已经有这条了），所以这里只在缓存里没有时才补一次，
   // 否则同一条系统消息会在内存里出现两遍（发公告、面对面建群时都能看到）
@@ -5512,6 +5534,16 @@ function appendMessage(chatId, message) {
   captureShardSnapshots(['messageThreads'], {
     messages: { [chatId]: list }
   }, { replace: false });
+  Object.defineProperty(message, '__reliableDuplicate', {
+    value: duplicate, configurable: true
+  });
+  return duplicate;
+}
+
+function appendChatMessage(chat, message) {
+  const duplicate = appendMessage(chat.id, message);
+  chat.seq = Math.max(Number(chat.seq) || 0, Number(message.seq) || 0);
+  return duplicate;
 }
 
 /* 会话自身 seq 是批量落盘的，进程若在 1.5 秒窗口内重启，可能比消息文件慢。
@@ -5519,7 +5551,11 @@ function appendMessage(chatId, message) {
 function nextMessageSeq(chat) {
   const list = loadMessages(chat.id);
   const last = list.length ? Number(list[list.length - 1].seq || 0) : 0;
-  chat.seq = Math.max(Number(chat.seq || 0), last) + 1;
+  const durable = messageReliability ? messageReliability.lastSequence(chat.id) : 0;
+  const baseline = Math.max(Number(chat.seq || 0), last, durable);
+  /* 可靠链路里这一版只提供“当前基线”，真正的下一条由 reserveMessage
+     在写事务中分配。这样旧 clientId 重试失败时不会把 chat.seq 空推到未来。 */
+  chat.seq = messageReliability ? baseline : baseline + 1;
   return chat.seq;
 }
 
@@ -5927,7 +5963,7 @@ function pushSystemMessage(chat, text) {
     id: uid('m'), chatId: chat.id, seq: chat.seq, senderId: 'system',
     kind: 'system', content: text, createdAt: now(), recalled: false
   };
-  appendMessage(chat.id, msg);
+  appendChatMessage(chat, msg);
   return msg;
 }
 function clearLoginFails(keys) {
@@ -8348,7 +8384,7 @@ function callLog(fromId, toId, text, meta) {
   /* 通话记录要带上「谁打的」：客户端靠它把这条记录摆到左边还是右边（微信就是这么摆的）。
      老记录里没有 from，客户端会退回「居中一行灰字」。 */
   if (meta) message.call = Object.assign({}, meta, { from: fromId, to: toId });
-  appendMessage(chat.id, message);
+  appendChatMessage(chat, message);
   saveChats();
   chat.memberIds.forEach((id) => {
     sendTo(id, { type: 'message', message, chat: chatSummary(chat, id), clientId: null });
@@ -8456,11 +8492,19 @@ function handleClientMessage(user, socket, raw) {
   if (msg.type === 'ack') {
     const chat = db.chats.find((c) => c.id === msg.chatId);
     if (!chat || !chat.memberIds.includes(user.id)) return;
-    const seq = Math.max(0, Math.floor(Number(msg.seq) || 0));
+    const reportedSeq = Math.max(0, Math.floor(Number(msg.seq) || 0));
+    const latestSeq = Math.max(
+      Math.max(0, Math.floor(Number(chat.seq) || 0)),
+      messageReliability ? messageReliability.lastSequence(chat.id) : 0
+    );
+    const seq = Math.min(reportedSeq, latestSeq);
     if (!db.delivered[user.id]) db.delivered[user.id] = {};
     if (seq > Number(db.delivered[user.id][chat.id] || 0)) {
       db.delivered[user.id][chat.id] = seq;
       deliveredDirty = true;
+    }
+    if (messageReliability && socket.__deviceId) {
+      messageReliability.ackDevice(user.id, socket.__deviceId, chat.id, seq);
     }
     return;
   }
@@ -8503,7 +8547,7 @@ function handleClientMessage(user, socket, raw) {
       }),
       createdAt: now(), recalled: false
     };
-    appendMessage(chat.id, message);
+    appendChatMessage(chat, message);
     saveChats();
     chat.memberIds.forEach((id) => {
       sendTo(id, { type: 'message', message, chat: chatSummary(chat, id), clientId: null });
@@ -8520,6 +8564,11 @@ function handleClientMessage(user, socket, raw) {
     if (!db.reads[user.id]) db.reads[user.id] = {};
     db.reads[user.id][chat.id] = lastSeq;
     saveReads();
+    if (messageReliability) {
+      if (socket.__deviceId) {
+        messageReliability.markDeviceRead(user.id, socket.__deviceId, chat.id, lastSeq);
+      }
+    }
     sendToChat(chat, { type: 'read', chatId: chat.id, userId: user.id, seq: lastSeq }, user.id);
     return;
   }
@@ -8639,7 +8688,7 @@ function handleClientMessage(user, socket, raw) {
               id: uid('m'), chatId: chat.id, seq: chat.seq, senderId: target.id, kind: 'text',
               content: '[自动回复] 我正在通话中，稍后联系你', createdAt: now(), recalled: false
             };
-            appendMessage(chat.id, auto);
+            appendChatMessage(chat, auto);
             saveChats();
             chat.memberIds.forEach((id) => sendTo(id, { type: 'message', message: auto, chat: chatSummary(chat, id), clientId: null }));
           }
@@ -8874,7 +8923,7 @@ function handleClientMessage(user, socket, raw) {
               id: uid('m'), chatId: chat.id, seq: chat.seq, senderId: user.id, kind: 'text',
               content: say, createdAt: now(), recalled: false
             };
-            appendMessage(chat.id, one);
+            appendChatMessage(chat, one);
             saveChats();
             chat.memberIds.forEach((id) => sendTo(id, { type: 'message', message: one, chat: chatSummary(chat, id), clientId: null }));
           }
@@ -9316,7 +9365,7 @@ function deliverMessage(user, chatId, kind, content, clientId, mentionHint, medi
   chat.seq = nextMessageSeq(chat);
   // 有新消息就把「已删除会话」的隐藏标记清掉，会话重新出现在双方列表里
   if (Array.isArray(chat.hiddenFor) && chat.hiddenFor.length) chat.hiddenFor = [];
-  const message = {
+  let message = {
     id: uid('m'),
     chatId: chat.id,
     seq: chat.seq,
@@ -9374,7 +9423,10 @@ function deliverMessage(user, chatId, kind, content, clientId, mentionHint, medi
       }
     }
   } catch (e) { /* 引用这一包有问题就当没引用，绝不能把消息本身发不出去 */ }
-  appendMessage(chat.id, message);
+  appendChatMessage(chat, message);
+  const reliableDuplicate = message.__reliableDuplicate === true;
+  delete message.__reliableDuplicate;
+  if (reliableDuplicate) return { message, duplicate: true };
   noteMessage();
   /* 落盘改成「攒一下再写」：以前每发一条消息都要重写整个 chats.json（1.5MB），
      压测时这是最大的瓶颈。现在最多 1.5 秒写一次，进程退出前再补一次。 */
@@ -10978,9 +11030,16 @@ function recallMessage(user, chatId, messageId) {
   if (Date.now() - new Date(msg.createdAt).getTime() > windowMs) {
     return { error: '超过 ' + readIm().recallMinutes + ' 分钟，不能撤回' };
   }
-    msg.recalled = true;
-    saveMessagesFile(chat.id, messages);
+  msg.recalled = true;
+  saveMessagesFile(chat.id, messages);
   messageCache.delete(chat.id);
+  if (messageReliability) {
+    messageReliability.recordEvent('message.recalled', msg.id, Number(msg.seq) || 0, {
+      chatId: chat.id,
+      messageId: msg.id,
+      recalled: true
+    });
+  }
   sendToChat(chat, { type: 'recall', chatId: chat.id, messageId: msg.id });
   return { message: msg };
 }
@@ -12636,7 +12695,7 @@ async function handleAdmin(req, res, parts, query) {
         id: uid('m'), chatId: chat.id, seq: chat.seq, senderId: 'system',
         kind: 'system', content, createdAt: now(), recalled: false
       };
-      appendMessage(chat.id, message);
+      appendChatMessage(chat, message);
       chat.memberIds.forEach((id) => {
         sendTo(id, { type: 'message', message, chat: chatSummary(chat, id), clientId: null });
       });
@@ -20534,7 +20593,7 @@ async function handleApi(req, res, pathname, query) {
         id: uid('m'), chatId: chat.id, seq: chat.seq, senderId: 'system',
         kind: 'system', content: text, createdAt: now(), recalled: false
       };
-      appendMessage(chat.id, sysMsg);
+      appendChatMessage(chat, sysMsg);
       chat.memberIds.forEach((id) => {
         sendTo(id, { type: 'message', message: sysMsg, chat: chatSummary(chat, id), clientId: null });
       });
@@ -20798,11 +20857,33 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
 
+  if (parts[0] === 'chats' && parts[2] === 'cursor' && method === 'GET') {
+    refreshChatAccessStateFromDisk(false);
+    const chat = db.chats.find((c) => c.id === parts[1]);
+    if (!chat || !chat.memberIds.includes(user.id)) return fail(res, 404, '会话不存在');
+    const info = clientInfo(req);
+    const cursor = messageReliability && info.deviceId
+      ? messageReliability.deviceCursor(user.id, info.deviceId, chat.id)
+      : { deliveredSeq: 0, readSeq: 0, updatedAt: '' };
+    ok(res, {
+      chatId: chat.id,
+      deviceId: messageReliability ? info.deviceId : '',
+      lastSeq: Math.max(
+        Math.max(0, Number(chat.seq) || 0),
+        messageReliability ? messageReliability.lastSequence(chat.id) : 0
+      ),
+      cursor
+    });
+    return;
+  }
+
   if (parts[0] === 'chats' && parts[2] === 'messages' && method === 'GET') {
     refreshChatAccessStateFromDisk(false);
     const chat = db.chats.find((c) => c.id === parts[1]);
     if (!chat || !chat.memberIds.includes(user.id)) return fail(res, 404, '会话不存在');
-    const limit = Math.min(100, Math.max(1, Number(query.get('limit')) || 30));
+    const hasSince = query.has('since');
+    const limit = Math.min(hasSince ? 500 : 100,
+      Math.max(1, Number(query.get('limit')) || 30));
     const before = Number(query.get('before')) || Number.MAX_SAFE_INTEGER;
     /* 自己清空过聊天记录：清空点之前的一律不返回（别人不受影响） */
     const clearedSeq = ((db.cleared || {})[user.id] || {})[chat.id] || 0;
@@ -20817,10 +20898,30 @@ async function handleApi(req, res, pathname, query) {
        ui.json 的 maxHistory 写 0 或不写 = 不截；写正数就是"一次最多给这么多条"。 */
     const uiCfgHist = readJson(path.join(DATA_DIR, 'ui.json'), {});
     const cap = Number(uiCfgHist.maxHistory) || 0;      // 0 = 不设上限
-    const allMsgs = loadMessages(chat.id);
+    let allMsgs = loadMessages(chat.id);
     const capFromSeq = (cap > 0 && allMsgs.length > cap) ? (allMsgs[allMsgs.length - cap].seq || 0) : 0;
-    const slice = allMsgs
-      .filter((m) => m.seq < before && m.seq > clearedSeq && m.seq >= capFromSeq).slice(-limit);
+    const since = Math.max(0, Number(query.get('since')) || 0);
+    if (messageReliability) {
+      const durable = hasSince
+        ? messageReliability.messagesAfter(chat.id, since, limit + 1)
+        : messageReliability.messagesBefore(
+          chat.id,
+          before === Number.MAX_SAFE_INTEGER ? 0 : before,
+          limit + 1
+        );
+      if (durable.length) {
+        /* 兼容消息文件里可能有撤回、焚毁、名片补全等较新的状态，
+           可靠库负责补崩溃窗口内漏写的消息；同 id 时以文件状态为准。 */
+        const merged = new Map(durable.map((m) => [m.id, m]));
+        allMsgs.forEach((m) => merged.set(m.id, m));
+        allMsgs = Array.from(merged.values()).sort((a, b) =>
+          (Number(a.seq) || 0) - (Number(b.seq) || 0));
+      }
+    }
+    const eligible = allMsgs.filter((m) =>
+      m.seq > clearedSeq && m.seq >= capFromSeq
+      && (hasSince ? m.seq > since : m.seq < before));
+    const slice = hasSince ? eligible.slice(0, limit) : eligible.slice(-limit);
     /* 拉历史消息的人可能是老版本：名片这类卡片消息要降级成纯文本，否则他那边是乱码 */
     const reqBuild = Number((String(req.headers['x-app-build'] || '').match(/B(\d+)/) || [])[1] || 0);
     const messages = slice.map((m) => {
@@ -20862,7 +20963,11 @@ async function handleApi(req, res, pathname, query) {
       }
       return one;
     });
-    ok(res, { chat: chatSummary(chat, user.id), messages, hasMore: slice.length === limit });
+    ok(res, {
+      chat: chatSummary(chat, user.id),
+      messages,
+      hasMore: hasSince ? eligible.length > slice.length : slice.length === limit
+    });
     return;
   }
 
@@ -20952,6 +21057,12 @@ async function handleApi(req, res, pathname, query) {
     if (!db.reads[user.id]) db.reads[user.id] = {};
     db.reads[user.id][chat.id] = lastSeq;
     saveReads();
+    if (messageReliability) {
+      const info = clientInfo(req);
+      if (info.deviceId) {
+        messageReliability.markDeviceRead(user.id, info.deviceId, chat.id, lastSeq);
+      }
+    }
     /* CHRIS_BURN_V1 「打开会话 = 看过了」：这一刻就把小火苗那几条标上 seenAt ——
        计时从**点开聊天**开始（客户端上的倒计时也就能立刻出来），
        20 秒后由服务端的定时器真实删掉（内存 + 文件都删）。 */
@@ -21449,6 +21560,17 @@ async function handleApi(req, res, pathname, query) {
     if (!db.reads[user.id]) db.reads[user.id] = {};
     db.reads[user.id][chat.id] = lastSeq;
     saveReads();
+    if (messageReliability) {
+      const info = clientInfo(req);
+      if (info.deviceId) {
+        messageReliability.markDeviceRead(user.id, info.deviceId, chat.id, lastSeq);
+      }
+      messageReliability.recordEvent('chat.cleared', chat.id, lastSeq, {
+        chatId: chat.id,
+        userId: user.id,
+        clearedSeq: lastSeq
+      });
+    }
     ok(res, { cleared: lastSeq });
     return;
   }
@@ -21472,6 +21594,34 @@ async function handleApi(req, res, pathname, query) {
       eventId: uid('sh-unread')
     });
     ok(res, { unread: unreadCount(user.id, chat) });
+    return;
+  }
+
+  if (parts[0] === 'message-events' && method === 'GET') {
+    if (!messageReliability) return ok(res, { events: [], sequence: 0, hasMore: false });
+    const after = Math.max(0, Number(query.get('after')) || 0);
+    const limit = Math.min(500, Math.max(1, Number(query.get('limit')) || 200));
+    const scanned = messageReliability.eventsAfter(after, limit);
+    const events = scanned.filter((event) => {
+      const payload = event.payload || {};
+      if (event.type === 'chat.cleared') return payload.userId === user.id;
+      const chatId = String(payload.chatId || '');
+      const chat = chatId ? db.chats.find((c) => c.id === chatId) : null;
+      return !!(chat && chat.memberIds.includes(user.id));
+    }).map((event) => ({
+      sequence: event.sequence,
+      eventId: event.eventId,
+      type: event.type,
+      entityId: event.entityId,
+      version: event.version,
+      payload: event.payload,
+      createdAt: event.createdAt
+    }));
+    ok(res, {
+      events,
+      sequence: scanned.length ? scanned[scanned.length - 1].sequence : after,
+      hasMore: scanned.length === limit
+    });
     return;
   }
 
@@ -22741,6 +22891,20 @@ if (paymentDatabase) {
     }
   }, 24 * 60 * 60 * 1000);
   paymentBackupTimer.unref();
+}
+const reliabilityFlag = String(process.env.MESSAGE_RELIABILITY_ENABLED || '0').toLowerCase();
+if (reliabilityFlag === '1' || reliabilityFlag === 'true' || reliabilityFlag === 'on') {
+  try {
+    messageReliability = new MessageReliabilityStore({
+      databaseFile: path.join(DATA_DIR, 'message-reliability.sqlite3'),
+      now
+    });
+    console.log('[消息可靠性] 已启用原子序号、幂等消息和设备级游标');
+  } catch (error) {
+    messageReliability = null;
+    console.log('[消息可靠性] 初始化失败，继续使用兼容链路：'
+      + String(error && error.message || error));
+  }
 }
 try {
   const shadowTopology = process.env.SHARD_TOPOLOGY_ID
@@ -25319,7 +25483,7 @@ async function handleOps(req, res, parts, query) {
         id: uid('m'), chatId: chat.id, seq: chat.seq, senderId: 'system',
         kind: 'system', content, createdAt: now(), recalled: false
       };
-      appendMessage(chat.id, message);
+      appendChatMessage(chat, message);
       (chat.memberIds || []).forEach((id) => {
         sendTo(id, { type: 'message', message, chat: chatSummary(chat, id), clientId: null });
       });
@@ -25934,6 +26098,14 @@ async function handleOps(req, res, parts, query) {
     try {
       saveMessagesFile(chat.id, messages);
     } catch (err) { return fail(res, 500, '写入失败'); }
+    if (messageReliability) {
+      messageReliability.recordEvent('message.recalled', msg.id, Number(msg.seq) || 0, {
+        chatId: chat.id,
+        messageId: msg.id,
+        recalled: true,
+        byAdmin: true
+      });
+    }
     sendToChat(chat, { type: 'recall', chatId: chat.id, messageId: msg.id });
     audit(req, admin, '强制撤回消息', parts[2], '会话 ' + chatId);
     ok(res, { message: msg });
@@ -25947,6 +26119,7 @@ async function handleOps(req, res, parts, query) {
     const file = path.join(DATA_DIR, 'messages', chat.id + '.jsonl');
     try { fs.writeFileSync(file, ''); } catch (err) { /* 忽略 */ }
     messageCache.delete(chat.id);
+    if (messageReliability) messageReliability.deleteChatMessages(chat.id);
     audit(req, admin, '清空会话', chat.id, '');
     ok(res, { cleared: true });
     return;
@@ -25979,7 +26152,7 @@ async function handleOps(req, res, parts, query) {
       content: '你邀请 ' + others.join('、') + ' 加入了群聊',
       createdAt: now(), recalled: false
     };
-    appendMessage(chat.id, sysMsg);
+    appendChatMessage(chat, sysMsg);
     saveChats();
     members.forEach((id) => {
       sendTo(id, { type: 'chat', action: 'created', chat: chatSummary(chat, id) });
