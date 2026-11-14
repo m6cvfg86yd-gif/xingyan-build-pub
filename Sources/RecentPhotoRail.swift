@@ -8,6 +8,8 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
 
     @Published private(set) var assets: [PHAsset] = []
     @Published private(set) var isLoading = false
+    @Published private(set) var accessState =
+        PHPhotoLibrary.authorizationStatus(for: .readWrite)
 
     private let manager = PHCachingImageManager()
     private let thumbCache = NSCache<NSString, UIImage>()
@@ -24,12 +26,14 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
         isLoading = true
         defer { isLoading = false }
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        accessState = status
         switch status {
         case .authorized, .limited:
             await reloadAssets()
             loaded = true
         case .notDetermined:
             let next = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+            accessState = next
             if next == .authorized || next == .limited {
                 await reloadAssets()
                 loaded = true
@@ -37,6 +41,7 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
                 loaded = false
             }
         default:
+            assets = []
             loaded = false
         }
     }
@@ -61,7 +66,13 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
                                  options: options) { image, info in
                 guard !resumed else { return }
                 let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) == true
-                if degraded, image != nil { return }
+                // 很多 iCloud / HEIC 照片会先给一张低清图，再等待数秒才给高清图。
+                // 先把低清图交出去，行里立刻有内容；下一次任务命中缓存时会继续更新。
+                if degraded, let image {
+                    resumed = true
+                    continuation.resume(returning: image)
+                    return
+                }
                 resumed = true
                 continuation.resume(returning: image)
             }
@@ -163,6 +174,17 @@ struct ChatRecentPhotoStrip: View {
                             .fill(Color.primary.opacity(0.055))
                             .frame(width: tile, height: tile)
                     }
+                } else if store.assets.isEmpty {
+                    ForEach(0..<5, id: \.self) { _ in
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.primary.opacity(0.045))
+                            Image(systemName: "photo")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(Color.primary.opacity(0.25))
+                        }
+                        .frame(width: tile, height: tile)
+                    }
                 } else {
                     ForEach(store.assets, id: \.localIdentifier) { asset in
                         Button {
@@ -213,7 +235,19 @@ private struct RecentAssetThumbnail: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                Color.clear
+                ZStack {
+                    LinearGradient(
+                        colors: [
+                            Color.primary.opacity(0.10),
+                            Color.primary.opacity(0.045)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    Image(systemName: "photo.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Color.primary.opacity(0.34))
+                }
             }
         }
         .task(id: asset.localIdentifier) {
