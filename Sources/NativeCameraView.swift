@@ -368,10 +368,10 @@ private enum NativeCameraWatermark {
             let cardRadius = cardHeight / 2
             let brandSize = 13.2 * unit
             let detailSize = 9.8 * unit
-            let rounded = UIFont.systemFont(ofSize: brandSize, weight: .semibold)
-                .fontDescriptor.withDesign(.rounded) ?? UIFont.systemFont(ofSize: brandSize,
-                                                                          weight: .semibold)
-            let brandFont = UIFont(descriptor: rounded, size: brandSize)
+            let baseDescriptor = UIFont.systemFont(ofSize: brandSize, weight: .semibold)
+                .fontDescriptor
+            let roundedDescriptor = baseDescriptor.withDesign(.rounded) ?? baseDescriptor
+            let brandFont = UIFont(descriptor: roundedDescriptor, size: brandSize)
             let detailFont = UIFont.monospacedDigitSystemFont(ofSize: detailSize,
                                                               weight: .medium)
             let brand = "Star Chat" as NSString
