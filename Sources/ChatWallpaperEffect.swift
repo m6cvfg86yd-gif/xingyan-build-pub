@@ -203,6 +203,13 @@ struct ChatThemeBackdrop: View {
 
     private func midnightScene(size: CGSize) -> some View {
         ZStack {
+            midnightBase(size: size)
+            midnightStars(size: size)
+        }
+    }
+
+    private func midnightBase(size: CGSize) -> some View {
+        ZStack {
             LinearGradient(
                 colors: dark
                     ? [Color(hex: 0x000105), Color(hex: 0x020711), Color(hex: 0x000000)]
@@ -224,18 +231,20 @@ struct ChatThemeBackdrop: View {
                 startRadius: 2,
                 endRadius: max(size.width, size.height) * 0.65
             )
+        }
+    }
 
-            ForEach(0..<44, id: \.self) { index in
-                Circle()
-                    .fill(Color.white.opacity(dark
-                        ? Double(0.16 + (index % 5) * 0.07)
-                        : Double(0.22 + (index % 4) * 0.08)))
-                    .frame(width: CGFloat(index % 3 == 0 ? 1.7 : 1.1))
-                    .position(
-                        x: CGFloat((index * 47 + 11) % 101) / 100 * size.width,
-                        y: CGFloat((index * 71 + 19) % 97) / 96 * size.height
-                    )
-            }
+    private func midnightStars(size: CGSize) -> some View {
+        ForEach(0..<44, id: \.self) { index in
+            Circle()
+                .fill(Color.white.opacity(dark
+                    ? Double(0.16 + (index % 5) * 0.07)
+                    : Double(0.22 + (index % 4) * 0.08)))
+                .frame(width: CGFloat(index % 3 == 0 ? 1.7 : 1.1))
+                .position(
+                    x: CGFloat((index * 47 + 11) % 101) / 100 * size.width,
+                    y: CGFloat((index * 71 + 19) % 97) / 96 * size.height
+                )
         }
     }
 
@@ -459,6 +468,13 @@ struct ChatThemeBackdrop: View {
 
     private func mintScene(size: CGSize) -> some View {
         ZStack {
+            mintBase(size: size)
+            mintRings(size: size)
+        }
+    }
+
+    private func mintBase(size: CGSize) -> some View {
+        ZStack {
             LinearGradient(
                 colors: dark
                     ? [Color(hex: 0x03100D), Color(hex: 0x071A16), Color(hex: 0x03100D)]
@@ -473,20 +489,22 @@ struct ChatThemeBackdrop: View {
                 startRadius: 2,
                 endRadius: max(size.width, size.height) * 0.72
             )
+        }
+    }
 
-            ForEach(0..<5, id: \.self) { index in
-                Circle()
-                    .stroke(Color.white.opacity(dark
-                        ? Double(0.025 + (index % 2) * 0.012)
-                        : Double(0.22 + (index % 2) * 0.08)),
-                            lineWidth: 0.8)
-                    .frame(width: CGFloat(94 + index * 54),
-                           height: CGFloat(94 + index * 54))
-                    .position(
-                        x: size.width * (index % 2 == 0 ? 0.18 : 0.82),
-                        y: size.height * (0.24 + CGFloat(index) * 0.15)
-                    )
-            }
+    private func mintRings(size: CGSize) -> some View {
+        ForEach(0..<5, id: \.self) { index in
+            Circle()
+                .stroke(Color.white.opacity(dark
+                    ? Double(0.025 + (index % 2) * 0.012)
+                    : Double(0.22 + (index % 2) * 0.08)),
+                        lineWidth: 0.8)
+                .frame(width: CGFloat(94 + index * 54),
+                       height: CGFloat(94 + index * 54))
+                .position(
+                    x: size.width * (index % 2 == 0 ? 0.18 : 0.82),
+                    y: size.height * (0.24 + CGFloat(index) * 0.15)
+                )
         }
     }
 
