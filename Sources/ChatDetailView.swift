@@ -1801,6 +1801,7 @@ struct ChatDetailView: View {
         }
 
         .onAppear {
+            Task { await recentPhotos.loadIfNeeded() }
             if recorder.stale {
                 CrashCatcher.note("录音", "进聊天页发现孤儿录音，已清掉")
                 recorder.forceStop()
@@ -3874,6 +3875,10 @@ struct ChatDetailView: View {
                     onPick: { image in
                         stageDraftImages([image])
                         panel = .none
+                    },
+                    onOpenLibrary: {
+                        panel = .none
+                        showPhoto = true
                     })
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.move(edge: .bottom).combined(with: .opacity))

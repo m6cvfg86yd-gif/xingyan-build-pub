@@ -135,58 +135,65 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
 struct ChatRecentPhotoStrip: View {
     @ObservedObject var store: RecentPhotoStore
     var onPick: (UIImage) -> Void
+    var onOpenLibrary: () -> Void
 
     @State private var loadingId = ""
     private let tile: CGFloat = 54
 
     var body: some View {
-        Group {
-            if store.assets.isEmpty {
-                if store.isLoading {
-                    HStack(spacing: 5) {
-                        ForEach(0..<7, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.primary.opacity(0.055))
-                                .frame(width: tile, height: tile)
-                        }
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 5) {
+                Button(action: onOpenLibrary) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.primary.opacity(0.065))
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(Color.primary.opacity(0.72))
                     }
-                    .padding(.horizontal, 12)
-                    .frame(height: tile + 14)
+                    .frame(width: tile, height: tile)
+                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 5) {
-                        ForEach(store.assets, id: \.localIdentifier) { asset in
-                            Button {
-                                guard loadingId.isEmpty else { return }
-                                loadingId = asset.localIdentifier
-                                Task {
-                                    let image = await store.preview(for: asset)
-                                    loadingId = ""
-                                    if let image { onPick(image) }
-                                }
-                            } label: {
-                                ZStack {
-                                    RecentAssetThumbnail(asset: asset, store: store, side: tile)
-                                    if loadingId == asset.localIdentifier {
-                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                            .fill(Color.black.opacity(0.34))
-                                        ProgressView().tint(.white)
-                                    }
-                                }
-                                .frame(width: tile, height: tile)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .buttonStyle(.plain)
+                .accessibilityLabel(Tr("打开相册"))
+
+                if store.isLoading && store.assets.isEmpty {
+                    ForEach(0..<7, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.primary.opacity(0.055))
+                            .frame(width: tile, height: tile)
+                    }
+                } else {
+                    ForEach(store.assets, id: \.localIdentifier) { asset in
+                        Button {
+                            guard loadingId.isEmpty else { return }
+                            loadingId = asset.localIdentifier
+                            Task {
+                                let image = await store.preview(for: asset)
+                                loadingId = ""
+                                if let image { onPick(image) }
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(Tr("照片"))
+                        } label: {
+                            ZStack {
+                                RecentAssetThumbnail(asset: asset, store: store, side: tile)
+                                if loadingId == asset.localIdentifier {
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color.black.opacity(0.34))
+                                    ProgressView().tint(.white)
+                                }
+                            }
+                            .frame(width: tile, height: tile)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("照片"))
                     }
-                    .padding(.horizontal, 12)
                 }
-                .frame(height: tile + 14)
             }
+            .padding(.horizontal, 12)
         }
+        .frame(height: tile + 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .task { await store.loadIfNeeded() }
     }
