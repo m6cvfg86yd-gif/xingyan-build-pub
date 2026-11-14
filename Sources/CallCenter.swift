@@ -2007,6 +2007,9 @@ extension CallCenter: RTCPeerConnectionDelegate {
         bridge.onRemoteAudioReady = { [weak self] in
             guard let self = self, self.phase != .idle, !self.callId.isEmpty else { return }
             self.note("TRTC 首音已就绪")
+            if !self.isVideo {
+                self.scheduleAudioTRTCTakeover()
+            }
         }
         let ok = await bridge.start(roomSeed: callId, video: isVideo)
         if !ok {
@@ -2042,14 +2045,18 @@ extension CallCenter: RTCPeerConnectionDelegate {
 
     private func scheduleAudioTRTCTakeover() {
         guard !isVideo, !usingTRTC, serverAudioOn, trtcJoined,
-              TRTCBridge.shared.peerInRoom, phase != .incoming else { return }
+              TRTCBridge.shared.peerInRoom,
+              TRTCBridge.shared.remoteAudioReady,
+              phase != .incoming else { return }
         Task { @MainActor [weak self] in
-            /* 对端进房后给 TRTC 媒体路由一个稳定窗口。PCM 继续兜底，
-               但不在远端音轨未就绪时立刻拆掉可听的通道。 */
+            /* 只有确认收到 TRTC 首个远端音频后才切换。PCM 继续兜底，
+               绝不能在远端音轨未就绪时拆掉已经可听的通道。 */
             try? await Task.sleep(nanoseconds: 1_200_000_000)
             guard let self = self, !Task.isCancelled, !self.isVideo,
                   !self.usingTRTC, self.serverAudioOn, self.trtcJoined,
-                  TRTCBridge.shared.peerInRoom, self.phase != .incoming else { return }
+                  TRTCBridge.shared.peerInRoom,
+                  TRTCBridge.shared.remoteAudioReady,
+                  self.phase != .incoming else { return }
             self.switchMediaToTRTC()
         }
     }
