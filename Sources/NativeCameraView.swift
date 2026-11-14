@@ -366,7 +366,6 @@ private enum NativeCameraWatermark {
             let margin = 26 * unit
             let cardHeight = 54 * unit
             let cardRadius = cardHeight / 2
-            let logoSize = 36 * unit
             let brandSize = 13.2 * unit
             let detailSize = 9.8 * unit
             let rounded = UIFont.systemFont(ofSize: brandSize, weight: .semibold)
@@ -390,10 +389,8 @@ private enum NativeCameraWatermark {
             let brandBox = brand.size(withAttributes: brandAttributes)
             let timeBox = time.size(withAttributes: timeAttributes)
             let textGap = 2.2 * unit
-            let horizontalPad = 10 * unit
-            let logoGap = 10 * unit
-            let cardWidth = horizontalPad + logoSize + logoGap
-                + max(brandBox.width, timeBox.width) + horizontalPad
+            let horizontalPad = 17 * unit
+            let cardWidth = horizontalPad * 2 + max(brandBox.width, timeBox.width)
             let cardRect = CGRect(
                 x: margin,
                 y: image.size.height - margin - cardHeight,
@@ -435,69 +432,12 @@ private enum NativeCameraWatermark {
             card.lineWidth = 0.8 * unit
             card.stroke()
 
-            let logoRect = CGRect(
-                x: cardRect.minX + horizontalPad,
-                y: cardRect.midY - logoSize / 2,
-                width: logoSize,
-                height: logoSize
-            )
-            let logoPath = UIBezierPath(
-                roundedRect: logoRect,
-                cornerRadius: logoSize * 0.30
-            )
-            context.cgContext.saveGState()
-            logoPath.addClip()
-            let brandGradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: [
-                    UIColor(red: 0.22, green: 0.86, blue: 0.52, alpha: 1).cgColor,
-                    UIColor(red: 0.02, green: 0.52, blue: 0.98, alpha: 1).cgColor
-                ] as CFArray,
-                locations: [0, 1]
-            )
-            if let brandGradient {
-                context.cgContext.drawLinearGradient(
-                    brandGradient,
-                    start: CGPoint(x: logoRect.minX, y: logoRect.minY),
-                    end: CGPoint(x: logoRect.maxX, y: logoRect.maxY),
-                    options: []
-                )
-            }
-            context.cgContext.restoreGState()
-
-            if let star = UIImage(systemName: "star.fill")?
-                .withTintColor(.white.withAlphaComponent(0.96),
-                               renderingMode: .alwaysOriginal) {
-                let starSide = logoSize * 0.58
-                star.draw(in: CGRect(
-                    x: logoRect.midX - starSide / 2,
-                    y: logoRect.midY - starSide / 2,
-                    width: starSide,
-                    height: starSide
-                ))
-            }
-
-            let textX = logoRect.maxX + logoGap
+            let textX = cardRect.minX + horizontalPad
             let brandY = cardRect.midY - textGap / 2 - brandBox.height
             brand.draw(at: CGPoint(x: textX, y: brandY),
                        withAttributes: brandAttributes)
             time.draw(at: CGPoint(x: textX, y: cardRect.midY + textGap / 2),
                       withAttributes: timeAttributes)
-
-            let cameraAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 8.2 * unit, weight: .semibold),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.48),
-                .kern: 1.6 * unit
-            ]
-            let camera = "XINGYAN CAMERA" as NSString
-            let cameraBox = camera.size(withAttributes: cameraAttributes)
-            camera.draw(
-                at: CGPoint(
-                    x: image.size.width - margin - cameraBox.width,
-                    y: image.size.height - margin - cameraBox.height
-                ),
-                withAttributes: cameraAttributes
-            )
         }
     }
 }
