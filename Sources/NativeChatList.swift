@@ -9,8 +9,7 @@ where Item.ID: Hashable {
     @ViewBuilder let row: (Item) -> Row
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(items: items,
-                    onZoneChange: onZoneChange,
+        Coordinator(onZoneChange: onZoneChange,
                     onRefresh: onRefresh,
                     row: row)
     }
@@ -101,16 +100,13 @@ where Item.ID: Hashable {
         private var order: [Item.ID] = []
         private var lastZone = -1
 
-        init(items: [Item],
-             onZoneChange: @escaping (Int) -> Void,
+        init(onZoneChange: @escaping (Int) -> Void,
              onRefresh: @escaping () -> Void,
              row: @escaping (Item) -> Row) {
             self.onZoneChange = onZoneChange
             self.onRefresh = onRefresh
             self.row = row
             super.init()
-            self.lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
-            self.order = items.map(\.id)
         }
 
         func apply(_ next: [Item], animated: Bool) {
