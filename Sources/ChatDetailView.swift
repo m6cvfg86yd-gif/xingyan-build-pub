@@ -2063,9 +2063,9 @@ struct ChatDetailView: View {
                         onNotice: { msg in app.show(msg) })
         }
         .fullScreenCover(isPresented: $showCamera) {
-
-            CameraPicker(onPick: { image in pendingMedia = .image(image) },
-                         onVideo: { url in sendRecordedVideo(url) })
+            NativeCameraView(initialMode: .photo,
+                             onPick: { image in pendingMedia = .image(image) },
+                             onVideo: { url in sendRecordedVideo(url) })
         }
 
         .fullScreenCover(isPresented: $showCameraVideo, onDismiss: {
@@ -2073,10 +2073,12 @@ struct ChatDetailView: View {
             recordedVideo = nil
             sendRecordedVideo(url)
         }) {
-            CameraVideoPicker { url in
-                recordedVideo = url
-                showCameraVideo = false
-            }
+            NativeCameraView(initialMode: .video,
+                             onPick: { image in pendingMedia = .image(image) },
+                             onVideo: { url in
+                                 recordedVideo = url
+                                 showCameraVideo = false
+                             })
         }
 
         .sheet(isPresented: $showPickCard) {
