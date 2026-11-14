@@ -53,6 +53,7 @@ struct GamesPageView: View {
 
     @State private var detail: MiniApp?
     @State private var showDetail = false
+    @State private var playingGame: MiniApp?
 
     @State private var showRankBoard = false
 
@@ -196,12 +197,18 @@ struct GamesPageView: View {
             if let g = detail {
                 GameDetailView(game: g) { pick in
                     recordPlayed(pick)
-                    app.launchMiniApp(pick)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                        playingGame = pick
+                    }
                 }
             }
         }
         .navigationDestination(isPresented: $showRankBoard) {
             GameRankBoardView(games: list)
+        }
+        .fullScreenCover(item: $playingGame) { game in
+            GameWebPage(game: game)
+                .environmentObject(app)
         }
     }
 
@@ -325,7 +332,7 @@ struct GamesPageView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(recentGames) { g in
-                        Button { recordPlayed(g); app.launchMiniApp(g) } label: {
+                        Button { play(g) } label: {
                             HStack(spacing: 8) {
                                 gameCircle(g, size: 30)
                                 Text(g.name).font(pf(12.5, .medium)).foregroundColor(ink)
@@ -361,7 +368,7 @@ struct GamesPageView: View {
 
     private func play(_ g: MiniApp) {
         recordPlayed(g)
-        app.launchMiniApp(g)
+        playingGame = g
     }
 
     private var rankEntry: some View {

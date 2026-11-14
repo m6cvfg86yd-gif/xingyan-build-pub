@@ -270,17 +270,15 @@ struct MomentFeedCard: View {
 
             Spacer(minLength: 0)
 
-            if moment.mine == true {
-                Button(action: onMore) {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.system(size: 18, weight: .regular))
-                        .foregroundColor(C.subLabel)
-                        .frame(width: 34, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Tr("更多"))
+            Button(action: onMore) {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(C.subLabel)
+                    .frame(width: 34, height: 32)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Tr("更多"))
         }
     }
 
