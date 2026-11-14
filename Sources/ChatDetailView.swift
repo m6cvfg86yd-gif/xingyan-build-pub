@@ -7404,20 +7404,86 @@ struct FilePreviewSheet: View {
         OfficeDocumentKind(fileName: name)
     }
 
+    private var fileExtension: String {
+        let ext = local.pathExtension.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ext.isEmpty ? Tr("文件") : ext.uppercased()
+    }
+
+    private var fileSizeText: String {
+        guard let size = (try? FileManager.default.attributesOfItem(atPath: local.path)[.size]) as? NSNumber
+        else { return Tr("本地文件") }
+        return ByteCountFormatter.string(fromByteCount: size.int64Value, countStyle: .file)
+    }
+
+    private var fileDateText: String {
+        guard let date = (try? FileManager.default.attributesOfItem(atPath: local.path)[.modificationDate]) as? Date
+        else { return "" }
+        return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private var fileAccent: Color {
+        switch local.pathExtension.lowercased() {
+        case "pdf": return Color(hex: 0xF04444)
+        case "doc", "docx", "pages": return Color(hex: 0x3B82F6)
+        case "xls", "xlsx", "numbers", "csv": return Color(hex: 0x20B26B)
+        case "ppt", "pptx", "key": return Color(hex: 0xF59E0B)
+        case "zip", "rar", "7z": return Color(hex: 0x8B5CF6)
+        case "txt", "md", "rtf": return Color(hex: 0x6B7280)
+        default: return Color(hex: 0x0A84FF)
+        }
+    }
+
+    private var fileSymbol: String {
+        switch local.pathExtension.lowercased() {
+        case "pdf": return "doc.richtext.fill"
+        case "doc", "docx", "pages", "txt", "md", "rtf":
+            return "doc.text.fill"
+        case "xls", "xlsx", "numbers", "csv":
+            return "tablecells.fill"
+        case "ppt", "pptx", "key":
+            return "rectangle.on.rectangle.fill"
+        case "zip", "rar", "7z":
+            return "archivebox.fill"
+        default: return "doc.fill"
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                if let kind = officeKind {
-                    OfficeDocumentHeader(kind: kind, name: name, local: local)
+            ZStack {
+                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+                VStack(spacing: 10) {
+                    if let kind = officeKind {
+                        OfficeDocumentHeader(kind: kind, name: name, local: local)
+                    } else {
+                        fileHero
+                    }
+
+                    QuickLookView(url: local)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.primary.opacity(0.075), lineWidth: 0.7)
+                        }
+                        .shadow(color: Color.black.opacity(0.055), radius: 12, y: 5)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
                 }
-                QuickLookView(url: local)
-                    .ignoresSafeArea(edges: .bottom)
             }
-            .navigationTitle(name)
+            .navigationTitle(Tr("文件预览"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(Tr("关闭")) { dismiss() }
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.primary.opacity(0.72))
+                            .frame(width: 30, height: 30)
+                            .background(Circle().fill(Color.primary.opacity(0.065)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Tr("关闭"))
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if officeKind != nil {
@@ -7462,57 +7528,124 @@ struct FilePreviewSheet: View {
         }
     }
 
+    private var fileHero: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [fileAccent, fileAccent.opacity(0.72)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                Image(systemName: fileSymbol)
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 52, height: 52)
+            .shadow(color: fileAccent.opacity(0.22), radius: 8, y: 4)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(name)
+                    .font(pf(15.5, .semibold))
+                    .foregroundStyle(C.label)
+                    .lineLimit(2)
+                HStack(spacing: 7) {
+                    Text(fileExtension)
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundStyle(fileAccent)
+                        .padding(.horizontal, 6)
+                        .frame(height: 18)
+                        .background(Capsule().fill(fileAccent.opacity(0.11)))
+                    Text(fileSizeText)
+                    if !fileDateText.isEmpty {
+                        Text("·")
+                        Text(fileDateText)
+                    }
+                }
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(C.subLabel)
+                .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(13)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.primary.opacity(0.07), lineWidth: 0.7)
+        }
+        .padding(.horizontal, 12)
+    }
+
     private var defaultActionBar: some View {
         HStack(spacing: 10) {
             Button {
                 favorite()
             } label: {
-                HStack(spacing: 6) {
+                VStack(spacing: 4) {
                     if favoriting {
-                        ProgressView().scaleEffect(0.72)
+                        ProgressView().scaleEffect(0.62).frame(height: 21)
                     } else {
-                        Image(systemName: "star")
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 18, weight: .medium))
+                            .frame(height: 21)
                     }
-                    Text(Tr("收藏")).font(pf(14, .medium))
+                    Text(Tr("收藏")).font(.system(size: 10.5, weight: .medium))
                 }
                 .foregroundColor(C.green)
                 .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(C.cardBg))
+                .frame(height: 50)
+                .background(RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(Color.primary.opacity(0.045)))
             }
             .buttonStyle(.plain)
             .disabled(favoriting)
 
             Button { showDrop = true } label: {
-                HStack(spacing: 6) {
+                VStack(spacing: 4) {
                     Image(systemName: "dot.radiowaves.left.and.right")
-                    Text(Tr("快传")).font(pf(14, .medium))
+                        .font(.system(size: 18, weight: .medium))
+                        .frame(height: 21)
+                    Text(Tr("快传")).font(.system(size: 10.5, weight: .medium))
                 }
                 .foregroundColor(C.label)
                 .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(C.cardBg))
+                .frame(height: 50)
+                .background(RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(Color.primary.opacity(0.045)))
             }
             .buttonStyle(.plain)
 
             Button { showShare = true } label: {
-                HStack(spacing: 6) {
+                VStack(spacing: 4) {
                     Image(systemName: "square.and.arrow.up")
-                    Text(Tr("分享")).font(pf(14, .medium))
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(height: 21)
+                    Text(Tr("分享")).font(.system(size: 10.5, weight: .semibold))
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(C.green))
+                .frame(height: 50)
+                .background(
+                    LinearGradient(
+                        colors: [Color(hex: 0x4EDC7C), C.green],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                )
+                .shadow(color: C.green.opacity(0.18), radius: 7, y: 3)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(.bar)
+        .padding(.vertical, 9)
+        .background(.ultraThinMaterial)
     }
 
     private func printDocument() {
