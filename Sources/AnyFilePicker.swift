@@ -2,8 +2,8 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
-/// 微信式“所有文件”选择器。`asCopy` 让 iCloud / 第三方文件提供器先把选中的文件
-/// 复制到 App 可读的临时目录，`.ipa` 等非标准文档扩展也能正常选中并回传。
+/// 微信式“所有文件”选择器。直接回传安全作用域 URL，上传时流式读取，
+/// 避免大文件在开始上传前先被完整复制一份。
 struct AnyFilePicker: UIViewControllerRepresentable {
     var allowsMultipleSelection = true
     let onPick: ([URL]) -> Void
@@ -16,7 +16,7 @@ struct AnyFilePicker: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         let picker = UIDocumentPickerViewController(
             forOpeningContentTypes: [.item],
-            asCopy: true
+            asCopy: false
         )
         picker.delegate = context.coordinator
         picker.allowsMultipleSelection = allowsMultipleSelection

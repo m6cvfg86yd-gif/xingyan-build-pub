@@ -5180,10 +5180,33 @@ struct ChatDetailView: View {
         let ok = url.startAccessingSecurityScopedResource()
         defer { if ok { url.stopAccessingSecurityScopedResource() } }
 
-        // AnyFilePicker 已经用 asCopy 把文件放进了 App 可读的本地副本，
-        // 这里直接流式上传，避免大文件在发送前再整份复制一次。
-        let values = try? url.resourceValues(forKeys: [.fileSizeKey, .nameKey])
-        let sizeBytes = values?.fileSize ?? 0
+        // 文件 URL 在安全作用域内直接流式上传，不在发送前复制整份文件。
+        var uploadURL = url
+        var temporaryCopy: URL?
+        let values = try? url.resourceValues(forKeys: [.fileSizeKey, .nameKey, .isRegularFileKey])
+        if (values?.fileSize ?? 0) <= 0 || values?.isRegularFile != true {
+            let copy = FileManager.default.temporaryDirectory
+                .appendingPathComponent("xingyan-upload-\(UUID().uuidString)-\(url.lastPathComponent)")
+            var coordinationError: NSError?
+            NSFileCoordinator().coordinate(readingItemAt: url,
+                                           options: .withoutChanges,
+                                           error: &coordinationError) { readableURL in
+                try? FileManager.default.copyItem(at: readableURL, to: copy)
+            }
+            if FileManager.default.fileExists(atPath: copy.path) {
+                uploadURL = copy
+                temporaryCopy = copy
+            }
+        }
+        defer {
+            if let temporaryCopy {
+                try? FileManager.default.removeItem(at: temporaryCopy)
+            }
+        }
+        let uploadedValues = try? uploadURL.resourceValues(
+            forKeys: [.fileSizeKey, .nameKey, .isRegularFileKey]
+        )
+        let sizeBytes = uploadedValues?.fileSize ?? values?.fileSize ?? 0
         let name = values?.name ?? url.lastPathComponent
         if sizeBytes > 100 * 1024 * 1024 {
             app.show(Tr("这个文件超过 100MB，先压缩一下再发"))
@@ -5209,14 +5232,13 @@ struct ChatDetailView: View {
             ?? "application/octet-stream"
         do {
             let uploadedURL = try await API.shared.uploadBinaryFile(
-                url, mime: "application/octet-stream", skipTranscode: true, onProgress: { p in
+                uploadURL, mime: "application/octet-stream", skipTranscode: true, onProgress: { p in
                     let value = min(1, max(0.01, p))
                     DispatchQueue.main.async {
                         guard sendingFileName == name else { return }
                         sendingFileProgress = value
                     }
                 })
-            LocalStore.keepOriginal(uploadedURL, from: url)
             let body: [String: Any] = [
                 "url": uploadedURL,
                 "name": name,
