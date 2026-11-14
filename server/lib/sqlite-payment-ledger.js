@@ -41,11 +41,11 @@ class SqlitePaymentLedger {
     this.db = new DatabaseSync(this.file);
     try { fs.chmodSync(this.file, 0o600); } catch (_) { /* Windows / mounted volume */ }
     this.closed = false;
-    this.db.exec(`
+    this.execBusy('PRAGMA busy_timeout = 10000;');
+    this.execBusy(`
       PRAGMA journal_mode = WAL;
       PRAGMA synchronous = FULL;
       PRAGMA foreign_keys = ON;
-      PRAGMA busy_timeout = 10000;
       PRAGMA trusted_schema = OFF;
 
       CREATE TABLE IF NOT EXISTS payment_meta (
@@ -92,6 +92,20 @@ class SqlitePaymentLedger {
     this.ensureMeta('schema_version', '1');
   }
 
+  execBusy(sql, attempts) {
+    const max = Math.max(1, Number(attempts) || 120);
+    for (let attempt = 0; attempt < max; attempt += 1) {
+      try {
+        this.db.exec(String(sql || ''));
+        return;
+      } catch (error) {
+        const code = Number(error && error.errcode);
+        if ((code !== 5 && code !== 6) || attempt + 1 >= max) throw error;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+      }
+    }
+  }
+
   ensureMeta(key, value) {
     this.db.prepare(`
       INSERT INTO payment_meta(key, value) VALUES(?, ?)
@@ -130,13 +144,13 @@ class SqlitePaymentLedger {
   }
 
   transaction(work) {
-    this.db.exec('BEGIN IMMEDIATE');
+    this.execBusy('BEGIN IMMEDIATE');
     try {
       const value = work();
-      this.db.exec('COMMIT');
+      this.execBusy('COMMIT');
       return value;
     } catch (error) {
-      try { this.db.exec('ROLLBACK'); } catch (_) { /* preserve original error */ }
+      try { this.execBusy('ROLLBACK'); } catch (_) { /* preserve original error */ }
       throw error;
     }
   }

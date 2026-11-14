@@ -25,7 +25,7 @@ class PaymentDatabase extends SqlitePaymentLedger {
     const opts = options || {};
     this.keyring = opts.keyring;
     if (!this.keyring) throw new Error('payment intent keyring is required');
-    this.db.exec(`
+    this.execBusy(`
       CREATE TABLE IF NOT EXISTS payment_devices (
         token_id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
