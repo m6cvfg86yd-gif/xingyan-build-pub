@@ -40,7 +40,7 @@ struct MediaPicker: UIViewControllerRepresentable {
     var onNotice: ((String) -> Void)? = nil
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
-        var cfg = PHPickerConfiguration(photoLibrary: .shared())
+        var cfg = PHPickerConfiguration()
         cfg.filter = videosOnly ? .videos : .any(of: [.images, .videos, .livePhotos])
         cfg.selectionLimit = videosOnly ? 1 : max(1, maxImages)
         cfg.selection = .ordered
