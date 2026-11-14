@@ -3,18 +3,18 @@
   "files": [
     {
       "path": "Sources/API.swift",
-      "size": 213697,
-      "sha256": "8b2a851ebc00bc1cc1c6c307842773c06557852ab49fc0ea8253f1635f57769c"
+      "size": 215470,
+      "sha256": "c25e45eb9c453bd4c00a8157c6941840d67f30c259f7b43062f8e29a602d0387"
     },
     {
       "path": "Sources/App.swift",
-      "size": 168667,
-      "sha256": "bee1c816e40f218424e291fa9522b417c01cd25b10a970db720e0ad6027a4c07"
+      "size": 171327,
+      "sha256": "26b07f0f3b7263caadfbd54b15d1ef26930fc9c8e612d60bb26ac229e16f15dc"
     },
     {
       "path": "Sources/Realtime.swift",
-      "size": 19335,
-      "sha256": "613a228afac4bb06b8ec19acccb5dc5f094122b65113348211798be9cbe16279"
+      "size": 19409,
+      "sha256": "32bb28d9ed4ff24a8b1922772f819b513809caf3c7816e1c821e92cd63d7eadd"
     },
     {
       "path": "Sources/CallAudio.swift",
@@ -73,8 +73,8 @@
     },
     {
       "path": "Sources/ChatDetailView.swift",
-      "size": 308426,
-      "sha256": "a463c3036f6401eb111dfbfcaddeee36376365b0109b401cd0a8ee3657f5dc6d"
+      "size": 308903,
+      "sha256": "483b0064af453e65ce38bd495e693665c8b4fb7b63e5a7921dd5df5c4e489a0b"
     },
     {
       "path": "Sources/GroupInfoView.swift",
