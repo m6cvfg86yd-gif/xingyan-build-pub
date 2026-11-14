@@ -1289,6 +1289,10 @@ private final class MomentScrollMetrics {
     var baseTop: CGFloat? = nil
 }
 
+private final class MomentDragClock {
+    var lastDragAt = Date(timeIntervalSince1970: 0)
+}
+
 struct MomentsView: View {
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
@@ -1382,7 +1386,7 @@ struct MomentsView: View {
     @State private var spin: Double = 0
     @State private var spinTask: Task<Void, Never>?
 
-    @State private var lastDragAt = Date(timeIntervalSince1970: 0)
+    @State private var dragClock = MomentDragClock()
     @State private var scrollGateActive = false
     @ObservedObject private var realtime = Realtime.shared
 
@@ -1477,20 +1481,23 @@ struct MomentsView: View {
                     }
             )
             .simultaneousGesture(
-                DragGesture(minimumDistance: 8)
+                    DragGesture(minimumDistance: 8)
                     .onChanged { v in
-                        lastDragAt = Date()
+                        dragClock.lastDragAt = Date()
                         guard !sentinelGone else { return }
                         let dy = v.translation.height
                         if dy > 0 {
-                            pullY = min(140, dy)
+                            let next = min(140, dy)
+                            if abs(next - pullY) >= 0.25 {
+                                pullY = next
+                            }
                             if !pulling { spin = Double(pullY) * 3.2 }
-                        } else if !pulling {
+                        } else if pullY > 0 && !pulling {
                             pullY = 0
                         }
                     }
                     .onEnded { _ in
-                        lastDragAt = Date()
+                        dragClock.lastDragAt = Date()
                         if pullY > 60 && !pulling { startPullRefresh() }
                         if !pulling { pullY = 0 }
                     }
@@ -1503,7 +1510,7 @@ struct MomentsView: View {
                     if Task.isCancelled { return }
                     if pulling {
 
-                        if Date().timeIntervalSince(lastDragAt) > 10 {
+                        if Date().timeIntervalSince(dragClock.lastDragAt) > 10 {
                             CrashCatcher.note("朋友圈", "下拉刷新超过 10 秒没回来，先收球")
                             pulling = false
                             pullY = 0
@@ -1511,7 +1518,7 @@ struct MomentsView: View {
                         }
                         continue
                     }
-                    if pullY > 0 && Date().timeIntervalSince(lastDragAt) > 0.4 {
+                    if pullY > 0 && Date().timeIntervalSince(dragClock.lastDragAt) > 0.4 {
                         pullY = 0
                         spin = 0
                         return
