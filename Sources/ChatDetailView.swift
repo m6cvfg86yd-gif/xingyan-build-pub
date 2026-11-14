@@ -6722,72 +6722,81 @@ struct MessageRow: View {
             return 0
         }()
         let levels = voiceLevels(o, count: 36)
-        let width = min(278, 188 + CGFloat(secs) * 1.65)
+        let width = min(286, 196 + CGFloat(secs) * 1.45)
         let live = playing || scrubbing
 
-        return VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
-        HStack(spacing: 10) {
+        return HStack(spacing: 10) {
             if mine { Spacer(minLength: 0) }
 
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(C.green.opacity(0.12))
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: 0x4EDC7C), C.green],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                     Circle()
-                        .stroke(C.green.opacity(0.20),
-                                lineWidth: 0.7)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 0.7)
+                    Circle()
+                        .fill(Color.white.opacity(0.12))
+                        .frame(width: 25, height: 25)
                     Image(systemName: playing ? "pause.fill" : "play.fill")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(C.green)
+                        .font(.system(size: 12.5, weight: .bold))
+                        .foregroundStyle(.white)
                         .offset(x: playing ? 0 : 1)
                 }
-                .frame(width: 34, height: 34)
+                .frame(width: 38, height: 38)
+                .shadow(color: C.green.opacity(0.20), radius: 6, y: 2)
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     voiceProgressTrack(levels: levels, progress: dot, live: live)
-                        .frame(height: 24)
+                        .frame(height: 25)
 
-                    HStack(spacing: 4) {
-                        Text(voiceClock(elapsed))
-                            .foregroundStyle(live
-                                ? C.green
-                                : ChatTheme.secondary)
-                        Text("/")
-                            .foregroundStyle(ChatTheme.secondary.opacity(0.45))
-                        Text(voiceClock(total))
-                            .foregroundStyle(ChatTheme.secondary)
+                    HStack(spacing: 5) {
+                        Text(live ? voiceClock(elapsed) : voiceClock(total))
+                            .foregroundStyle(live ? C.green : bubbleSecondaryInk)
+                        if live {
+                            Text("/")
+                                .foregroundStyle(bubbleSecondaryInk.opacity(0.38))
+                            Text(voiceClock(total))
+                                .foregroundStyle(bubbleSecondaryInk)
+                        }
                         Spacer(minLength: 0)
+                        if live { speedChip }
                     }
-                    .font(pfStyled(size: 10.5, weight: .medium, design: .monospaced))
+                    .font(pfStyled(size: 10, weight: .medium, design: .monospaced))
                 }
                 .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 11)
-            .frame(width: width, height: 58, alignment: .leading)
+            .padding(.horizontal, 12)
+            .frame(width: width, height: 64, alignment: .leading)
+            .background(BubbleFill(mine: mine,
+                                   tail: showTail,
+                                   seed: bubbleSeed(message.id)))
+            .overlay(alignment: .topTrailing) {
+                if !mine, !playedVoice.contains(message.id),
+                   !VoicePlayed.isPlayed(message.id) {
+                    Circle().fill(Color(.systemRed))
+                        .frame(width: 8, height: 8)
+                        .offset(x: -5, y: 5)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                playedVoice.insert(message.id)
+                VoicePlayed.markPlayed(message.id)
+                guard let url = voiceURL() else {
+                    onShowToast?(Tr("这条语音找不到了"))
+                    return
+                }
+                voicePlayer.toggle(id: message.id, url: url)
+            }
+            .animation(.easeOut(duration: 0.16), value: playing)
 
             if !mine { Spacer(minLength: 0) }
-        }
-        .background(BubbleFill(mine: mine, tail: showTail, seed: bubbleSeed(message.id)))
-
-        .overlay(alignment: .topTrailing) {
-            if !mine, !playedVoice.contains(message.id), !VoicePlayed.isPlayed(message.id) {
-                Circle().fill(Color(.systemRed))
-                    .frame(width: 8, height: 8)
-                    .offset(x: -5, y: 5)
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            playedVoice.insert(message.id)
-            VoicePlayed.markPlayed(message.id)
-            guard let url = voiceURL() else {
-                onShowToast?(Tr("这条语音找不到了"))
-                return
-            }
-            voicePlayer.toggle(id: message.id, url: url)
-        }
-
-        if playing || scrubbing { speedChip }
         }
     }
 
@@ -6821,7 +6830,7 @@ struct MessageRow: View {
                     for i in 0..<count {
                         let at = (Double(i) + 0.5) / Double(count)
                         let level = levels[min(i, levels.count - 1)]
-                        let barHeight = max(3.5, level * (size.height - 2))
+                        let barHeight = max(4, level * (size.height - 3))
                         let rect = CGRect(
                             x: CGFloat(i) * (barWidth + gap),
                             y: (size.height - barHeight) / 2,
@@ -6831,20 +6840,18 @@ struct MessageRow: View {
                         let path = Path(roundedRect: rect, cornerRadius: barWidth / 2)
                         let color = at <= clamped && live
                             ? C.green
-                            : ChatTheme.ink.opacity(0.20)
+                            : bubblePrimaryInk.opacity(live ? 0.16 : 0.24)
                         context.fill(path, with: .color(color))
                     }
                 }
 
                 if live {
-                    Circle()
-                        .fill(C.green)
-                        .frame(width: 8, height: 8)
-                        .overlay(Circle().stroke(Color.white.opacity(0.92),
-                                                 lineWidth: 1.5))
-                        .shadow(color: C.green.opacity(0.22),
-                                radius: 3, y: 1)
-                        .position(x: min(width - 4, max(4, width * clamped)),
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.96))
+                        .frame(width: 2, height: max(12, height - 2))
+                        .shadow(color: C.green.opacity(0.48),
+                                radius: 3, y: 0)
+                        .position(x: min(width - 2, max(2, width * clamped)),
                                   y: height / 2)
                 }
             }
@@ -6872,14 +6879,13 @@ struct MessageRow: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             Text(voicePlayer.rate > 1.5 ? "2x" : "1x")
-                .font(pf(11, .semibold))
+                .font(.system(size: 9.5, weight: .bold, design: .rounded))
                 .foregroundColor(C.green)
-                .frame(width: 32, height: 19)
-                .background(Capsule().fill(ChatTheme.composerBg.opacity(0.94)))
-                .overlay(Capsule().stroke(ChatTheme.separator, lineWidth: 0.5))
+                .frame(width: 28, height: 19)
+                .background(Capsule().fill(C.green.opacity(0.11)))
+                .overlay(Capsule().stroke(C.green.opacity(0.16), lineWidth: 0.6))
         }
         .buttonStyle(.plain)
-        .padding(mine ? .trailing : .leading, 2)
     }
 
     private func voiceURL() -> URL? {
