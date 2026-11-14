@@ -44,6 +44,21 @@ enum ChatAppearancePreset: String, CaseIterable, Identifiable {
         }
     }
 
+    var symbol: String {
+        switch self {
+        case .whatsapp: return "message.fill"
+        case .midnight: return "moon.stars.fill"
+        case .rose: return "heart.fill"
+        case .ocean: return "water.waves"
+        case .sage: return "leaf.fill"
+        case .lavender: return "sparkles"
+        case .sunset: return "sun.horizon.fill"
+        case .graphite: return "circle.grid.cross.fill"
+        case .mint: return "drop.fill"
+        case .sand: return "mountain.2.fill"
+        }
+    }
+
     var mine: Color {
         switch self {
         case .whatsapp: return Color.dyn(0x0C7A70, 0x005C4B)
@@ -191,7 +206,7 @@ struct ChatThemePickerView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(Tr("选择主题"))
                             .font(.title3.weight(.semibold))
-                        Text(Tr("主题会同时改变收发气泡、聊天底色和输入区，不会覆盖你单独设置的壁纸。"))
+                        Text(Tr("主题会同时改变聊天背景、上下遮罩、收发气泡和输入区；单独设置的聊天壁纸仍然优先。"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -280,6 +295,9 @@ struct ChatThemePickerView: View {
                             .fill(preset.mine)
                             .frame(width: 7, height: 7)
                             .shadow(color: preset.mine.opacity(0.38), radius: 4)
+                        Image(systemName: preset.symbol)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(preset.mine)
                         Text(preset.title)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(preset == .midnight ? Color.white : Color.primary)
@@ -400,6 +418,21 @@ struct ChatThemePickerView: View {
                     startRadius: 1,
                     endRadius: 60
                 )
+
+                Circle()
+                    .fill(preset.mine.opacity(0.20))
+                    .frame(width: 24, height: 24)
+                    .blur(radius: 7)
+                    .offset(x: 23, y: -18)
+
+                Image(systemName: preset.symbol)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(
+                        preset == .midnight || preset == .graphite
+                            ? Color.white.opacity(0.78)
+                            : preset.mine.opacity(0.76)
+                    )
+                    .offset(x: 24, y: -18)
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 3) {

@@ -1427,12 +1427,9 @@ struct ChatDetailView: View {
         let per = ChatBgStore.shared.get(chat.id)
         if !per.isEmpty, per != "auto" { return normalizedChatBackground(per) }
         let v = effectiveGlobalChatBackground(app.me?.chatBackground)
-        if v.isEmpty || v == "auto" {
-
-            let def = app.defaultChatBackground
-            return effectiveDefaultChatBackground(def)
-        }
-        return normalizedChatBackground(v)
+        if !v.isEmpty, v != "auto" { return normalizedChatBackground(v) }
+        // 主题是一整套外观：没有单独聊天壁纸时，背景也由主题控制。
+        return ""
     }
 
     private var usesPlainDefaultChatChrome: Bool {
