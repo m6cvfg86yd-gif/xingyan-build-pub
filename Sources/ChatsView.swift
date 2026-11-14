@@ -161,98 +161,6 @@ struct RowSwipeCatcher: UIViewRepresentable {
     }
 }
 
-private struct ConversationScrollFeel: UIViewRepresentable {
-    final class Coordinator {
-        weak var scrollView: UIScrollView?
-        var offsetObservation: NSKeyValueObservation?
-        var lastZone = -1
-        var onZoneChange: (Int) -> Void = { _ in }
-
-        func publishZone(_ scroll: UIScrollView) {
-            let y = scroll.contentOffset.y
-            let zone: Int
-            if y < 1 { zone = 0 }
-            else if y <= 8 { zone = 1 }
-            else if y <= 14 { zone = 2 }
-            else { zone = 3 }
-            guard zone != lastZone else { return }
-            lastZone = zone
-            let callback = onZoneChange
-            DispatchQueue.main.async { callback(zone) }
-        }
-    }
-
-    let onZoneChange: (Int) -> Void
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        view.backgroundColor = .clear
-        view.isUserInteractionEnabled = false
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.onZoneChange = onZoneChange
-        DispatchQueue.main.async {
-            var current: UIView? = uiView
-            while let view = current {
-                if let scroll = view as? UIScrollView {
-                    if context.coordinator.scrollView !== scroll {
-                        context.coordinator.offsetObservation = nil
-                        context.coordinator.scrollView = scroll
-                        context.coordinator.lastZone = -1
-                        scroll.isDirectionalLockEnabled = false
-                        scroll.alwaysBounceVertical = true
-                        scroll.alwaysBounceHorizontal = false
-                        scroll.bounces = true
-                        scroll.delaysContentTouches = true
-                        scroll.canCancelContentTouches = true
-                        scroll.decelerationRate = .normal
-                        scroll.keyboardDismissMode = .interactive
-                        scroll.showsVerticalScrollIndicator = false
-                        scroll.scrollsToTop = true
-                        context.coordinator.offsetObservation =
-                            scroll.observe(\.contentOffset, options: [.new]) { [weak coordinator = context.coordinator, weak scroll] _, _ in
-                                guard let coordinator, let scroll else { return }
-                                coordinator.publishZone(scroll)
-                            }
-                    }
-                    context.coordinator.publishZone(scroll)
-                    return
-                }
-                current = view.superview
-            }
-        }
-    }
-}
-
-private struct ChatsScrollTelemetry: ViewModifier {
-    let onZoneChange: (Int) -> Void
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
-            content.onScrollGeometryChange(for: Int.self) { geometry in
-                let y = geometry.contentOffset.y
-                if y < 1 { return 0 }
-                if y <= 8 { return 1 }
-                if y <= 14 { return 2 }
-                return 3
-            } action: { oldZone, newZone in
-                if oldZone != newZone {
-                    onZoneChange(newZone)
-                }
-            }
-        } else {
-            content.background {
-                ConversationScrollFeel(onZoneChange: onZoneChange)
-            }
-        }
-    }
-}
-
 private struct OfficialRowAdminEditor: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
@@ -1123,6 +1031,34 @@ private struct RowSwipeActionButtonStyle: ButtonStyle {
         configuration.label
             .opacity(configuration.isPressed ? 0.76 : 1)
             .animation(.easeOut(duration: 0.10), value: configuration.isPressed)
+    }
+}
+
+private struct NativeChatEntry: Identifiable, Equatable {
+    enum Kind: Equatable {
+        case top
+        case search
+        case official
+        case pay
+        case chat
+        case empty
+        case weather
+        case bottom
+    }
+
+    let id: String
+    let kind: Kind
+    let signature: String
+    let chat: Chat?
+
+    init(id: String,
+         kind: Kind,
+         signature: String = "",
+         chat: Chat? = nil) {
+        self.id = id
+        self.kind = kind
+        self.signature = signature
+        self.chat = chat
     }
 }
 
@@ -2327,20 +2263,100 @@ struct ChatsView: View {
         }
     }
 
-    @ViewBuilder private func chatListRows(_ chats: [Chat]) -> some View {
-        ForEach(chats) { chat in
-            SwipeChatRow(
-                chat: chat,
-                app: app,
-                onOpen: { openRow(chat) },
-                onTapAvatar: ((chat.botRank ?? 9) < 9) ? { botCardChat = chat } : nil,
-                onUnread: { markUnread(chat) },
-                onHide: { clear in hide(chat, clear: clear) },
-                onDelete: { remove(chat) },
-                onPin: { pinned in togglePin(chat, pinned: pinned) },
-                cardStyle: chatsCardStyle,
-                horizontalInset: chatsCardStyle ? chatsCardInset : chatsContentSideInset
+    private func nativeChatEntries(_ snapshot: ChatFilterSnapshot) -> [NativeChatEntry] {
+        let appearance = "\(scheme)-\(Lang.code)-\(UIConfig.text("chatsBackground", ""))"
+        var entries: [NativeChatEntry] = [
+            NativeChatEntry(
+                id: "top",
+                kind: .top,
+                signature: "\(appearance)-\(chatFilterOffset)-\(L.safeTop)-\(chatsHeaderH)"
+            ),
+            NativeChatEntry(
+                id: "search",
+                kind: .search,
+                signature: "\(appearance)-\(Tr("搜索"))"
+            ),
+            NativeChatEntry(
+                id: "official",
+                kind: .official,
+                signature: "\(appearance)-\(officialRowName)-\(officialRowSubtitle)-\(officialRowAvatar)-\(app.me?.ops == true)"
+            ),
+            NativeChatEntry(
+                id: "pay",
+                kind: .pay,
+                signature: "\(appearance)-\(payOfficialRowName)-\(payOfficialRowSubtitle)-\(payOfficialRowAvatar)-\(app.me?.ops == true)"
             )
+        ]
+
+        if snapshot.list.isEmpty {
+            entries.append(NativeChatEntry(
+                id: "empty",
+                kind: .empty,
+                signature: "\(appearance)-\(Tr("这个分类暂时没有会话"))"
+            ))
+        } else {
+            entries.append(contentsOf: snapshot.list.map { chat in
+                NativeChatEntry(
+                    id: "chat:\(chat.id)",
+                    kind: .chat,
+                    signature: "\(appearance)-\(app.contactVisualRevision)",
+                    chat: chat
+                )
+            })
+        }
+
+        entries.append(NativeChatEntry(
+            id: "weather",
+            kind: .weather,
+            signature: "\(appearance)-\(weatherRowName)-\(weatherRowSubtitle)-\(weatherRowAvatar)-\(app.me?.ops == true)"
+        ))
+        entries.append(NativeChatEntry(
+            id: "bottom",
+            kind: .bottom,
+            signature: "\(L.tabH)-\(L.safeBottom)"
+        ))
+        return entries
+    }
+
+    @ViewBuilder
+    private func nativeChatEntry(_ entry: NativeChatEntry) -> some View {
+        switch entry.kind {
+        case .top:
+            Color.clear
+                .frame(height: L.safeTop + chatsHeaderH + chatFilterOffset)
+        case .search:
+            chatsSearchBar
+        case .official:
+            officialConversationRow
+        case .pay:
+            payOfficialConversationRow
+        case .chat:
+            if let chat = entry.chat {
+                SwipeChatRow(
+                    chat: chat,
+                    app: app,
+                    onOpen: { openRow(chat) },
+                    onTapAvatar: ((chat.botRank ?? 9) < 9) ? { botCardChat = chat } : nil,
+                    onUnread: { markUnread(chat) },
+                    onHide: { clear in hide(chat, clear: clear) },
+                    onDelete: { remove(chat) },
+                    onPin: { pinned in togglePin(chat, pinned: pinned) },
+                    cardStyle: chatsCardStyle,
+                    horizontalInset: chatsCardStyle ? chatsCardInset : chatsContentSideInset
+                )
+            }
+        case .empty:
+            Text(Tr("这个分类暂时没有会话"))
+                .font(pf(14))
+                .foregroundColor(C.subLabel)
+                .frame(maxWidth: .infinity)
+                .frame(height: 126)
+        case .weather:
+            weatherConversationRow
+                .frame(width: chatsContentMaxWidth)
+        case .bottom:
+            Color.clear
+                .frame(height: L.tabH + L.safeBottom + 10)
         }
     }
 
@@ -2364,51 +2380,20 @@ struct ChatsView: View {
                         Spacer(minLength: 0)
                     }
                 } else {
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(spacing: 0) {
-
-                            Color.clear.frame(height: L.safeTop + chatsHeaderH
-                                              + chatFilterOffset)
-                            chatsSearchBar
-                            officialConversationRow
-                                .frame(width: chatsContentMaxWidth)
-                            payOfficialConversationRow
-                                .frame(width: chatsContentMaxWidth)
-                            if snapshot.list.isEmpty {
-                                Text(Tr("这个分类暂时没有会话"))
-                                    .font(pf(14))
-                                    .foregroundColor(C.subLabel)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.top, 54)
-                            }
-                            if chatsCardStyle {
-                                LazyVStack(spacing: 0) {
-                                    chatListRows(snapshot.list)
-                                }
-                                .background { chatsCardBackground }
-                                .clipShape(RoundedRectangle(cornerRadius: chatsCardRadius,
-                                                            style: .continuous))
-                                .padding(.horizontal, chatsCardInset)
-                                .padding(.top, 6)
-                                .padding(.bottom, 10)
-                            } else {
-                                chatListRows(snapshot.list)
-                            }
-                            weatherConversationRow
-                                .frame(width: chatsContentMaxWidth)
-
-                            Color.clear.frame(height: L.tabH + L.safeBottom + 10)
-                        }
-
-                        .modifier(ChatsScrollTelemetry { zone in
+                    NativeChatList(
+                        items: nativeChatEntries(snapshot),
+                        onZoneChange: { zone in
                             handleScrollZone(zone)
-                        })
+                        },
+                        onRefresh: {
+                            Task { await app.loadChats() }
+                        }
+                    ) { entry in
+                        nativeChatEntry(entry)
                     }
                     .id(chatFilter)
-                    .coordinateSpace(name: "chatsScroll")
                     .ignoresSafeArea(edges: .top)
                     .background(Color.clear)
-                    .refreshable { await app.loadChats() }
                 }
 
                 if pullDown > 0.5 || floorUp {
