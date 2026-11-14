@@ -2054,18 +2054,17 @@ struct ChatDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: $showPhoto) {
 
-            MediaPicker(onImage: { image in pendingMedia = .image(image) },
-                        onVideo: { url in
-                            Task {
-                                let cover = await MediaTool.firstFrame(url)
-                                pendingMedia = .video(url, cover)
-                            }
-                        },
-                        onLive: { image, url in pendingMedia = .live(image, url) },
-                        maxImages: 9,
-                        onImages: { stageDraftImages($0) },
-
-                        onNotice: { msg in app.show(msg) })
+            NativeMediaPicker(onImage: { image in pendingMedia = .image(image) },
+                              onVideo: { url in
+                                  Task {
+                                      let cover = await MediaTool.firstFrame(url)
+                                      pendingMedia = .video(url, cover)
+                                  }
+                              },
+                              onLive: { image, url in pendingMedia = .live(image, url) },
+                              maxImages: 9,
+                              onImages: { stageDraftImages($0) },
+                              onNotice: { msg in app.show(msg) })
         }
         .fullScreenCover(isPresented: $showCamera) {
             NativeCameraView(initialMode: .photo,
