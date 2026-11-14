@@ -1420,16 +1420,16 @@ struct ChatDetailView: View {
     private var needBurnSweep: Bool { burnOn || hasBurnMsg }
 
     private var backgroundPath: String {
-
+        // 主题是一整套外观。用户主动选过主题后，旧的自定义壁纸不再遮挡主题背景。
+        if ChatThemeStore.shared.hasExplicitSelection(chatId: chat.id) {
+            return ""
+        }
         if let synced = app.me?.chatBackgrounds?[chat.id],
            !synced.isEmpty, synced != "auto" {
             return normalizedChatBackground(synced)
         }
         let per = ChatBgStore.shared.get(chat.id)
         if !per.isEmpty, per != "auto" { return normalizedChatBackground(per) }
-        if ChatThemeStore.shared.hasExplicitSelection(chatId: chat.id) {
-            return ""
-        }
         let v = effectiveGlobalChatBackground(app.me?.chatBackground)
         if !v.isEmpty, v != "auto" { return normalizedChatBackground(v) }
         // 未主动选过主题时保留旧的全局面板壁纸；选过主题后由整套主题接管背景。

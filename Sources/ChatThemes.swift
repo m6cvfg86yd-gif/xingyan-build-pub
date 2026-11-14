@@ -211,7 +211,7 @@ struct ChatThemePickerView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(Tr("选择主题"))
                             .font(.title3.weight(.semibold))
-                        Text(Tr("主题会同时改变聊天背景、上下遮罩、收发气泡和输入区；单独设置的聊天壁纸仍然优先。"))
+                        Text(Tr("选择主题后，聊天背景会恢复为该主题的默认背景，同时改变上下遮罩、收发气泡和输入区。"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
