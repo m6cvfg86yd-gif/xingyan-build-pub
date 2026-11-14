@@ -3,6 +3,7 @@ import SwiftUI
 struct RechargeView: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var amountText = ""
     @State private var banks: [API.WalletBankCard] = []
@@ -134,7 +135,16 @@ struct RechargeView: View {
                 await app.refreshAll()
                 busy = false
                 dismiss()
-                app.show(Tr("充值成功") + " ¥" + money(amount) + "，" + Tr("零钱") + " ¥" + money(r.balance ?? 0))
+                if r.pending == true {
+                    if let raw = r.checkoutUrl, let url = URL(string: raw), !raw.isEmpty {
+                        app.show(Tr("充值订单已创建，请在支付机构完成付款"))
+                        openURL(url)
+                    } else {
+                        app.show(Tr("充值订单已创建，等待支付机构确认"))
+                    }
+                } else {
+                    app.show(Tr("充值成功") + " ¥" + money(amount) + "，" + Tr("零钱") + " ¥" + money(r.balance ?? 0))
+                }
             } catch {
                 busy = false
                 app.show((error as? APIError)?.errorDescription ?? Tr("充值失败"))

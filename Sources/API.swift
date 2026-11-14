@@ -3029,6 +3029,24 @@ private struct StarredPayload: Decodable {
         var bankText: String?
         var expect: String?
         var status: String?
+        var pending: Bool?
+        var checkoutUrl: String?
+        var qrCode: String?
+        var expiresAt: String?
+        var order: FundingOrder?
+    }
+
+    struct FundingOrder: Decodable, Identifiable, Hashable {
+        var id: String
+        var kind: String?
+        var amount: Double?
+        var fee: Double?
+        var status: String?
+        var provider: String?
+        var providerRef: String?
+        var createdAt: String?
+        var settledAt: String?
+        var failureCode: String?
     }
 
     func walletRecharge(amount: Double, bankId: String) async throws -> MoneyResult {
@@ -5615,15 +5633,34 @@ private struct StarredPayload: Decodable {
         var transfer: TransferPayment?
     }
 
+    struct PaymentStatus: Decodable {
+        var mode: String?
+        var database: String?
+        var databaseReady: Bool?
+        var providerReady: Bool?
+        var provider: String?
+        var realMoneyReady: Bool?
+        var amlEnforcement: Bool?
+    }
+
+    func paymentStatus() async throws -> PaymentStatus {
+        try await get("/api/payment/status", as: PaymentStatus.self)
+    }
+
     func transfer(chatId: String, amount: Double, note: String,
                   method: String, password: String, face: Bool = false) async throws -> TransferReceipt {
-        if face, PaymentDeviceSigning.secureHardwareAvailable {
+        let status = try? await paymentStatus()
+        let serverRequiresSecureDevice = status?.mode == "enforce"
+        if (serverRequiresSecureDevice || face), PaymentDeviceSigning.secureHardwareAvailable {
             return try await transferWithSecureDevice(
                 chatId: chatId,
                 amount: amount,
                 note: note,
                 method: method
             )
+        }
+        if serverRequiresSecureDevice {
+            throw APIError.message("这台设备不支持安全区支付密钥，无法完成真钱转账")
         }
         let any = try await request("POST", "/api/pay/transfer", body: [
             "chatId": chatId,

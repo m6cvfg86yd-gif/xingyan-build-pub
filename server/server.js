@@ -49,15 +49,53 @@ let shardShadowAuditTimer = null;
 let paymentDeviceEnrollment = null;
 let paymentTokenVault = null;
 let paymentIntentEngine = null;
+let paymentDatabase = null;
+let paymentProvider = null;
+let paymentOutboxTimer = null;
+let paymentBackupTimer = null;
+let paymentRealMoneyReady = false;
 const paymentIntentChallenges = new Map();
 const paymentCoreMode = ['off', 'shadow', 'enforce'].includes(
   String(process.env.PAYMENT_REAL_MONEY_MODE || 'off').toLowerCase()
 )
   ? String(process.env.PAYMENT_REAL_MONEY_MODE || 'off').toLowerCase()
   : 'off';
-const AML_ENFORCEMENT_ENABLED = !['0', 'false', 'off', 'no'].includes(
-  String(process.env.AML_RUNTIME_ENABLED || '1').toLowerCase()
+const AML_ENFORCEMENT_ENABLED = ['1', 'true', 'on', 'yes'].includes(
+  String(process.env.AML_RUNTIME_ENABLED || '0').toLowerCase()
 );
+
+function configuredPaymentKeyring() {
+  try {
+    let configuredKeys = null;
+    if (process.env.PAYMENT_KEYS_JSON) {
+      configuredKeys = JSON.parse(process.env.PAYMENT_KEYS_JSON);
+    } else if (process.env.PAYMENT_KEYS_FILE) {
+      configuredKeys = JSON.parse(fs.readFileSync(process.env.PAYMENT_KEYS_FILE, 'utf8'));
+    } else {
+      const secret = process.env.PAYMENT_KEY_BASE64
+        || (process.env.PAYMENT_KEY_FILE
+          ? fs.readFileSync(process.env.PAYMENT_KEY_FILE, 'utf8').trim()
+          : '');
+      configuredKeys = [{
+        id: process.env.PAYMENT_KEY_ID || '',
+        secret,
+        active: true
+      }];
+    }
+    if (!Array.isArray(configuredKeys) || !configuredKeys.length
+        || !configuredKeys.every((row) => row && row.id && row.secret)) {
+      return null;
+    }
+    return new PaymentKeyRing({
+      activeKeyId: process.env.PAYMENT_ACTIVE_KEY_ID
+        || configuredKeys.find((row) => row.active)?.id
+        || configuredKeys[0].id,
+      keys: configuredKeys
+    });
+  } catch (_) {
+    return null;
+  }
+}
 
 function observeShardShadow(routeId, payload) {
   if (!shardShadow || !shardShadow.enabled) return;
@@ -3183,6 +3221,45 @@ let paymentLedgerHealthy = false;
 function initPaymentLedger() {
   /* secret.key 和 money-state.json 必须先由 loadStore() 解密装载，
      账本才能用同一把密钥验证日志。以前在这里提前构造会让所有账本行验签失败。 */
+  const databaseMode = String(process.env.PAYMENT_DATABASE_MODE
+    || (paymentCoreMode === 'off' ? 'legacy' : 'sqlite')).toLowerCase();
+  if (databaseMode === 'sqlite') {
+    const { SqlitePaymentLedger } = require('./lib/sqlite-payment-ledger');
+    const keyring = configuredPaymentKeyring();
+    const databaseOptions = {
+      databaseFile: path.join(DATA_DIR, 'payments.sqlite3'),
+      hmac: (payload) => crypto.createHmac('sha256', String(db.secret || 'chris'))
+        .update('payment-ledger|' + payload).digest('hex'),
+      uid,
+      now
+    };
+    let ledger;
+    if (keyring) {
+      const { PaymentDatabase } = require('./lib/payment-database');
+      ledger = new PaymentDatabase(Object.assign({}, databaseOptions, { keyring }));
+      paymentDatabase = ledger;
+    } else {
+      ledger = new SqlitePaymentLedger(databaseOptions);
+      paymentDatabase = null;
+    }
+    ledger.seedOpeningBalances(db.users, (id) => bizOf(id, false), {
+      at: now()
+    });
+    ledger.rebuild();
+    for (const accountUser of db.users) {
+      if (!accountUser || !accountUser.id) continue;
+      accountUser.balance = ledger.accountBalance('user:' + accountUser.id);
+      const business = bizOf(accountUser.id, false);
+      if (business.enabled) {
+        business.balance = ledger.accountBalance('user:biz:' + accountUser.id);
+      }
+    }
+    saveUsers();
+    saveBizAll();
+    paymentLedger = ledger;
+    paymentLedgerHealthy = true;
+    return;
+  }
   const ledger = new PaymentLedger({
     dataDir: DATA_DIR,
     journalName: MONEY_JOURNAL,
@@ -3225,13 +3302,18 @@ function payRuleNum(key, def) {
 function journalMoney(row) {
   /* 双边账本先落盘。写不进去必须抛错，由 applyMoney 回滚余额，不能出现「钱扣了但没账」。 */
   if (!paymentLedgerHealthy) throw new Error('支付账本未通过启动校验，交易已暂停');
-  paymentLedger.apply(row, row.delta, row.reason, row.ref);
+  const record = paymentLedger.apply(row, row.delta, row.reason, row.ref);
+  if (record && record.afterCents !== undefined) {
+    row.before = ledgerMoney(record.beforeCents);
+    row.after = ledgerMoney(record.afterCents);
+  }
   try {
     const st = readSecureJsonStore(MONEY_STATE, { users: {} });
     if (!st.users) st.users = {};
     st.users[row.userId] = { balance: row.after, at: row.at };
     writeSecureJsonStore(MONEY_STATE, st);
   } catch (err) { /* 自检用的快照，写不了下次再写 */ }
+  return record;
 }
 
 /**
@@ -3309,6 +3391,36 @@ function applyMoney(user, delta, meta) {
       }
     } catch (error) {
       return { error: '反洗钱风控校验失败，交易已安全暂停' };
+    }
+  }
+  if (paymentDatabase) {
+    try {
+      const result = paymentLedger.applyDelta({
+        userId: user.id,
+        delta: d,
+        reason: (meta && meta.reason) || '',
+        ref: (meta && meta.ref) || '',
+        counterAccount: (meta && meta.counterAccount) || 'system:unclassified',
+        idempotent: !!(meta && meta.idempotent && meta.ref)
+      });
+      user.balance = Number(result.balance) || 0;
+      if (autoAml) amlComplete(autoAml, true, { externalRef: (meta && meta.ref) || '' });
+      return {
+        balance: user.balance,
+        before: result.before,
+        delta: result.delta,
+        duplicate: !!result.duplicate
+      };
+    } catch (error) {
+      if (autoAml) amlComplete(autoAml, false, { note: String(error.message || error) });
+      const message = String(error && error.message || error);
+      if (message.indexOf('余额不足') >= 0 || message.indexOf('不能为负数') >= 0) {
+        return {
+          error: '余额不足（当前 ¥' + before.toFixed(2)
+            + '，需要 ¥' + Math.abs(d).toFixed(2) + '）'
+        };
+      }
+      return { error: '账本落账失败，交易已取消：' + message };
     }
   }
   user.balance = after;
@@ -3499,6 +3611,148 @@ function executeIntentTransfer(user, intent, chat, amount, note, useBalance) {
     balance: charge.balance,
     transfer
   };
+}
+
+function mirrorDatabaseTransfer(transfer) {
+  if (!transfer) return null;
+  const row = {
+    id: transfer.id,
+    paymentIntentId: transfer.intentId || '',
+    chatId: transfer.chatId,
+    fromId: transfer.fromId,
+    toId: transfer.toId,
+    amount: Number(transfer.amount) || 0,
+    note: transfer.note || '',
+    method: transfer.method || 'balance',
+    status: transfer.status,
+    createdAt: transfer.createdAt || now(),
+    expiresAt: Number(transfer.expiresAt) || 0,
+    receivedAt: transfer.receivedAt || '',
+    refundedAt: transfer.refundedAt || '',
+    refundedBy: transfer.refundedBy || '',
+    messageId: transfer.messageId || ''
+  };
+  const index = db.transfers.findIndex((item) => item.id === row.id);
+  if (index >= 0) db.transfers[index] = Object.assign({}, db.transfers[index], row);
+  else db.transfers.unshift(row);
+  if (db.transfers.length > 800) db.transfers.length = 800;
+  return row;
+}
+
+function deliverPaymentOutboxEvent(event) {
+  if (!event || !paymentDatabase) return false;
+  const clientId = 'payment-outbox-' + event.id;
+  if (event.topic === 'transfer.created') {
+    const transfer = paymentDatabase.transfer(event.aggregateId);
+    if (!transfer) throw new Error('outbox transfer is missing');
+    const row = mirrorDatabaseTransfer(transfer);
+    const chat = db.chats.find((item) => item.id === row.chatId);
+    const sender = findUser(row.fromId);
+    if (!chat || !sender) throw new Error('outbox transfer chat or sender is missing');
+    const recent = loadMessages(chat.id).slice(-400);
+    const existing = recent.find((message) => message.clientId === clientId);
+    if (existing) {
+      paymentDatabase.completeOutbox(event.id, existing.id);
+      row.messageId = existing.id;
+      saveTransfers();
+      return true;
+    }
+    const sent = deliverMessage(
+      sender,
+      row.chatId,
+      'transfer',
+      transferSnapshot(row),
+      clientId
+    );
+    if (sent.error) throw new Error(sent.error);
+    row.messageId = sent.message.id;
+    paymentDatabase.completeOutbox(event.id, row.messageId);
+    saveTransfers();
+    return true;
+  }
+  if (['transfer.received', 'transfer.refunded', 'transfer.expired'].includes(event.topic)) {
+    const transfer = paymentDatabase.transfer(event.aggregateId);
+    const row = mirrorDatabaseTransfer(transfer);
+    if (!row) throw new Error('outbox transfer is missing');
+    paymentDatabase.completeOutbox(event.id, row.messageId);
+    saveTransfers();
+    broadcastTransfer(row, transfer.status === 'received' ? 'received' : 'refunded');
+    return true;
+  }
+  if (event.topic === 'balance.settled') {
+    const from = findUser(event.payload.fromUserId);
+    const to = findUser(event.payload.toUserId);
+    if (from) {
+      from.balance = paymentLedger.accountBalance('user:' + from.id);
+      sendTo(from.id, { type: 'balance', balance: from.balance });
+    }
+    if (to) {
+      to.balance = paymentLedger.accountBalance('user:' + to.id);
+      sendTo(to.id, { type: 'balance', balance: to.balance });
+    }
+    paymentDatabase.completeOutbox(event.id, '');
+    saveUsers();
+    return true;
+  }
+  return false;
+}
+
+async function processFundingOutboxEvent(event) {
+  if (!event || !paymentDatabase || !paymentProvider) return false;
+  if (!event.topic.startsWith('funding.') || !event.topic.endsWith('.created')) return false;
+  const order = paymentDatabase.fundingOrder(event.aggregateId);
+  if (!order || order.status !== 'pending') {
+    paymentDatabase.completeOutbox(event.id, '');
+    return true;
+  }
+  if (!paymentProvider.ready()) throw new Error('licensed payment provider is not configured');
+  const result = order.kind === 'deposit'
+    ? await paymentProvider.createDeposit(order)
+    : await paymentProvider.createPayout(order, {
+      ref: order.bankRef || ''
+    });
+  const providerRef = String(result.providerRef || result.paymentId || result.payoutId || '');
+  paymentDatabase.setFundingProviderRef(order.id, providerRef);
+  paymentDatabase.completeOutbox(event.id, providerRef);
+  return true;
+}
+
+async function runPaymentOutboxOnce() {
+  if (!paymentDatabase) return;
+  for (const event of paymentDatabase.outbox(50)) {
+    try {
+      const handled = deliverPaymentOutboxEvent(event);
+      if (!handled) await processFundingOutboxEvent(event);
+      if (!handled && (!event.topic.startsWith('funding.'))) {
+        paymentDatabase.retryOutbox(event.id, 'unsupported outbox topic: ' + event.topic);
+      }
+    } catch (error) {
+      paymentDatabase.retryOutbox(event.id, String(error && error.message || error));
+    }
+  }
+}
+
+function closePaymentDatabase() {
+  if (paymentOutboxTimer) {
+    clearTimeout(paymentOutboxTimer);
+    paymentOutboxTimer = null;
+  }
+  if (paymentBackupTimer) {
+    clearInterval(paymentBackupTimer);
+    paymentBackupTimer = null;
+  }
+  if (paymentDatabase) {
+    try { paymentDatabase.close(); } catch (_) { /* process is already exiting */ }
+    paymentDatabase = null;
+  }
+}
+
+function backupPaymentDatabaseNow() {
+  if (!paymentDatabase) return null;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return paymentDatabase.backupTo(
+    path.join(DATA_DIR, 'payment-backups', 'payments-' + stamp + '.sqlite3')
+  );
 }
 
 /* ---------------------------------------------------------------- 星言虚拟卡
@@ -3722,6 +3976,32 @@ function broadcastTransfer(t, kind) {
 
 /** 24 小时没被收款的，自动退回给付款方 */
 function expireTransfers() {
+  if (paymentDatabase) {
+    const expired = paymentDatabase.expireTransfers(200);
+    for (const item of expired) {
+      const transfer = paymentDatabase.transfer(item.id);
+      const row = mirrorDatabaseTransfer(transfer);
+      const payer = findUser(row.fromId);
+      if (payer) {
+        payer.balance = paymentLedger.accountBalance('user:' + payer.id);
+        sendTo(payer.id, { type: 'balance', balance: payer.balance });
+      }
+      try {
+        deliverPaymentOutboxEvent({
+          id: item.outboxId,
+          topic: 'transfer.expired',
+          aggregateId: row.id
+        });
+      } catch (error) {
+        paymentDatabase.retryOutbox(item.outboxId, String(error && error.message || error));
+      }
+    }
+    if (expired.length) {
+      saveUsers();
+      saveTransfers();
+    }
+    return expired.length;
+  }
   const t = Date.now();
   let changed = 0;
   db.transfers.forEach((tr) => {
@@ -4161,6 +4441,30 @@ function moveBusinessToWallet(user, amount, ref) {
   if (!(value > 0)) return { error: '提现金额不合法' };
   const beforeBiz = moneyRound(acc.balance);
   if (beforeBiz < value) return { error: '经营账户余额不够' };
+  if (paymentDatabase) {
+    try {
+      const result = paymentLedger.recordOnce({
+        userId: user.id,
+        reason: '经营账户提现到零钱',
+        ref: ref || ('biz-to-wallet:' + user.id + ':' + Date.now())
+      }, [
+        { account: 'user:' + user.id, delta: value },
+        { account: 'user:biz:' + user.id, delta: -value }
+      ]);
+      user.balance = paymentLedger.accountBalance('user:' + user.id);
+      acc.balance = paymentLedger.accountBalance('user:biz:' + user.id);
+      saveUsers();
+      saveBizAll();
+      return {
+        balance: user.balance,
+        bizBalance: acc.balance,
+        amount: value,
+        duplicate: !!result.duplicate
+      };
+    } catch (error) {
+      return { error: String(error && error.message || error) };
+    }
+  }
   const beforeWallet = moneyRound(user.balance);
   const afterWallet = moneyRound(beforeWallet + value);
   paymentLedger.record({
@@ -4279,14 +4583,16 @@ function bizCollect(user, amount, fromName, fromId, kind, note, reason, auditRef
     const beforeBiz = moneyRound(a.balance);
     const afterBiz = moneyRound(beforeBiz + amount);
     /* 经营账户也是钱：同样进总账（userId 用 biz: 前缀，和零钱分开对） */
-    journalMoney({
+    const record = journalMoney({
       at: new Date().toISOString(), userId: 'biz:' + user.id,
       delta: moneyRound(amount), before: beforeBiz, after: afterBiz,
       counterAccount,
       reason: (kind === 'redpacket' ? '抢红包' : (kind === 'transfer' ? '收转账' : '收款')) + '（经营账户）',
       ref: ledgerRef
     });
-    a.balance = afterBiz;
+    a.balance = record && record.afterCents !== undefined
+      ? ledgerMoney(record.afterCents)
+      : afterBiz;
     saveBizAll();
   } else {
     /* 钱一律走 applyMoney：统一四舍五入到分 + 记总账（接真钱靠这本账对） */
@@ -5772,7 +6078,11 @@ function saveSecurityState() {
   try { writeJson(securityStatePath(), { fails, bans, strikes, savedAt: now() }); } catch (err) { /* 忽略 */ }
 }
 setInterval(saveSecurityState, 10 * 1000);
-process.on('SIGINT', () => { saveSecurityState(); process.exit(0); });
+process.on('SIGINT', () => {
+  saveSecurityState();
+  closePaymentDatabase();
+  process.exit(0);
+});
 
 /** 记一次「不怀好意」的行为，够了就封 */
 /* 服务器自己这台机器的 IP（含本机回环）永远不进小黑屋 ——
@@ -10959,7 +11269,9 @@ function readBody(req) {
     });
     req.on('end', () => {
       if (!chunks.length) return resolve({});
-      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      const raw = Buffer.concat(chunks);
+      req.__rawBody = raw;
+      try { resolve(JSON.parse(raw.toString('utf8'))); }
       catch (err) { reject(Object.assign(new Error('JSON 解析失败'), { status: 400 })); }
     });
     req.on('error', reject);
@@ -12465,6 +12777,52 @@ async function handleApi(req, res, pathname, query) {
      JS 的 TDZ 会让它前面那些接口（音乐点赞、状态点赞、注册…）一调用就报
      "Cannot access 'user' before initialization"。别往下挪。 */
   const user = currentUser(req);
+
+  if (parts[0] === 'payment' && parts[1] === 'provider'
+      && parts[2] === 'webhook' && method === 'POST') {
+    if (!paymentDatabase || !paymentProvider || !paymentProvider.ready()) {
+      return fail(res, 503, '支付机构回调暂时不可用');
+    }
+    try {
+      const body = await readBody(req);
+      const raw = req.__rawBody || Buffer.from(JSON.stringify(body));
+      const verified = paymentProvider.verifyWebhook(req.headers, raw);
+      if (!verified.ok) return fail(res, 401, '支付机构回调验签失败');
+      const event = paymentProvider.parseWebhook(verified.body);
+      const order = paymentDatabase.fundingOrder(event.orderId);
+      if (!order || order.kind !== event.kind || order.provider !== paymentProvider.name) {
+        return fail(res, 404, '支付订单不存在或支付机构不匹配');
+      }
+      paymentDatabase.recordProviderEvent({
+        provider: paymentProvider.name,
+        providerEventId: event.providerEventId,
+        type: event.type,
+        payload: event.raw
+      });
+      const settled = paymentDatabase.settleFundingOrder({
+        orderId: order.id,
+        providerEventId: event.providerEventId,
+        success: event.status === 'succeeded',
+        providerRef: event.providerRef,
+        failureCode: event.failureCode
+      });
+      const owner = findUser(order.userId);
+      if (owner) {
+        owner.balance = paymentLedger.accountBalance('user:' + owner.id);
+        saveUsers();
+        sendTo(owner.id, { type: 'balance', balance: owner.balance });
+      }
+      runPaymentOutboxOnce().catch(() => {});
+      ok(res, {
+        received: true,
+        duplicate: settled.duplicate,
+        orderId: order.id
+      });
+      return;
+    } catch (error) {
+      return fail(res, 400, String(error && error.message || error));
+    }
+  }
 
   if (parts[0] === 'admin') {
     await handleAdmin(req, res, parts, query);
@@ -17207,7 +17565,9 @@ async function handleApi(req, res, pathname, query) {
   /* 支付设备绑定：私钥只在设备安全区，服务端保存公钥并验证一次性挑战。 */
   if (parts[0] === 'payment' && parts[1] === 'devices'
       && parts[2] === 'challenge' && method === 'POST') {
-    if (!paymentDeviceEnrollment) return fail(res, 503, '支付设备绑定暂时不可用');
+    if (!paymentDatabase && !paymentDeviceEnrollment) {
+      return fail(res, 503, '支付设备绑定暂时不可用');
+    }
     if (!payRateAllow(user.id)) return fail(res, 429, '操作太频繁，稍后再试');
     const body = await readBody(req);
     const deviceId = str(body.deviceId, 120);
@@ -17216,11 +17576,9 @@ async function handleApi(req, res, pathname, query) {
       return fail(res, 422, '设备标识不合法');
     }
     try {
-      const started = paymentDeviceEnrollment.begin({
-        userId: user.id,
-        deviceId,
-        publicKey
-      });
+      const started = paymentDatabase
+        ? paymentDatabase.beginDeviceEnrollment({ userId: user.id, deviceId, publicKey })
+        : paymentDeviceEnrollment.begin({ userId: user.id, deviceId, publicKey });
       recordSecurity(user.id, req, 'payment-device-challenge', {
         note: '申请支付设备绑定挑战'
       });
@@ -17233,15 +17591,20 @@ async function handleApi(req, res, pathname, query) {
 
   if (parts[0] === 'payment' && parts[1] === 'devices'
       && parts[2] === 'enroll' && method === 'POST') {
-    if (!paymentDeviceEnrollment) return fail(res, 503, '支付设备绑定暂时不可用');
+    if (!paymentDatabase && !paymentDeviceEnrollment) {
+      return fail(res, 503, '支付设备绑定暂时不可用');
+    }
     if (!payRateAllow(user.id)) return fail(res, 429, '操作太频繁，稍后再试');
     const body = await readBody(req);
     try {
-      const token = paymentDeviceEnrollment.finish({
+      const enrollment = {
         challenge: str(body.challenge, 200),
         signature: str(body.signature, 4096),
         last4: str(body.last4, 8)
-      });
+      };
+      const token = paymentDatabase
+        ? paymentDatabase.finishDeviceEnrollment(enrollment)
+        : paymentDeviceEnrollment.finish(enrollment);
       if (token.userId !== user.id) return fail(res, 403, '支付设备不属于当前账号');
       recordSecurity(user.id, req, 'payment-device-enroll', {
         note: '绑定支付设备 ' + token.deviceId
@@ -17265,13 +17628,14 @@ async function handleApi(req, res, pathname, query) {
 
   if (parts[0] === 'payment' && parts[1] === 'devices'
       && parts[2] === 'revoke' && method === 'POST') {
-    if (!paymentDeviceEnrollment) return fail(res, 503, '支付设备绑定暂时不可用');
+    if (!paymentDatabase && !paymentDeviceEnrollment) {
+      return fail(res, 503, '支付设备绑定暂时不可用');
+    }
     const body = await readBody(req);
     try {
-      const token = paymentDeviceEnrollment.revoke(
-        str(body.tokenId, 128),
-        user.id
-      );
+      const token = paymentDatabase
+        ? paymentDatabase.revokeDevice(str(body.tokenId, 128), user.id)
+        : paymentDeviceEnrollment.revoke(str(body.tokenId, 128), user.id);
       recordSecurity(user.id, req, 'payment-device-revoke', {
         note: '撤销支付设备 ' + token.deviceId
       });
@@ -17284,7 +17648,9 @@ async function handleApi(req, res, pathname, query) {
 
   if (parts[0] === 'payment' && parts[1] === 'intents'
       && parts.length === 2 && method === 'POST') {
-    if (!paymentIntentEngine) return fail(res, 503, '支付意图服务暂时不可用');
+    if (!paymentDatabase && !paymentIntentEngine) {
+      return fail(res, 503, '支付意图服务暂时不可用');
+    }
     if (blockedByRealName(res, user)) return;
     const body = await readBody(req);
     const requestId = str(body.requestId, 120);
@@ -17309,7 +17675,7 @@ async function handleApi(req, res, pathname, query) {
     }
     const intentId = uid('pi');
     try {
-      const intent = paymentIntentEngine.create({
+      const payload = {
         intentId,
         commandId: 'create:' + user.id + ':' + requestId,
         userId: user.id,
@@ -17323,7 +17689,10 @@ async function handleApi(req, res, pathname, query) {
           toUserId: peerId,
           note: str(body.note, 60)
         }
-      });
+      };
+      const intent = paymentDatabase
+        ? paymentDatabase.createIntent(payload)
+        : paymentIntentEngine.create(payload);
       recordSecurity(user.id, req, 'payment-intent-create', {
         note: '创建支付意图 ' + intent.id
       });
@@ -17336,8 +17705,12 @@ async function handleApi(req, res, pathname, query) {
 
   if (parts[0] === 'payment' && parts[1] === 'intents'
       && parts.length === 3 && method === 'GET') {
-    if (!paymentIntentEngine) return fail(res, 503, '支付意图服务暂时不可用');
-    const intent = paymentIntentEngine.cloneIntent(str(parts[2], 128));
+    if (!paymentDatabase && !paymentIntentEngine) {
+      return fail(res, 503, '支付意图服务暂时不可用');
+    }
+    const intent = paymentDatabase
+      ? paymentDatabase.intent(str(parts[2], 128))
+      : paymentIntentEngine.cloneIntent(str(parts[2], 128));
     if (!intent || intent.userId !== user.id) return fail(res, 404, '支付意图不存在');
     ok(res, { intent: paymentIntentView(intent) });
     return;
@@ -17345,14 +17718,29 @@ async function handleApi(req, res, pathname, query) {
 
   if (parts[0] === 'payment' && parts[1] === 'intents'
       && parts.length === 4 && parts[3] === 'challenge' && method === 'POST') {
-    if (!paymentIntentEngine || !paymentTokenVault) {
+    if (!paymentDatabase && (!paymentIntentEngine || !paymentTokenVault)) {
       return fail(res, 503, '支付意图服务暂时不可用');
     }
-    const intent = paymentIntentEngine.cloneIntent(str(parts[2], 128));
+    const intent = paymentDatabase
+      ? paymentDatabase.intent(str(parts[2], 128))
+      : paymentIntentEngine.cloneIntent(str(parts[2], 128));
     if (!intent || intent.userId !== user.id) return fail(res, 404, '支付意图不存在');
     if (intent.status !== 'created') return fail(res, 409, '支付意图已经开始授权');
     const body = await readBody(req);
     const tokenId = str(body.tokenId, 128);
+    if (paymentDatabase) {
+      try {
+        const challenge = paymentDatabase.createIntentChallenge({
+          intentId: intent.id,
+          userId: user.id,
+          tokenId
+        });
+        ok(res, challenge);
+        return;
+      } catch (error) {
+        return fail(res, 403, String(error && error.message || error));
+      }
+    }
     const token = paymentTokenVault.get(tokenId);
     if (!token || token.userId !== user.id || token.status !== 'active') {
       return fail(res, 403, '支付设备未绑定或已撤销');
@@ -17388,10 +17776,35 @@ async function handleApi(req, res, pathname, query) {
 
   if (parts[0] === 'payment' && parts[1] === 'intents'
       && parts.length === 4 && parts[3] === 'authorize' && method === 'POST') {
-    if (!paymentIntentEngine) return fail(res, 503, '支付意图服务暂时不可用');
-    const intent = paymentIntentEngine.cloneIntent(str(parts[2], 128));
+    if (!paymentDatabase && !paymentIntentEngine) {
+      return fail(res, 503, '支付意图服务暂时不可用');
+    }
+    const intent = paymentDatabase
+      ? paymentDatabase.intent(str(parts[2], 128))
+      : paymentIntentEngine.cloneIntent(str(parts[2], 128));
     if (!intent || intent.userId !== user.id) return fail(res, 404, '支付意图不存在');
     const body = await readBody(req);
+    if (paymentDatabase) {
+      try {
+        const authorized = paymentDatabase.authorizeIntent({
+          intentId: intent.id,
+          userId: user.id,
+          commandId: 'authorize:' + intent.id,
+          tokenId: str(body.tokenId, 128),
+          signature: str(body.signature, 8192)
+        });
+        recordSecurity(user.id, req, 'payment-intent-authorize', {
+          note: '支付意图授权 ' + intent.id
+        });
+        ok(res, { intent: paymentIntentView(authorized) });
+        return;
+      } catch (error) {
+        recordSecurity(user.id, req, 'payment-intent-authorize-fail', {
+          note: String(error && error.message || error)
+        });
+        return fail(res, 401, String(error && error.message || error));
+      }
+    }
     const challenge = paymentIntentChallenges.get(intent.id + '|' + user.id);
     if (!challenge || challenge.expiresAtMs <= Date.now()) {
       paymentIntentChallenges.delete(intent.id + '|' + user.id);
@@ -17421,6 +17834,28 @@ async function handleApi(req, res, pathname, query) {
       });
       return fail(res, 401, String(error && error.message || error));
     }
+  }
+
+  if (parts[0] === 'payment' && parts[1] === 'status' && method === 'GET') {
+    ok(res, {
+      mode: paymentCoreMode,
+      database: paymentDatabase ? 'sqlite-v1' : 'legacy',
+      databaseReady: !!paymentDatabase && paymentDatabase.readiness().ok,
+      providerReady: !!(paymentProvider && paymentProvider.ready()),
+      provider: paymentProvider && paymentProvider.ready() ? paymentProvider.name : '',
+      realMoneyReady: paymentRealMoneyReady,
+      amlEnforcement: AML_ENFORCEMENT_ENABLED
+    });
+    return;
+  }
+
+  if (parts[0] === 'payment' && parts[1] === 'funding'
+      && parts.length === 3 && method === 'GET') {
+    if (!paymentDatabase) return fail(res, 503, '支付数据库暂时不可用');
+    const order = paymentDatabase.fundingOrder(str(parts[2], 100));
+    if (!order || order.userId !== user.id) return fail(res, 404, '支付订单不存在');
+    ok(res, { order });
+    return;
   }
 
   if (parts[0] === 'pay' && parts[1] === 'code' && method === 'POST') {
@@ -17526,6 +17961,102 @@ async function handleApi(req, res, pathname, query) {
       idemAbort(idem.key);
       return;
     }
+    if (paymentCoreMode === 'enforce') {
+      if (!paymentDatabase) {
+        idemAbort(idem.key);
+        return fail(res, 503, '真钱支付数据库未就绪，交易已暂停');
+      }
+      const note = str(body.note, 40) || (found.kind === 'pay' ? '扫码付款' : '收款码付款');
+      const targetBusiness = bizOf(target.id, false);
+      const toBusiness = !!(targetBusiness.enabled
+        && targetBusiness.settings.arrival === 'biz');
+      const transferId = uid('tr');
+      try {
+        const settled = paymentDatabase.settleInternalPayment({
+          fromUserId: user.id,
+          toUserId: target.id,
+          toBusiness,
+          amountCents: Math.round(amount * 100),
+          reason: '扫码付款',
+          ref: 'paycode:' + idem.key,
+          transfer: {
+            id: transferId,
+            chatId: chat.id,
+            note,
+            method: 'balance'
+          }
+        });
+        user.balance = settled.fromBalance;
+        if (toBusiness) targetBusiness.balance = settled.toBalance;
+        else target.balance = settled.toBalance;
+        const transfer = mirrorDatabaseTransfer(settled.transfer);
+        saveUsers();
+        saveBizAll();
+        saveTransfers();
+        if (settled.transferOutboxId) {
+          try {
+            deliverPaymentOutboxEvent({
+              id: settled.transferOutboxId,
+              topic: 'transfer.created',
+              aggregateId: transfer.id
+            });
+          } catch (deliveryError) {
+            paymentDatabase.retryOutbox(
+              settled.transferOutboxId,
+              String(deliveryError.message || deliveryError)
+            );
+          }
+        }
+        if (settled.outboxId) {
+          try {
+            deliverPaymentOutboxEvent({
+              id: settled.outboxId,
+              topic: 'balance.settled',
+              aggregateId: 'paycode:' + idem.key,
+              payload: {
+                fromUserId: user.id,
+                toUserId: target.id
+              }
+            });
+          } catch (_) { /* outbox timer will retry */ }
+        }
+        if (toBusiness) {
+          bizPush(target.id, {
+            kind: 'collect',
+            amount,
+            fromName: user.nickname || user.username || '好友',
+            fromId: user.id,
+            method: 'paycode',
+            note,
+            settled: true
+          });
+        }
+        if (found.kind === 'pay' && found.code) {
+          const rec = payCodes.get(found.code);
+          if (rec) rec.used = true;
+        }
+        observeShardShadow('transfers.claim', { transfer, userId: target.id });
+        amlComplete(aml, true, { externalRef: transfer.id });
+        audit(req, {
+          username: user.username,
+          name: user.nickname,
+          role: '用户本人'
+        }, '扫码付款', target.username, amount.toFixed(2) + ' 元');
+        const payPayload = {
+          balance: user.balance,
+          amount,
+          payee: publicUser(target),
+          transfer: JSON.parse(transferSnapshot(transfer))
+        };
+        idemFinish(idem.key, payPayload);
+        ok(res, payPayload);
+        return;
+      } catch (error) {
+        amlComplete(aml, false, { note: String(error && error.message || error) });
+        idemAbort(idem.key);
+        return fail(res, 402, String(error && error.message || error));
+      }
+    }
     const paidMoney = applyMoney(user, -amount, {
       reason: '扫码付款',
       ref: target.id,
@@ -17589,9 +18120,9 @@ async function handleApi(req, res, pathname, query) {
     if (blockedByRealName(res, user)) return;
     const body = await readBody(req);
     if (paymentCoreMode === 'enforce') {
-      if (!paymentIntentEngine) return fail(res, 503, '真钱支付核心未就绪，交易已暂停');
+      if (!paymentDatabase) return fail(res, 503, '真钱支付数据库未就绪，交易已暂停');
       const intentId = str(body.paymentIntentId, 128);
-      const intent = paymentIntentEngine.cloneIntent(intentId);
+      const intent = paymentDatabase.intent(intentId);
       if (!intent || intent.userId !== user.id) return fail(res, 404, '支付意图不存在');
       if (!['authorized', 'capture_pending', 'captured'].includes(intent.status)) {
         return fail(res, 409, '支付意图尚未完成设备授权');
@@ -17610,28 +18141,26 @@ async function handleApi(req, res, pathname, query) {
         return fail(res, 409, '支付金额与已授权意图不一致');
       }
       try {
-        const captured = paymentIntentEngine.capture({
+        const captured = paymentDatabase.captureTransfer({
           intentId: intent.id,
-          commandId: 'capture:' + intent.id,
-          settle: () => {
-            const executed = executeIntentTransfer(
-              user,
-              intent,
-              chat,
-              amount,
-              note,
-              body.method !== 'card'
-            );
-            if (executed.error) throw new Error(executed.error);
-            return {
-              ok: true,
-              reference: 'transfer:' + executed.transfer.id
-            };
-          }
+          chatId: chat.id,
+          toId: peerId,
+          note,
+          method: body.method !== 'card' ? 'balance' : 'card'
         });
-        const transfer = db.transfers.find((row) =>
-          row.paymentIntentId === intent.id && row.fromId === user.id);
-        if (!transfer) throw new Error('settled transfer record is missing');
+        const transfer = mirrorDatabaseTransfer(captured.transfer);
+        const outboxEvent = captured.outboxId
+          ? { id: captured.outboxId, topic: 'transfer.created', aggregateId: transfer.id }
+          : null;
+        if (outboxEvent) {
+          try { deliverPaymentOutboxEvent(outboxEvent); }
+          catch (deliveryError) {
+            paymentDatabase.retryOutbox(outboxEvent.id, String(deliveryError.message || deliveryError));
+          }
+        }
+        user.balance = paymentLedger.accountBalance('user:' + user.id);
+        saveUsers();
+        saveTransfers();
         observeShardShadow('chats.messages.create', {
           chatId: transfer.chatId,
           messageId: transfer.messageId,
@@ -17643,7 +18172,7 @@ async function handleApi(req, res, pathname, query) {
           method: transfer.method,
           deducted: amount,
           transfer: JSON.parse(transferSnapshot(transfer)),
-          paymentIntent: paymentIntentView(captured)
+          paymentIntent: paymentIntentView(captured.intent)
         });
         return;
       } catch (error) {
@@ -17773,6 +18302,40 @@ async function handleApi(req, res, pathname, query) {
     if (tr.status === 'refunded') return fail(res, 409, '超过 24 小时没收，钱已退回对方');
     if (tr.expiresAt <= Date.now()) { expireTransfers(); return fail(res, 409, '超过 24 小时没收，钱已退回对方'); }
     const payer = findUser(tr.fromId) || {};
+    if (paymentCoreMode === 'enforce') {
+      if (!paymentDatabase) return fail(res, 503, '真钱支付数据库未就绪，交易已暂停');
+      const acc = bizOf(user.id, false);
+      const toBusiness = !!(acc.enabled && acc.settings.arrival === 'biz');
+      try {
+        const result = paymentDatabase.claimTransfer(tr.id, user.id, toBusiness);
+        const row = mirrorDatabaseTransfer(result.transfer);
+        if (toBusiness) acc.balance = paymentLedger.accountBalance('user:biz:' + user.id);
+        else user.balance = paymentLedger.accountBalance('user:' + user.id);
+        saveUsers();
+        saveBizAll();
+        saveTransfers();
+        if (result.outboxId) {
+          try {
+            deliverPaymentOutboxEvent({
+              id: result.outboxId,
+              topic: 'transfer.received',
+              aggregateId: row.id
+            });
+          } catch (deliveryError) {
+            paymentDatabase.retryOutbox(result.outboxId, String(deliveryError.message || deliveryError));
+          }
+        }
+        sendTo(user.id, { type: 'balance', balance: Number(user.balance) || 0 });
+        ok(res, {
+          balance: Number(user.balance) || 0,
+          transfer: JSON.parse(transferSnapshot(row)),
+          alreadyReceived: !!result.duplicate
+        });
+        return;
+      } catch (error) {
+        return fail(res, 409, String(error && error.message || error));
+      }
+    }
     const aml = amlGateOrReject(res, req, user, {
       channel: 'transfer_claim',
       direction: 'in',
@@ -17859,18 +18422,53 @@ async function handleApi(req, res, pathname, query) {
 
     const acc = bizOf(user.id, false);
     const inBiz = !!(acc.enabled && acc.settings.arrival === 'biz');
+    if (paymentCoreMode === 'enforce') {
+      if (!paymentDatabase) return fail(res, 503, '真钱支付数据库未就绪，交易已暂停');
+      try {
+        const result = paymentDatabase.refundTransfer(tr.id, user.id, inBiz);
+        const row = mirrorDatabaseTransfer(result.transfer);
+        user.balance = paymentLedger.accountBalance('user:' + user.id);
+        payer.balance = paymentLedger.accountBalance('user:' + payer.id);
+        if (inBiz) acc.balance = paymentLedger.accountBalance('user:biz:' + user.id);
+        saveUsers();
+        saveBizAll();
+        saveTransfers();
+        if (result.outboxId) {
+          try {
+            deliverPaymentOutboxEvent({
+              id: result.outboxId,
+              topic: 'transfer.refunded',
+              aggregateId: row.id
+            });
+          } catch (deliveryError) {
+            paymentDatabase.retryOutbox(result.outboxId, String(deliveryError.message || deliveryError));
+          }
+        }
+        sendTo(user.id, { type: 'balance', balance: Number(user.balance) || 0 });
+        sendTo(payer.id, { type: 'balance', balance: Number(payer.balance) || 0 });
+        ok(res, {
+          balance: Number(user.balance) || 0,
+          transfer: JSON.parse(transferSnapshot(row))
+        });
+        return;
+      } catch (error) {
+        return fail(res, 409, String(error && error.message || error));
+      }
+    }
     if (inBiz) {
       const a = bizOf(user.id, true);
       if ((Number(a.balance) || 0) < amount) return fail(res, 402, '经营账户余额不够退还');
       const beforeBiz = moneyRound(a.balance);
       const afterBiz = moneyRound(beforeBiz - amount);
-      journalMoney({
+      const record = journalMoney({
         at: new Date().toISOString(), userId: 'biz:' + user.id,
         delta: -moneyRound(amount), before: beforeBiz, after: afterBiz,
         counterAccount: 'system:wallet-transfer-clearing',
         reason: '收款方退还（经营账户）', ref: tr.id
       });
-      a.balance = afterBiz;
+      a.balance = record && record.afterCents !== undefined
+        ? ledgerMoney(record.afterCents)
+        : afterBiz;
       saveBizAll();
     } else {
       const paid = applyMoney(user, -amount, {
@@ -18375,6 +18973,62 @@ async function handleApi(req, res, pathname, query) {
     const list = userBanks(user);
     const bank = list.find((b) => b.id === str(body.bankId, 40)) || list.find((b) => b.isDefault) || list[0] || null;
     const before = Number(user.balance) || 0;
+    if (paymentCoreMode === 'enforce') {
+      if (!paymentDatabase || !paymentProvider || !paymentProvider.ready()) {
+        idemAbort(idem.key);
+        return fail(res, 503, '持牌支付机构尚未配置，充值已安全暂停');
+      }
+      let fundingOrder = null;
+      try {
+        const order = paymentDatabase.createFundingOrder({
+          userId: user.id,
+          kind: 'deposit',
+          amountCents: Math.round(amount * 100),
+          provider: paymentProvider.name,
+          bankRef: bank ? bank.bank + ':' + bank.tail : '',
+          idempotencyKey: 'wallet-recharge:' + user.id + ':' + idem.key
+        });
+        fundingOrder = order;
+        const providerResult = await paymentProvider.createDeposit(order);
+        const providerRef = String(providerResult.providerRef
+          || providerResult.paymentId || providerResult.orderId || '');
+        paymentDatabase.setFundingProviderRef(order.id, providerRef);
+        paymentDatabase.completeOutboxForAggregate(
+          'funding.deposit.created',
+          order.id,
+          providerRef
+        );
+        const payload = {
+          pending: true,
+          recharged: 0,
+          balanceBefore: before,
+          balance: before,
+          order: paymentDatabase.fundingOrder(order.id),
+          checkoutUrl: providerResult.checkoutUrl || providerResult.url || '',
+          qrCode: providerResult.qrCode || '',
+          expiresAt: providerResult.expiresAt || ''
+        };
+        idemFinish(idem.key, payload);
+        ok(res, payload);
+        return;
+      } catch (error) {
+        if (fundingOrder) {
+          idemFinish(idem.key, {
+            pending: true,
+            recharged: 0,
+            balanceBefore: before,
+            balance: before,
+            order: paymentDatabase.fundingOrder(fundingOrder.id),
+            checkoutUrl: '',
+            qrCode: '',
+            providerError: String(error && error.message || error)
+          });
+        } else {
+          idemAbort(idem.key);
+        }
+        return fail(res, 502, '支付机构下单失败：' + String(error && error.message || error));
+      }
+    }
     const aml = amlGateOrReject(res, req, user, {
       channel: 'wallet_recharge',
       direction: 'in',
@@ -18443,6 +19097,73 @@ async function handleApi(req, res, pathname, query) {
     if (before < amount + fee) {
       return fail(res, 402, '零钱不够：要提 ¥' + amount.toFixed(2) + '，手续费 ¥' + fee.toFixed(2)
           + '，当前零钱 ¥' + before.toFixed(2));
+    }
+    if (paymentCoreMode === 'enforce') {
+      if (!paymentDatabase || !paymentProvider || !paymentProvider.ready()) {
+        idemAbort(idem.key);
+        return fail(res, 503, '持牌支付机构尚未配置，提现已安全暂停');
+      }
+      let fundingOrder = null;
+      try {
+        const order = paymentDatabase.createFundingOrder({
+          userId: user.id,
+          kind: 'payout',
+          amountCents: Math.round(amount * 100),
+          feeCents: Math.round(fee * 100),
+          provider: paymentProvider.name,
+          bankRef: bank.bank + ':' + bank.tail,
+          idempotencyKey: 'wallet-withdraw:' + user.id + ':' + idem.key
+        });
+        fundingOrder = order;
+        user.balance = paymentLedger.accountBalance('user:' + user.id);
+        saveUsers();
+        const providerResult = await paymentProvider.createPayout(order, {
+          bank: bank.bank,
+          tail: bank.tail,
+          holder: bank.holder || ''
+        });
+        const providerRef = String(providerResult.providerRef
+          || providerResult.payoutId || providerResult.orderId || '');
+        paymentDatabase.setFundingProviderRef(order.id, providerRef);
+        paymentDatabase.completeOutboxForAggregate(
+          'funding.payout.created',
+          order.id,
+          providerRef
+        );
+        const payload = {
+          pending: true,
+          amount,
+          fee,
+          balance: user.balance,
+          status: 'pending',
+          bankText: bank.bank + '（' + bank.tail + '）',
+          expect: '已提交支付机构，到账后由银行回调确认',
+          order: paymentDatabase.fundingOrder(order.id)
+        };
+        idemFinish(idem.key, payload);
+        ok(res, payload);
+        return;
+      } catch (error) {
+        user.balance = paymentLedger.accountBalance('user:' + user.id);
+        saveUsers();
+        if (fundingOrder) {
+          const pendingPayload = {
+            pending: true,
+            amount,
+            fee,
+            balance: user.balance,
+            status: 'pending',
+            bankText: bank.bank + '（' + bank.tail + '）',
+            expect: '支付机构连接暂时失败，系统会自动重试',
+            order: paymentDatabase.fundingOrder(fundingOrder.id),
+            providerError: String(error && error.message || error)
+          };
+          idemFinish(idem.key, pendingPayload);
+        } else {
+          idemAbort(idem.key);
+        }
+        return fail(res, 502, '支付机构提现失败：' + String(error && error.message || error));
+      }
     }
     const aml = amlGateOrReject(res, req, user, {
       channel: 'wallet_withdraw',
@@ -21948,31 +22669,20 @@ try {
   console.log('[支付账本] 启动校验失败，资金功能已暂停：' + error.message);
 }
 try {
-  paymentTokenVault = new PaymentTokenVault({
-    file: path.join(DATA_DIR, 'payment-token-vault.json'),
-    now
-  });
-  paymentDeviceEnrollment = new PaymentDeviceEnrollment({
-    tokens: paymentTokenVault,
-    uid,
-    now,
-    ttlMs: 2 * 60 * 1000
-  });
-  const configuredKeys = process.env.PAYMENT_KEYS_JSON
-    ? JSON.parse(process.env.PAYMENT_KEYS_JSON)
-    : [{
-      id: process.env.PAYMENT_KEY_ID || '',
-      secret: process.env.PAYMENT_KEY_BASE64 || '',
-      active: true
-    }];
-  if (Array.isArray(configuredKeys) && configuredKeys.length
-      && configuredKeys.every((row) => row && row.id && row.secret)) {
-    const keyring = new PaymentKeyRing({
-      activeKeyId: process.env.PAYMENT_ACTIVE_KEY_ID
-        || configuredKeys.find((row) => row.active)?.id
-        || configuredKeys[0].id,
-      keys: configuredKeys
+  const keyring = configuredPaymentKeyring();
+  if (!paymentDatabase) {
+    paymentTokenVault = new PaymentTokenVault({
+      file: path.join(DATA_DIR, 'payment-token-vault.json'),
+      now
     });
+    paymentDeviceEnrollment = new PaymentDeviceEnrollment({
+      tokens: paymentTokenVault,
+      uid,
+      now,
+      ttlMs: 2 * 60 * 1000
+    });
+  }
+  if (keyring && !paymentDatabase) {
     paymentIntentEngine = new PaymentIntentEngine({
       file: path.join(DATA_DIR, 'payment-intents.jsonl'),
       keyring,
@@ -21986,9 +22696,51 @@ try {
   console.log('[支付设备] 初始化失败，设备绑定已关闭：'
     + String(error && error.message || error));
 }
-if (paymentCoreMode !== 'off' && !paymentIntentEngine) {
+if (paymentCoreMode !== 'off' && !paymentIntentEngine && !paymentDatabase) {
   console.log('[支付核心] 缺少 PAYMENT_KEY_ID / PAYMENT_KEY_BASE64，'
     + paymentCoreMode + ' 模式不会处理资金');
+}
+try {
+  const { createPaymentProviderFromEnv } = require('./lib/payment-provider');
+  paymentProvider = createPaymentProviderFromEnv(process.env);
+  paymentRealMoneyReady = paymentCoreMode === 'enforce'
+    && !!paymentDatabase
+    && paymentProvider.ready();
+  console.log('[支付机构] ' + (paymentProvider.ready()
+    ? ('已配置 ' + paymentProvider.name)
+    : '未配置，真钱充值 / 提现将安全暂停'));
+} catch (error) {
+  paymentProvider = null;
+  paymentRealMoneyReady = false;
+  console.log('[支付机构] 初始化失败，真钱资金功能已暂停：'
+    + String(error && error.message || error));
+}
+if (paymentDatabase) {
+  const scheduleOutbox = () => {
+    runPaymentOutboxOnce().catch((error) => {
+      console.log('[支付 outbox] ' + String(error && error.message || error));
+    }).finally(() => {
+      paymentOutboxTimer = setTimeout(scheduleOutbox, 1000);
+      paymentOutboxTimer.unref();
+    });
+  };
+  paymentOutboxTimer = setTimeout(scheduleOutbox, 250);
+  paymentOutboxTimer.unref();
+  setTimeout(() => {
+    try {
+      backupPaymentDatabaseNow();
+    } catch (error) {
+      console.log('[支付备份] ' + String(error && error.message || error));
+    }
+  }, 10_000).unref();
+  paymentBackupTimer = setInterval(() => {
+    try {
+      backupPaymentDatabaseNow();
+    } catch (error) {
+      console.log('[支付备份] ' + String(error && error.message || error));
+    }
+  }, 24 * 60 * 60 * 1000);
+  paymentBackupTimer.unref();
 }
 try {
   const shadowTopology = process.env.SHARD_TOPOLOGY_ID
@@ -22784,8 +23536,17 @@ server.listen(PORT, BIND_HOST, () => {
   }
 });
 
-process.on('SIGINT', () => { console.log('\n正在退出…'); server.close(() => process.exit(0)); });
-process.on('SIGTERM', () => process.exit(0));
+process.on('SIGINT', () => {
+  console.log('\n正在退出…');
+  server.close(() => {
+    closePaymentDatabase();
+    process.exit(0);
+  });
+});
+process.on('SIGTERM', () => {
+  closePaymentDatabase();
+  process.exit(0);
+});
 
 /* 兜底：任何一处没接住的异常都不能让整个服务退出（否则一条恶意请求就能把所有人踢下线）。
    记一条日志，继续服务。 */
@@ -25777,6 +26538,32 @@ async function handleOps(req, res, parts, query) {
       'entries=' + result.entries + ', differences=' + result.differences.length);
     ok(res, result);
     return;
+  }
+
+  if (sub === 'payments' && parts[2] === 'settlement' && method === 'GET') {
+    if (!can(admin, 'payments')) return fail(res, 403, '你的角色没有查看这一项的权限');
+    if (!paymentDatabase || !paymentProvider || !paymentProvider.ready()) {
+      return fail(res, 503, '支付数据库或持牌支付机构尚未就绪');
+    }
+    const date = String(query.get('date') || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return fail(res, 422, '对账日期格式应为 YYYY-MM-DD');
+    }
+    try {
+      const lines = await paymentProvider.settlementReport(date);
+      const result = paymentDatabase.reconcileProviderSettlement(
+        paymentProvider.name,
+        date,
+        lines
+      );
+      audit(req, admin, '支付机构逐日对账', paymentProvider.name + ' ' + date,
+        'provider=' + result.providerLines + ', local=' + result.localLines
+          + ', mismatches=' + result.mismatches.length);
+      ok(res, result);
+      return;
+    } catch (error) {
+      return fail(res, 502, '逐日对账失败：' + String(error && error.message || error));
+    }
   }
 
   /* 某一笔的详情：完整流水 + 发起设备 IP + 相关审计 */

@@ -18,6 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 选 Node 24（SQLite 支付事务库）
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
       - name: 选 Xcode（优先 26，没有就用最新可用的）
         run: |
           set -e
@@ -81,6 +86,9 @@ jobs:
           node server/test/security-vault.test.js
           node server/test/chat-actions.test.js
           node server/test/payment-ledger.test.js
+          node server/test/payment-database.test.js
+          node server/test/payment-database-concurrency.test.js
+          node server/test/payment-provider-server.test.js
 
       - name: 校验核心模块
         run: bash tools/verify-core.sh

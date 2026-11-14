@@ -3,8 +3,8 @@
   "files": [
     {
       "path": "Sources/API.swift",
-      "size": 212077,
-      "sha256": "e8958eeace0d60607d0c38439d925753035b97dfbe19514417e275b82c67406c"
+      "size": 213288,
+      "sha256": "5ced5214cfcdb4985617096e8212bb29f7cad496d5689f88b9e83d183222ecb3"
     },
     {
       "path": "Sources/App.swift",
@@ -38,8 +38,8 @@
     },
     {
       "path": "Sources/AICall.swift",
-      "size": 13998,
-      "sha256": "da5f9ad2188454c4b249b4d816102a8329acd7e454d5528ab3a21d611c2d06d5"
+      "size": 14115,
+      "sha256": "f4c0b979abe61126f33409638ec904148ce66e4b99c3fc8c7cc2867068f77e31"
     },
     {
       "path": "Sources/TRTCBridge.swift",
@@ -73,8 +73,8 @@
     },
     {
       "path": "Sources/ChatDetailView.swift",
-      "size": 294849,
-      "sha256": "9afc76d83279ebfba2666bdd6be5b62d67a733ef5bb179e35cff56767755d934"
+      "size": 296527,
+      "sha256": "6b83aeb749dd9dfa99a8ec7a2aabb22ee5c631fd14a2528d0090c81985b789ab"
     },
     {
       "path": "Sources/GroupInfoView.swift",

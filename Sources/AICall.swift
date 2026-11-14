@@ -14,7 +14,6 @@ final class VoiceEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegate
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
-    private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "zh-CN"))
     private let synth = AVSpeechSynthesizer()
     private var onSpokenDone: (() -> Void)?
     private var cloudPlayer: AVAudioPlayer?
@@ -38,13 +37,17 @@ final class VoiceEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegate
         stop()
         self.onText = onText
         heard = ""
+        guard let recognizer = NativeSpeech.recognizer(), recognizer.isAvailable else {
+            status = "系统语音识别暂时不可用"
+            return
+        }
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playAndRecord, mode: .default,
                                  options: [.defaultToSpeaker, .allowBluetooth])
         try? session.setActive(true, options: [])
 
         let req = SFSpeechAudioBufferRecognitionRequest()
-        req.shouldReportPartialResults = true
+        NativeSpeech.configure(req, recognizer: recognizer, partial: true)
         request = req
 
         let input = engine.inputNode
@@ -81,7 +84,7 @@ final class VoiceEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegate
         listening = true
         status = "我在听…"
 
-        task = recognizer?.recognitionTask(with: req) { [weak self] result, error in
+        task = recognizer.recognitionTask(with: req) { [weak self] result, error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if let result = result {

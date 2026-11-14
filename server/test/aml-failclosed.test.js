@@ -118,6 +118,7 @@ async function main() {
         PORT: String(port),
         TURN_PORT: String(turnPort),
         ADMIN_PASSWORD,
+        AML_RUNTIME_ENABLED: '1',
         CHRIS_LOCAL_ONLY: '1'
       }),
       stdio: ['ignore', 'pipe', 'pipe'],

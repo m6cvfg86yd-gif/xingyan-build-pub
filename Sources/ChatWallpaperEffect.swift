@@ -3,11 +3,35 @@ import UIKit
 import CoreImage
 
 struct ChatDefaultWallpaper: View {
+    var preset: ChatAppearancePreset? = nil
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         ZStack {
-            if scheme == .light {
+            if let preset {
+                preset.canvas
+
+                RadialGradient(
+                    colors: [
+                        preset.mine.opacity(scheme == .light ? 0.16 : 0.20),
+                        preset.mine.opacity(0.035),
+                        Color.clear
+                    ],
+                    center: UnitPoint(x: 0.88, y: 0.12),
+                    startRadius: 2,
+                    endRadius: 520
+                )
+
+                RadialGradient(
+                    colors: [
+                        preset.other.opacity(scheme == .light ? 0.34 : 0.18),
+                        Color.clear
+                    ],
+                    center: UnitPoint(x: 0.12, y: 0.88),
+                    startRadius: 4,
+                    endRadius: 430
+                )
+            } else if scheme == .light {
                 LinearGradient(
                     colors: [
                         Color(hex: 0xF8F5EF),

@@ -239,6 +239,20 @@ async function main() {
     response = await call(base, 'GET', '/api/me', undefined, bobCookie);
     assert.strictEqual(Number(response.data.user.balance), 1);
 
+    response = await call(base, 'POST', '/api/pay/code', {}, bobCookie);
+    assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    const paymentCode = response.data.code;
+    response = await call(base, 'POST', '/api/pay/collect', {
+      text: paymentCode,
+      amount: 2,
+      password: PAY_PASSWORD,
+      requestId: 'secure-paycode-request'
+    }, aliceCookie);
+    assert.strictEqual(response.status, 200, JSON.stringify(response.data));
+    assert.strictEqual(Number(response.data.balance), 97);
+    response = await call(base, 'GET', '/api/me', undefined, bobCookie);
+    assert.strictEqual(Number(response.data.user.balance), 3);
+
     response = await call(base, 'GET', '/api/bills/ledger?limit=100', undefined, aliceCookie);
     assert.strictEqual(response.data.verified, true);
     const captureEntries = (response.data.entries || []).filter(

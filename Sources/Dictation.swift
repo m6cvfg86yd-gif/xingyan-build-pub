@@ -9,7 +9,6 @@ final class Dictation: NSObject, ObservableObject {
     @Published var error = ""
 
     private let engine = AVAudioEngine()
-    private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "zh-CN"))
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var onText: ((String) -> Void)?
@@ -59,6 +58,10 @@ final class Dictation: NSObject, ObservableObject {
     }
 
     private func begin() {
+        guard let recognizer = NativeSpeech.recognizer(), recognizer.isAvailable else {
+            self.error = "系统语音识别暂时不可用"
+            return
+        }
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.record, mode: .default, options: [.duckOthers])
         do {
@@ -69,8 +72,8 @@ final class Dictation: NSObject, ObservableObject {
         }
 
         let req = SFSpeechAudioBufferRecognitionRequest()
-        req.shouldReportPartialResults = true
         req.taskHint = .dictation
+        NativeSpeech.configure(req, recognizer: recognizer, partial: true)
         request = req
 
         let node = engine.inputNode
@@ -94,7 +97,7 @@ final class Dictation: NSObject, ObservableObject {
         started = true
         bumpSilence()
 
-        task = recognizer?.recognitionTask(with: req) { [weak self] result, err in
+        task = recognizer.recognitionTask(with: req) { [weak self] result, err in
             guard let self = self else { return }
             DispatchQueue.main.async {
                 if let result = result {

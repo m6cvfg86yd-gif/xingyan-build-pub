@@ -237,8 +237,8 @@ struct BubbleFill: View {
     private var mineFill: LinearGradient {
         LinearGradient(
             colors: [
-                Color.dyn(0x0C7A70, 0x0D5C56),
-                Color.dyn(0x085F57, 0x073F3B)
+                ChatTheme.bubbleMine,
+                ChatTheme.bubbleMine.opacity(0.88)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -309,7 +309,7 @@ private struct ChatImmersiveEdgeMask: View {
     var body: some View {
         GeometryReader { proxy in
             if path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                ChatDefaultWallpaper()
+                ChatDefaultWallpaper(preset: ChatTheme.preset)
                     .frame(width: max(1, proxy.size.width),
                            height: max(1, proxy.size.height),
                            alignment: edge == .top ? .top : .bottom)
@@ -551,6 +551,8 @@ struct ChatDetailView: View {
     @State private var dismissDragActive = false
     @State private var loading = true
     @State private var initialRetryTask: Task<Void, Never>?
+    @State private var initialScrollReady = false
+    @State private var initialScrollTask: Task<Void, Never>?
     @State private var panel: PanelKind = .none
     @State private var emojiPanelExpanded = false
     @State private var plusItems: [PlusItem] = []
@@ -2426,6 +2428,8 @@ struct ChatDetailView: View {
             ChatDraftStore.shared.set(input, for: chat.id)
             settleTask?.cancel()
             settleTask = nil
+            initialScrollTask?.cancel()
+            initialScrollTask = nil
             pinTask?.cancel()
             pinTask = nil
             patAnimationTask?.cancel()
@@ -2542,11 +2546,16 @@ struct ChatDetailView: View {
                         .allowsHitTesting(false)
                 }
             }
+            .opacity(initialScrollReady ? 1 : 0)
             .coordinateSpace(name: "chatScroll")
             .scrollDismissesKeyboard(.interactively)
         .onChange(of: messages.count) { _ in
 
                 backfillVoiceText()
+                if !initialScrollReady {
+                    if !loading { settleInitialScroll(proxy) }
+                    return
+                }
                 ChatScrollDiag.shared.note("消息数变了=\(messages.count) atBottom=\(atBottomNow ? 1 : 0)")
                 guard !holdScroll else { return }
                 guard atBottomNow || messages.last?.senderId == myId else { return }
@@ -2558,6 +2567,9 @@ struct ChatDetailView: View {
                 if value {
                     allowSettledBottom = false
                 } else {
+                    if !initialScrollReady {
+                        settleInitialScroll(proxy)
+                    }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         allowSettledBottom = true
                     }
@@ -2595,7 +2607,11 @@ struct ChatDetailView: View {
                 backfillVoiceText()
                 wasAtBottom = true
                 atBottom = true
-                scrollToEnd(proxy, animated: false)
+                if loading {
+                    initialScrollReady = false
+                } else {
+                    settleInitialScroll(proxy)
+                }
                 if !loading {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         allowSettledBottom = true
@@ -2608,6 +2624,34 @@ struct ChatDetailView: View {
                         + " 哨兵=\(atBottom) 跟随=\(wasAtBottom)")
                 }
             }
+            .overlay {
+                if !initialScrollReady {
+                    ProgressView()
+                        .controlSize(.regular)
+                        .tint(ChatTheme.secondary)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+    }
+
+    private func settleInitialScroll(_ proxy: ScrollViewProxy) {
+        guard !initialScrollReady else { return }
+        initialScrollTask?.cancel()
+        ChatScrollHandle.shared.allowAutomaticPinning()
+        initialScrollTask = Task { @MainActor in
+            atBottom = true
+            wasAtBottom = true
+            for delay in [0, 24, 70, 150, 260] {
+                if delay > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000)
+                }
+                if Task.isCancelled { return }
+                proxy.scrollTo("__bottom", anchor: .bottom)
+            }
+            if Task.isCancelled { return }
+            initialScrollReady = true
+            pinTick += 1
         }
     }
 
@@ -2804,7 +2848,7 @@ struct ChatDetailView: View {
     private var chatBackdrop: some View {
         ZStack {
             if backgroundPath.isEmpty {
-                ChatDefaultWallpaper()
+                ChatDefaultWallpaper(preset: ChatTheme.preset)
             } else {
                 ChatTheme.page
                 if let solid = renderedChatBackgroundSolidColor(
