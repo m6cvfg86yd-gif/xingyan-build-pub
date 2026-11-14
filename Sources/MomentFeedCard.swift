@@ -316,24 +316,49 @@ struct MomentFeedCard: View {
             showLikes = true
         } label: {
             HStack(spacing: 8) {
-                HStack(spacing: -7) {
-                    ForEach(Array(likes.prefix(3).enumerated()), id: \.offset) { _, like in
-                        likeAvatar(like, size: 22)
-                            .overlay(Circle().stroke(C.pageBg, lineWidth: 1.5))
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: 0xFF6985), Color(hex: 0xF33D5E)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                .frame(width: 25, height: 25)
+
+                HStack(spacing: 2) {
+                    ForEach(Array(stableOrderedLikes.prefix(8).enumerated()), id: \.offset) { _, like in
+                        likeAvatar(like, size: 21)
+                            .overlay(Circle().stroke(C.pageBg, lineWidth: 1.2))
+                    }
+                    if stableOrderedLikes.count > 8 {
+                        Text("+\(stableOrderedLikes.count - 8)")
+                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                            .foregroundColor(C.subLabel)
+                            .frame(width: 21, height: 21)
+                            .background(Circle().fill(Color.primary.opacity(0.07)))
+                            .overlay(Circle().stroke(C.pageBg, lineWidth: 1.2))
                     }
                 }
-                .frame(height: 22)
+                .frame(height: 21)
 
                 Text(localizedLikeSummary)
                     .font(systemTextFont(12.5, .medium, relativeTo: .caption1))
                     .foregroundColor(C.label)
                     .lineLimit(1)
 
+                Spacer(minLength: 0)
+
                 Image(systemName: "chevron.right")
                     .font(.system(size: 9.5, weight: .semibold))
                     .foregroundColor(C.subLabel)
             }
-            .frame(minHeight: 30)
+            .frame(minHeight: 32)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

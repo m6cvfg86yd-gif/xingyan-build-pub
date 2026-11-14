@@ -1299,6 +1299,8 @@ enum L10n {
         "删除这条评论？": "Delete this comment?",
         "评论已删除": "Comment deleted",
         "这一刻的想法…": "What's on your mind…",
+        "发条评论，说说你的感受": "Write a comment and share your thoughts",
+        "作者": "Author",
         "正在发表…": "Posting…",
         "正在准备图片…": "Preparing photos…",
         "正在准备视频…": "Preparing video…",

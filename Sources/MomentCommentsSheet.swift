@@ -71,7 +71,6 @@ struct MomentCommentsSheet: View {
                                 ForEach(Array(comments.enumerated()), id: \.offset) { index, item in
                                     commentRow(item, index: index)
                                         .id(commentKey(item, index))
-                                    HairLine(inset: 52)
                                 }
                             }
                         }
@@ -161,12 +160,14 @@ struct MomentCommentsSheet: View {
                 .padding(.top, 8)
 
             HStack {
-                Color.clear.frame(width: 38, height: 38)
-                Spacer(minLength: 8)
-                Text("\(comments.count) " + Tr("条评论"))
-                    .font(pf(14.5, .semibold))
-                    .foregroundColor(C.label)
-                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    Text(Tr("评论"))
+                        .font(pf(18, .semibold))
+                        .foregroundColor(C.label)
+                    Text("\(comments.count)")
+                        .font(pf(12, .medium))
+                        .foregroundColor(C.subLabel)
+                }
                 Spacer(minLength: 8)
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
@@ -180,8 +181,7 @@ struct MomentCommentsSheet: View {
             }
             .padding(.horizontal, 8)
         }
-        .background(Color(uiColor: .systemBackground))
-        .overlay(alignment: .bottom) { HairLine() }
+        .background(sheetSurface)
     }
 
     private var commentContextStrip: some View {
@@ -230,13 +230,16 @@ struct MomentCommentsSheet: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
-        .background(Color(uiColor: .systemBackground))
-        .overlay(alignment: .bottom) { HairLine() }
+        .background(sheetSurface)
     }
 
     private var frostedBackground: some View {
-        Color(uiColor: .systemGroupedBackground)
+        sheetSurface
             .ignoresSafeArea()
+    }
+
+    private var sheetSurface: Color {
+        Color.dyn(0xFFFFFF, 0x000000)
     }
 
     private var frostedCard: some View {
@@ -436,40 +439,64 @@ struct MomentCommentsSheet: View {
     private func commentRow(_ item: MomentComment, index: Int) -> some View {
         let key = commentKey(item, index)
         let canDelete = item.userId == app.me?.id
-        return HStack(alignment: .top, spacing: 10) {
+        let isAuthor = !(item.userId ?? "").isEmpty && item.userId == live.author?.id
+        return HStack(alignment: .top, spacing: 11) {
             commentAvatar(item)
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 5) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
                     Text(item.nickname ?? "")
-                        .font(pf(13.5, .semibold))
-                        .foregroundColor(C.label.opacity(0.94))
+                        .font(pf(13.5, .medium))
+                        .foregroundColor(C.subLabel)
                         .lineLimit(1)
-                    if let target = item.replyToName, !target.isEmpty {
-                        Text(Tr("回复") + " @" + target)
-                            .font(pf(11.5, .medium))
-                            .foregroundColor(C.link)
-                            .lineLimit(1)
+                    if isAuthor {
+                        Text(Tr("作者"))
+                            .font(pf(9.5, .semibold))
+                            .foregroundColor(C.green)
+                            .padding(.horizontal, 6)
+                            .frame(height: 18)
+                            .background(C.green.opacity(0.10),
+                                        in: Capsule(style: .continuous))
                     }
                     Spacer(minLength: 0)
-                    Text(TimeFmt.ago(item.at))
-                        .font(pf(10.5))
-                        .foregroundColor(C.subLabel)
                 }
+
                 Text(item.content ?? "")
-                    .font(systemTextFont(15.2, .regular, relativeTo: .subheadline))
+                    .font(systemTextFont(15.5, .regular, relativeTo: .body))
                     .foregroundColor(C.label)
-                    .lineSpacing(4.5)
+                    .lineSpacing(4)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
 
-                commentActions(item)
-                    .padding(.top, 2)
+                HStack(spacing: 10) {
+                    Text(TimeFmt.ago(item.at))
+                        .font(pf(10.5))
+                        .foregroundColor(C.subLabel.opacity(0.78))
+
+                    if let target = item.replyToName, !target.isEmpty {
+                        Text(Tr("回复") + " @" + target)
+                            .font(pf(10.5, .medium))
+                            .foregroundColor(C.subLabel.opacity(0.78))
+                            .lineLimit(1)
+                    }
+
+                    Button {
+                        beginReply(item)
+                    } label: {
+                        Text(Tr("回复"))
+                            .font(pf(11, .semibold))
+                            .foregroundColor(C.subLabel)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer(minLength: 0)
+                }
             }
+            commentLikeAction(item)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 13)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .systemBackground))
+        .background(sheetSurface)
         .contentShape(Rectangle())
         .onTapGesture { beginReply(item) }
         .simultaneousGesture(
@@ -479,48 +506,36 @@ struct MomentCommentsSheet: View {
         )
     }
 
-    private func commentActions(_ item: MomentComment) -> some View {
+    private func commentLikeAction(_ item: MomentComment) -> some View {
         let id = item.id ?? ""
         let liked = commentLiked(item)
         let count = (item.likes ?? []).count
-        return HStack(spacing: 18) {
-            Button {
-                beginReply(item)
-            } label: {
-                Label(Tr("回复"), systemImage: "arrowshape.turn.up.left")
-                    .font(pf(12, .medium))
-                    .foregroundColor(C.subLabel)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Spacer(minLength: 0)
-
-            Button {
-                toggleCommentLike(item)
-            } label: {
-                HStack(spacing: 4) {
-                    ZStack {
-                        if commentHeartBurst == id, !id.isEmpty {
-                            HeartBurst(intensity: 0.92)
-                        }
-                        Image(systemName: liked ? "heart.fill" : "heart")
-                            .font(.system(size: 13.5, weight: .semibold))
-                            .foregroundColor(liked ? Color(hex: 0xFF4868) : C.subLabel)
+        return Button {
+            toggleCommentLike(item)
+        } label: {
+            VStack(spacing: 3) {
+                ZStack {
+                    if commentHeartBurst == id, !id.isEmpty {
+                        HeartBurst(intensity: 0.92)
                     }
-                    if count > 0 {
-                        Text("\(count)")
-                            .font(pf(11.5, .medium))
-                            .foregroundColor(liked ? Color(hex: 0xFF4868) : C.subLabel)
-                    }
+                    Image(systemName: liked ? "heart.fill" : "heart")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(liked ? Color(hex: 0xFF4868) : C.subLabel)
                 }
-                .frame(height: 28)
-                .contentShape(Rectangle())
+                .frame(width: 28, height: 24)
+
+                if count > 0 {
+                    Text("\(count)")
+                        .font(pf(10.5, .medium))
+                        .foregroundColor(C.subLabel)
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(commentLikeBusy.contains(id))
-            .accessibilityLabel(liked ? Tr("取消赞") : Tr("赞"))
+            .frame(width: 36)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .disabled(commentLikeBusy.contains(id))
+        .accessibilityLabel(liked ? Tr("取消赞") : Tr("赞"))
         .animation(.easeOut(duration: 0.18), value: count)
     }
 
@@ -601,39 +616,35 @@ struct MomentCommentsSheet: View {
                 .padding(.top, 7)
             }
             HStack(spacing: 8) {
-                TextField(Tr("说点什么…"), text: $text)
+                TextField(Tr("发条评论，说说你的感受"), text: $text)
                     .font(pf(14.5))
                     .foregroundColor(C.label)
                     .focused($commentFocused)
                     .padding(.horizontal, 14)
-                    .frame(height: 42)
-                    .background(Capsule().fill(Color.dyn(0xF4F4F2, 0x292929)))
+                    .frame(height: 44)
+                    .background(Capsule().fill(Color.dyn(0xF2F2F3, 0x1F1F1F)))
                     .submitLabel(.send)
                     .onSubmit { send() }
+
                 Button(action: send) {
-                    Text(Tr("发送"))
-                        .font(pf(13.5, .medium))
-                        .foregroundColor(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                         ? C.subLabel : .white)
-                        .frame(width: 60, height: 38)
-                        .background(Capsule().fill(
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(
                             text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            ? Color.dyn(0xEAEAE7, 0x2E2E2E) : C.green
+                            ? Color.dyn(0xC7C7CC, 0x3A3A3C) : C.green
                         ))
                 }
                 .buttonStyle(.plain)
                 .disabled(sending || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityLabel(Tr("发送"))
             }
             .padding(.horizontal, 12)
-            .padding(.top, 9)
-            .padding(.bottom, max(10, L.safeBottom))
+            .padding(.top, 8)
+            .padding(.bottom, max(9, L.safeBottom))
         }
-        .background(Color(uiColor: .systemBackground))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Color(uiColor: .separator))
-                .frame(height: 0.5)
-        }
+        .background(sheetSurface)
     }
 
     private func send() {
