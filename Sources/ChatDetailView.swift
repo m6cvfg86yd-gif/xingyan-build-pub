@@ -3432,7 +3432,7 @@ struct ChatDetailView: View {
         let title = chatEntryLabel(c.label, action: c.action)
         return Button {
             switch c.action {
-            case "photo": showPhoto = true
+            case "photo": openPhotoPicker()
             case "camera": showCamera = true
             case "location": showSendLocation = true
             case "file": openFilePicker()
@@ -3858,7 +3858,7 @@ struct ChatDetailView: View {
                     }
                 }
 
-                Button { showPhoto = true } label: {
+                Button { openPhotoPicker() } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 21, weight: .medium))
                         .foregroundColor(composerUsesLightInk ? .white : C.label)
@@ -3956,12 +3956,11 @@ struct ChatDetailView: View {
                 ChatRecentPhotoStrip(
                     store: recentPhotos,
                     onPick: { image in
-                        stageDraftImages([image])
                         panel = .none
+                        pendingMedia = .image(image, nativeCamera: false)
                     },
                     onOpenLibrary: {
-                        panel = .none
-                        showPhoto = true
+                        openPhotoPicker()
                     })
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -4340,11 +4339,18 @@ struct ChatDetailView: View {
         }
     }
 
+    private func openPhotoPicker() {
+        focused = false
+        panel = .none
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            showPhoto = true
+        }
+    }
+
     private func handlePlus(_ item: PlusItem) {
         switch item.action ?? "none" {
         case "photo":
-            panel = .none
-            showPhoto = true
+            openPhotoPicker()
         case "camera":
             panel = .none
             showCamera = true

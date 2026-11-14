@@ -96,7 +96,7 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
         let nativeSide = max(bounds.width, bounds.height) * UIScreen.main.scale
         let side = min(2400, max(1200, nativeSide))
 
-        return await withCheckedContinuation { continuation in
+        let image: UIImage? = await withCheckedContinuation { continuation in
             var resumed = false
             manager.requestImage(for: asset,
                                  targetSize: CGSize(width: side, height: side),
@@ -107,6 +107,18 @@ final class RecentPhotoStore: NSObject, ObservableObject, PHPhotoLibraryChangeOb
                 if degraded, image != nil { return }
                 resumed = true
                 continuation.resume(returning: image)
+            }
+        }
+        if let image { return image }
+
+        let dataOptions = PHImageRequestOptions()
+        dataOptions.version = .current
+        dataOptions.deliveryMode = .highQualityFormat
+        dataOptions.isNetworkAccessAllowed = true
+        return await withCheckedContinuation { continuation in
+            manager.requestImageDataAndOrientation(for: asset,
+                                                   options: dataOptions) { data, _, _, _ in
+                continuation.resume(returning: data.flatMap { UIImage(data: $0) })
             }
         }
     }
@@ -180,15 +192,41 @@ struct ChatRecentPhotoStrip: View {
                             .frame(width: tile, height: tile)
                     }
                 } else if store.assets.isEmpty {
-                    ForEach(0..<5, id: \.self) { _ in
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.primary.opacity(0.075))
-                            Image(systemName: "photo")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundStyle(Color.primary.opacity(0.38))
+                    if store.accessState == .denied || store.accessState == .restricted {
+                        Button(action: openPhotoSettings) {
+                            HStack(spacing: 9) {
+                                Image(systemName: "lock.shield.fill")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(Color.primary.opacity(0.64))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(Tr("照片访问已关闭"))
+                                        .font(.system(size: 12.5, weight: .semibold))
+                                        .foregroundStyle(Color.primary.opacity(0.82))
+                                    Text(Tr("去系统设置允许"))
+                                        .font(.system(size: 10.5))
+                                        .foregroundStyle(Color.primary.opacity(0.48))
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .frame(height: tile)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.primary.opacity(0.075))
+                            )
                         }
-                        .frame(width: tile, height: tile)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Tr("照片访问已关闭，去系统设置允许"))
+                    } else {
+                        ForEach(0..<5, id: \.self) { _ in
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.primary.opacity(0.075))
+                                Image(systemName: "photo")
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(Color.primary.opacity(0.38))
+                            }
+                            .frame(width: tile, height: tile)
+                        }
                     }
                 } else {
                     ForEach(store.assets, id: \.localIdentifier) { asset in
@@ -223,6 +261,11 @@ struct ChatRecentPhotoStrip: View {
         .frame(height: tile + 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .task { await store.loadIfNeeded(requestAccess: true) }
+    }
+
+    private func openPhotoSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 }
 
