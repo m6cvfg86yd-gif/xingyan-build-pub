@@ -88,6 +88,11 @@ New members start at their `joinedSeq`; departed members can only read before
 latest group sequence and per-device read cursor rather than per-member message
 copies.
 
+`server/lib/group-notification-worker.js` consumes bounded group member
+partitions for offline notifications. Online members are skipped because they
+already receive the group timeline signal. Push records carry an idempotency
+key of `groupId:seq:userId`, so queue retries do not create duplicate alerts.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file
