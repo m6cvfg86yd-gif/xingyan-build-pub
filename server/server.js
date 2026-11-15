@@ -26,6 +26,10 @@ const { createShardShadowService } = require('./lib/shard-shadow-service');
 const { resolveTopology } = require('./lib/shard-topology');
 const { MessageReliabilityStore } = require('./lib/message-reliability');
 const { GroupMessageShadow } = require('./lib/group-message-shadow');
+const {
+  RemoteGroupCellShadow,
+  parseCellEndpoints
+} = require('./lib/remote-group-cell-shadow');
 const { PaymentTokenVault } = require('./lib/payment-token-vault');
 const { PaymentDeviceEnrollment } = require('./lib/payment-device-enrollment');
 const { PaymentKeyRing } = require('./lib/payment-keyring');
@@ -50,6 +54,7 @@ let shardShadow = null;
 let shardShadowAuditTimer = null;
 let messageReliability = null;
 let groupMessageShadow = null;
+let remoteGroupMessageShadow = null;
 let paymentDeviceEnrollment = null;
 let paymentTokenVault = null;
 let paymentIntentEngine = null;
@@ -9517,6 +9522,16 @@ function deliverMessage(user, chatId, kind, content, clientId, mentionHint, medi
       console.log('[群消息影子] 观察失败：'
         + String(error && error.message || error));
     }
+  }
+  if (remoteGroupMessageShadow && chat.type === 'group') {
+    remoteGroupMessageShadow.observe({
+      chat,
+      senderId: user.id,
+      message
+    }).catch((error) => {
+      console.log('[群消息远程影子] 观察失败：'
+        + String(error && error.message || error));
+    });
   }
   noteMessage();
   /* 落盘改成「攒一下再写」：以前每发一条消息都要重写整个 chats.json（1.5MB），
@@ -23021,6 +23036,45 @@ if (['1', 'true', 'on', 'yes'].includes(groupMessageShadowFlag)) {
   } catch (error) {
     groupMessageShadow = null;
     console.log('[群消息影子] 初始化失败，已自动关闭：'
+      + String(error && error.message || error));
+  }
+}
+const remoteGroupMessageShadowFlag = String(
+  process.env.GROUP_MESSAGE_REMOTE_SHADOW_ENABLED || '0'
+).toLowerCase();
+if (['1', 'true', 'on', 'yes'].includes(remoteGroupMessageShadowFlag)) {
+  try {
+    const endpoints = parseCellEndpoints(process.env.GROUP_MESSAGE_CELL_ENDPOINTS);
+    const cellId = String(process.env.GROUP_MESSAGE_SHADOW_CELL_ID || '').trim();
+    const baseUrl = endpoints[cellId] || '';
+    if (!cellId || !baseUrl) {
+      throw new Error('GROUP_MESSAGE_SHADOW_CELL_ID must match a configured cell endpoint');
+    }
+    remoteGroupMessageShadow = new RemoteGroupCellShadow({
+      cellId,
+      baseUrl,
+      internalToken: process.env.GROUP_CELL_INTERNAL_TOKEN || '',
+      timeoutMs: Number(process.env.GROUP_MESSAGE_REMOTE_SHADOW_TIMEOUT_MS) || 3000,
+      reportFile: process.env.GROUP_MESSAGE_REMOTE_SHADOW_REPORT
+        || path.join(DATA_DIR, 'group-message-remote-shadow-report.json')
+    });
+    const remoteReportTimer = setInterval(() => {
+      try { remoteGroupMessageShadow.writeReport(); } catch (_) { }
+    }, 30_000);
+    remoteReportTimer.unref();
+    process.once('exit', () => {
+      try { remoteGroupMessageShadow.writeReport(); } catch (_) { }
+    });
+    remoteGroupMessageShadow.health().then(() => {
+      console.log('[群消息远程影子] 已连接 ' + cellId
+        + '，异步镜像，不参与线上返回');
+    }).catch((error) => {
+      console.log('[群消息远程影子] 健康检查失败：'
+        + String(error && error.message || error));
+    });
+  } catch (error) {
+    remoteGroupMessageShadow = null;
+    console.log('[群消息远程影子] 初始化失败，已自动关闭：'
       + String(error && error.message || error));
   }
 }

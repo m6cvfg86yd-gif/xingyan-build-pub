@@ -115,6 +115,13 @@ The production server enables this observer only when
 and never alter legacy message responses. The chat action regression passes
 with the shadow flag enabled.
 
+`server/lib/remote-group-cell-shadow.js` adds the first production-safe remote
+Cell hook. It mirrors legacy group messages to a token-protected Cell over HTTP,
+updates shadow membership periods in sequence order, and writes a bounded
+atomic report. It is disabled by default, never blocks the legacy sender
+response, and does not change ownership routes or epochs. Configuration and the
+promotion gate are documented in `docs/group-cell-production-hook.md`.
+
 `server/lib/group-cell-router.js` enforces one owning cell per group and an
 epoch for online migration. During migration, reads and writes stay on the
 source cell while the target is populated. Completion switches ownership only

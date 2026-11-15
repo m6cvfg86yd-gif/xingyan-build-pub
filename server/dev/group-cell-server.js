@@ -2,6 +2,7 @@
 'use strict';
 
 const http = require('http');
+const crypto = require('crypto');
 const path = require('path');
 const { GroupMessageCell } = require('../lib/group-message-cell');
 const { GroupRouteStore } = require('../lib/group-route-store');
@@ -77,6 +78,18 @@ const router = new GroupCellRouter({
   routeStore
 });
 const peerUrls = peers();
+const internalToken = String(
+  arg('internal-token', process.env.GROUP_CELL_INTERNAL_TOKEN || '')
+).trim();
+
+function internalAuthorized(req) {
+  if (!internalToken) return true;
+  const provided = String(req.headers['x-internal-token'] || '');
+  const expectedBuffer = Buffer.from(internalToken);
+  const providedBuffer = Buffer.from(provided);
+  return expectedBuffer.length === providedBuffer.length
+    && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
 
 async function mirrorToTarget(groupId, route, senderId, message) {
   const target = String(route.targetCellId || '');
@@ -113,6 +126,9 @@ const server = http.createServer(async (req, res) => {
         routes: routeStore.get('') ? 0 : undefined
       });
     }
+    if (!internalAuthorized(req)) {
+      return reply(res, 401, { ok: false, error: 'unauthorized' });
+    }
     if (parts[0] !== 'internal' || parts[1] !== 'groups' || !parts[2]) {
       return reply(res, 404, { ok: false, error: 'not found' });
     }
@@ -136,6 +152,16 @@ const server = http.createServer(async (req, res) => {
           || Number(route.epoch) !== Number(input.epoch)) {
         return reply(res, 409, { ok: false, error: 'mirror-fenced', route });
       }
+      const result = await cell.mirror(
+        groupId,
+        input.senderId,
+        input.message,
+        { fanout: false }
+      );
+      return reply(res, result.ok ? 200 : 409, result);
+    }
+    if (req.method === 'POST' && action === 'shadow') {
+      const input = await body(req);
       const result = await cell.mirror(
         groupId,
         input.senderId,
