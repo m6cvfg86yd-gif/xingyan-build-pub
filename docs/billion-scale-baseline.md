@@ -128,6 +128,10 @@ It supports source writes during migration through router dual-write, compares
 all four data groups before completion, and switches ownership only when the
 epoch and hashes match.
 
+`server/lib/durable-group-queue.js` persists group notification and partition
+jobs with unique deduplication keys, worker leases, expired-lease recovery,
+retry scheduling, acknowledgement, and restart-safe counters.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file
