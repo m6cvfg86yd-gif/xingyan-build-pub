@@ -25,6 +25,7 @@ const { AmlEngine } = require('./aml');
 const { createShardShadowService } = require('./lib/shard-shadow-service');
 const { resolveTopology } = require('./lib/shard-topology');
 const { MessageReliabilityStore } = require('./lib/message-reliability');
+const { GroupMessageShadow } = require('./lib/group-message-shadow');
 const { PaymentTokenVault } = require('./lib/payment-token-vault');
 const { PaymentDeviceEnrollment } = require('./lib/payment-device-enrollment');
 const { PaymentKeyRing } = require('./lib/payment-keyring');
@@ -48,6 +49,7 @@ const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 let shardShadow = null;
 let shardShadowAuditTimer = null;
 let messageReliability = null;
+let groupMessageShadow = null;
 let paymentDeviceEnrollment = null;
 let paymentTokenVault = null;
 let paymentIntentEngine = null;
@@ -9503,6 +9505,19 @@ function deliverMessage(user, chatId, kind, content, clientId, mentionHint, medi
   const reliableDuplicate = message.__reliableDuplicate === true;
   delete message.__reliableDuplicate;
   if (reliableDuplicate) return { message, duplicate: true };
+  if (groupMessageShadow && chat.type === 'group') {
+    try {
+      groupMessageShadow.observe({
+        cellId: 'primary',
+        chat,
+        senderId: user.id,
+        message
+      });
+    } catch (error) {
+      console.log('[群消息影子] 观察失败：'
+        + String(error && error.message || error));
+    }
+  }
   noteMessage();
   /* 落盘改成「攒一下再写」：以前每发一条消息都要重写整个 chats.json（1.5MB），
      压测时这是最大的瓶颈。现在最多 1.5 秒写一次，进程退出前再补一次。 */
@@ -22984,6 +22999,28 @@ if (reliabilityFlag === '1' || reliabilityFlag === 'true' || reliabilityFlag ===
     try { if (messageReliability) messageReliability.close(); } catch (_) { }
     messageReliability = null;
     console.log('[消息可靠性] 初始化失败，继续使用兼容链路：'
+      + String(error && error.message || error));
+  }
+}
+const groupMessageShadowFlag = String(
+  process.env.GROUP_MESSAGE_SHADOW_ENABLED || '0'
+).toLowerCase();
+if (['1', 'true', 'on', 'yes'].includes(groupMessageShadowFlag)) {
+  try {
+    groupMessageShadow = new GroupMessageShadow({
+      dataDir: path.join(DATA_DIR, 'group-message-shadow'),
+      largeGroupThreshold: Number(process.env.GROUP_MESSAGE_LARGE_THRESHOLD) || 500,
+      pushPartitionSize: Number(process.env.GROUP_MESSAGE_PUSH_PARTITION) || 1000,
+      now,
+      uid
+    });
+    process.once('exit', () => {
+      try { groupMessageShadow.close(); } catch (_) { }
+    });
+    console.log('[群消息影子] 已启用，仅镜像到隔离目录，不参与线上返回');
+  } catch (error) {
+    groupMessageShadow = null;
+    console.log('[群消息影子] 初始化失败，已自动关闭：'
       + String(error && error.message || error));
   }
 }

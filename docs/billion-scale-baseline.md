@@ -110,6 +110,11 @@ fanout, and notification model without changing legacy responses, and writes a
 deterministic-style operational report for duplicate, denied, conflict, and
 import counts.
 
+The production server enables this observer only when
+`GROUP_MESSAGE_SHADOW_ENABLED=1`; the default is off. Shadow errors are logged
+and never alter legacy message responses. The chat action regression passes
+with the shadow flag enabled.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file
