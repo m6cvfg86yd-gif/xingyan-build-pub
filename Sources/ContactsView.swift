@@ -359,7 +359,7 @@ private var funcs: [(String, String, Color, String)] {
                 } else if key == "addFriend" {
                     AddFriendView()
                 } else if key == "newGroup" {
-                    GroupCreateView { chat in
+                    WeChatGroupCreateView { chat in
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { path.append(chat) }
                     }
                 } else if key == "myQR" {

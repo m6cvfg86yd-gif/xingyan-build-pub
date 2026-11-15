@@ -2760,7 +2760,7 @@ struct ChatsView: View {
             }
             .navigationDestination(for: String.self) { key in
                 if key == "newGroup" {
-                    GroupCreateView { chat in
+                    WeChatGroupCreateView { chat in
 
                         app.openChatViaList(chat)
                     }
