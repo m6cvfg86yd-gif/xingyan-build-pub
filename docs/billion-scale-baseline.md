@@ -124,6 +124,12 @@ with the expected epoch, after which the old cell is fenced from writes.
 transactional SQLite table. Two independent router instances see one shared
 ownership state, stale epochs cannot overwrite newer routes, and migration
 status survives process restarts.
+
+`server/dev/group-cell-server.js` exposes isolated cells as separate HTTP
+processes for staging tests. The multiprocess test starts two cells, rejects
+writes to the wrong cell, mirrors historical messages into the target, performs
+cross-process dual-write during migration, fences the old cell after the epoch
+switch, and verifies the target timeline.
 While migration is active, successful source writes are mirrored to the target
 with historical fanout suppressed; source response remains authoritative.
 
