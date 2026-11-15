@@ -135,6 +135,11 @@ terminated, the registry removes it from selection, the process is restarted,
 and the node returns to the healthy pool. Capacity saturation is exercised
 separately.
 
+`server/dev/group-cell-cluster.js` provides a resident local supervisor for
+multi-node drills. It atomically reports health and restart state and restarts
+unexpected child exits with capped exponential backoff. It binds only to
+loopback and is not a production deployment tool.
+
 The same conversation-cell kernel is validated for direct chats with two active
 members. Direct-chat remote shadowing remains an explicit opt-in and preserves
 the same sequence, membership-period, deletion, and cursor invariants.

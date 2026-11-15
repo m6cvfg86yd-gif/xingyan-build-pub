@@ -34,6 +34,21 @@ one node, verifies it is excluded from selection, restarts it, and verifies
 recovery. It also verifies that a node at its configured weight capacity stops
 receiving new groups.
 
+For a resident isolated cluster, use the local supervisor:
+
+```powershell
+node server/dev/group-cell-cluster.js `
+  --cells cell-a=6201,cell-b=6202,cell-c=6203 `
+  --data-root C:\isolated\group-cells `
+  --route-db C:\isolated\group-routes.sqlite3 `
+  --status-file C:\isolated\group-cluster-status.json `
+  --internal-token <private-token>
+```
+
+The supervisor binds the child Cells to `127.0.0.1`, writes health and restart
+state atomically, and restarts an unexpected child exit with capped exponential
+backoff. It does not deploy to a production host.
+
 Optional settings:
 
 ```text
