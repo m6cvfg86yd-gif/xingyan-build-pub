@@ -20,6 +20,8 @@ Optional settings:
 
 ```text
 GROUP_MESSAGE_REMOTE_SHADOW_TIMEOUT_MS=3000
+GROUP_MESSAGE_REMOTE_SHADOW_MAX_PENDING=2000
+GROUP_MESSAGE_REMOTE_SHADOW_BACKOFF_MS=5000
 GROUP_MESSAGE_REMOTE_SHADOW_REPORT=/path/to/remote-shadow-report.json
 ```
 
@@ -38,6 +40,10 @@ token. The health route remains available to private-network monitoring.
 - The hook queues messages in legacy sequence order.
 - Network errors and Cell conflicts never change the sender response.
 - Failures are recorded in a bounded report capped at 500 rows.
+- Pending shadow work is bounded; excess shadow copies are dropped and counted
+  rather than consuming unbounded memory.
+- Network, authentication, and Cell 5xx failures open an exponential-backoff
+  circuit. Successful delivery closes it immediately.
 - Membership joins and leaves update the shadow periods without touching the
   production `chats.json` or production shard data.
 - The report is atomically rewritten every 30 seconds and on process exit.

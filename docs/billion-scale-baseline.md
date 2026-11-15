@@ -121,6 +121,9 @@ updates shadow membership periods in sequence order, and writes a bounded
 atomic report. It is disabled by default, never blocks the legacy sender
 response, and does not change ownership routes or epochs. Configuration and the
 promotion gate are documented in `docs/group-cell-production-hook.md`.
+The remote shadow queue is bounded and protected by an exponential-backoff
+circuit breaker, so an unavailable Cell cannot grow memory without limit or
+receive uninterrupted retry traffic.
 
 `server/lib/group-cell-route-plan.js` creates deterministic incremental plans
 without writing route state. Existing assignments remain stable, while new

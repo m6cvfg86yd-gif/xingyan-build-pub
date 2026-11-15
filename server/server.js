@@ -23055,6 +23055,8 @@ if (['1', 'true', 'on', 'yes'].includes(remoteGroupMessageShadowFlag)) {
       baseUrl,
       internalToken: process.env.GROUP_CELL_INTERNAL_TOKEN || '',
       timeoutMs: Number(process.env.GROUP_MESSAGE_REMOTE_SHADOW_TIMEOUT_MS) || 3000,
+      maxPending: Number(process.env.GROUP_MESSAGE_REMOTE_SHADOW_MAX_PENDING) || 2000,
+      failureBackoffMs: Number(process.env.GROUP_MESSAGE_REMOTE_SHADOW_BACKOFF_MS) || 5000,
       reportFile: process.env.GROUP_MESSAGE_REMOTE_SHADOW_REPORT
         || path.join(DATA_DIR, 'group-message-remote-shadow-report.json')
     });

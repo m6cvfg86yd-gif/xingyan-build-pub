@@ -28,6 +28,9 @@ class RemoteGroupCellShadow {
     this.baseUrl = String(opts.baseUrl || '').trim().replace(/\/+$/, '');
     this.internalToken = String(opts.internalToken || '');
     this.timeoutMs = Math.max(250, Number(opts.timeoutMs) || 3000);
+    this.maxPending = Math.max(1, Number(opts.maxPending) || 2000);
+    this.failureBackoffMs = Math.max(500, Number(opts.failureBackoffMs) || 5000);
+    this.now = typeof opts.now === 'function' ? opts.now : Date.now;
     this.fetchImpl = opts.fetchImpl || fetch;
     this.reportFile = opts.reportFile ? path.resolve(String(opts.reportFile)) : '';
     if (!this.cellId) throw new Error('shadow cellId is required');
@@ -40,12 +43,16 @@ class RemoteGroupCellShadow {
     this.groups = new Map();
     this.tail = Promise.resolve();
     this.pending = 0;
+    this.consecutiveFailures = 0;
+    this.circuitOpenUntil = 0;
     this.report = {
       observedMessages: 0,
       importedMessages: 0,
       duplicateMessages: 0,
       deniedMessages: 0,
       conflicts: 0,
+      queueFull: 0,
+      circuitSkipped: 0,
       errors: []
     };
     this.lastError = '';
@@ -126,6 +133,24 @@ class RemoteGroupCellShadow {
   }
 
   observe(options) {
+    if (this.pending >= this.maxPending) {
+      this.report.queueFull += 1;
+      return Promise.resolve(this.recordFailure({
+        groupId: String(options && options.chat && options.chat.id || ''),
+        messageId: String(options && options.message && options.message.id || ''),
+        seq: Number(options && options.message && options.message.seq) || 0,
+        error: 'remote shadow queue is full'
+      }, false));
+    }
+    if (this.now() < this.circuitOpenUntil) {
+      this.report.circuitSkipped += 1;
+      return Promise.resolve(this.recordFailure({
+        groupId: String(options && options.chat && options.chat.id || ''),
+        messageId: String(options && options.message && options.message.id || ''),
+        seq: Number(options && options.message && options.message.seq) || 0,
+        error: 'remote shadow circuit is open'
+      }, false));
+    }
     const opts = options || {};
     const chat = opts.chat || {};
     const message = opts.message || {};
@@ -169,11 +194,17 @@ class RemoteGroupCellShadow {
       );
       this.report.importedMessages += Number(result.imported && result.imported.imported) || 0;
       if (result.fanout === 'duplicate') this.report.duplicateMessages += 1;
+      this.consecutiveFailures = 0;
+      this.circuitOpenUntil = 0;
       return result;
     } catch (error) {
       const data = error && error.data || {};
       if (data.denied) this.report.deniedMessages += 1;
       if (data.conflict) this.report.conflicts += 1;
+      const status = Number(error && error.status) || 0;
+      if (!status || status >= 500 || status === 401 || status === 403) {
+        this.openCircuit();
+      }
       return this.recordFailure({
         groupId,
         messageId: String(message.id || ''),
@@ -183,9 +214,19 @@ class RemoteGroupCellShadow {
     }
   }
 
-  recordFailure(row) {
+  openCircuit() {
+    this.consecutiveFailures += 1;
+    const exponent = Math.min(6, this.consecutiveFailures - 1);
+    const delay = Math.min(60_000, this.failureBackoffMs * Math.pow(2, exponent));
+    this.circuitOpenUntil = this.now() + delay;
+  }
+
+  recordFailure(row, countObserved) {
     this.lastError = String(row.error || 'shadow mirror failed');
     if (this.report.errors.length < 500) this.report.errors.push(row);
+    if (countObserved === false) {
+      return { ok: false, error: this.lastError, skipped: true };
+    }
     return { ok: false, error: this.lastError };
   }
 
@@ -204,6 +245,9 @@ class RemoteGroupCellShadow {
       endpoint: this.endpointName,
       groups: this.groups.size,
       pending: this.pending,
+      maxPending: this.maxPending,
+      consecutiveFailures: this.consecutiveFailures,
+      circuitOpenUntil: this.circuitOpenUntil,
       lastError: this.lastError,
       report: Object.assign({}, this.report, {
         errors: this.report.errors.slice()
@@ -212,8 +256,9 @@ class RemoteGroupCellShadow {
   }
 
   writeReport(file) {
-    const target = path.resolve(String(file || this.reportFile || ''));
-    if (!target) return '';
+    const value = String(file || this.reportFile || '').trim();
+    if (!value) return '';
+    const target = path.resolve(value);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     const temporary = target + '.' + process.pid + '.tmp';
     fs.writeFileSync(temporary, JSON.stringify(this.snapshot(), null, 2), 'utf8');
