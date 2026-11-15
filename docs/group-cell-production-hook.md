@@ -76,3 +76,27 @@ node server/tools/group-cell-route-plan.js `
 Use the prior plan as `--previous GROUP_CELL_PLAN.json` when adding groups or a
 new Cell. The tool only writes the requested plan file and never changes
 `group_cell_routes`, epochs, Cell data, or production shard files.
+
+Preview importing that plan into an isolated route database:
+
+```powershell
+node server/tools/group-cell-route-import.js `
+  --plan GROUP_CELL_PLAN.json `
+  --route-db ISOLATED_ROUTES.sqlite3 `
+  --output ROUTE_IMPORT_PREVIEW.json
+```
+
+Dry-run opens the route database read-only. An approved import requires the
+exact plan hash:
+
+```powershell
+node server/tools/group-cell-route-import.js `
+  --plan GROUP_CELL_PLAN.json `
+  --route-db ISOLATED_ROUTES.sqlite3 `
+  --output ROUTE_IMPORT_RESULT.json `
+  --apply `
+  --confirm IMPORT:<assignmentHash>
+```
+
+Import never changes an existing route. Conflicting assignments abort the
+entire batch, and rerunning the same exact plan is idempotent.

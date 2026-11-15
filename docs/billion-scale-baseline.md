@@ -127,6 +127,11 @@ without writing route state. Existing assignments remain stable, while new
 groups are balanced across Cells with a stable hash tie-breaker. The companion
 CLI only writes a reviewable plan file; it cannot mutate live routes.
 
+`server/lib/group-cell-route-import.js` previews and imports those plans without
+overwriting existing ownership. Dry-run uses a read-only SQLite connection.
+Apply requires the exact plan hash and performs the initial route inserts in one
+transaction; any conflicting assignment aborts the whole batch.
+
 `server/lib/group-cell-router.js` enforces one owning cell per group and an
 epoch for online migration. During migration, reads and writes stay on the
 source cell while the target is populated. Completion switches ownership only
