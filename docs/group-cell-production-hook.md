@@ -29,6 +29,11 @@ draining nodes from selection, records latency and consecutive failures, and
 supports optional per-Cell capacity and used-weight limits. Configured tokens
 are never included in snapshots.
 
+The registry resilience regression starts three isolated Cell processes, kills
+one node, verifies it is excluded from selection, restarts it, and verifies
+recovery. It also verifies that a node at its configured weight capacity stops
+receiving new groups.
+
 Optional settings:
 
 ```text

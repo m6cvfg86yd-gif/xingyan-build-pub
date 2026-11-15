@@ -130,6 +130,11 @@ state. It excludes failed or draining Cells, records latency and consecutive
 failures, and can select a healthy node only when its weighted capacity remains
 available.
 
+The multi-process registry drill covers three live local Cells: one node is
+terminated, the registry removes it from selection, the process is restarted,
+and the node returns to the healthy pool. Capacity saturation is exercised
+separately.
+
 The same conversation-cell kernel is validated for direct chats with two active
 members. Direct-chat remote shadowing remains an explicit opt-in and preserves
 the same sequence, membership-period, deletion, and cursor invariants.
