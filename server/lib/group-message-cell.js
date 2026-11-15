@@ -123,6 +123,43 @@ class GroupMessageCell {
     return this.plane.deliver(groupId, senderId, message);
   }
 
+  mirror(groupId, senderId, message) {
+    const group = String(groupId || '');
+    const sender = String(senderId || '');
+    const seq = Math.max(0, Math.floor(Number(message && message.seq) || 0));
+    if (!group || !sender || !seq) {
+      return {
+        ok: false,
+        error: 'groupId, senderId and positive seq are required'
+      };
+    }
+    const period = this.membership.get(group, sender);
+    if (!period) {
+      return {
+        ok: false,
+        denied: true,
+        error: 'sender is not mirrored as an active member'
+      };
+    }
+    const imported = this.reliability.importMessages(group, [message]);
+    if (imported.conflicts > 0) {
+      return {
+        ok: false,
+        conflict: true,
+        imported,
+        error: 'shadow sequence or message conflict'
+      };
+    }
+    if (imported.imported > 0) {
+      this.plane.fanoutExisting(group, message, seq);
+    }
+    return {
+      ok: true,
+      imported,
+      fanout: imported.imported > 0 ? 'scheduled' : 'duplicate'
+    };
+  }
+
   read(options) {
     return this.timeline.read(options);
   }

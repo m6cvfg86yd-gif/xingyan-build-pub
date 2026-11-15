@@ -104,6 +104,12 @@ global recall, and global takedown states. Timeline reads apply these states
 before returning messages, so stale clients and delayed create events cannot
 resurrect hidden content.
 
+`group-message-shadow` mirrors real group messages into isolated shadow cells
+using their existing message ID and sequence. It runs the new membership,
+fanout, and notification model without changing legacy responses, and writes a
+deterministic-style operational report for duplicate, denied, conflict, and
+import counts.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file

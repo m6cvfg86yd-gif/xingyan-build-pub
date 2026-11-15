@@ -90,6 +90,15 @@ class GroupMessagePlane {
     this.scheduleRun();
   }
 
+  fanoutExisting(groupId, message, seq) {
+    this.enqueueFanout(
+      String(groupId || ''),
+      Object.assign({}, message || {}),
+      Number(seq) || 0
+    );
+    return { status: 'scheduled' };
+  }
+
   scheduleRun() {
     if (this.running) return;
     this.running = true;
