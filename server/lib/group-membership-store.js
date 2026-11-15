@@ -117,6 +117,15 @@ class GroupMembershipStore {
     return this.get(groupId, userId, atSeq);
   }
 
+  getLatest(groupId, userId) {
+    const row = this.db.prepare(`
+      SELECT * FROM group_membership_periods
+      WHERE group_id = ? AND user_id = ?
+      ORDER BY joined_seq DESC LIMIT 1
+    `).get(String(groupId || ''), String(userId || ''));
+    return row ? this.row(row) : null;
+  }
+
   canReadSync(groupId, userId, messageSeq) {
     return !!this.get(groupId, userId, messageSeq);
   }

@@ -82,6 +82,12 @@ historical visibility remains correct after membership changes. Active member
 pages and counts are queried directly from the covering period instead of
 loading the entire group member list.
 
+`server/lib/group-timeline-service.js` provides cursor-based group reads.
+New members start at their `joinedSeq`; departed members can only read before
+`leftSeq`; cleared history is applied as a lower bound. Unread counts use the
+latest group sequence and per-device read cursor rather than per-member message
+copies.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file
