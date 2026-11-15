@@ -65,11 +65,11 @@ async function main() {
     assert.strictEqual(router.owner('group-1'), 'cell-a');
     result = await router.send('group-1', 'cell-a', 'user-1', message('m2', 2));
     assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.dualWrite.ok, true);
     result = await router.send('group-1', 'cell-b', 'user-1', message('m3', 3));
     assert.strictEqual(result.ok, false);
 
     await cellB.mirror('group-1', 'user-1', message('m1', 1));
-    await cellB.mirror('group-1', 'user-1', message('m2', 2));
     const completed = router.completeMigration('group-1', 2);
     assert.strictEqual(completed.route.cellId, 'cell-b');
     assert.strictEqual(router.owner('group-1'), 'cell-b');

@@ -100,7 +100,30 @@ class GroupCellRouter {
   async send(groupId, claimedCellId, senderId, message) {
     const owner = this.checkOwner(groupId, claimedCellId);
     if (!owner.ok) return { ok: false, routed: false, error: owner.reason };
-    return this.cells[owner.owner].send(groupId, senderId, message);
+    const result = await this.cells[owner.owner].send(groupId, senderId, message);
+    if (!result.ok || owner.route.status !== 'migrating') return result;
+    const target = this.cells[owner.route.targetCellId];
+    if (!target) {
+      return Object.assign({}, result, {
+        dualWrite: { ok: false, error: 'target-cell-missing' }
+      });
+    }
+    try {
+      const mirrored = await target.mirror(
+        groupId,
+        senderId,
+        result.message,
+        { fanout: false }
+      );
+      return Object.assign({}, result, { dualWrite: mirrored });
+    } catch (error) {
+      return Object.assign({}, result, {
+        dualWrite: {
+          ok: false,
+          error: String(error && error.message || error)
+        }
+      });
+    }
   }
 
   async read(groupId, claimedCellId, options) {

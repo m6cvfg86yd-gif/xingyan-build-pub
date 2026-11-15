@@ -119,6 +119,8 @@ with the shadow flag enabled.
 epoch for online migration. During migration, reads and writes stay on the
 source cell while the target is populated. Completion switches ownership only
 with the expected epoch, after which the old cell is fenced from writes.
+While migration is active, successful source writes are mirrored to the target
+with historical fanout suppressed; source response remains authoritative.
 
 ## Read-only message audit
 

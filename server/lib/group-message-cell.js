@@ -123,7 +123,8 @@ class GroupMessageCell {
     return this.plane.deliver(groupId, senderId, message);
   }
 
-  mirror(groupId, senderId, message) {
+  mirror(groupId, senderId, message, options) {
+    const opts = options || {};
     const group = String(groupId || '');
     const sender = String(senderId || '');
     const seq = Math.max(0, Math.floor(Number(message && message.seq) || 0));
@@ -150,13 +151,15 @@ class GroupMessageCell {
         error: 'shadow sequence or message conflict'
       };
     }
-    if (imported.imported > 0) {
+    if (imported.imported > 0 && opts.fanout !== false) {
       this.plane.fanoutExisting(group, message, seq);
     }
     return {
       ok: true,
       imported,
-      fanout: imported.imported > 0 ? 'scheduled' : 'duplicate'
+      fanout: imported.imported > 0
+        ? (opts.fanout === false ? 'suppressed' : 'scheduled')
+        : 'duplicate'
     };
   }
 
