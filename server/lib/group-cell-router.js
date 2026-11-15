@@ -1,0 +1,126 @@
+'use strict';
+
+class GroupCellRouter {
+  constructor(options) {
+    const opts = options || {};
+    this.cells = opts.cells || {};
+    this.routes = new Map();
+    if (!Object.keys(this.cells).length) throw new Error('at least one cell is required');
+  }
+
+  assign(groupId, cellId, epoch) {
+    const group = String(groupId || '');
+    const cell = String(cellId || '');
+    if (!group || !this.cells[cell]) throw new Error('valid group and cell are required');
+    const previous = this.routes.get(group);
+    const nextEpoch = epoch == null
+      ? (previous ? previous.epoch + 1 : 1)
+      : Math.floor(Number(epoch) || 0);
+    if (nextEpoch <= 0) throw new Error('positive epoch is required');
+    if (previous && nextEpoch < previous.epoch) {
+      return { ok: false, stale: true, previous };
+    }
+    const route = {
+      groupId: group,
+      cellId: cell,
+      epoch: nextEpoch,
+      status: 'active',
+      sourceCellId: '',
+      targetCellId: ''
+    };
+    this.routes.set(group, route);
+    return { ok: true, route };
+  }
+
+  beginMigration(groupId, targetCellId, epoch) {
+    const group = String(groupId || '');
+    const target = String(targetCellId || '');
+    const current = this.routes.get(group);
+    if (!current) throw new Error('group is not assigned');
+    if (!this.cells[target]) throw new Error('target cell does not exist');
+    const nextEpoch = epoch == null ? current.epoch + 1 : Math.floor(Number(epoch) || 0);
+    if (nextEpoch <= current.epoch) {
+      return { ok: false, stale: true, route: current };
+    }
+    const route = Object.assign({}, current, {
+      epoch: nextEpoch,
+      status: 'migrating',
+      sourceCellId: current.cellId,
+      targetCellId: target
+    });
+    this.routes.set(group, route);
+    return { ok: true, route };
+  }
+
+  completeMigration(groupId, epoch) {
+    const group = String(groupId || '');
+    const current = this.routes.get(group);
+    if (!current || current.status !== 'migrating') {
+      return { ok: false, route: current || null, error: 'group is not migrating' };
+    }
+    const value = Math.floor(Number(epoch) || 0);
+    if (value !== current.epoch) {
+      return { ok: false, stale: true, route: current };
+    }
+    const route = Object.assign({}, current, {
+      cellId: current.targetCellId,
+      status: 'active',
+      sourceCellId: '',
+      targetCellId: ''
+    });
+    this.routes.set(group, route);
+    return { ok: true, route };
+  }
+
+  route(groupId) {
+    return this.routes.get(String(groupId || '')) || null;
+  }
+
+  owner(groupId) {
+    const route = this.route(groupId);
+    if (!route) return null;
+    return route.status === 'migrating' ? route.sourceCellId : route.cellId;
+  }
+
+  cellFor(groupId) {
+    const owner = this.owner(groupId);
+    return owner ? this.cells[owner] : null;
+  }
+
+  checkOwner(groupId, claimedCellId) {
+    const route = this.route(groupId);
+    if (!route) return { ok: false, reason: 'unassigned', route: null };
+    const owner = this.owner(groupId);
+    if (String(claimedCellId || '') !== owner) {
+      return { ok: false, reason: 'wrong-cell', owner, route };
+    }
+    return { ok: true, owner, route };
+  }
+
+  async send(groupId, claimedCellId, senderId, message) {
+    const owner = this.checkOwner(groupId, claimedCellId);
+    if (!owner.ok) return { ok: false, routed: false, error: owner.reason };
+    return this.cells[owner.owner].send(groupId, senderId, message);
+  }
+
+  async read(groupId, claimedCellId, options) {
+    const owner = this.checkOwner(groupId, claimedCellId);
+    if (!owner.ok) return {
+      ok: false,
+      routed: false,
+      error: owner.reason,
+      messages: [],
+      lastSeq: 0,
+      hasMore: false
+    };
+    return this.cells[owner.owner].read(Object.assign({}, options, { groupId }));
+  }
+
+  async markRead(groupId, claimedCellId, userId, deviceId, seq) {
+    const owner = this.checkOwner(groupId, claimedCellId);
+    if (!owner.ok) return false;
+    return this.cells[owner.owner].markRead(groupId, userId, deviceId, seq);
+  }
+}
+
+module.exports = { GroupCellRouter };

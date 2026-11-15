@@ -115,6 +115,11 @@ The production server enables this observer only when
 and never alter legacy message responses. The chat action regression passes
 with the shadow flag enabled.
 
+`server/lib/group-cell-router.js` enforces one owning cell per group and an
+epoch for online migration. During migration, reads and writes stay on the
+source cell while the target is populated. Completion switches ownership only
+with the expected epoch, after which the old cell is fenced from writes.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file
