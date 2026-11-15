@@ -14,7 +14,12 @@ const reversed = planGroupCells({ groups: groups.slice().reverse(), cellIds: cel
 assert.strictEqual(plan.groupCount, groups.length);
 assert.strictEqual(new Set(plan.assignments.map((row) => row.groupId)).size, groups.length);
 assert.ok(plan.assignments.every((row) => cellIds.includes(row.cellId)));
-assert.ok(plan.maxSkew <= 1);
+assert.strictEqual(
+  plan.counts.reduce((sum, row) => sum + row.weight, 0),
+  plan.totalWeight
+);
+assert.ok(plan.maxWeightDeviation <= Math.max(3, plan.idealWeight * 0.08),
+  JSON.stringify(plan.counts));
 assert.strictEqual(plan.assignmentHash, reversed.assignmentHash);
 assert.deepStrictEqual(plan.assignments, reversed.assignments);
 

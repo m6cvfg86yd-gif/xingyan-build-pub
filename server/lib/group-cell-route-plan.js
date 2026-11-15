@@ -24,9 +24,15 @@ function normalizeGroups(rows) {
   for (const row of rows || []) {
     const id = String(row && (row.groupId || row.id) || '').trim();
     if (!id) continue;
+    const memberCount = Math.max(0, Math.floor(Number(row.memberCount) || 0));
+    const explicitWeight = Number(row.weight);
+    const weight = explicitWeight > 0
+      ? explicitWeight
+      : Math.max(1, Math.ceil(Math.log2(memberCount + 2)));
     groups.set(id, {
       groupId: id,
-      memberCount: Math.max(0, Math.floor(Number(row.memberCount) || 0))
+      memberCount,
+      weight
     });
   }
   if (!groups.size) throw new Error('at least one group is required');
@@ -52,14 +58,20 @@ function planGroupCells(options) {
   const groups = normalizeGroups(opts.groups);
   const previous = normalizePrevious(opts.previousAssignments);
   const cellSet = new Set(cells);
-  const counts = new Map(cells.map((cellId) => [cellId, 0]));
+  const loads = new Map(cells.map((cellId) => [
+    cellId,
+    { groups: 0, weight: 0 }
+  ]));
+  const groupById = new Map(groups.map((group) => [group.groupId, group]));
   const assignments = new Map();
 
   for (const group of groups) {
     const previousCell = previous.get(group.groupId);
     if (!previousCell || !cellSet.has(previousCell)) continue;
     assignments.set(group.groupId, previousCell);
-    counts.set(previousCell, counts.get(previousCell) + 1);
+    const load = loads.get(previousCell);
+    load.groups += 1;
+    load.weight += group.weight;
   }
 
   const pending = groups
@@ -70,9 +82,9 @@ function planGroupCells(options) {
     );
 
   for (const group of pending) {
-    const minimum = Math.min(...counts.values());
+    const minimum = Math.min(...Array.from(loads.values()).map((load) => load.weight));
     const candidates = cells
-      .filter((cellId) => counts.get(cellId) === minimum)
+      .filter((cellId) => loads.get(cellId).weight === minimum)
       .sort((left, right) =>
         textCompare(digest(group.groupId + '\0' + left),
           digest(group.groupId + '\0' + right))
@@ -80,23 +92,32 @@ function planGroupCells(options) {
       );
     const cellId = candidates[0];
     assignments.set(group.groupId, cellId);
-    counts.set(cellId, counts.get(cellId) + 1);
+    const load = loads.get(cellId);
+    load.groups += 1;
+    load.weight += group.weight;
   }
 
-  const groupById = new Map(groups.map((group) => [group.groupId, group]));
   const rows = Array.from(assignments.entries())
     .map(([groupId, cellId]) => ({
       groupId,
       cellId,
-      memberCount: groupById.get(groupId).memberCount
+      memberCount: groupById.get(groupId).memberCount,
+      weight: groupById.get(groupId).weight
     }))
     .sort((left, right) => textCompare(left.groupId, right.groupId));
   const countRows = cells.map((cellId) => ({
     cellId,
-    groups: counts.get(cellId)
+    groups: loads.get(cellId).groups,
+    weight: loads.get(cellId).weight
   }));
-  const values = countRows.map((row) => row.groups);
-  const skew = Math.max(...values) - Math.min(...values);
+  const groupValues = countRows.map((row) => row.groups);
+  const weightValues = countRows.map((row) => row.weight);
+  const skew = Math.max(...groupValues) - Math.min(...groupValues);
+  const totalWeight = weightValues.reduce((sum, value) => sum + value, 0);
+  const idealWeight = totalWeight / cells.length;
+  const maxWeightDeviation = Math.max(
+    ...weightValues.map((value) => Math.abs(value - idealWeight))
+  );
   const body = {
     version: 1,
     strategy: 'incremental-hash-balanced',
@@ -104,7 +125,10 @@ function planGroupCells(options) {
     assignments: rows,
     counts: countRows,
     groupCount: rows.length,
+    totalWeight,
+    idealWeight,
     maxSkew: skew,
+    maxWeightDeviation,
     preservedAssignments: groups.length - pending.length,
     newAssignments: pending.length
   };

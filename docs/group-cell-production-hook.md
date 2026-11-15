@@ -68,7 +68,9 @@ not a full shard cutover.
 `server/lib/group-cell-route-plan.js` creates a deterministic assignment plan
 without opening or writing a route database. Existing valid assignments are
 preserved. Only new groups are placed, choosing the least-loaded Cell with a
-stable group/Cell hash as the tie-breaker.
+stable group/Cell hash as the tie-breaker. Load is weighted by a compressed
+logarithm of member count, so a very large group has more influence without
+dominating an entire Cell. The plan reports both group count and weighted load.
 
 Create an offline plan from a sanitized group manifest:
 
