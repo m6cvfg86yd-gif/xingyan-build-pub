@@ -28,6 +28,7 @@ const { GroupMessageShadow } = require('./lib/group-message-shadow');
 const { PushDeliveryOutbox } = require('./lib/push-delivery-outbox');
 const { DeviceSyncService } = require('./lib/device-sync-service');
 const { APNsHTTP2Pool } = require('./lib/apns-http2-pool');
+const { PushOutboxWorker } = require('./lib/push-outbox-worker');
 const {
   RemoteGroupCellShadow,
   parseCellEndpoints
@@ -60,7 +61,7 @@ let groupMessageShadow = null;
 let remoteGroupMessageShadow = null;
 let groupCellRegistry = null;
 let pushDeliveryOutbox = null;
-let pushOutboxRunning = false;
+let pushOutboxWorker = null;
 let deviceSyncService = null;
 let paymentDeviceEnrollment = null;
 let paymentTokenVault = null;
@@ -7914,61 +7915,11 @@ function pushLog(row) {
 }
 
 async function runPushOutboxOnce() {
-  if (!pushDeliveryOutbox || pushOutboxRunning || !pushReady()) return;
-  pushOutboxRunning = true;
+  if (!pushOutboxWorker || !pushReady()) return;
   try {
-    const batch = Math.max(
-      1,
-      Math.min(500, Number(process.env.PUSH_DELIVERY_OUTBOX_BATCH) || 200)
-    );
-    const jobs = pushDeliveryOutbox.claim(batch, 30000);
-    const outcomes = await Promise.all(jobs.map(async (job) => {
-      let result;
-      try {
-        result = await apnsSend(job.deviceToken, job.env === 'sandbox', job.payload);
-      } catch (error) {
-        result = { ok: false, status: 0, reason: String(error && error.message || error) };
-      }
-      const bad = result.status === 400 || result.status === 410
-        || /BadDeviceToken|Unregistered|DeviceTokenNotForTopic/.test(
-          String(result.reason || '')
-        );
-      return { job, result, bad };
-    }));
-    const completeIds = [];
-    const retries = [];
-    const logs = [];
-    for (const { job, result, bad } of outcomes) {
-      if (result.ok || bad) {
-        completeIds.push(job.id);
-      } else {
-        retries.push({
-          id: job.id,
-          attempts: job.attempts,
-          error: result.reason || 'apns failed',
-          delayMs: Math.min(60000, 1000 * Math.pow(2, job.attempts))
-        });
-      }
-      if (bad) {
-        pushRemoveToken(job.userId, job.deviceToken);
-      }
-      logs.push({
-        userId: job.userId,
-        kind: job.kind,
-        ok: !!result.ok,
-        status: result.status,
-        reason: String(result.reason || '').slice(0, 120),
-        outbox: true,
-        removedToken: bad
-      });
-    }
-    if (completeIds.length) pushDeliveryOutbox.completeMany(completeIds);
-    if (retries.length) pushDeliveryOutbox.retryMany(retries);
-    pushLogMany(logs);
+    return await pushOutboxWorker.runOnce();
   } catch (error) {
     console.log('[推送 Outbox] 处理失败：' + String(error && error.message || error));
-  } finally {
-    pushOutboxRunning = false;
   }
 }
 
@@ -7981,6 +7932,14 @@ if (['1', 'true', 'on', 'yes'].includes(pushOutboxFlag)) {
       databaseFile: process.env.PUSH_DELIVERY_OUTBOX_FILE
         || path.join(DATA_DIR, 'push-delivery-outbox.sqlite3'),
       maxAttempts: Number(process.env.PUSH_DELIVERY_OUTBOX_MAX_ATTEMPTS) || 8
+    });
+    pushOutboxWorker = new PushOutboxWorker({
+      outbox: pushDeliveryOutbox,
+      send: apnsSend,
+      logMany: pushLogMany,
+      onBadToken: (userId, token) => pushRemoveToken(userId, token),
+      batchSize: Number(process.env.PUSH_DELIVERY_OUTBOX_BATCH) || 200,
+      leaseMs: Number(process.env.PUSH_DELIVERY_OUTBOX_LEASE_MS) || 30000
     });
     const timer = setInterval(() => {
       runPushOutboxOnce().catch(() => { });
@@ -8005,6 +7964,7 @@ if (['1', 'true', 'on', 'yes'].includes(pushOutboxFlag)) {
     console.log('[推送 Outbox] 已启用，APNs 失败会持久化重试');
   } catch (error) {
     pushDeliveryOutbox = null;
+    pushOutboxWorker = null;
     console.log('[推送 Outbox] 初始化失败，回退即时推送：'
       + String(error && error.message || error));
   }
