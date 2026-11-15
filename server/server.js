@@ -30,6 +30,7 @@ const {
   RemoteGroupCellShadow,
   parseCellEndpoints
 } = require('./lib/remote-group-cell-shadow');
+const { GroupCellRegistry } = require('./lib/group-cell-registry');
 const { PaymentTokenVault } = require('./lib/payment-token-vault');
 const { PaymentDeviceEnrollment } = require('./lib/payment-device-enrollment');
 const { PaymentKeyRing } = require('./lib/payment-keyring');
@@ -55,6 +56,7 @@ let shardShadowAuditTimer = null;
 let messageReliability = null;
 let groupMessageShadow = null;
 let remoteGroupMessageShadow = null;
+let groupCellRegistry = null;
 let paymentDeviceEnrollment = null;
 let paymentTokenVault = null;
 let paymentIntentEngine = null;
@@ -9523,7 +9525,9 @@ function deliverMessage(user, chatId, kind, content, clientId, mentionHint, medi
         + String(error && error.message || error));
     }
   }
-  if (remoteGroupMessageShadow && chat.type === 'group') {
+  if (remoteGroupMessageShadow
+      && (chat.type === 'group'
+        || (remoteShadowIncludesDirect && chat.type === 'direct'))) {
     remoteGroupMessageShadow.observe({
       chat,
       senderId: user.id,
@@ -23042,6 +23046,9 @@ if (['1', 'true', 'on', 'yes'].includes(groupMessageShadowFlag)) {
 const remoteGroupMessageShadowFlag = String(
   process.env.GROUP_MESSAGE_REMOTE_SHADOW_ENABLED || '0'
 ).toLowerCase();
+const remoteShadowIncludesDirect = ['1', 'true', 'on', 'yes'].includes(
+  String(process.env.GROUP_MESSAGE_REMOTE_SHADOW_INCLUDE_DIRECT || '0').toLowerCase()
+);
 if (['1', 'true', 'on', 'yes'].includes(remoteGroupMessageShadowFlag)) {
   try {
     const endpoints = parseCellEndpoints(process.env.GROUP_MESSAGE_CELL_ENDPOINTS);
@@ -23077,6 +23084,37 @@ if (['1', 'true', 'on', 'yes'].includes(remoteGroupMessageShadowFlag)) {
   } catch (error) {
     remoteGroupMessageShadow = null;
     console.log('[群消息远程影子] 初始化失败，已自动关闭：'
+      + String(error && error.message || error));
+  }
+}
+const groupCellRegistryFlag = String(
+  process.env.GROUP_CELL_REGISTRY_ENABLED || '0'
+).toLowerCase();
+if (['1', 'true', 'on', 'yes'].includes(groupCellRegistryFlag)) {
+  try {
+    const endpoints = parseCellEndpoints(process.env.GROUP_MESSAGE_CELL_ENDPOINTS);
+    if (!Object.keys(endpoints).length) {
+      throw new Error('GROUP_MESSAGE_CELL_ENDPOINTS is empty');
+    }
+    groupCellRegistry = new GroupCellRegistry({
+      cells: Object.keys(endpoints).map((cellId) => ({
+        cellId,
+        baseUrl: endpoints[cellId],
+        internalToken: process.env.GROUP_CELL_INTERNAL_TOKEN || ''
+      })),
+      timeoutMs: Number(process.env.GROUP_CELL_REGISTRY_TIMEOUT_MS) || 2500
+    });
+    groupCellRegistry.start(
+      Number(process.env.GROUP_CELL_REGISTRY_INTERVAL_MS) || 15000
+    );
+    process.once('exit', () => {
+      try { groupCellRegistry.stop(); } catch (_) { }
+    });
+    console.log('[群 Cell 注册表] 已启用，持续检查 '
+      + Object.keys(endpoints).length + ' 个节点');
+  } catch (error) {
+    groupCellRegistry = null;
+    console.log('[群 Cell 注册表] 初始化失败，已自动关闭：'
       + String(error && error.message || error));
   }
 }

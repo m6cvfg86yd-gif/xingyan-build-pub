@@ -16,6 +16,19 @@ GROUP_MESSAGE_SHADOW_CELL_ID=shadow-cell
 GROUP_CELL_INTERNAL_TOKEN=<random-private-token>
 ```
 
+Multi-node health registration is independently controlled:
+
+```text
+GROUP_CELL_REGISTRY_ENABLED=1
+GROUP_CELL_REGISTRY_INTERVAL_MS=15000
+GROUP_CELL_REGISTRY_TIMEOUT_MS=2500
+```
+
+The registry periodically checks every configured Cell, excludes unhealthy or
+draining nodes from selection, records latency and consecutive failures, and
+supports optional per-Cell capacity and used-weight limits. Configured tokens
+are never included in snapshots.
+
 Optional settings:
 
 ```text
@@ -23,7 +36,12 @@ GROUP_MESSAGE_REMOTE_SHADOW_TIMEOUT_MS=3000
 GROUP_MESSAGE_REMOTE_SHADOW_MAX_PENDING=2000
 GROUP_MESSAGE_REMOTE_SHADOW_BACKOFF_MS=5000
 GROUP_MESSAGE_REMOTE_SHADOW_REPORT=/path/to/remote-shadow-report.json
+GROUP_MESSAGE_REMOTE_SHADOW_INCLUDE_DIRECT=0
 ```
+
+Set `GROUP_MESSAGE_REMOTE_SHADOW_INCLUDE_DIRECT=1` only after direct-chat
+validation. The conversation Cell uses the same reliability, ordering,
+membership-period, deletion, and cursor kernel as group chats.
 
 The Cell endpoint must expose:
 

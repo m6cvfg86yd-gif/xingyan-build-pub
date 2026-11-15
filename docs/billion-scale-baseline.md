@@ -125,6 +125,15 @@ The remote shadow queue is bounded and protected by an exponential-backoff
 circuit breaker, so an unavailable Cell cannot grow memory without limit or
 receive uninterrupted retry traffic.
 
+`server/lib/group-cell-registry.js` maintains multi-node health and capacity
+state. It excludes failed or draining Cells, records latency and consecutive
+failures, and can select a healthy node only when its weighted capacity remains
+available.
+
+The same conversation-cell kernel is validated for direct chats with two active
+members. Direct-chat remote shadowing remains an explicit opt-in and preserves
+the same sequence, membership-period, deletion, and cursor invariants.
+
 `server/lib/group-cell-route-plan.js` creates deterministic incremental plans
 without writing route state. Existing assignments remain stable, while new
 groups are balanced across Cells with a stable hash tie-breaker. The companion
