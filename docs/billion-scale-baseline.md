@@ -175,6 +175,10 @@ conversation for the authenticated device and returns `lastSeq`,
 Chat membership and device identity are validated before any cursor changes.
 The client adoption of this endpoint is a separate release gate.
 
+The HTTP integration gate covers two devices for one account, per-device
+delivery isolation, batch acknowledgement, server restart persistence, and new
+delta creation after a later message.
+
 `server/lib/group-cell-route-plan.js` creates deterministic incremental plans
 without writing route state. Existing assignments remain stable, while new
 groups are balanced across Cells with a stable hash tie-breaker. The companion
