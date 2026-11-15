@@ -4,6 +4,7 @@ class GroupCellRouter {
   constructor(options) {
     const opts = options || {};
     this.cells = opts.cells || {};
+    this.routeStore = opts.routeStore || null;
     this.routes = new Map();
     if (!Object.keys(this.cells).length) throw new Error('at least one cell is required');
   }
@@ -12,7 +13,7 @@ class GroupCellRouter {
     const group = String(groupId || '');
     const cell = String(cellId || '');
     if (!group || !this.cells[cell]) throw new Error('valid group and cell are required');
-    const previous = this.routes.get(group);
+    const previous = this.route(group);
     const nextEpoch = epoch == null
       ? (previous ? previous.epoch + 1 : 1)
       : Math.floor(Number(epoch) || 0);
@@ -28,6 +29,12 @@ class GroupCellRouter {
       sourceCellId: '',
       targetCellId: ''
     };
+    if (this.routeStore) {
+      const stored = this.routeStore.set(route);
+      if (!stored.ok) return stored;
+      this.routes.set(group, stored.route);
+      return { ok: true, route: stored.route };
+    }
     this.routes.set(group, route);
     return { ok: true, route };
   }
@@ -35,7 +42,7 @@ class GroupCellRouter {
   beginMigration(groupId, targetCellId, epoch) {
     const group = String(groupId || '');
     const target = String(targetCellId || '');
-    const current = this.routes.get(group);
+    const current = this.route(group);
     if (!current) throw new Error('group is not assigned');
     if (!this.cells[target]) throw new Error('target cell does not exist');
     const nextEpoch = epoch == null ? current.epoch + 1 : Math.floor(Number(epoch) || 0);
@@ -48,13 +55,19 @@ class GroupCellRouter {
       sourceCellId: current.cellId,
       targetCellId: target
     });
+    if (this.routeStore) {
+      const stored = this.routeStore.set(route);
+      if (!stored.ok) return stored;
+      this.routes.set(group, stored.route);
+      return { ok: true, route: stored.route };
+    }
     this.routes.set(group, route);
     return { ok: true, route };
   }
 
   completeMigration(groupId, epoch) {
     const group = String(groupId || '');
-    const current = this.routes.get(group);
+    const current = this.route(group);
     if (!current || current.status !== 'migrating') {
       return { ok: false, route: current || null, error: 'group is not migrating' };
     }
@@ -68,12 +81,24 @@ class GroupCellRouter {
       sourceCellId: '',
       targetCellId: ''
     });
+    if (this.routeStore) {
+      const stored = this.routeStore.set(route);
+      if (!stored.ok) return stored;
+      this.routes.set(group, stored.route);
+      return { ok: true, route: stored.route };
+    }
     this.routes.set(group, route);
     return { ok: true, route };
   }
 
   route(groupId) {
-    return this.routes.get(String(groupId || '')) || null;
+    const group = String(groupId || '');
+    if (this.routeStore) {
+      const stored = this.routeStore.get(group);
+      if (stored) this.routes.set(group, stored);
+      return stored;
+    }
+    return this.routes.get(group) || null;
   }
 
   owner(groupId) {

@@ -119,6 +119,11 @@ with the shadow flag enabled.
 epoch for online migration. During migration, reads and writes stay on the
 source cell while the target is populated. Completion switches ownership only
 with the expected epoch, after which the old cell is fenced from writes.
+
+`server/lib/group-route-store.js` persists the same route and epoch in a
+transactional SQLite table. Two independent router instances see one shared
+ownership state, stale epochs cannot overwrite newer routes, and migration
+status survives process restarts.
 While migration is active, successful source writes are mirrored to the target
 with historical fanout suppressed; source response remains authoritative.
 
