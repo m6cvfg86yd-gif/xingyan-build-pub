@@ -49,10 +49,8 @@ class GroupMessagePlane {
     }
     return Object.assign({}, result, {
       fanout,
-      message: Object.assign({}, result.message, {
-        groupId: group,
-        senderId: sender
-      })
+      groupId: group,
+      message: result.message
     });
   }
 

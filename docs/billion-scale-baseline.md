@@ -122,6 +122,12 @@ with the expected epoch, after which the old cell is fenced from writes.
 While migration is active, successful source writes are mirrored to the target
 with historical fanout suppressed; source response remains authoritative.
 
+`server/lib/group-migration-worker.js` persists a resumable checkpoint while
+copying messages, membership periods, deletion tombstones, and device cursors.
+It supports source writes during migration through router dual-write, compares
+all four data groups before completion, and switches ownership only when the
+epoch and hashes match.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file

@@ -153,6 +153,36 @@ class GroupMembershipStore {
     `).all(String(groupId || ''), seq, seq, count, start).map((row) => this.row(row));
   }
 
+  listPeriods(groupId) {
+    return this.db.prepare(`
+      SELECT * FROM group_membership_periods
+      WHERE group_id = ?
+      ORDER BY user_id, joined_seq
+    `).all(String(groupId || '')).map((row) => this.row(row));
+  }
+
+  importPeriod(period) {
+    const group = String(period && period.groupId || '');
+    const user = String(period && period.userId || '');
+    const joinedSeq = Math.floor(Number(period && period.joinedSeq) || 0);
+    if (!group || !user || joinedSeq <= 0) return false;
+    this.db.prepare(`
+      INSERT INTO group_membership_periods
+        (group_id, user_id, joined_seq, left_seq, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(group_id, user_id, joined_seq) DO UPDATE SET
+        left_seq = excluded.left_seq,
+        updated_at = excluded.updated_at
+    `).run(
+      group,
+      user,
+      joinedSeq,
+      Math.max(0, Number(period.leftSeq) || 0),
+      String(period.updatedAt || this.now())
+    );
+    return true;
+  }
+
   row(value) {
     return {
       groupId: String(value.group_id || ''),

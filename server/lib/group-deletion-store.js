@@ -214,6 +214,122 @@ class GroupDeletionStore {
     return output;
   }
 
+  exportGroup(groupId) {
+    const group = String(groupId || '');
+    const global = this.db.prepare(`
+      SELECT * FROM group_message_global_state
+      WHERE group_id = ?
+      ORDER BY seq, message_id
+    `).all(group).map((row) => this.globalState(row.message_id)).filter(Boolean);
+    const userTombstones = this.db.prepare(`
+      SELECT * FROM group_user_message_tombstones
+      WHERE group_id = ?
+      ORDER BY user_id, message_id
+    `).all(group).map((row) => ({
+      userId: String(row.user_id || ''),
+      groupId: String(row.group_id || ''),
+      messageId: String(row.message_id || ''),
+      action: String(row.action || ''),
+      version: Number(row.version) || 0,
+      createdAt: String(row.created_at || ''),
+      updatedAt: String(row.updated_at || '')
+    }));
+    const cursors = this.db.prepare(`
+      SELECT * FROM group_user_chat_cursors
+      WHERE group_id = ?
+      ORDER BY user_id
+    `).all(group).map((row) => ({
+      userId: String(row.user_id || ''),
+      groupId: String(row.group_id || ''),
+      clearedSeq: Number(row.cleared_seq) || 0,
+      updatedAt: String(row.updated_at || '')
+    }));
+    return { global, userTombstones, cursors };
+  }
+
+  importGroup(groupId, data) {
+    const group = String(groupId || '');
+    const input = data || {};
+    let imported = 0;
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const globalState = this.db.prepare(`
+        INSERT INTO group_message_global_state
+          (message_id, group_id, seq, action, actor_user_id, reason,
+           version, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(message_id) DO UPDATE SET
+          group_id = excluded.group_id,
+          seq = excluded.seq,
+          action = excluded.action,
+          actor_user_id = excluded.actor_user_id,
+          reason = excluded.reason,
+          version = MAX(group_message_global_state.version, excluded.version),
+          updated_at = excluded.updated_at
+      `);
+      for (const row of Array.isArray(input.global) ? input.global : []) {
+        if (!row || !row.messageId) continue;
+        globalState.run(
+          String(row.messageId),
+          group,
+          Math.max(0, Number(row.seq) || 0),
+          String(row.action || 'recall'),
+          String(row.actorUserId || ''),
+          String(row.reason || ''),
+          Math.max(1, Number(row.version) || 1),
+          String(row.createdAt || this.now()),
+          String(row.updatedAt || this.now())
+        );
+        imported += 1;
+      }
+      const tombstone = this.db.prepare(`
+        INSERT INTO group_user_message_tombstones
+          (user_id, group_id, message_id, action, version, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, group_id, message_id) DO UPDATE SET
+          action = excluded.action,
+          version = MAX(group_user_message_tombstones.version, excluded.version),
+          updated_at = excluded.updated_at
+      `);
+      for (const row of Array.isArray(input.userTombstones) ? input.userTombstones : []) {
+        if (!row || !row.userId || !row.messageId) continue;
+        tombstone.run(
+          String(row.userId),
+          group,
+          String(row.messageId),
+          String(row.action || 'hide'),
+          Math.max(1, Number(row.version) || 1),
+          String(row.createdAt || this.now()),
+          String(row.updatedAt || this.now())
+        );
+        imported += 1;
+      }
+      const cursor = this.db.prepare(`
+        INSERT INTO group_user_chat_cursors
+          (user_id, group_id, cleared_seq, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id, group_id) DO UPDATE SET
+          cleared_seq = MAX(group_user_chat_cursors.cleared_seq, excluded.cleared_seq),
+          updated_at = excluded.updated_at
+      `);
+      for (const row of Array.isArray(input.cursors) ? input.cursors : []) {
+        if (!row || !row.userId) continue;
+        cursor.run(
+          String(row.userId),
+          group,
+          Math.max(0, Number(row.clearedSeq) || 0),
+          String(row.updatedAt || this.now())
+        );
+        imported += 1;
+      }
+      this.db.exec('COMMIT');
+      return imported;
+    } catch (error) {
+      try { this.db.exec('ROLLBACK'); } catch (_) { }
+      throw error;
+    }
+  }
+
   close() {
     if (!this.db) return;
     this.db.close();

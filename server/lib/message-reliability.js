@@ -448,6 +448,53 @@ class MessageReliabilityStore {
             : { deliveredSeq: 0, readSeq: 0, updatedAt: '' };
     }
 
+    exportDeviceCursors(chatId) {
+        return this.db.prepare(`
+            SELECT user_id, device_id, chat_id, delivered_seq, read_seq, updated_at
+            FROM device_cursors
+            WHERE chat_id = ?
+            ORDER BY user_id, device_id
+        `).all(String(chatId || '')).map((row) => ({
+            userId: String(row.user_id || ''),
+            deviceId: String(row.device_id || ''),
+            chatId: String(row.chat_id || ''),
+            deliveredSeq: Number(row.delivered_seq) || 0,
+            readSeq: Number(row.read_seq) || 0,
+            updatedAt: String(row.updated_at || '')
+        }));
+    }
+
+    importDeviceCursors(rows) {
+        return this.transaction(() => {
+            const statement = this.db.prepare(`
+                INSERT INTO device_cursors
+                    (user_id, device_id, chat_id, delivered_seq, read_seq, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, device_id, chat_id) DO UPDATE SET
+                    delivered_seq = MAX(device_cursors.delivered_seq, excluded.delivered_seq),
+                    read_seq = MAX(device_cursors.read_seq, excluded.read_seq),
+                    updated_at = excluded.updated_at
+            `);
+            let imported = 0;
+            for (const row of Array.isArray(rows) ? rows : []) {
+                const userId = String(row && row.userId || '');
+                const deviceId = String(row && row.deviceId || '');
+                const chatId = String(row && row.chatId || '');
+                if (!userId || !deviceId || !chatId) continue;
+                statement.run(
+                    userId,
+                    deviceId,
+                    chatId,
+                    Math.max(0, Number(row.deliveredSeq) || 0),
+                    Math.max(0, Number(row.readSeq) || 0),
+                    String(row.updatedAt || this.now())
+                );
+                imported += 1;
+            }
+            return imported;
+        });
+    }
+
     eventsAfter(sequence, limit) {
         const cap = Math.min(1000, Math.max(1, Number(limit) || 200));
         return this.db.prepare(`
