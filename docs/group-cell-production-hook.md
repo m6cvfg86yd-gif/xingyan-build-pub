@@ -56,3 +56,23 @@ Do not enable live Cell reads or writes until the shadow report has:
 
 The next step after shadow verification is an explicit pilot route assignment,
 not a full shard cutover.
+
+## Deterministic route planning
+
+`server/lib/group-cell-route-plan.js` creates a deterministic assignment plan
+without opening or writing a route database. Existing valid assignments are
+preserved. Only new groups are placed, choosing the least-loaded Cell with a
+stable group/Cell hash as the tie-breaker.
+
+Create an offline plan from a sanitized group manifest:
+
+```powershell
+node server/tools/group-cell-route-plan.js `
+  --input GROUP_MANIFEST.json `
+  --cells cell-a,cell-b,cell-c `
+  --output GROUP_CELL_PLAN.json
+```
+
+Use the prior plan as `--previous GROUP_CELL_PLAN.json` when adding groups or a
+new Cell. The tool only writes the requested plan file and never changes
+`group_cell_routes`, epochs, Cell data, or production shard files.

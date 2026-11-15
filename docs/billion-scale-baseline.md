@@ -122,6 +122,11 @@ atomic report. It is disabled by default, never blocks the legacy sender
 response, and does not change ownership routes or epochs. Configuration and the
 promotion gate are documented in `docs/group-cell-production-hook.md`.
 
+`server/lib/group-cell-route-plan.js` creates deterministic incremental plans
+without writing route state. Existing assignments remain stable, while new
+groups are balanced across Cells with a stable hash tie-breaker. The companion
+CLI only writes a reviewable plan file; it cannot mutate live routes.
+
 `server/lib/group-cell-router.js` enforces one owning cell per group and an
 epoch for online migration. During migration, reads and writes stay on the
 source cell while the target is populated. Completion switches ownership only
