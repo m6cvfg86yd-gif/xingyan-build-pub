@@ -144,6 +144,16 @@ The same conversation-cell kernel is validated for direct chats with two active
 members. Direct-chat remote shadowing remains an explicit opt-in and preserves
 the same sequence, membership-period, deletion, and cursor invariants.
 
+## Durable push handoff
+
+`server/lib/push-delivery-outbox.js` stores APNs deliveries in SQLite before
+delivery. It provides idempotent dedupe keys, lease-based claiming across
+workers, bounded retries, sent/failed state, and invalid-token removal. The
+production hook remains default-off through `PUSH_DELIVERY_OUTBOX_ENABLED`.
+Batch enqueue is transactional: the 20,000-job local probe currently commits in
+about 126 ms on the development host, while two workers claim through leases
+without duplicate delivery.
+
 `server/lib/group-cell-route-plan.js` creates deterministic incremental plans
 without writing route state. Existing assignments remain stable, while new
 groups are balanced across Cells with a stable hash tie-breaker. The companion

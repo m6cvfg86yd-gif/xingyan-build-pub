@@ -63,6 +63,20 @@ Set `GROUP_MESSAGE_REMOTE_SHADOW_INCLUDE_DIRECT=1` only after direct-chat
 validation. The conversation Cell uses the same reliability, ordering,
 membership-period, deletion, and cursor kernel as group chats.
 
+Durable APNs handoff is independently controlled:
+
+```text
+PUSH_DELIVERY_OUTBOX_ENABLED=1
+PUSH_DELIVERY_OUTBOX_MAX_ATTEMPTS=8
+PUSH_DELIVERY_OUTBOX_INTERVAL_MS=1000
+PUSH_DELIVERY_OUTBOX_FILE=/isolated/push-delivery-outbox.sqlite3
+```
+
+When enabled, each device delivery is committed before the APNs request.
+Workers claim jobs with a lease, retry with exponential backoff, deduplicate by
+message/device, and remove APNs-rejected tokens. The table is partitioned by the
+local server/shard; it is not a single global queue.
+
 The Cell endpoint must expose:
 
 - `GET /internal/health`

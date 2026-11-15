@@ -26,6 +26,7 @@ const { createShardShadowService } = require('./lib/shard-shadow-service');
 const { resolveTopology } = require('./lib/shard-topology');
 const { MessageReliabilityStore } = require('./lib/message-reliability');
 const { GroupMessageShadow } = require('./lib/group-message-shadow');
+const { PushDeliveryOutbox } = require('./lib/push-delivery-outbox');
 const {
   RemoteGroupCellShadow,
   parseCellEndpoints
@@ -57,6 +58,8 @@ let messageReliability = null;
 let groupMessageShadow = null;
 let remoteGroupMessageShadow = null;
 let groupCellRegistry = null;
+let pushDeliveryOutbox = null;
+let pushOutboxRunning = false;
 let paymentDeviceEnrollment = null;
 let paymentTokenVault = null;
 let paymentIntentEngine = null;
@@ -7926,6 +7929,82 @@ function pushLog(row) {
   } catch (e) { }
 }
 
+async function runPushOutboxOnce() {
+  if (!pushDeliveryOutbox || pushOutboxRunning || !pushReady()) return;
+  pushOutboxRunning = true;
+  try {
+    const jobs = pushDeliveryOutbox.claim(50, 30000);
+    for (const job of jobs) {
+      let result;
+      try {
+        result = await apnsSend(job.deviceToken, job.env === 'sandbox', job.payload);
+      } catch (error) {
+        result = { ok: false, status: 0, reason: String(error && error.message || error) };
+      }
+      if (result.ok) {
+        pushDeliveryOutbox.complete(job.id);
+        pushLog({
+          userId: job.userId,
+          kind: job.kind,
+          ok: true,
+          status: result.status,
+          outbox: true
+        });
+        continue;
+      }
+      const bad = result.status === 400 || result.status === 410
+        || /BadDeviceToken|Unregistered|DeviceTokenNotForTopic/.test(
+          String(result.reason || '')
+        );
+      if (bad) {
+        pushRemoveToken(job.userId, job.deviceToken);
+        pushDeliveryOutbox.complete(job.id);
+      } else {
+        const delay = Math.min(60000, 1000 * Math.pow(2, job.attempts));
+        pushDeliveryOutbox.retry(job.id, result.reason || 'apns failed', delay);
+      }
+      pushLog({
+        userId: job.userId,
+        kind: job.kind,
+        ok: false,
+        status: result.status,
+        reason: String(result.reason || '').slice(0, 120),
+        outbox: true,
+        removedToken: bad
+      });
+    }
+  } catch (error) {
+    console.log('[推送 Outbox] 处理失败：' + String(error && error.message || error));
+  } finally {
+    pushOutboxRunning = false;
+  }
+}
+
+const pushOutboxFlag = String(
+  process.env.PUSH_DELIVERY_OUTBOX_ENABLED || '0'
+).toLowerCase();
+if (['1', 'true', 'on', 'yes'].includes(pushOutboxFlag)) {
+  try {
+    pushDeliveryOutbox = new PushDeliveryOutbox({
+      databaseFile: process.env.PUSH_DELIVERY_OUTBOX_FILE
+        || path.join(DATA_DIR, 'push-delivery-outbox.sqlite3'),
+      maxAttempts: Number(process.env.PUSH_DELIVERY_OUTBOX_MAX_ATTEMPTS) || 8
+    });
+    const timer = setInterval(() => {
+      runPushOutboxOnce().catch(() => { });
+    }, Math.max(500, Number(process.env.PUSH_DELIVERY_OUTBOX_INTERVAL_MS) || 1000));
+    timer.unref();
+    process.once('exit', () => {
+      try { pushDeliveryOutbox.close(); } catch (_) { }
+    });
+    console.log('[推送 Outbox] 已启用，APNs 失败会持久化重试');
+  } catch (error) {
+    pushDeliveryOutbox = null;
+    console.log('[推送 Outbox] 初始化失败，回退即时推送：'
+      + String(error && error.message || error));
+  }
+}
+
 /** 某个人所有会话的未读总数 —— 推到手机上就是「桌面图标右上角那个数字」 */
 function unreadTotalOf(userId) {
   let n = 0;
@@ -7961,24 +8040,32 @@ function pushPreview(kind, content) {
  * 给一个人推系统通知。
  * opts: { kind: 'message'|'friend'|'call', title, body, chatId, fromId, sound, badge }
  */
-async function pushToUser(userId, opts) {
-  if (!userId) return { sent: 0, reason: 'no-user' };
+function preparePushDeliveries(userId, opts) {
+  if (!userId) return { ok: false, sent: 0, reason: 'no-user', rows: [] };
   const p = readPush();
   const c = p.config;
-  if (opts.kind === 'message' && c.onMessage === false) return { sent: 0, reason: 'off' };
-  if (opts.kind === 'friend' && c.onFriend === false) return { sent: 0, reason: 'off' };
-  if (opts.kind === 'call' && c.onCall === false) return { sent: 0, reason: 'off' };
-  if (opts.kind === 'pair' && c.onPair === false) return { sent: 0, reason: 'off' };
+  if (opts.kind === 'message' && c.onMessage === false) {
+    return { ok: false, sent: 0, reason: 'off', rows: [] };
+  }
+  if (opts.kind === 'friend' && c.onFriend === false) {
+    return { ok: false, sent: 0, reason: 'off', rows: [] };
+  }
+  if (opts.kind === 'call' && c.onCall === false) {
+    return { ok: false, sent: 0, reason: 'off', rows: [] };
+  }
+  if (opts.kind === 'pair' && c.onPair === false) {
+    return { ok: false, sent: 0, reason: 'off', rows: [] };
+  }
   if (!pushReady()) {
     pushLog({ userId, kind: opts.kind, title: opts.title, skipped: 'not-configured' });
-    return { sent: 0, reason: 'not-configured' };
+    return { ok: false, sent: 0, reason: 'not-configured', rows: [] };
   }
   const devices = p.tokens[userId] || [];
-  if (!devices.length) return { sent: 0, reason: 'no-device' };
-  let sent = 0;
+  if (!devices.length) return { ok: false, sent: 0, reason: 'no-device', rows: [] };
+  const dedupeBase = String(opts.dedupeKey || ('adhoc:' + now() + ':' + uid('push')));
   /* 桌面图标上的红点数字：不传就按「当前未读总数」算，和微信一样 */
   const badge = typeof opts.badge === 'number' ? opts.badge : unreadTotalOf(userId);
-  for (const d of devices) {
+  const rows = devices.map((d) => {
     const payload = {
       aps: Object.assign({
         alert: { title: String(opts.title || '').slice(0, 60), body: String(opts.body || '').slice(0, 160) },
@@ -7995,16 +8082,81 @@ async function pushToUser(userId, opts) {
       /* 「登录确认」那条通知要带上 6 位码：点通知直接进确认卡片，不用手输 */
       code: opts.pairCode || opts.code || ''
     };
-    const r = await apnsSend(d.token, d.env ? d.env === 'sandbox' : !!c.sandbox, payload);
+    const tokenHash = crypto.createHash('sha256')
+      .update(String(d.token || '')).digest('hex').slice(0, 24);
+    return {
+      dedupeKey: dedupeBase + ':' + tokenHash,
+      userId,
+      deviceToken: d.token,
+      env: d.env ? d.env : (c.sandbox ? 'sandbox' : 'prod'),
+      kind: opts.kind || 'message',
+      title: opts.title || '',
+      payload
+    };
+  });
+  return { ok: true, sent: 0, reason: 'ok', rows };
+}
+
+async function deliverPushRow(row) {
+  const r = await apnsSend(row.deviceToken, row.env === 'sandbox', row.payload);
+  const bad = r.status === 400 || r.status === 410
+    || /BadDeviceToken|Unregistered|DeviceTokenNotForTopic/.test(String(r.reason || ''));
+  pushLog({
+    userId: row.userId,
+    kind: row.kind,
+    title: row.title,
+    ok: !!r.ok,
+    status: r.status,
+    reason: String(r.reason || '').slice(0, 120),
+    token: String(row.deviceToken || '').slice(0, 8) + '…'
+  });
+  if (!r.ok && bad) pushRemoveToken(row.userId, row.deviceToken);
+  return r;
+}
+
+async function pushToUser(userId, opts) {
+  const prepared = preparePushDeliveries(userId, opts);
+  if (!prepared.ok) {
+    return { sent: 0, reason: prepared.reason };
+  }
+  if (pushDeliveryOutbox) {
+    const results = pushDeliveryOutbox.enqueueMany(prepared.rows);
+    return {
+      sent: 0,
+      queued: results.filter((row) => row.inserted).length,
+      reason: 'queued'
+    };
+  }
+  let sent = 0;
+  for (const row of prepared.rows) {
+    const r = await deliverPushRow(row);
     if (r.ok) sent += 1;
-    const bad = r.status === 400 || r.status === 410 || /BadDeviceToken|Unregistered|DeviceTokenNotForTopic/.test(String(r.reason || ''));
-    pushLog({
-      userId, kind: opts.kind, title: opts.title, ok: !!r.ok, status: r.status,
-      reason: String(r.reason || '').slice(0, 120), token: String(d.token || '').slice(0, 8) + '…'
-    });
-    if (!r.ok && bad) pushRemoveToken(userId, d.token);
   }
   return { sent, reason: 'ok' };
+}
+
+async function pushToUsersBatch(requests) {
+  const values = Array.isArray(requests) ? requests : [];
+  if (!pushDeliveryOutbox) {
+    return Promise.all(values.map((request) =>
+      pushToUser(request.userId, request.opts)
+    ));
+  }
+  const rows = [];
+  const reasons = [];
+  for (const request of values) {
+    const prepared = preparePushDeliveries(request.userId, request.opts);
+    if (!prepared.ok) {
+      reasons.push({ userId: request.userId, reason: prepared.reason });
+      continue;
+    }
+    rows.push(...prepared.rows);
+  }
+  const results = rows.length ? pushDeliveryOutbox.enqueueMany(rows) : [];
+  return {
+    queued: results.filter((row) => row.inserted).length,
+    skipped: reasons
+  };
 }
 
 /* ---------------- 设备确认登录：给已登录的设备发「登录确认」 ----------------
@@ -8036,7 +8188,8 @@ function notifyPairRequest(userId, code, device, exceptDeviceId) {
     /* 一台都没在线就交给苹果推送（没配密钥时 pushToUser 会直接返回 not-configured） */
     pushToUser(userId, { kind: 'pair', title: '登录确认',
                          body: '「' + dev + '」请求登录你的星言账号，点这里确认',
-                         pairCode: String(code).slice(0, 10), sound: true }).catch(() => { });
+                         pairCode: String(code).slice(0, 10), sound: true,
+                         dedupeKey: 'pair:' + userId + ':' + code }).catch(() => { });
     return sent;
   } catch (e) { return 0; }
 }
@@ -8068,6 +8221,7 @@ function pushForMessage(sender, chat, message) {
     : pushPreview(message.kind, message.content);
   /* 这条消息 @ 了谁：被 @ 的人通知里带「有人@我」（微信就是这么提示的） */
   const atList = Array.isArray(message.mentions) ? message.mentions : [];
+  const requests = [];
   chat.memberIds.forEach((id) => {
     if (id === sender.id) return;
     const who = findUser(id);
@@ -8082,14 +8236,19 @@ function pushForMessage(sender, chat, message) {
     const body = n.showDetail === false
       ? (atMe ? '有人@我' : '你收到一条新消息')
       : (atMe ? '[有人@我] ' + detail : detail);
-    pushToUser(id, {
-      kind: 'message', title, body, chatId: chat.id, fromId: sender.id,
-      sound: n.sound !== false,
-      soundName: 'xingyan_message.wav',
-      /* 同一个会话的推送折叠成一条（微信：同一个聊天连着来消息只留最新那条） */
-      collapse: chat.id
-    }).catch(() => { });
+    requests.push({
+      userId: id,
+      opts: {
+        kind: 'message', title, body, chatId: chat.id, fromId: sender.id,
+        sound: n.sound !== false,
+        soundName: 'xingyan_message.wav',
+        dedupeKey: 'message:' + String(message.id || '') + ':' + id,
+        /* 同一个会话的推送折叠成一条（微信：同一个聊天连着来消息只留最新那条） */
+        collapse: chat.id
+      }
+    });
   });
+  if (requests.length) pushToUsersBatch(requests).catch(() => { });
 }
 
 /* ============================================================
@@ -8798,7 +8957,8 @@ function handleClientMessage(user, socket, raw) {
         pushToUser(target.id, {
           kind: 'call',
           title: media === 'video' ? '视频通话' : '语音通话',
-          body: (user.nickname || user.username || '有人') + ' 邀请你' + (media === 'video' ? '视频' : '语音') + '通话'
+          body: (user.nickname || user.username || '有人') + ' 邀请你' + (media === 'video' ? '视频' : '语音') + '通话',
+          dedupeKey: 'call:' + callId + ':' + target.id
         }).catch(() => { });
         /* 微信那样：推送叫醒对方，但**先别挂断** —— 继续响铃 45 秒。
            对方点通知/打开 App 上线后，我们会把这次 invite 再送一遍（见 WS 连接处），就能接上；
@@ -8950,7 +9110,8 @@ function handleClientMessage(user, socket, raw) {
         pushToUser(target.id, {
           kind: 'call',
           title: room.media === 'video' ? '群视频通话' : '群语音通话',
-          body: (user.nickname || user.username || '有人') + ' 邀请你加入通话'
+          body: (user.nickname || user.username || '有人') + ' 邀请你加入通话',
+          dedupeKey: 'group-call:' + room.id + ':' + target.id
         }).catch(() => { });
       }
       return;
@@ -20318,7 +20479,8 @@ async function handleApi(req, res, pathname, query) {
     pushToUser(target.id, {
       kind: 'friend',
       title: '新的朋友',
-      body: (user.nickname || user.username || '有人') + ' 请求添加你为好友' + (f.note ? '：' + f.note : '')
+      body: (user.nickname || user.username || '有人') + ' 请求添加你为好友' + (f.note ? '：' + f.note : ''),
+      dedupeKey: 'friend:' + f.id + ':' + target.id
     }).catch(() => { });
     ok(res, { requestId: f.id, to: publicUser(target) });
     return;
@@ -27951,7 +28113,7 @@ async function handleOps(req, res, parts, query) {
       kind: 'message', title: 'Luchat 测试推送', body: '看到这条就说明推送通道通了 🎉', chatId: 'test'
     });
     audit(req, admin, 'push.test', target.username || target.id, JSON.stringify(r));
-    if (!r.sent) return fail(res, 502, '没发出去：' + r.reason + (pushReady() ? '' : '（密钥还没配好）'));
+    if (!r.sent && !r.queued) return fail(res, 502, '没发出去：' + r.reason + (pushReady() ? '' : '（密钥还没配好）'));
     ok(res, { sent: true, to: target.username || target.id });
     return;
   }
