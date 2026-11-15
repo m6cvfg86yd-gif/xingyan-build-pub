@@ -270,6 +270,22 @@ struct MessageEventEnvelope: Decodable, Hashable {
     var createdAt: String?
 }
 
+struct DeviceSyncItem: Codable, Hashable {
+    var chatId: String
+    var lastSeq: Int
+    var deliveredSeq: Int
+    var readSeq: Int
+    var hasDelta: Bool
+}
+
+struct DeviceSyncPage: Decodable, Hashable {
+    var enabled: Bool
+    var deviceId: String
+    var items: [DeviceSyncItem]
+    var nextCursor: String
+    var hasMore: Bool
+}
+
 struct Message: Codable, Identifiable, Hashable {
     var id: String
     var clientId: String? = nil
@@ -680,6 +696,15 @@ private struct DeviceCursorPayload: Decodable {
     var deviceId: String?
     var lastSeq: Int?
     var cursor: Cursor?
+}
+private struct DeviceSyncAckPayload: Decodable {
+    var acknowledged: Int?
+    var rejected: [Rejected]?
+    struct Rejected: Decodable {
+        var chatId: String?
+        var seq: Int?
+        var reason: String?
+    }
 }
 private struct MessagePayload: Decodable { var message: Message? }
 private struct AddFriendPayload: Decodable {
@@ -3872,6 +3897,32 @@ private struct StarredPayload: Decodable {
             payload.cursor?.readSeq ?? 0,
             payload.cursor?.updatedAt ?? ""
         )
+    }
+
+    func deviceSyncState(cursor: String? = nil, limit: Int = 50)
+        async throws -> DeviceSyncPage {
+        var path = "/api/sync/state?limit=\(max(1, min(200, limit)))"
+        if let cursor, !cursor.isEmpty,
+           let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            path += "&cursor=\(encoded)"
+        }
+        return try await get(path, as: DeviceSyncPage.self)
+    }
+
+    func acknowledgeDeviceSync(_ items: [DeviceSyncItem])
+        async throws -> (acknowledged: Int, rejected: Int) {
+        guard !items.isEmpty else { return (0, 0) }
+        let body: [String: Any] = [
+            "items": items.map {
+                ["chatId": $0.chatId, "seq": $0.deliveredSeq]
+            }
+        ]
+        let payload: DeviceSyncAckPayload = try await post(
+            "/api/sync/ack",
+            body,
+            as: DeviceSyncAckPayload.self
+        )
+        return (payload.acknowledged ?? 0, payload.rejected?.count ?? 0)
     }
 
     func allMessages(chatId: String, limit: Int = 20_000, before: Int? = nil)

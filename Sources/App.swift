@@ -559,6 +559,7 @@ final class AppState: ObservableObject {
                 await self?.refreshUI(force: true)
                 await self?.loadChats()
                 await self?.syncRecentMessages(chatCount: 20, limit: 50)
+                await self?.syncDeviceChats()
                 await self?.syncMessageEvents()
             }
         default:
@@ -823,7 +824,7 @@ final class AppState: ObservableObject {
         finishLoginTransition()
         rememberLastUser()
         Realtime.shared.start()
-        Task { await refreshAll(); await syncRecentMessages() }
+        Task { await refreshAll(); await syncRecentMessages(); await syncDeviceChats() }
     }
 
     func login(username: String, password: String, sliderTicket: String) async throws {
@@ -833,7 +834,7 @@ final class AppState: ObservableObject {
         finishLoginTransition()
         rememberLastUser()
         Realtime.shared.start()
-        Task { await refreshAll(); await syncRecentMessages() }
+        Task { await refreshAll(); await syncRecentMessages(); await syncDeviceChats() }
     }
 
     func adoptRegistered(_ user: User) async {
@@ -842,7 +843,7 @@ final class AppState: ObservableObject {
         finishLoginTransition()
         rememberLastUser()
         Realtime.shared.start()
-        Task { await refreshAll(); await syncRecentMessages() }
+        Task { await refreshAll(); await syncRecentMessages(); await syncDeviceChats() }
     }
 
     func finishNewUserOnboarding(avatar: String, interests: [String]) async throws {
@@ -860,7 +861,7 @@ final class AppState: ObservableObject {
         finishLoginTransition()
         rememberLastUser()
         Realtime.shared.start()
-        Task { await refreshAll(); await syncRecentMessages() }
+        Task { await refreshAll(); await syncRecentMessages(); await syncDeviceChats() }
     }
 
     func finishLogin(_ user: User) async {
@@ -869,7 +870,7 @@ final class AppState: ObservableObject {
         finishLoginTransition()
         rememberLastUser()
         Realtime.shared.start()
-        Task { await refreshAll(); await syncRecentMessages() }
+        Task { await refreshAll(); await syncRecentMessages(); await syncDeviceChats() }
     }
 
     func finishLoginTransition() {
@@ -1012,6 +1013,7 @@ final class AppState: ObservableObject {
     var prefetched: [String: [Message]] = [:]
     private var syncInFlight = false
     private var messageEventsInFlight = false
+    private var deviceSyncInFlight = false
 
     private var syncHintKey: String {
         "chris.syncHintShown." + (me?.id ?? "")
@@ -1067,6 +1069,103 @@ final class AppState: ObservableObject {
                 try? await Task.sleep(nanoseconds: 550_000_000)
             }
         } catch {
+        }
+    }
+
+    /// 分页核对当前设备的账号级消息游标。只拉有差异的会话，并在成功合并后
+    /// 批量确认 deliveredSeq；游标持久化，超大账号跨多次前台逐步跑完。
+    func syncDeviceChats(pageLimit: Int = 12, messageLimit: Int = 200) async {
+        guard let userId = me?.id, !userId.isEmpty,
+              !API.shared.token.isEmpty, !deviceSyncInFlight else { return }
+        let epoch = accountEpoch
+        guard isCurrentAccount(epoch) else { return }
+        deviceSyncInFlight = true
+        defer { deviceSyncInFlight = false }
+
+        let cursorKey = "chris.deviceSyncCursor.\(userId).\(AppInfo.deviceId)"
+        var cursor = UserDefaults.standard.string(forKey: cursorKey)
+        var pendingAcks: [DeviceSyncItem] = []
+
+        func flushAcks() async {
+            guard !pendingAcks.isEmpty else { return }
+            let batch = pendingAcks
+            pendingAcks.removeAll(keepingCapacity: true)
+            _ = try? await API.shared.acknowledgeDeviceSync(batch)
+        }
+
+        do {
+            for _ in 0..<max(1, min(40, pageLimit)) {
+                guard isCurrentAccount(epoch) else { return }
+                let page = try await API.shared.deviceSyncState(cursor: cursor, limit: 50)
+                guard page.enabled else { return }
+
+                for item in page.items where item.hasDelta {
+                    guard isCurrentAccount(epoch) else { return }
+                    var since = item.deliveredSeq
+                    var fetched: [Message] = []
+                    var latestChat: Chat?
+                    var reachedTip = false
+                    for _ in 0..<20 {
+                        let response = try await API.shared.messagesSince(
+                            chatId: item.chatId,
+                            since: since,
+                            limit: messageLimit
+                        )
+                        if let chat = response.chat { latestChat = chat }
+                        fetched.append(contentsOf: response.messages)
+                        let maxSeq = response.messages.compactMap(\.seq).max() ?? since
+                        if maxSeq > since { since = maxSeq }
+                        reachedTip = !response.hasMore
+                        if reachedTip { break }
+                    }
+
+                    if !fetched.isEmpty {
+                        var byId: [String: Message] = [:]
+                        for message in (prefetched[item.chatId] ?? []) {
+                            byId[message.id] = message
+                        }
+                        for message in fetched { byId[message.id] = message }
+                        prefetched[item.chatId] = byId.values.sorted {
+                            let left = ($0.seq ?? 0, $0.createdAt ?? "")
+                            let right = ($1.seq ?? 0, $1.createdAt ?? "")
+                            return left < right
+                        }
+                    }
+
+                    if let latestChat,
+                       let index = chats.firstIndex(where: { $0.id == latestChat.id }) {
+                        chats[index] = mergeServerChat(latestChat, local: chats[index])
+                    }
+
+                    guard reachedTip, !fetched.isEmpty else { continue }
+                    let ackSeq = max(item.deliveredSeq, max(since, item.lastSeq))
+                    if ackSeq > item.deliveredSeq {
+                        var ack = item
+                        ack.deliveredSeq = ackSeq
+                        pendingAcks.append(ack)
+                    }
+                    if pendingAcks.count >= 100 {
+                        await flushAcks()
+                    }
+                }
+
+                let next = page.nextCursor
+                if !page.hasMore {
+                    cursor = nil
+                    break
+                }
+                guard !next.isEmpty, next != cursor else { break }
+                cursor = next
+            }
+            await flushAcks()
+            guard isCurrentAccount(epoch) else { return }
+            if let cursor, !cursor.isEmpty {
+                UserDefaults.standard.set(cursor, forKey: cursorKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: cursorKey)
+            }
+        } catch {
+            await flushAcks()
         }
     }
 
@@ -1912,7 +2011,7 @@ final class AppState: ObservableObject {
         await refreshAll()
         Realtime.shared.start()
         GrowthStore.shared.start()
-        Task { await syncRecentMessages() }
+        Task { await syncRecentMessages(); await syncDeviceChats() }
         return true
     }
 
@@ -2201,6 +2300,7 @@ struct RootView: View {
                     await app.loadContacts()
                     await app.refreshDotCounts()
                     await app.syncRecentMessages()
+                    await app.syncDeviceChats()
                     await app.syncMessageEvents()
                     Realtime.shared.start()
 
