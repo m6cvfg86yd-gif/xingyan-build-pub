@@ -93,6 +93,11 @@ partitions for offline notifications. Online members are skipped because they
 already receive the group timeline signal. Push records carry an idempotency
 key of `groupId:seq:userId`, so queue retries do not create duplicate alerts.
 
+`server/lib/group-message-cell.js` assembles the durable write, membership,
+fanout, timeline, and cursor components into restartable isolated cells. The
+cell integration test runs two cells side by side, verifies data and fanout
+isolation, then restarts one cell and confirms sequence continuity.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file
