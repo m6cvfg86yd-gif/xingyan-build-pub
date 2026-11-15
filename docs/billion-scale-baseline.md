@@ -50,6 +50,19 @@ fails, the write remains durable and reports `busPending`; retrying the same
 command repairs the event exactly once without creating a second message or
 event. `syncFromCluster` is the reconciliation fallback for a longer outage.
 
+## Message write pipeline
+
+`server/lib/message-write-pipeline.js` defines the storage-neutral append
+contract for the next message plane. Each conversation has one in-process
+write queue; sequence reservation, idempotency metadata, and the message
+Outbox are committed through the reliability store before the thread storage
+append.
+
+If thread storage fails, the message remains durable and the result reports
+`storagePending`. Retrying the same `clientId` repairs the thread exactly once
+without allocating a new sequence or duplicating the Outbox event. The contract
+is tested with concurrent duplicate retries and 120 parallel ordered appends.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file
