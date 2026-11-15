@@ -132,6 +132,11 @@ overwriting existing ownership. Dry-run uses a read-only SQLite connection.
 Apply requires the exact plan hash and performs the initial route inserts in one
 transaction; any conflicting assignment aborts the whole batch.
 
+`server/lib/group-cell-pilot-gate.js` is the read-only entry gate for pilot
+migrations. It rejects duplicate message IDs, duplicate or non-contiguous
+sequences, missing membership, equal source/target endpoints, and unhealthy
+Cells before any migration checkpoint or route mutation can begin.
+
 `server/lib/group-cell-router.js` enforces one owning cell per group and an
 epoch for online migration. During migration, reads and writes stay on the
 source cell while the target is populated. Completion switches ownership only

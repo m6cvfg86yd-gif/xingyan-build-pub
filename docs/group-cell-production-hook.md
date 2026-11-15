@@ -100,3 +100,31 @@ node server/tools/group-cell-route-import.js `
 
 Import never changes an existing route. Conflicting assignments abort the
 entire batch, and rerunning the same exact plan is idempotent.
+
+## Pilot migration gate
+
+`server/tools/group-cell-pilot-gate.js` performs a read-only preflight against
+two Cells. It checks health, membership presence, message count, duplicate IDs,
+duplicate sequences, continuity, deletion hashes, cursor hashes, and source/target
+separation.
+
+```powershell
+$env:GROUP_CELL_INTERNAL_TOKEN = '<private-token>'
+node server/tools/group-cell-pilot-gate.js `
+  --source-url http://10.0.0.11:6199 `
+  --target-url http://10.0.0.12:6199 `
+  --group group-id `
+  --output PILOT_PREFLIGHT.json
+```
+
+An actual pilot migration is never implicit. It additionally requires the route
+database, source/target Cell IDs, a positive epoch, a checkpoint directory, and
+the exact confirmation string:
+
+```text
+MIGRATE:<groupId>:<targetCellId>:<epoch>
+```
+
+The worker performs the existing dual-write migration, compares messages,
+membership, deletions, and cursors, then changes the route epoch only when all
+four hashes match.

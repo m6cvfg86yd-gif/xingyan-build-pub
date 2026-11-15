@@ -4,10 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const { canonical, hash } = require('./shard-snapshot');
 
-async function request(base, method, route, value) {
+async function request(base, method, route, value, internalToken) {
+  const headers = {};
+  if (value !== undefined) headers['Content-Type'] = 'application/json';
+  if (internalToken) headers['X-Internal-Token'] = internalToken;
   const response = await fetch(String(base).replace(/\/+$/, '') + route, {
     method,
-    headers: value === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers,
     body: value === undefined ? undefined : JSON.stringify(value)
   });
   const data = await response.json();
@@ -26,6 +29,7 @@ class RemoteGroupMigrationWorker {
     this.routeStore = opts.routeStore;
     this.sourceUrl = String(opts.sourceUrl || '');
     this.targetUrl = String(opts.targetUrl || '');
+    this.internalToken = String(opts.internalToken || '');
     this.stateDir = path.resolve(String(opts.stateDir || ''));
     this.pageSize = Math.max(1, Math.min(500, Number(opts.pageSize) || 200));
     if (!this.routeStore) throw new Error('routeStore is required');
@@ -58,7 +62,9 @@ class RemoteGroupMigrationWorker {
     while (true) {
       const page = await request(base, 'GET',
         '/internal/groups/' + encodeURIComponent(groupId)
-        + '/message-page?afterSeq=' + cursor + '&limit=500');
+        + '/message-page?afterSeq=' + cursor + '&limit=500',
+        undefined,
+        this.internalToken);
       rows.push(...page.messages);
       if (!page.messages.length || page.lastSeq <= cursor) break;
       cursor = page.lastSeq;
@@ -69,7 +75,9 @@ class RemoteGroupMigrationWorker {
 
   async metadata(base, groupId) {
     return request(base, 'GET',
-      '/internal/groups/' + encodeURIComponent(groupId) + '/export-metadata');
+      '/internal/groups/' + encodeURIComponent(groupId) + '/export-metadata',
+      undefined,
+      this.internalToken);
   }
 
   async compare(groupId) {
@@ -131,21 +139,23 @@ class RemoteGroupMigrationWorker {
       membership: sourceMeta.membership,
       deletions: sourceMeta.deletions,
       cursors: sourceMeta.cursors
-    });
+    }, this.internalToken);
 
     let scanSeq = prior && prior.epoch === epoch ? prior.scanSeq : 0;
     let pages = 0;
     while (true) {
       const page = await request(this.sourceUrl, 'GET',
         '/internal/groups/' + encodeURIComponent(groupId)
-        + '/message-page?afterSeq=' + scanSeq + '&limit=' + this.pageSize);
+        + '/message-page?afterSeq=' + scanSeq + '&limit=' + this.pageSize,
+        undefined,
+        this.internalToken);
       for (const message of page.messages) {
         await request(this.targetUrl, 'POST',
           '/internal/groups/' + encodeURIComponent(groupId) + '/mirror', {
           epoch,
           senderId: message.senderId,
           message
-        });
+        }, this.internalToken);
       }
       if (page.messages.length) scanSeq = page.lastSeq;
       pages += 1;
