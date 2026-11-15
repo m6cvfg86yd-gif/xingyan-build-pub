@@ -154,6 +154,15 @@ Batch enqueue is transactional: the 20,000-job local probe currently commits in
 about 126 ms on the development host, while two workers claim through leases
 without duplicate delivery.
 
+## Device sync contract
+
+When `MESSAGE_RELIABILITY_ENABLED=1`, `GET /api/sync/state` pages through every
+conversation for the authenticated device and returns `lastSeq`,
+`deliveredSeq`, `readSeq`, and `hasDelta`. `POST /api/sync/ack` accepts up to
+1,000 monotonic delivery acknowledgements and persists them in one transaction.
+Chat membership and device identity are validated before any cursor changes.
+The client adoption of this endpoint is a separate release gate.
+
 `server/lib/group-cell-route-plan.js` creates deterministic incremental plans
 without writing route state. Existing assignments remain stable, while new
 groups are balanced across Cells with a stable hash tie-breaker. The companion

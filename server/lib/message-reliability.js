@@ -414,6 +414,32 @@ class MessageReliabilityStore {
         return true;
     }
 
+    ackDeviceMany(userId, deviceId, rows) {
+        const user = String(userId || '');
+        const device = String(deviceId || '');
+        if (!user || !device) return 0;
+        return this.transaction(() => {
+            const statement = this.db.prepare(`
+                INSERT INTO device_cursors
+                    (user_id, device_id, chat_id, delivered_seq, read_seq, updated_at)
+                VALUES (?, ?, ?, ?, 0, ?)
+                ON CONFLICT(user_id, device_id, chat_id) DO UPDATE SET
+                    delivered_seq = MAX(device_cursors.delivered_seq, excluded.delivered_seq),
+                    updated_at = excluded.updated_at
+            `);
+            let count = 0;
+            const at = this.now();
+            for (const row of Array.isArray(rows) ? rows : []) {
+                const chatId = String(row && row.chatId || '');
+                const seq = Math.max(0, Math.floor(Number(row && row.seq) || 0));
+                if (!chatId || !seq) continue;
+                statement.run(user, device, chatId, seq, at);
+                count += 1;
+            }
+            return count;
+        });
+    }
+
     markDeviceRead(userId, deviceId, chatId, seq) {
         const user = String(userId || '');
         const device = String(deviceId || '');

@@ -27,6 +27,7 @@ const { resolveTopology } = require('./lib/shard-topology');
 const { MessageReliabilityStore } = require('./lib/message-reliability');
 const { GroupMessageShadow } = require('./lib/group-message-shadow');
 const { PushDeliveryOutbox } = require('./lib/push-delivery-outbox');
+const { DeviceSyncService } = require('./lib/device-sync-service');
 const {
   RemoteGroupCellShadow,
   parseCellEndpoints
@@ -60,6 +61,7 @@ let remoteGroupMessageShadow = null;
 let groupCellRegistry = null;
 let pushDeliveryOutbox = null;
 let pushOutboxRunning = false;
+let deviceSyncService = null;
 let paymentDeviceEnrollment = null;
 let paymentTokenVault = null;
 let paymentIntentEngine = null;
@@ -21891,6 +21893,42 @@ async function handleApi(req, res, pathname, query) {
     return;
   }
 
+  if (parts[0] === 'sync' && parts[1] === 'state' && method === 'GET') {
+    if (!deviceSyncService) {
+      return ok(res, {
+        enabled: false,
+        deviceId: '',
+        items: [],
+        nextCursor: '',
+        hasMore: false
+      });
+    }
+    const info = clientInfo(req);
+    if (!info.deviceId) {
+      return fail(res, 422, '缺少设备标识');
+    }
+    const page = deviceSyncService.state({
+      userId: user.id,
+      deviceId: info.deviceId,
+      cursor: str(query.get('cursor'), 80),
+      limit: Number(query.get('limit')) || 50
+    });
+    return ok(res, Object.assign({ enabled: true }, page));
+  }
+
+  if (parts[0] === 'sync' && parts[1] === 'ack' && method === 'POST') {
+    if (!deviceSyncService) return fail(res, 503, '消息可靠性服务尚未启用');
+    const info = clientInfo(req);
+    if (!info.deviceId) return fail(res, 422, '缺少设备标识');
+    const body = await readBody(req);
+    const result = deviceSyncService.acknowledge({
+      userId: user.id,
+      deviceId: info.deviceId,
+      items: Array.isArray(body.items) ? body.items.slice(0, 1000) : []
+    });
+    return ok(res, result);
+  }
+
   if (parts[0] === 'message-events' && method === 'GET') {
     if (!messageReliability) return ok(res, { events: [], sequence: 0, hasMore: false });
     const after = Math.max(0, Number(query.get('after')) || 0);
@@ -23193,6 +23231,10 @@ if (reliabilityFlag === '1' || reliabilityFlag === 'true' || reliabilityFlag ===
       databaseFile: path.join(DATA_DIR, 'message-reliability.sqlite3'),
       now
     });
+    deviceSyncService = new DeviceSyncService({
+      reliability: messageReliability,
+      listChats: (userId) => chatsOf(userId)
+    });
     console.log('[消息可靠性] 已启用原子序号、幂等消息和设备级游标');
     const backfillFlag = String(process.env.MESSAGE_RELIABILITY_BACKFILL || '0').toLowerCase();
     if (backfillFlag === '1' || backfillFlag === 'true' || backfillFlag === 'on') {
@@ -23201,6 +23243,7 @@ if (reliabilityFlag === '1' || reliabilityFlag === 'true' || reliabilityFlag ===
   } catch (error) {
     try { if (messageReliability) messageReliability.close(); } catch (_) { }
     messageReliability = null;
+    deviceSyncService = null;
     console.log('[消息可靠性] 初始化失败，继续使用兼容链路：'
       + String(error && error.message || error));
   }
