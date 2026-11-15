@@ -161,6 +161,11 @@ unbounded memory growth, and reconnects after session close/GOAWAY. A 20,000-job
 fake-transport probe completed in about 386 ms with 16 total sessions and 3,200
 in-flight requests. Real Apple throughput remains a separate sandbox gate.
 
+`server/tools/apns-sandbox-probe.js` performs that real gate against APNs
+sandbox and reports success count, throughput, P50/P95/P99 latency, session
+count, active requests, overflow, and reconnect statistics. It never prints the
+private signing key.
+
 ## Device sync contract
 
 When `MESSAGE_RELIABILITY_ENABLED=1`, `GET /api/sync/state` pages through every

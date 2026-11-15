@@ -84,6 +84,21 @@ APNs uses persistent HTTP/2 sessions with bounded request multiplexing and a
 bounded wait queue. The admin push Outbox status includes transport queue,
 active-request, session, overflow, and reconnect counters.
 
+Real sandbox validation:
+
+```powershell
+node server/tools/apns-sandbox-probe.js `
+  --key-path AuthKey.p8 `
+  --key-id <key-id> `
+  --team-id <team-id> `
+  --bundle-id com.chris.chatnative `
+  --device-token <sandbox-device-token> `
+  --count 10000
+```
+
+A production connection requires a real sandbox run with zero failures and
+acceptable P95/P99 latency, followed by a larger soak test.
+
 The Cell endpoint must expose:
 
 - `GET /internal/health`
