@@ -43,7 +43,7 @@ try {
   clock += 6000;
   jobs = outbox.claim(10, 5000);
   assert.strictEqual(jobs.length, 1);
-  outbox.complete(jobs[0].id);
+  assert.strictEqual(outbox.completeMany([jobs[0].id]), 1);
   assert.deepStrictEqual(outbox.snapshot().counts, { sent: 1 });
 
   outbox.enqueue({
@@ -55,11 +55,21 @@ try {
     payload: { aps: { alert: { title: 'C', body: 'D' } } }
   });
   jobs = outbox.claim(10, 5000);
-  outbox.retry(jobs[0].id, 'temporary', 1000);
+  outbox.retryMany([{
+    id: jobs[0].id,
+    attempts: jobs[0].attempts,
+    error: 'temporary',
+    delayMs: 1000
+  }]);
   assert.strictEqual(outbox.snapshot().counts.pending, 1);
   clock += 2000;
   jobs = outbox.claim(10, 5000);
-  outbox.retry(jobs[0].id, 'still failing', 1000);
+  outbox.retryMany([{
+    id: jobs[0].id,
+    attempts: jobs[0].attempts,
+    error: 'still failing',
+    delayMs: 1000
+  }]);
   assert.strictEqual(outbox.snapshot().counts.failed, 1);
   outbox.close();
 

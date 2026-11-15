@@ -49,6 +49,18 @@ class PushDeliveryOutbox {
     `);
   }
 
+  transaction(work) {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const result = work();
+      this.db.exec('COMMIT');
+      return result;
+    } catch (error) {
+      try { this.db.exec('ROLLBACK'); } catch (_) { }
+      throw error;
+    }
+  }
+
   enqueue(options) {
     return this.enqueueMany([options])[0];
   }
@@ -160,6 +172,23 @@ class PushDeliveryOutbox {
     `).run(this.now(), String(id || '')).changes;
   }
 
+  completeMany(ids) {
+    const values = (ids || []).map((id) => String(id || '')).filter(Boolean);
+    if (!values.length) return 0;
+    const at = this.now();
+    return this.transaction(() => {
+      const statement = this.db.prepare(`
+        UPDATE push_deliveries
+        SET status = 'sent', attempts = attempts + 1, lease_until = 0,
+            last_error = '', updated_at = ?
+        WHERE id = ?
+      `);
+      let count = 0;
+      values.forEach((id) => { count += Number(statement.run(at, id).changes) || 0; });
+      return count;
+    });
+  }
+
   retry(id, error, delayMs) {
     const attempts = Number(this.db.prepare(`
       SELECT attempts FROM push_deliveries WHERE id = ?
@@ -180,6 +209,35 @@ class PushDeliveryOutbox {
       this.now(),
       String(id || '')
     ).changes;
+  }
+
+  retryMany(items) {
+    const rows = (items || []).filter((row) => row && row.id);
+    if (!rows.length) return 0;
+    const at = this.now();
+    const now = this.nowMs();
+    return this.transaction(() => {
+      const statement = this.db.prepare(`
+        UPDATE push_deliveries
+        SET status = ?, attempts = ?, next_attempt_at = ?, lease_until = 0,
+            last_error = ?, updated_at = ?
+        WHERE id = ?
+      `);
+      let count = 0;
+      for (const row of rows) {
+        const attempts = Math.max(0, Number(row.attempts) || 0) + 1;
+        const delay = Math.max(500, Number(row.delayMs) || 5000);
+        count += Number(statement.run(
+          attempts >= this.maxAttempts ? 'failed' : 'pending',
+          attempts,
+          now + delay,
+          String(row.error || '').slice(0, 500),
+          at,
+          String(row.id)
+        ).changes) || 0;
+      }
+      return count;
+    });
   }
 
   cleanup(beforeIso) {

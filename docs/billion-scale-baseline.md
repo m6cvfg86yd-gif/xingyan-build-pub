@@ -154,6 +154,13 @@ Batch enqueue is transactional: the 20,000-job local probe currently commits in
 about 126 ms on the development host, while two workers claim through leases
 without duplicate delivery.
 
+`server/lib/apns-http2-pool.js` keeps persistent production and sandbox HTTP/2
+sessions instead of creating one connection per notification. It multiplexes
+requests, queues above the concurrency limit, rejects queue overflow without
+unbounded memory growth, and reconnects after session close/GOAWAY. A 20,000-job
+fake-transport probe completed in about 386 ms with 16 total sessions and 3,200
+in-flight requests. Real Apple throughput remains a separate sandbox gate.
+
 ## Device sync contract
 
 When `MESSAGE_RELIABILITY_ENABLED=1`, `GET /api/sync/state` pages through every
