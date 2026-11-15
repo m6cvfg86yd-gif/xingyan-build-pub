@@ -7994,6 +7994,19 @@ if (['1', 'true', 'on', 'yes'].includes(pushOutboxFlag)) {
       runPushOutboxOnce().catch(() => { });
     }, Math.max(500, Number(process.env.PUSH_DELIVERY_OUTBOX_INTERVAL_MS) || 1000));
     timer.unref();
+    const cleanupTimer = setInterval(() => {
+      try {
+        const retentionMs = Math.max(
+          3600000,
+          Number(process.env.PUSH_DELIVERY_OUTBOX_RETENTION_MS)
+            || 7 * 24 * 60 * 60 * 1000
+        );
+        pushDeliveryOutbox.cleanup(
+          new Date(Date.now() - retentionMs).toISOString()
+        );
+      } catch (_) { }
+    }, 60 * 60 * 1000);
+    cleanupTimer.unref();
     process.once('exit', () => {
       try { pushDeliveryOutbox.close(); } catch (_) { }
     });
@@ -20210,6 +20223,15 @@ async function handleApi(req, res, pathname, query) {
   }
 
   /* 手机把「通知权限开没开 / 标记开没开」报上来：桌面图标没数字时，后台一眼看出卡在哪 */
+  if (parts[0] === 'push' && parts[1] === 'outbox' && method === 'GET') {
+    if (!isOpsUser(user)) return fail(res, 403, '只有管理员能查看推送队列');
+    ok(res, {
+      enabled: !!pushDeliveryOutbox,
+      ...(pushDeliveryOutbox ? pushDeliveryOutbox.snapshot() : { counts: {} })
+    });
+    return;
+  }
+
   if (parts[0] === 'push' && parts[1] === 'settings' && method === 'POST') {
     const body = await readBody(req);
     const p = readPush();
