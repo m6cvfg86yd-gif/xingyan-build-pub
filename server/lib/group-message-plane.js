@@ -57,6 +57,13 @@ class GroupMessagePlane {
   }
 
   canRead(groupId, userId, seq) {
+    if (typeof this.membership.canReadSync === 'function') {
+      return this.membership.canReadSync(
+        String(groupId || ''),
+        String(userId || ''),
+        Number(seq) || 0
+      ) === true;
+    }
     const membership = this.membership.getSync
       ? this.membership.getSync(String(groupId || ''), String(userId || ''))
       : null;

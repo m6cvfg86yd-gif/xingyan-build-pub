@@ -76,6 +76,12 @@ leaves do not retroactively expose or hide the wrong historical sequence.
 Unread counts are derived from latest, read, and cleared cursors rather than
 copying every group message into every member inbox.
 
+`server/lib/group-membership-store.js` persists membership periods with
+`joinedSeq` and `leftSeq`. Join, leave, and rejoin keep separate periods, so
+historical visibility remains correct after membership changes. Active member
+pages and counts are queried directly from the covering period instead of
+loading the entire group member list.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file
