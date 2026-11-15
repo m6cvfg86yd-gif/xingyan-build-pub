@@ -63,6 +63,19 @@ If thread storage fails, the message remains durable and the result reports
 without allocating a new sequence or duplicating the Outbox event. The contract
 is tested with concurrent duplicate retries and 120 parallel ordered appends.
 
+## Group message plane
+
+`server/lib/group-message-plane.js` separates durable group writes from
+fanout. Small groups use asynchronous per-member events; groups above the
+configured threshold publish one group-timeline signal and enqueue bounded
+partition jobs for notification workers. The send request never performs a
+synchronous all-member fanout.
+
+Membership visibility is evaluated with `joinedSeq` and `leftSeq`, so joins and
+leaves do not retroactively expose or hide the wrong historical sequence.
+Unread counts are derived from latest, read, and cleared cursors rather than
+copying every group message into every member inbox.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file
