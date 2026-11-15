@@ -144,6 +144,45 @@ const server = http.createServer(async (req, res) => {
       );
       return reply(res, result.ok ? 200 : 409, result);
     }
+    if (req.method === 'GET' && action === 'export-metadata') {
+      return reply(res, 200, {
+        ok: true,
+        groupId,
+        membership: cell.membership.listPeriods(groupId),
+        deletions: cell.deletions.exportGroup(groupId),
+        cursors: cell.reliability.exportDeviceCursors(groupId)
+      });
+    }
+    if (req.method === 'POST' && action === 'import-metadata') {
+      const input = await body(req);
+      const route = router.route(groupId);
+      if (!route || route.status !== 'migrating'
+          || route.targetCellId !== cellId
+          || Number(route.epoch) !== Number(input.epoch)) {
+        return reply(res, 409, { ok: false, error: 'metadata-fenced', route });
+      }
+      let membership = 0;
+      for (const period of input.membership || []) {
+        if (cell.membership.importPeriod(period)) membership += 1;
+      }
+      const deletions = cell.deletions.importGroup(groupId, input.deletions || {});
+      const cursors = cell.reliability.importDeviceCursors(input.cursors || []);
+      return reply(res, 200, {
+        ok: true,
+        imported: { membership, deletions, cursors }
+      });
+    }
+    if (req.method === 'GET' && action === 'message-page') {
+      const afterSeq = Number(url.searchParams.get('afterSeq')) || 0;
+      const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit')) || 500));
+      const messages = cell.reliability.messagesAfter(groupId, afterSeq, limit);
+      return reply(res, 200, {
+        ok: true,
+        messages,
+        lastSeq: messages.length ? Number(messages[messages.length - 1].seq) : afterSeq,
+        hasMore: messages.length === limit
+      });
+    }
     if (req.method === 'POST' && action === 'messages') {
       const input = await body(req);
       const owner = router.checkOwner(groupId, cellId);
@@ -196,6 +235,28 @@ const server = http.createServer(async (req, res) => {
         ? cell.acknowledge(groupId, input.userId, input.deviceId, input.seq)
         : cell.markRead(groupId, input.userId, input.deviceId, input.seq);
       return reply(res, 200, { ok: true, advanced });
+    }
+    if (req.method === 'POST' && ['hide', 'clear', 'recall', 'takedown'].includes(action)) {
+      const input = await body(req);
+      const owner = router.checkOwner(groupId, cellId);
+      if (!owner.ok) return reply(res, 409, { ok: false, error: owner.reason });
+      let result;
+      if (action === 'hide') {
+        result = cell.hideForUser(groupId, input.userId, input.messageId);
+      } else if (action === 'clear') {
+        result = cell.clearForUser(groupId, input.userId, input.seq);
+      } else if (action === 'recall') {
+        result = cell.recall(groupId, input.messageId, input.seq, input.actorUserId);
+      } else {
+        result = cell.takedown(
+          groupId,
+          input.messageId,
+          input.seq,
+          input.actorUserId,
+          input.reason
+        );
+      }
+      return reply(res, 200, { ok: true, result });
     }
     return reply(res, 404, { ok: false, error: 'not found' });
   } catch (error) {

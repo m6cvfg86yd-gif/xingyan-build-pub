@@ -130,6 +130,11 @@ processes for staging tests. The multiprocess test starts two cells, rejects
 writes to the wrong cell, mirrors historical messages into the target, performs
 cross-process dual-write during migration, fences the old cell after the epoch
 switch, and verifies the target timeline.
+
+`server/lib/remote-group-migration-worker.js` performs the same migration over
+real HTTP between two cells. It exports/imports metadata, pages historical
+messages, writes through the target mirror endpoint, compares messages,
+membership, deletions and cursors, then switches the persisted route epoch.
 While migration is active, successful source writes are mirrored to the target
 with historical fanout suppressed; source response remains authoritative.
 
