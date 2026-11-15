@@ -6,11 +6,22 @@ class GroupTimelineService {
     this.reliability = opts.reliability;
     this.membership = opts.membership;
     this.cleared = opts.cleared || null;
+    this.deletions = opts.deletions || null;
     if (!this.reliability) throw new Error('reliability is required');
     if (!this.membership) throw new Error('membership is required');
   }
 
   clearance(groupId, userId) {
+    if (this.deletions && typeof this.deletions.clearance === 'function') {
+      return Math.max(
+        this.clearedClearance(groupId, userId),
+        this.deletions.clearance(groupId, userId)
+      );
+    }
+    return this.clearedClearance(groupId, userId);
+  }
+
+  clearedClearance(groupId, userId) {
     if (!this.cleared) return 0;
     if (typeof this.cleared.get === 'function') {
       return Math.max(0, Number(this.cleared.get(groupId, userId)) || 0);
@@ -56,7 +67,10 @@ class GroupTimelineService {
       const seq = Number(message.seq) || 0;
       return seq >= joined && (!left || seq < left);
     });
-    const page = visible.slice(0, limit);
+    const candidatePage = visible.slice(0, limit);
+    const page = this.deletions
+      ? this.deletions.apply(groupId, userId, candidatePage)
+      : candidatePage;
     return {
       ok: true,
       messages: page,

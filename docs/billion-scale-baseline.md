@@ -98,6 +98,12 @@ fanout, timeline, and cursor components into restartable isolated cells. The
 cell integration test runs two cells side by side, verifies data and fanout
 isolation, then restarts one cell and confirms sequence continuity.
 
+Group deletion uses server-side tombstones rather than immediate physical
+deletion. `group-deletion-store` records user hides, per-user cleared sequence,
+global recall, and global takedown states. Timeline reads apply these states
+before returning messages, so stale clients and delayed create events cannot
+resurrect hidden content.
+
 ## Read-only message audit
 
 `server/tools/message-consistency-audit.js` compares each message JSONL file

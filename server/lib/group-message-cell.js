@@ -7,6 +7,7 @@ const { MessageWritePipeline } = require('./message-write-pipeline');
 const { GroupMembershipStore } = require('./group-membership-store');
 const { GroupMessagePlane } = require('./group-message-plane');
 const { GroupTimelineService } = require('./group-timeline-service');
+const { GroupDeletionStore } = require('./group-deletion-store');
 
 function safeThreadName(groupId) {
   return String(groupId || '').replace(/[^A-Za-z0-9._-]/g, '_') + '.jsonl';
@@ -82,6 +83,10 @@ class GroupMessageCell {
       databaseFile: path.join(this.dataDir, 'group-membership.sqlite3'),
       now: opts.now
     });
+    this.deletions = new GroupDeletionStore({
+      databaseFile: path.join(this.dataDir, 'group-deletions.sqlite3'),
+      now: opts.now
+    });
     this.threadStore = new JsonlThreadStore(this.dataDir);
     this.writePipeline = new MessageWritePipeline({
       reliability: this.reliability,
@@ -101,7 +106,8 @@ class GroupMessageCell {
     this.timeline = new GroupTimelineService({
       reliability: this.reliability,
       membership: this.membership,
-      cleared: opts.cleared
+      cleared: opts.cleared,
+      deletions: this.deletions
     });
   }
 
@@ -133,6 +139,22 @@ class GroupMessageCell {
     return this.timeline.markRead(groupId, userId, deviceId, seq);
   }
 
+  hideForUser(groupId, userId, messageId) {
+    return this.deletions.hideForUser(groupId, userId, messageId);
+  }
+
+  clearForUser(groupId, userId, seq) {
+    return this.deletions.clearForUser(groupId, userId, seq);
+  }
+
+  recall(groupId, messageId, seq, actorUserId) {
+    return this.deletions.recall(groupId, messageId, seq, actorUserId);
+  }
+
+  takedown(groupId, messageId, seq, actorUserId, reason) {
+    return this.deletions.takedown(groupId, messageId, seq, actorUserId, reason);
+  }
+
   waitForFanout() {
     return this.plane.waitForIdle();
   }
@@ -148,6 +170,7 @@ class GroupMessageCell {
 
   close() {
     this.membership.close();
+    this.deletions.close();
     this.reliability.close();
   }
 }
