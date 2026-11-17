@@ -5109,6 +5109,15 @@ struct ChatDetailView: View {
                                                   }
                                               },
                                               onBeginEditing: { panel = .none })
+                        .overlay(alignment: .leading) {
+                            if input.isEmpty && !voiceMode && !recorder.recording {
+                                Text(Tr("输入消息"))
+                                    .font(pf(16))
+                                    .foregroundStyle(composerUtilityInk.opacity(0.66))
+                                    .padding(.leading, 2)
+                                    .allowsHitTesting(false)
+                            }
+                        }
                         .onChange(of: input) { v in
                             reportTyping()
                             scheduleDraftSave(v)
