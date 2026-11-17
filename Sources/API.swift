@@ -562,6 +562,17 @@ struct MomentComment: Codable, Hashable {
     var likedByMe: Bool? = nil
 }
 
+/// Optional sponsored-content metadata. Existing moments decode unchanged;
+/// future ad inventory can arrive without introducing a second feed card type.
+struct MomentPromotion: Codable, Hashable {
+    var kind: String?
+    var label: String?
+    var sponsor: String?
+    var disclosure: String?
+    var actionTitle: String?
+    var actionUrl: String?
+}
+
 struct Moment: Codable, Identifiable, Hashable {
     var id: String
     var authorId: String?
@@ -585,6 +596,7 @@ struct Moment: Codable, Identifiable, Hashable {
     var likedByMe: Bool?
     var comments: [MomentComment]?
     var mine: Bool?
+    var promotion: MomentPromotion? = nil
 }
 
 struct MomentNotice: Decodable, Identifiable, Hashable {

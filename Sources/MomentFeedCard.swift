@@ -24,6 +24,11 @@ struct MomentFeedCard: View {
     private var likes: [MomentLike] { moment.likes ?? [] }
     private var comments: [MomentComment] { moment.comments ?? [] }
     private var showingLiked: Bool { likedOverride ?? (moment.likedByMe == true) }
+    private let cardInset: CGFloat = 10
+    private let contentInset: CGFloat = 16
+    private var mediaWidth: CGFloat {
+        max(1, availableWidth - (cardInset + contentInset) * 2)
+    }
 
     private var showingLikeCount: Int {
         let base = likes.count
@@ -34,17 +39,22 @@ struct MomentFeedCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if let promotion = moment.promotion {
+                promotionBanner(promotion)
+                    .padding(.bottom, 12)
+            }
+
             postHeader
 
             if let text = moment.content?.trimmingCharacters(in: .whitespacesAndNewlines),
                !text.isEmpty {
                 Text(RichText.linkified(text))
-                    .font(systemTextFont(16, .regular, relativeTo: .body))
+                    .font(systemTextFont(16.5, .regular, relativeTo: .body))
                     .foregroundColor(C.label)
-                    .lineSpacing(6)
+                    .lineSpacing(7)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 14)
+                    .padding(.top, 15)
                     .contentShape(Rectangle())
                     .onTapGesture(perform: onOpenComments)
                     .onLongPressGesture(minimumDuration: 0.45, maximumDistance: 28) {
@@ -54,33 +64,71 @@ struct MomentFeedCard: View {
 
             if !images.isEmpty || isVideo {
                 media
-                    .padding(.top, 14)
+                    .padding(.top, 16)
             }
 
             actionRow
-                .padding(.top, 12)
+                .padding(.top, 14)
 
             socialContext
-                .padding(.top, 10)
+                .padding(.top, 12)
         }
-        .padding(.horizontal, L.momentPadH)
-        .padding(.top, 20)
-        .padding(.bottom, 18)
+        .padding(.horizontal, contentInset)
+        .padding(.top, contentInset)
+        .padding(.bottom, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(C.pageBg)
-        .overlay(alignment: .bottom) {
-            HairLine(inset: L.momentPadH + 55)
+        .background(C.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.primary.opacity(0.065), lineWidth: 0.7)
         }
+        .padding(.horizontal, cardInset)
+        .padding(.vertical, 6)
+        .background(C.pageBg)
         .onChange(of: moment.likedByMe) { _ in
             likedOverride = nil
+        }
+    }
+
+    private func promotionBanner(_ promotion: MomentPromotion) -> some View {
+        HStack(spacing: 7) {
+            Text((promotion.label ?? Tr("推广")).uppercased())
+                .font(systemTextFont(9.5, .bold, relativeTo: .caption2))
+                .tracking(0.8)
+                .foregroundColor(Color(hex: 0xA66B28))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
+                .background(Color(hex: 0xF4E7D5), in: Capsule())
+
+            Text(promotion.sponsor ?? promotion.disclosure ?? Tr("品牌内容"))
+                .font(systemTextFont(11.5, .medium, relativeTo: .caption1))
+                .foregroundColor(C.subLabel)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+
+            Text(Tr("广告"))
+                .font(systemTextFont(9.5, .medium, relativeTo: .caption2))
+                .foregroundColor(C.subLabel.opacity(0.7))
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 34)
+        .background(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(Color.dyn(0xFBF7F1, 0x211C16))
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(Color(hex: 0xA66B28).opacity(0.12), lineWidth: 0.6)
         }
     }
 
     private var postHeader: some View {
         HStack(alignment: .center, spacing: 11) {
             Avatar(path: moment.author?.avatarPath ?? "",
-                   size: 44,
-                   radius: 22,
+                   size: 46,
+                   radius: 23,
                    circle: true)
                 .contentShape(Circle())
                 .onTapGesture {
@@ -90,7 +138,7 @@ struct MomentFeedCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 5) {
                     Text(moment.author?.name ?? "")
-                        .font(systemTextFont(16, .semibold, relativeTo: .headline))
+                        .font(systemTextFont(16.5, .semibold, relativeTo: .headline))
                         .foregroundColor(C.label)
                         .lineLimit(1)
 
@@ -140,13 +188,13 @@ struct MomentFeedCard: View {
         } else {
             MomentFeedImageGrid(images: images,
                                 sizes: moment.imageSizes ?? [:],
-                                width: availableWidth - L.momentPadH * 2,
+                                width: mediaWidth,
                                 onTap: onOpenImage)
         }
     }
 
     private var videoTile: some View {
-        let width = max(1, availableWidth - L.momentPadH * 2)
+        let width = mediaWidth
         let ratio = CGFloat(max(1, moment.videoH ?? 4)) / CGFloat(max(1, moment.videoW ?? 5))
         let height = min(430, max(width * 0.62, width * ratio))
 
@@ -205,10 +253,10 @@ struct MomentFeedCard: View {
                 }
             }
             .frame(width: width, height: height)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.primary.opacity(0.07), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.primary.opacity(0.075), lineWidth: 0.6)
             }
             .contentShape(Rectangle())
         }
@@ -637,7 +685,7 @@ private struct MomentFeedImageGrid: View {
     let width: CGFloat
     let onTap: (Int) -> Void
 
-    private let gap: CGFloat = 4
+    private let gap: CGFloat = 5
 
     var body: some View {
         if images.count == 1 {
@@ -660,7 +708,11 @@ private struct MomentFeedImageGrid: View {
         } label: {
             RemoteImage(path: path, icon: "photo", maxSide: 1440)
                 .frame(width: width, height: height)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.primary.opacity(0.075), lineWidth: 0.6)
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -682,7 +734,11 @@ private struct MomentFeedImageGrid: View {
                         } label: {
                             RemoteImage(path: images[index], icon: "photo", maxSide: 960)
                                 .frame(width: cell, height: cell)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                        .stroke(Color.primary.opacity(0.07), lineWidth: 0.6)
+                                }
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
