@@ -14,7 +14,7 @@ def require(condition: bool, message: str) -> None:
 
 
 require(
-    ".frame(width: 116, height: 216)" in PRIVACY,
+    ".frame(width: 128, height: 238)" in PRIVACY,
     "appearance choices must use a portrait phone preview",
 )
 require(

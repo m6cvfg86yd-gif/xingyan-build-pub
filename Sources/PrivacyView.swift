@@ -378,85 +378,131 @@ private struct AppearanceHomePreview: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+        ZStack {
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: dark
-                            ? [Color(red: 0.12, green: 0.16, blue: 0.30),
-                               Color(red: 0.04, green: 0.05, blue: 0.10)]
-                            : [Color(red: 0.58, green: 0.77, blue: 0.98),
-                               Color(red: 0.90, green: 0.94, blue: 1.00)],
+                        colors: [
+                            Color(hex: 0x777A80),
+                            Color(hex: 0x202126),
+                            Color(hex: 0x4B4D52),
+                            Color(hex: 0x111216)
+                        ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .stroke(Color.white.opacity(0.28), lineWidth: 0.8)
+                }
 
-            VStack(spacing: 9) {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: dark
+                            ? [Color(red: 0.10, green: 0.15, blue: 0.31),
+                               Color(red: 0.02, green: 0.03, blue: 0.07)]
+                            : [Color(red: 0.53, green: 0.74, blue: 0.98),
+                               Color(red: 0.92, green: 0.96, blue: 1.00)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay {
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.18), .clear, Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                }
+                .padding(6)
+
+            VStack(spacing: 8) {
                 HStack {
                     Text("9:41")
-                        .font(pfStyled(size: 10, weight: .semibold, design: .rounded))
+                        .font(.system(size: 7.5, weight: .semibold, design: .rounded))
                     Spacer()
-                    HStack(spacing: 3) {
+                    HStack(spacing: 2.5) {
                         Image(systemName: "cellularbars")
                         Image(systemName: "wifi")
                         Image(systemName: "battery.75")
                     }
-                    .font(.system(size: 8, weight: .semibold))
+                    .font(.system(size: 6.5, weight: .semibold))
                 }
                 .foregroundStyle(dark ? Color.white : Color.black)
-                .padding(.horizontal, 11)
-                .padding(.top, 9)
+                .padding(.horizontal, 13)
+                .padding(.top, 10)
 
-                VStack(spacing: 7) {
-                    HStack(spacing: 6) {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(panel.opacity(0.92))
-                            .frame(height: 34)
-                    }
-                    HStack(spacing: 7) {
-                        previewWidget(icon: "clock.fill", tint: .orange)
-                        previewWidget(icon: "calendar", tint: .red)
-                    }
-                    HStack(spacing: 7) {
-                        previewWidget(icon: "message.fill", tint: .green)
-                        previewWidget(icon: "camera.fill", tint: .gray)
-                    }
+                HStack {
+                    previewWidget(icon: "clock.fill", tint: .orange)
+                    previewWidget(icon: "calendar", tint: .red)
                 }
-                .padding(.horizontal, 11)
+                .padding(.horizontal, 10)
+                HStack {
+                    previewWidget(icon: "message.fill", tint: .green)
+                    previewWidget(icon: "camera.fill", tint: .gray)
+                }
+                .padding(.horizontal, 10)
+
+                HStack(spacing: 5) {
+                    Circle().fill(Color.white.opacity(0.82))
+                    Circle().fill(Color.white.opacity(0.38))
+                }
+                .frame(width: 17, height: 5)
 
                 Spacer(minLength: 0)
 
-                HStack(spacing: 12) {
-                    Image(systemName: "message.fill")
-                    Image(systemName: "person.2.fill")
-                    Image(systemName: "safari.fill")
-                    Image(systemName: "person.crop.circle.fill")
+                HStack(spacing: 9) {
+                    miniAppIcon("message.fill", tint: .green)
+                    miniAppIcon("person.2.fill", tint: .blue)
+                    miniAppIcon("safari.fill", tint: .cyan)
+                    miniAppIcon("person.crop.circle.fill", tint: .gray)
                 }
-                .font(.system(size: 8, weight: .semibold))
-                .foregroundStyle(dark ? Color.white.opacity(0.72) : Color.black.opacity(0.56))
-                .padding(.bottom, 8)
+                .padding(.horizontal, 10)
+                .frame(height: 42)
+                .background(panel.opacity(0.62),
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .padding(.horizontal, 9)
+
+                Capsule()
+                    .fill(dark ? Color.white.opacity(0.78) : Color.black.opacity(0.68))
+                    .frame(width: 39, height: 3)
+                    .padding(.bottom, 6)
+            }
+
+            Capsule()
+                .fill(Color.black)
+                .frame(width: 35, height: 10)
+                .offset(y: -105)
+
+            VStack {
+                HStack {
+                    Capsule()
+                        .fill(Color(hex: 0x3F4146))
+                        .frame(width: 2.5, height: 19)
+                        .offset(x: -1.2, y: -42)
+                    Spacer()
+                    Capsule()
+                        .fill(Color(hex: 0x4A4C51))
+                        .frame(width: 2.5, height: 30)
+                        .offset(x: 1.2, y: -35)
+                }
+                Spacer()
             }
         }
-        .frame(width: 116, height: 216)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(
-                    selected ? Color.accentColor : Color.black.opacity(dark ? 0.72 : 0.78),
-                    lineWidth: selected ? 3 : 3
-                )
-        }
+        .frame(width: 128, height: 238)
         .overlay(alignment: .topTrailing) {
             if selected {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 20, weight: .semibold))
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, Color.accentColor)
-                    .padding(8)
+                    .padding(6)
             }
         }
-        .shadow(color: Color.black.opacity(dark ? 0.20 : 0.08), radius: 5, y: 2)
+        .shadow(color: Color.black.opacity(dark ? 0.30 : 0.18), radius: 11, y: 5)
     }
 
     private func previewWidget(icon: String, tint: Color) -> some View {
@@ -476,6 +522,17 @@ private struct AppearanceHomePreview: View {
         .frame(maxWidth: .infinity)
         .frame(height: 31)
         .background(panel.opacity(0.90), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func miniAppIcon(_ symbol: String, tint: Color) -> some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(tint.opacity(0.86))
+            .frame(width: 19, height: 19)
+            .overlay {
+                Image(systemName: symbol)
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
     }
 }
 
