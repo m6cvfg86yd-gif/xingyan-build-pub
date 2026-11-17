@@ -136,9 +136,20 @@ struct GamesPageView: View {
                         }
                         .frame(maxWidth: .infinity).padding(.top, 30)
                     } else if list.isEmpty {
-                        Text(Tr("游戏暂时没准备好，点一下再试"))
-                            .font(pf(14)).foregroundColor(subInk)
-                            .frame(maxWidth: .infinity).padding(.top, 30)
+                        Button {
+                            Task { await loadGames() }
+                        } label: {
+                            Label(Tr("游戏暂时没准备好，点一下再试"),
+                                  systemImage: "arrow.clockwise")
+                                .font(pf(14, .medium))
+                                .foregroundColor(subInk)
+                                .padding(.horizontal, 15)
+                                .frame(height: 40)
+                                .background(cardBg, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 30)
                     }
                 }
             }
@@ -178,8 +189,7 @@ struct GamesPageView: View {
         .task {
 
             recentIds = UserDefaults.standard.stringArray(forKey: recentKey) ?? []
-            games = await API.shared.miniApps(kind: "game")
-            loading = false
+            await loadGames()
         }
         .onChange(of: games.count) { _ in bannerIndex = 0 }
         .onReceive(tick) { _ in
@@ -210,6 +220,18 @@ struct GamesPageView: View {
             GameWebPage(game: game)
                 .environmentObject(app)
         }
+    }
+
+    @MainActor
+    private func loadGames() async {
+        loading = true
+        var fresh = await API.shared.miniApps(kind: "game")
+        if fresh.isEmpty {
+            await API.shared.loadEndpointList()
+            fresh = await API.shared.miniApps(kind: "game")
+        }
+        games = fresh
+        loading = false
     }
 
     private var list: [MiniApp] { games }

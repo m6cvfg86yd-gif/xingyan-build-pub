@@ -5,6 +5,21 @@ import AVFoundation
 import CryptoKit
 import Security
 
+private enum APICatalogCache {
+    static func load<T: Decodable>(_ type: T.Type, key: String) -> [T] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let values = try? JSONDecoder().decode([T].self, from: data) else {
+            return []
+        }
+        return values
+    }
+
+    static func save<T: Encodable>(_ values: [T], key: String) {
+        guard let data = try? JSONEncoder().encode(values) else { return }
+        UserDefaults.standard.set(data, forKey: key)
+    }
+}
+
 struct User: Codable, Identifiable, Hashable {
     var id: String
 
@@ -3813,15 +3828,25 @@ private struct StarredPayload: Decodable {
 
     func musicTracks() async -> [MusicTrack] {
         struct Payload: Decodable { var tracks: [MusicTrack]? }
-        guard let p: Payload = try? await get("/api/music", as: Payload.self) else { return [] }
-        return p.tracks ?? []
+        let cacheKey = "catalog.music." + cacheNamespace
+        if let p: Payload = try? await get("/api/music", as: Payload.self),
+           let tracks = p.tracks {
+            APICatalogCache.save(tracks, key: cacheKey)
+            return tracks
+        }
+        return APICatalogCache.load(MusicTrack.self, key: cacheKey)
     }
 
     func miniApps(kind: String = "") async -> [MiniApp] {
         struct Payload: Decodable { var items: [MiniApp]? }
         let path = kind.isEmpty ? "/api/miniapps" : "/api/miniapps?kind=\(kind)"
-        guard let p: Payload = try? await get(path, as: Payload.self) else { return [] }
-        return p.items ?? []
+        let cacheKey = "catalog.miniapps." + cacheNamespace + "." + kind
+        if let p: Payload = try? await get(path, as: Payload.self),
+           let items = p.items {
+            APICatalogCache.save(items, key: cacheKey)
+            return items
+        }
+        return APICatalogCache.load(MiniApp.self, key: cacheKey)
     }
 
     func removeDevice(id: String) async -> String? {

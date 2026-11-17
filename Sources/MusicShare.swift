@@ -3,7 +3,7 @@ import AVFoundation
 import UniformTypeIdentifiers
 import UIKit
 
-struct MusicTrack: Decodable, Identifiable, Hashable {
+struct MusicTrack: Codable, Identifiable, Hashable {
     var id: String
     var title: String
     var artist: String?
@@ -1327,7 +1327,11 @@ struct ListenView: View {
     @MainActor
     private func refreshTracks(force: Bool = false) async {
         if !force, Date().timeIntervalSince(lastTracksRefresh) < 15 { return }
-        let fresh = await API.shared.musicTracks()
+        var fresh = await API.shared.musicTracks()
+        if fresh.isEmpty {
+            await API.shared.loadEndpointList()
+            fresh = await API.shared.musicTracks()
+        }
         if !fresh.isEmpty || tracks.isEmpty {
             tracks = fresh
         }
