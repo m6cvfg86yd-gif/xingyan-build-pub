@@ -422,10 +422,16 @@ struct ChatThemePickerView: View {
             }
             .padding(18)
         }
-        .frame(height: 254)
+        .frame(width: 214, height: 408)
+        .overlay(alignment: .top) {
+            Capsule()
+                .fill(Color.black.opacity(0.88))
+                .frame(width: 66, height: 18)
+                .padding(.top, 8)
+        }
         .overlay {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(Color.primary.opacity(0.07), lineWidth: 0.6)
+                .stroke(Color.black.opacity(0.82), lineWidth: 5)
         }
         .shadow(color: Color.black.opacity(0.10), radius: 18, y: 8)
     }
@@ -434,7 +440,7 @@ struct ChatThemePickerView: View {
                           isSelected: Bool) -> some View {
         HStack(spacing: 13) {
             ZStack {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
                     .fill(preset.previewBackground)
 
                 RadialGradient(
@@ -444,68 +450,58 @@ struct ChatThemePickerView: View {
                     endRadius: 60
                 )
 
-                Circle()
-                    .fill(preset.mine.opacity(0.20))
-                    .frame(width: 24, height: 24)
-                    .blur(radius: 7)
-                    .offset(x: 23, y: -18)
+                VStack(spacing: 5) {
+                    Capsule()
+                        .fill(Color.black.opacity(0.78))
+                        .frame(width: 18, height: 3)
+                    HStack {
+                        Text("9:41")
+                        Spacer()
+                        Image(systemName: preset.symbol)
+                    }
+                    .font(.system(size: 4.5, weight: .semibold))
+                    .foregroundStyle(preset == .midnight || preset == .graphite
+                                     ? Color.white.opacity(0.76) : Color.black.opacity(0.56))
 
-                Image(systemName: preset.symbol)
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(
-                        preset == .midnight || preset == .graphite
-                            ? Color.white.opacity(0.78)
-                            : preset.mine.opacity(0.76)
-                    )
-                    .offset(x: 24, y: -18)
-
-                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 3) {
-                        Circle()
+                        Circle().fill(preset.other).frame(width: 5, height: 5)
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(preset.other)
-                            .frame(width: 4, height: 4)
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(preset.other)
-                            .frame(width: 28, height: 10)
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                    .stroke(Color.white.opacity(0.20), lineWidth: 0.4)
-                            }
-                        Spacer(minLength: 15)
+                            .frame(width: 24, height: 8)
+                        Spacer(minLength: 0)
                     }
                     HStack {
-                        Spacer(minLength: 15)
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [preset.mine, preset.mine.opacity(0.80)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: 29, height: 10)
-                            .shadow(color: preset.mine.opacity(0.20), radius: 2, y: 1)
+                        Spacer(minLength: 12)
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(preset.mine)
+                            .frame(width: 25, height: 8)
                     }
                     HStack(spacing: 3) {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .fill(preset.panel)
-                            .frame(height: 11)
-                        Circle()
-                            .fill(preset.mine)
-                            .frame(width: 8, height: 8)
+                            .frame(height: 9)
+                        Circle().fill(preset.mine).frame(width: 6, height: 6)
                     }
+                    Spacer(minLength: 0)
+                    HStack(spacing: 5) {
+                        Circle().frame(width: 3, height: 3)
+                        Circle().frame(width: 3, height: 3)
+                        Circle().frame(width: 3, height: 3)
+                        Spacer()
+                    }
+                    .foregroundStyle(Color.black.opacity(0.34))
                 }
-                .padding(7)
+                .padding(6)
             }
-            .frame(width: 72, height: 56)
-            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .frame(width: 54, height: 86)
+            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
                     .stroke(
                         isSelected
                             ? Color.accentColor.opacity(0.82)
-                            : Color.primary.opacity(0.07),
-                        lineWidth: isSelected ? 1.4 : 0.5
+                            : Color.black.opacity(0.72),
+                        lineWidth: isSelected ? 2 : 1.8
                     )
             }
             .shadow(
@@ -530,7 +526,7 @@ struct ChatThemePickerView: View {
                 .foregroundStyle(isSelected ? Color.accentColor : Color.secondary.opacity(0.35))
         }
         .padding(.horizontal, 14)
-        .frame(minHeight: 68)
+        .frame(minHeight: 96)
         .contentShape(Rectangle())
     }
 }

@@ -409,6 +409,11 @@ private struct AppearanceHomePreview: View {
                 .padding(.top, 9)
 
                 VStack(spacing: 7) {
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(panel.opacity(0.92))
+                            .frame(height: 34)
+                    }
                     HStack(spacing: 7) {
                         previewWidget(icon: "clock.fill", tint: .orange)
                         previewWidget(icon: "calendar", tint: .red)
@@ -421,15 +426,25 @@ private struct AppearanceHomePreview: View {
                 .padding(.horizontal, 11)
 
                 Spacer(minLength: 0)
+
+                HStack(spacing: 12) {
+                    Image(systemName: "message.fill")
+                    Image(systemName: "person.2.fill")
+                    Image(systemName: "safari.fill")
+                    Image(systemName: "person.crop.circle.fill")
+                }
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(dark ? Color.white.opacity(0.72) : Color.black.opacity(0.56))
+                .padding(.bottom, 8)
             }
         }
-        .frame(height: 142)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .frame(width: 116, height: 216)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(
-                    selected ? Color.accentColor : Color.primary.opacity(dark ? 0.22 : 0.12),
-                    lineWidth: selected ? 3 : 1
+                    selected ? Color.accentColor : Color.black.opacity(dark ? 0.72 : 0.78),
+                    lineWidth: selected ? 3 : 3
                 )
         }
         .overlay(alignment: .topTrailing) {
