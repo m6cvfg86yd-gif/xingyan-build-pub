@@ -99,6 +99,7 @@ jobs:
           python3 tools/verify-chat-prepend-anchor.py
           python3 tools/verify-share-sheets.py
           python3 tools/verify-moment-editorial.py
+          python3 tools/verify-me-b2611161617.py
           python3 tools/verify-chat-list-order.py
           node server/tools/server-boot-preflight.js
 

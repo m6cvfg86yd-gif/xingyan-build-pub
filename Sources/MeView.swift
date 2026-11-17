@@ -724,7 +724,7 @@ struct MeView: View {
         let serviceOff = UIConfig.num("serviceShow", 1) <= 0
         for it in effectiveItems {
             if serviceOff, it.action == "service" { continue }
-            let g = meGroup(for: it)
+            let g = it.group ?? 1
             if last == nil || g != last! { out.append([]); last = g }
             out[out.count - 1].append(it)
         }
@@ -739,7 +739,7 @@ struct MeView: View {
         for item in items {
             if item.action == "shop" || item.action == "mall" {
                 if !hasCards && !insertedCards {
-                    out.append(cardsItem(group: 2))
+                    out.append(cardsItem(group: item.group))
                     insertedCards = true
                 }
                 continue
@@ -749,31 +749,7 @@ struct MeView: View {
         if !hasCards && !insertedCards {
             out.append(cardsItem(group: 2))
         }
-        let priority: [String: Int] = [
-            "service": 0,
-            "favorites": 10,
-            "stickers": 11,
-            "works": 12,
-            "cards": 13,
-            "moments": 20,
-            "settings": 90
-        ]
-        return out.enumerated().sorted { lhs, rhs in
-            let lp = priority[lhs.element.action ?? ""] ?? 50
-            let rp = priority[rhs.element.action ?? ""] ?? 50
-            if lp != rp { return lp < rp }
-            return lhs.offset < rhs.offset
-        }.map(\.element)
-    }
-
-    private func meGroup(for item: DiscoverItem) -> Int {
-        switch item.action ?? "" {
-        case "service": return 1
-        case "favorites", "stickers", "works", "cards": return 2
-        case "moments": return 3
-        case "settings": return 4
-        default: return item.group ?? 5
-        }
+        return out
     }
 
     private func cardsItem(group: Int?) -> DiscoverItem {
