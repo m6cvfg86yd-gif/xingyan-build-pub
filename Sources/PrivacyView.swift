@@ -284,7 +284,6 @@ struct AppearanceView: View {
     @ObservedObject private var lang = LangStore.shared
     @EnvironmentObject var app: AppState
     @Environment(\.colorScheme) private var systemColorScheme
-    @AppStorage("xingyan.topGreenGlow") private var topGreenGlow = true
 
     private var effectiveMode: String {
         if app.appearance == "auto" {
@@ -335,23 +334,6 @@ struct AppearanceView: View {
                 Text(Tr("选择浅色或深色会立即应用到整个 App；打开自动后，会跟随 iPhone 系统的外观设置。"))
             }
 
-            if app.me?.ops == true ||
-                (app.me?.username ?? "").caseInsensitiveCompare("wzy245441545") == .orderedSame {
-                Section {
-                    Toggle(isOn: $topGreenGlow) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(Tr("顶部绿色氛围光"))
-                            Text(Tr("控制会话页顶部状态栏区域的绿色渐变"))
-                                .font(pfStyled(size: 12))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    Text(Tr("界面管理"))
-                } footer: {
-                    Text(Tr("仅管理账号可见；开关会立即生效并记住本机选择。"))
-                }
-            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle(Tr("外观与显示"))

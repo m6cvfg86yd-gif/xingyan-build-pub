@@ -93,6 +93,7 @@ jobs:
           python3 tools/verify-chat-top-title.py
           python3 tools/verify-contacts-whatsapp.py
           python3 tools/verify-chat-menu-icon.py
+          python3 tools/verify-no-top-green-glow.py
           python3 tools/verify-chat-list-order.py
           node server/tools/server-boot-preflight.js
 
