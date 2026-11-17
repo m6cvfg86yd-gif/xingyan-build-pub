@@ -8,8 +8,8 @@
     },
     {
       "path": "Sources/App.swift",
-      "size": 183337,
-      "sha256": "2f212b95273c8fc7c49fdfdd68455744611f84d0113ac7f85233d795a62d6662"
+      "size": 183482,
+      "sha256": "fc93bf75e7ddd0752cd393ad4baebf817f51a93a528e0febd663c44ee7382ec2"
     },
     {
       "path": "Sources/Realtime.swift",
@@ -68,13 +68,13 @@
     },
     {
       "path": "Sources/ChatDetailView.swift",
-      "size": 366146,
-      "sha256": "f6faca1d25f3b7680752096a4e44bfa7da27399d23cf2c9f518a086fa35c97e0"
+      "size": 366000,
+      "sha256": "b78e0c8f974be2901b822f2f4797f1da9868e560475cbb0402ee8fccd4eca3e5"
     },
     {
       "path": "Sources/GroupInfoView.swift",
-      "size": 98499,
-      "sha256": "6cd5ad142f48a86763901f309dcfe9463d65749a82b17d36c3a4b31fcf95a84f"
+      "size": 98535,
+      "sha256": "16d13cec8e2807a390c02fd9e7ef73387f08b94b380f1ecc90f07d56c96c1796"
     },
     {
       "path": "Sources/OtherLogin.swift",

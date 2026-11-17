@@ -1654,8 +1654,7 @@ struct ContactCardView: View {
             ($0.type ?? "direct") == "direct" && ($0.memberIds ?? []).contains(userId)
         }.map(\.id)
         app.applyFriendRemoved(userId: userId)
-        app.openChat = nil
-        app.wantChatsTab = true
+        app.returnToChatsList()
         dismiss()
         app.show(Tr("已删除好友"))
         Task {

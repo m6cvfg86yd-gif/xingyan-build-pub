@@ -9770,7 +9770,8 @@ function directFriendMessageError(user, chatId) {
   if (chat.friendshipRemovedAt || (peerId && friendPairWasRemoved(user.id, peerId))) {
     return '你们已经不是好友，重新添加好友并通过验证后才能继续聊天';
   }
-  if (!peerId || peerId === user.id || friendSetCached(user.id).has(peerId)) return '';
+  const relation = peerId ? friendshipBetween(user.id, peerId) : null;
+  if (!peerId || peerId === user.id || (relation && relation.status === 'accepted')) return '';
   const im = readIm();
   if (im.allowStranger) return '';
   const limit = Math.max(0, Math.min(1000, Number(im.strangerMessageLimit) || 0));

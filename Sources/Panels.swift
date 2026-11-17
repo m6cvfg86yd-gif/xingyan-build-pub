@@ -826,6 +826,7 @@ struct PlusPanel: View {
 
     var onLongPress: ((PlusItem) -> Bool)? = nil
 
+    @Environment(\.colorScheme) private var scheme
     @State private var page = 0
 
     @State private var pressed: String? = nil
@@ -859,7 +860,7 @@ struct PlusPanel: View {
         }
     }
 
-    private var tileH: CGFloat { L.v(54, 15, 58) }
+    private var tileH: CGFloat { L.v(48, 14, 52) }
     private var tileGap: CGFloat { L.v(7, 2.4, 9) }
     private var gridPad: CGFloat { L.v(14, 4.2, 18) }
     private var gridGap: CGFloat { L.v(10, 3.2, 14) }
@@ -915,30 +916,53 @@ struct PlusPanel: View {
                                          startPoint: .topLeading,
                                          endPoint: .bottomTrailing))
                     .frame(width: tileH, height: tileH)
-                    .shadow(color: tileColors(item.action).last?.opacity(0.22) ?? .clear,
-                            radius: 4, y: 2)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: tileH * 0.30, style: .continuous)
+                            .stroke(Color.white.opacity(0.24), lineWidth: 0.7)
+                    }
+                    .shadow(color: tileColors(item.action).last?.opacity(0.14) ?? .clear,
+                            radius: 5, y: 2)
                 Image(systemName: whatsAppPlusSymbol(item))
-                    .font(.system(size: L.v(23, 7, 26), weight: .semibold))
+                    .font(.system(size: L.v(20.5, 6.2, 23), weight: .semibold))
                     .symbolRenderingMode(.monochrome)
                     .foregroundStyle(.white)
             }
             Text(chatEntryLabel(item.label, action: item.action))
-                .font(pf(L.v(12.5, 3.6, 13.5), .medium))
+                .font(pf(L.v(12, 3.5, 13), .medium))
                 .foregroundColor(C.label)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 7)
-        .padding(.horizontal, 3)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
         .frame(maxWidth: .infinity)
         .background {
-            RoundedRectangle(cornerRadius: L.v(16, 5, 18), style: .continuous)
-                .fill(C.cardBg.opacity(0.92))
-                .overlay {
-                    RoundedRectangle(cornerRadius: L.v(16, 5, 18), style: .continuous)
-                        .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
-                }
+            ZStack {
+                RoundedRectangle(cornerRadius: L.v(14, 4.5, 16), style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: L.v(14, 4.5, 16), style: .continuous)
+                    .fill(Color.white.opacity(scheme == .dark ? 0.055 : 0.16))
+                RoundedRectangle(cornerRadius: L.v(14, 4.5, 16), style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.13), .clear],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                RoundedRectangle(cornerRadius: L.v(14, 4.5, 16), style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.26),
+                                     Color.black.opacity(0.055)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.65
+                    )
+            }
+            .shadow(color: Color.black.opacity(0.045), radius: 8, y: 3)
         }
         .opacity(item.enabled == false ? 0.45 : 1)
 

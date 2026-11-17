@@ -2054,6 +2054,7 @@ struct DirectChatInfoView: View {
             app.applyFriendRemoved(userId: id)
             await app.loadContacts()
             await app.loadChats()
+            app.returnToChatsList()
             dismiss()
             onExitChat()
             app.show(Tr("已删除好友"))

@@ -263,6 +263,13 @@ final class AppState: ObservableObject {
         pendingPushChatId = c.id
     }
 
+    func returnToChatsList() {
+        pendingPushChatId = nil
+        openChat = nil
+        tabBarDepth = 0
+        wantChatsTab = true
+    }
+
     @Published var openMiniApp: MiniApp?
     /// 从小程序返回时恢复原来的聊天；小程序始终只由一个全屏窗口承载。
     @Published var resumeChatAfterMiniApp: Chat?

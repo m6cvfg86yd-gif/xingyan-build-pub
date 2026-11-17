@@ -82,6 +82,9 @@ jobs:
           python3 tools/verify-recall-preview.py
           python3 tools/verify-group-announce.py
           python3 tools/verify-group-top-frost.py
+          python3 tools/verify-deleted-friend-send.py
+          python3 tools/verify-delete-friend-navigation.py
+          python3 tools/verify-plus-panel.py
           python3 tools/verify-chat-list-order.py
           node server/tools/server-boot-preflight.js
 

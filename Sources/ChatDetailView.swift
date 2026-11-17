@@ -1545,12 +1545,8 @@ struct ChatDetailView: View {
     private func exitChatNow() {
         showGroupInfo = false
         showChatInfo = false
-        app.pendingPushChatId = nil
+        app.returnToChatsList()
         dismiss()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            app.openChat = nil
-            app.wantChatsTab = true
-        }
     }
 
     private func reportTyping() {
