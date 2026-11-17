@@ -505,6 +505,7 @@ enum C {
 
     static var tabTitle0: String { UIConfig.text("tabTitle0", "聊天") }
     static var tabTitle1: String { UIConfig.text("tabTitle1", "通讯录") }
+    static var tabTitleVideo: String { UIConfig.text("tabTitleVideo", "视频") }
     static var tabTitle2: String { UIConfig.text("tabTitleWorld", "世界") }
     static var tabTitle3: String { UIConfig.text("tabTitleMe", "我的") }
 

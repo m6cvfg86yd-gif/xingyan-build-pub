@@ -113,8 +113,8 @@ private final class CompactDotTabBar: UITabBar {
     override func layoutSubviews() {
         super.layoutSubviews()
         updateNativeBackdropVisibility()
-        let slot = bounds.width / 4
-        for index in 0..<4 {
+        let slot = bounds.width / 5
+        for index in 0..<5 {
             let dot = dotViews[index] ?? {
                 let view = BrandTabBadgeView()
                 view.layer.cornerRadius = 4
@@ -135,7 +135,7 @@ private final class CompactDotTabBar: UITabBar {
                 bringSubviewToFront(badge)
                 continue
             }
-            let isWorld = index == 2 && dotIndexes.contains(index)
+            let isWorld = index == 3 && dotIndexes.contains(index)
             let side: CGFloat = isWorld ? 10 : 8.5
             badge.frame = CGRect(x: centerX + (isWorld ? 9 : 10),
                                  y: 4,
@@ -242,6 +242,8 @@ struct NativeTabBar: UIViewRepresentable {
                          selectedImage: Self.messageIconWithEyes()),
             UITabBarItem(title: C.tabText1, image: UIImage(systemName: "person.2"),
                          selectedImage: UIImage(systemName: "person.2.fill")),
+            UITabBarItem(title: C.tabTextVideo, image: UIImage(systemName: "play.rectangle"),
+                         selectedImage: UIImage(systemName: "play.rectangle.fill")),
             UITabBarItem(title: C.tabText2, image: UIImage(systemName: "safari"),
                          selectedImage: Self.worldIconWithOrbit()),
             UITabBarItem(title: C.tabText3, image: UIImage(systemName: "person.crop.circle"),
@@ -298,7 +300,7 @@ struct NativeTabBar: UIViewRepresentable {
     func updateUIView(_ bar: UITabBar, context: Context) {
         context.coordinator.selection = $selection
         applyColors(bar)
-        let titles = [C.tabText0, C.tabText1, C.tabText2, C.tabText3]
+        let titles = [C.tabText0, C.tabText1, C.tabTextVideo, C.tabText2, C.tabText3]
         if let items = bar.items, items.count == titles.count {
             for index in titles.indices where items[index].title != titles[index] {
                 items[index].title = titles[index]
@@ -365,10 +367,9 @@ struct NativeTabBar: UIViewRepresentable {
         appearance.inlineLayoutAppearance.selected.badgeBackgroundColor = .systemRed
         appearance.compactInlineLayoutAppearance.normal.badgeBackgroundColor = .systemRed
         appearance.compactInlineLayoutAppearance.selected.badgeBackgroundColor = .systemRed
-        if let items = bar.items, items.count == 4 {
-            // “我的”保持原来的品牌绿，只统一前三个入口的苹果蓝选中色。
-            items[3].setTitleTextAttributes(normalTitle, for: .normal)
-            items[3].setTitleTextAttributes(selectedMyTitle, for: .selected)
+        if let items = bar.items, items.count == 5 {
+            items[4].setTitleTextAttributes(normalTitle, for: .normal)
+            items[4].setTitleTextAttributes(selectedMyTitle, for: .selected)
         }
         if scheme == .dark {
             appearance.selectionIndicatorImage = UIImage()
@@ -389,11 +390,12 @@ struct NativeTabBar: UIViewRepresentable {
     }
 
     private func refresh(_ bar: UITabBar) {
-        guard let items = bar.items, items.count == 4 else { return }
+        guard let items = bar.items, items.count == 5 else { return }
         items[0].badgeValue = badge > 0 ? (badge > 99 ? "99+" : "\(badge)") : nil
         items[1].badgeValue = contactsDot ? "" : nil
-        items[2].badgeValue = momentsDot ? "" : nil
-        items[3].badgeValue = meDot ? "" : nil
+        items[2].badgeValue = nil
+        items[3].badgeValue = momentsDot ? "" : nil
+        items[4].badgeValue = meDot ? "" : nil
         items.forEach { $0.badgeColor = .systemRed }
         if let bar = bar as? CompactDotTabBar {
             bar.badgeCount = 0
@@ -424,22 +426,22 @@ struct NativeTabBar: UIViewRepresentable {
 
         fileprivate func applyAvatar(in bar: UITabBar, loader: TabAvatarLoader,
                                      revision: Int, avatarPath: String) {
-            guard let items = bar.items, items.count == 4 else { return }
+            guard let items = bar.items, items.count == 5 else { return }
             let key = "\(revision)|\(avatarPath)"
             guard key != appliedAvatarKey else { return }
 
             guard !avatarPath.isEmpty, let avatar = loader.image(for: avatarPath) else {
                 if avatarPath.isEmpty {
-                    items[3].image = systemMyImage
-                    items[3].selectedImage = systemMySelected
+                    items[4].image = systemMyImage
+                    items[4].selectedImage = systemMySelected
                     appliedAvatarKey = key
                 }
                 return
             }
 
             let circled = circularAvatar(avatar)
-            items[3].image = circled.withRenderingMode(.alwaysOriginal)
-            items[3].selectedImage = circled.withRenderingMode(.alwaysOriginal)
+            items[4].image = circled.withRenderingMode(.alwaysOriginal)
+            items[4].selectedImage = circled.withRenderingMode(.alwaysOriginal)
             appliedAvatarKey = key
         }
 

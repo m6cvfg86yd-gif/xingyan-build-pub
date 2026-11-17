@@ -2272,13 +2272,19 @@ struct CHRISApp: App {
                 Button(C.tabText2) {
                     NotificationCenter.default.post(name: .chrisSwitchMainTab,
                                                     object: nil,
-                                                    userInfo: ["tab": 2])
+                                                    userInfo: ["tab": 3])
                 }
                 .keyboardShortcut("3", modifiers: .command)
+                Button(C.tabTextVideo) {
+                    NotificationCenter.default.post(name: .chrisSwitchMainTab,
+                                                    object: nil,
+                                                    userInfo: ["tab": 2])
+                }
+                .keyboardShortcut("v", modifiers: .command)
                 Button(C.tabText3) {
                     NotificationCenter.default.post(name: .chrisSwitchMainTab,
                                                     object: nil,
-                                                    userInfo: ["tab": 3])
+                                                    userInfo: ["tab": 4])
                 }
                 .keyboardShortcut("4", modifiers: .command)
             }

@@ -467,6 +467,8 @@ enum L10n {
         "条内容": "items",
         "图片": "Photo",
         "视频": "Video",
+        "正在开发中": "Coming soon",
+        "视频内容正在准备中，后续会在这里提供原生浏览体验。": "Video content is being prepared. A native viewing experience will be available here soon.",
         "文件": "File",
         "商城卡片": "Mall card",
         "笔记": "Note",

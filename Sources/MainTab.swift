@@ -54,7 +54,7 @@ struct MainTabView: View {
                 .zIndex(tab == 1 ? 1 : 0)
 
                 Group {
-                    if mountedTabs.contains(2) { DiscoverView() } else { Color.clear }
+                    if mountedTabs.contains(2) { VideoTabView() } else { Color.clear }
                 }
                 .opacity(tab == 2 ? 1 : 0)
                 .allowsHitTesting(tab == 2)
@@ -62,12 +62,20 @@ struct MainTabView: View {
                 .zIndex(tab == 2 ? 1 : 0)
 
                 Group {
-                    if mountedTabs.contains(3) { MeView() } else { Color.clear }
+                    if mountedTabs.contains(3) { DiscoverView() } else { Color.clear }
                 }
                 .opacity(tab == 3 ? 1 : 0)
                 .allowsHitTesting(tab == 3)
                 .accessibilityHidden(tab != 3)
                 .zIndex(tab == 3 ? 1 : 0)
+
+                Group {
+                    if mountedTabs.contains(4) { MeView() } else { Color.clear }
+                }
+                .opacity(tab == 4 ? 1 : 0)
+                .allowsHitTesting(tab == 4)
+                .accessibilityHidden(tab != 4)
+                .zIndex(tab == 4 ? 1 : 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -252,7 +260,7 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .chrisSwitchMainTab)) { note in
             guard let next = note.userInfo?["tab"] as? Int,
-                  (0..<4).contains(next),
+                  (0..<5).contains(next),
                   next != tab else { return }
             UISelectionFeedbackGenerator().selectionChanged()
             tab = next
@@ -571,6 +579,7 @@ struct TabBar: View {
         [
             ("message", "message.fill", C.tabText0),
             ("person.2", "person.2.fill", C.tabText1),
+            ("play.rectangle", "play.rectangle.fill", C.tabTextVideo),
             ("safari", "safari", C.tabText2),
             ("person.crop.circle", "person.crop.circle.fill", C.tabText3)
         ]
@@ -581,7 +590,7 @@ struct TabBar: View {
         return pf(UIConfig.num("tabIcon\(i)", def))
     }
 
-    private let customKeys = ["tab.chat", "tab.contacts", "tab.discover", "tab.me"]
+    private let customKeys = ["tab.chat", "tab.contacts", "tab.video", "tab.discover", "tab.me"]
 
     private func customSize(_ i: Int) -> CGFloat {
         UIConfig.num("tabIcon\(i)", L.tabIconBox)
@@ -593,7 +602,7 @@ struct TabBar: View {
     }
 
     private func activeColor(_ index: Int) -> Color {
-        index < 3 ? (scheme == .dark ? .white : .black) : selColor
+        index < 4 ? (scheme == .dark ? .white : .black) : selColor
     }
 
     private func tabIconFont(_ i: Int, on: Bool) -> Font {
