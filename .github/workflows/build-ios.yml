@@ -88,6 +88,7 @@ jobs:
           python3 tools/verify-composer-placeholder.py
           python3 tools/verify-registration-phone-only.py
           python3 tools/verify-line-registration.py
+          python3 tools/verify-line-onboarding.py
           python3 tools/verify-chat-list-order.py
           node server/tools/server-boot-preflight.js
 
