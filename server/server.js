@@ -25129,7 +25129,8 @@ function knownDevice(user, req) {
       if (list.every((d) => !d.id)) {
         return list.some((d) => d.ip === info.ip || d.device === info.device);
       }
-      return list.some((d) => d.id === info.deviceId);
+      if (list.some((d) => d.id === info.deviceId)) return true;
+      return list.some((d) => d.ip === info.ip && d.device === info.device);
     }
     return list.some((d) => d.ip === info.ip || d.device === info.device);
   } catch (e) { return true; }

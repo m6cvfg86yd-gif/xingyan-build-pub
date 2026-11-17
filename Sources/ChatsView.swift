@@ -1494,7 +1494,7 @@ struct ChatsView: View {
         ZStack {
             HStack(spacing: 7) {
                 Text(chatTopTitle)
-                    .font(pf(22, .bold))
+                    .font(pf(17, .semibold))
                     .foregroundStyle(C.label)
                     .accessibilityLabel(chatTopTitle)
 
