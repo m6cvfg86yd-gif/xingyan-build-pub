@@ -96,6 +96,7 @@ final class NativeChatRowCell: UICollectionViewCell {
     private var accessibilitySignature = ""
     private var cachedTimeSignature = ""
     private var cachedTimeWidth: CGFloat = 0
+    private var avatarTap: UITapGestureRecognizer?
 
     private let rowLeading: CGFloat = 16
     private let avatarSize: CGFloat = 50
@@ -281,6 +282,7 @@ final class NativeChatRowCell: UICollectionViewCell {
                                  online: configuration.showOnline,
                                  mood: configuration.moodIcon)
         }
+        avatarTap?.isEnabled = configuration.onAvatar != nil
         let nextActionsSignature = "\(configuration.isPinned)|\(Lang.code)"
         if actionsSignature != nextActionsSignature {
             actionsSignature = nextActionsSignature
@@ -590,13 +592,15 @@ final class NativeChatRowCell: UICollectionViewCell {
     }
 
     private func setupGestures() {
-        // Swipe left/right is owned by UICollectionView's native
-        // UISwipeActionsConfiguration. Keeping a second UIPanGestureRecognizer
-        // here makes the row fight the list gesture and breaks native bounce,
-        // momentum and auto-close behavior.
-        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
-        tap.cancelsTouchesInView = false
-        foreground.addGestureRecognizer(tap)
+        // Row taps use UICollectionView's native selection path. Only the
+        // avatar keeps a child recognizer because some bots open a different
+        // destination than the conversation itself.
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleAvatarTap(_:)))
+        tap.cancelsTouchesInView = true
+        tap.delaysTouchesBegan = false
+        avatarView.isUserInteractionEnabled = true
+        avatarView.addGestureRecognizer(tap)
+        avatarTap = tap
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -629,20 +633,8 @@ final class NativeChatRowCell: UICollectionViewCell {
         }
     }
 
-    @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
-        guard offset == 0 else {
-            closeActions()
-            return
-        }
-        if let chatId = configuration?.chatId {
-            NotificationCenter.default.post(name: .chrisRowSwipe, object: chatId)
-        }
-        let point = gesture.location(in: foreground)
-        if point.x <= rowLeading + avatarSize + 10, let onAvatar = configuration?.onAvatar {
-            onAvatar()
-        } else {
-            configuration?.onOpen()
-        }
+    @objc private func handleAvatarTap(_ gesture: UITapGestureRecognizer) {
+        configuration?.onAvatar?()
     }
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {

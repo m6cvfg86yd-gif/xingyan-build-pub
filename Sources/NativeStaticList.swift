@@ -302,6 +302,21 @@ where Item.ID: Hashable {
             pending = nil
             premeasure(nextOrder)
             let previousOffset = collection.contentOffset
+            let prependAnchor: (id: Item.ID, delta: CGFloat)?
+            if isPrepending,
+               let indexPath = collection.indexPathsForVisibleItems.min(by: {
+                   $0.item < $1.item
+               }),
+               let id = dataSource.itemIdentifier(for: indexPath),
+               let attributes = collection.collectionViewLayout
+                   .layoutAttributesForItem(at: indexPath) {
+                prependAnchor = (
+                    id,
+                    attributes.frame.minY - collection.contentOffset.y
+                )
+            } else {
+                prependAnchor = nil
+            }
             applyGeneration += 1
             let generation = applyGeneration
             var snapshot = NSDiffableDataSourceSnapshot<Int, Item.ID>()
@@ -316,6 +331,20 @@ where Item.ID: Hashable {
                       self.collection === collection else { return }
                 collection.layoutIfNeeded()
                 if isPrepending {
+                    if let anchor = prependAnchor,
+                       let indexPath = dataSource.indexPath(for: anchor.id),
+                       let attributes = collection.collectionViewLayout
+                           .layoutAttributesForItem(at: indexPath) {
+                        collection.setContentOffset(
+                            CGPoint(
+                                x: previousOffset.x,
+                                y: attributes.frame.minY - anchor.delta
+                            ),
+                            animated: false
+                        )
+                        ChatScrollHandle.shared.clearPendingPrepend()
+                        return
+                    }
                     _ = ChatScrollHandle.shared.compensatePendingPrepend()
                     return
                 }

@@ -38,7 +38,6 @@ where Item.ID: Hashable {
         collection.backgroundColor = .clear
         collection.alwaysBounceVertical = true
         collection.alwaysBounceHorizontal = false
-        collection.isDirectionalLockEnabled = true
         collection.showsVerticalScrollIndicator = false
         collection.contentInsetAdjustmentBehavior = .never
         collection.keyboardDismissMode = .interactive
@@ -48,7 +47,8 @@ where Item.ID: Hashable {
         collection.allowsFocus = true
         collection.remembersLastFocusedIndexPath = true
         collection.isPrefetchingEnabled = true
-        collection.allowsSelection = false
+        collection.allowsSelection = true
+        collection.allowsMultipleSelection = false
         if #available(iOS 26.0, *) {
             collection.topEdgeEffect.isHidden = true
             collection.bottomEdgeEffect.isHidden = true
@@ -314,6 +314,22 @@ where Item.ID: Hashable {
         func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
             publishScrollState(false)
             flushPendingItems()
+        }
+
+        func collectionView(_ collectionView: UICollectionView,
+                            didSelectItemAt indexPath: IndexPath) {
+            collectionView.deselectItem(at: indexPath, animated: false)
+            guard let id = dataSource?.itemIdentifier(for: indexPath),
+                  let entry = lookup[id],
+                  let configuration = nativeRow?(entry) else { return }
+            configuration.onOpen()
+        }
+
+        func collectionView(_ collectionView: UICollectionView,
+                            canEditItemAt indexPath: IndexPath) -> Bool {
+            guard let id = dataSource?.itemIdentifier(for: indexPath),
+                  let entry = lookup[id] else { return false }
+            return nativeRow?(entry) != nil
         }
 
         func collectionView(

@@ -96,6 +96,7 @@ jobs:
           python3 tools/verify-no-top-green-glow.py
           python3 tools/verify-video-tab.py
           python3 tools/verify-phone-theme-previews.py
+          python3 tools/verify-chat-prepend-anchor.py
           python3 tools/verify-chat-list-order.py
           node server/tools/server-boot-preflight.js
 

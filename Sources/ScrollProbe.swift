@@ -25,6 +25,12 @@ final class ChatScrollHandle {
         pendingPrepend = (sv.contentSize.height, sv.contentOffset)
     }
 
+    /// Exact native-list anchoring has already restored the visible row.
+    /// Clear the height-delta fallback so it cannot compensate a second time.
+    func clearPendingPrepend() {
+        pendingPrepend = nil
+    }
+
     @discardableResult
     func compensatePendingPrepend() -> Bool {
         guard let sv = scroll, sv.window != nil,
