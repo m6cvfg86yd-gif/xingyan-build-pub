@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PRIVACY = (ROOT / "Sources" / "PrivacyView.swift").read_text(encoding="utf-8")
 THEMES = (ROOT / "Sources" / "ChatThemes.swift").read_text(encoding="utf-8")
+WALLPAPER = (ROOT / "Sources" / "ChatBackgroundSheet.swift").read_text(encoding="utf-8")
 WEATHER = (ROOT / "Sources" / "PlatformAcademy.swift").read_text(encoding="utf-8")
 
 
@@ -24,6 +25,14 @@ require(
 require(
     ".frame(width: 54, height: 86)" in THEMES,
     "each theme row must include a miniature phone preview",
+)
+require(
+    ".frame(width: 214, height: 408)" in WALLPAPER,
+    "the chat wallpaper picker must preview the full phone screen",
+)
+require(
+    'Text("9:41")' in WALLPAPER and "battery.75" in WALLPAPER,
+    "the wallpaper phone preview must include a native status bar",
 )
 require(
     "hourlyForecast" in WEATHER and "dailyForecast" in WEATHER,

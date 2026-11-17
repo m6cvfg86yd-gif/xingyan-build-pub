@@ -726,6 +726,19 @@ struct ChatBackgroundSheet: View {
 
             VStack(spacing: 12) {
                 HStack {
+                    Text("9:41")
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    Spacer()
+                    HStack(spacing: 3) {
+                        Image(systemName: "cellularbars")
+                        Image(systemName: "wifi")
+                        Image(systemName: "battery.75")
+                    }
+                    .font(.system(size: 8, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+
+                HStack {
                     Text(Tr("今天"))
                         .font(pfStyled(size: 10.5, weight: .medium))
                         .foregroundStyle(.white)
@@ -781,15 +794,25 @@ struct ChatBackgroundSheet: View {
                 }
 
                 Spacer(minLength: 0)
-                    .frame(height: 12)
+
+                Capsule()
+                    .fill(Color.white.opacity(0.82))
+                    .frame(width: 64, height: 4)
+                    .padding(.bottom, 1)
             }
             .padding(14)
         }
-        .frame(height: 250)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .frame(width: 214, height: 408)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay(alignment: .top) {
+            Capsule()
+                .fill(Color.black.opacity(0.90))
+                .frame(width: 66, height: 18)
+                .padding(.top, 8)
+        }
         .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.primary.opacity(0.10), lineWidth: 0.7)
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(Color.black.opacity(0.84), lineWidth: 5)
         }
         .shadow(color: Color.black.opacity(scheme == .dark ? 0.30 : 0.08),
                 radius: 16, y: 8)
