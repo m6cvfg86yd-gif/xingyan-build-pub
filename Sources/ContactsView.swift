@@ -121,7 +121,7 @@ struct ContactsView: View {
         contactsCanvas
     }
     private var contactAvatarSize: CGFloat {
-        max(42, min(46, L.ctAvatar + 2))
+        49
     }
     private let contactsAccent = Color(hex: 0x25D366)
 
@@ -204,10 +204,9 @@ private var funcs: [(String, String, Color, String)] {
                 }
             } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(contactsAccent))
+                    .font(.system(size: 21, weight: .medium))
+                    .foregroundStyle(contactsLabel)
+                    .frame(width: 42, height: 42)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Tr("添加"))
@@ -279,18 +278,16 @@ private var funcs: [(String, String, Color, String)] {
 
                                         HStack(spacing: 0) {
                                              Text(section.letter)
-                                                 .font(pfStyled(size: 13, weight: .semibold))
+                                                 .font(pfStyled(size: 12.5, weight: .semibold))
                                                  .foregroundStyle(idxLetter == section.letter
-                                                                  ? .white
+                                                                  ? contactsAccent
                                                                   : contactsSecondary)
                                                  .accessibilityAddTraits(.isHeader)
                                             Spacer(minLength: 0)
                                         }
                                         .padding(.leading, 16)
-                                        .frame(height: max(32, L.ctHeadH))
-                                                 .background(idxLetter == section.letter
-                                                             ? contactsAccent
-                                                             : contactsSectionFill)
+                                        .frame(height: 28)
+                                        .background(contactsSectionFill)
                                         .overlay(alignment: .bottom) {
                                             Rectangle()
                                                 .fill(contactsRule)
@@ -501,34 +498,25 @@ private var funcs: [(String, String, Color, String)] {
                 }
             }
         }
-        .background(contactsCanvas)
+        .background(Color.dyn(0xFFFFFF, 0x1C1C1E))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(C.hairline.opacity(0.65), lineWidth: 0.6))
+        .shadow(color: Color.black.opacity(scheme == .dark ? 0 : 0.035),
+                radius: 8, y: 3)
         .padding(.horizontal, 12)
         .padding(.bottom, 4)
     }
 
     private func entryRow(_ item: (String, String, Color, String)) -> some View {
-        let sym: String
-        switch item.3 {
-        case "newFriends":      sym = "person.badge.plus"
-        case "groups":          sym = "person.3.fill"
-        case "tags":            sym = "tag.fill"
-        default:                sym = "dot.radiowaves.left.and.right"
-        }
         return Button {
             openFunc(item.3)
         } label: {
             HStack(spacing: 13) {
-                ZStack {
-                    Circle()
-                        .fill(contactsAccent)
-                    Image(systemName: sym)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                .frame(width: contactAvatarSize, height: contactAvatarSize)
+                nativeQuickIcon(item, size: 40)
 
                 Text(item.0)
-                    .font(pfStyled(size: 17, weight: .regular))
+                    .font(pfStyled(size: 16.5, weight: .regular))
                     .foregroundColor(contactsLabel)
 
                 Spacer(minLength: 8)
@@ -544,8 +532,8 @@ private var funcs: [(String, String, Color, String)] {
             }
             .padding(.leading, 16)
             .padding(.trailing, 18)
-            .frame(height: 60)
-            .background(contactsCanvas)
+            .frame(height: 64)
+            .background(Color.clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -776,7 +764,7 @@ private var funcs: [(String, String, Color, String)] {
             Rectangle()
                 .fill(contactsRule)
                 .frame(height: 0.5)
-                .padding(.leading, 78)
+                .padding(.leading, 77)
         }
         .contentShape(Rectangle())
     }
