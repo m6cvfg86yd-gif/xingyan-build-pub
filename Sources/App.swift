@@ -3705,19 +3705,19 @@ struct RegisterSheet: View {
     }
 
     private var registrationGreen: Color {
-        Color(hex: 0x25D366)
+        Color(hex: 0x06C755)
     }
 
     private var registrationCanvas: Color {
-        Color.dyn(0xFFFFFF, 0x0B141A)
+        Color.dyn(0xF7F8FA, 0x111111)
     }
 
     private var registrationField: Color {
-        scheme == .dark ? Color(hex: 0x202C33) : Color(hex: 0xF0F2F5)
+        scheme == .dark ? Color(hex: 0x1E1E1E) : .white
     }
 
     private var registrationLine: Color {
-        scheme == .dark ? Color(hex: 0x2A3942) : Color.clear
+        scheme == .dark ? Color(hex: 0x333333) : Color(hex: 0xE5E7EB)
     }
 
     var body: some View {
@@ -3725,7 +3725,6 @@ struct RegisterSheet: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     registrationHeader
-                    registrationModeTabs
 
                     Group {
                         if mode == .account {
@@ -3781,7 +3780,7 @@ struct RegisterSheet: View {
     }
 
     private var registrationHeader: some View {
-        HStack(alignment: .top, spacing: 14) {
+        VStack(spacing: 13) {
             Group {
                 if let icon = AppIconImage.image {
                     Image(uiImage: icon)
@@ -3789,28 +3788,30 @@ struct RegisterSheet: View {
                         .interpolation(.high)
                 } else {
                     Image(systemName: "bubble.left.and.bubble.right.fill")
-                        .font(.system(size: 23, weight: .semibold))
+                        .font(.system(size: 29, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(registrationGreen)
                 }
             }
-            .frame(width: 54, height: 54)
-            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .frame(width: 72, height: 72)
+            .clipShape(RoundedRectangle(cornerRadius: 21, style: .continuous))
+            .shadow(color: registrationGreen.opacity(0.18), radius: 14, y: 6)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(spacing: 7) {
                 Text((Lang.isEnglish || Lang.isRussian) ? "Star chat" : "星言")
-                    .font(pfStyled(size: 20, weight: .semibold))
+                    .font(pfStyled(size: 25, weight: .bold))
                     .foregroundColor(C.label)
                 Text(Tr("用手机号快速创建，注册后可完善资料"))
                     .font(pfStyled(size: 13))
                     .foregroundColor(C.subLabel)
+                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.top, 2)
         }
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 14)
+        .padding(.bottom, 4)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var registrationModeTabs: some View {
@@ -4018,9 +4019,11 @@ struct RegisterSheet: View {
                 .padding(.horizontal, 14)
                 .frame(minHeight: 54)
                 .background(registrationField)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(registrationLine, lineWidth: 0.6))
+                .shadow(color: Color.black.opacity(scheme == .dark ? 0 : 0.035),
+                        radius: 7, y: 2)
         }
     }
 
@@ -4038,7 +4041,9 @@ struct RegisterSheet: View {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity, minHeight: 52)
             .background(canSubmit ? registrationGreen : LoginTheme.disabledGray.opacity(0.72))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: canSubmit ? registrationGreen.opacity(0.20) : .clear,
+                    radius: 10, y: 4)
         }
         .buttonStyle(.plain)
         .disabled(!canSubmit)
