@@ -12,8 +12,8 @@ def require(condition: bool, message: str) -> None:
 
 
 require(
-    'Image(systemName: "line.3.horizontal")' in VIEW,
-    "the chats top-right action must use the native three-line menu icon",
+    'Image(systemName: "line.3.horizontal.decrease.circle")' in VIEW,
+    "the chats top-right action must match the three-line menu shown above Favorites",
 )
 require(
     'Image(systemName: "square.and.pencil")' not in VIEW,

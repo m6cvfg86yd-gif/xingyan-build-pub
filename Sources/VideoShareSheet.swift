@@ -3,6 +3,7 @@ import SwiftUI
 struct VideoShareSheet: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
 
     let item: FeedItem
 
@@ -16,40 +17,101 @@ struct VideoShareSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(Tr("分享到"))
-                .font(pf(13))
-                .foregroundColor(C.subLabel)
-                .padding(.top, 16)
-                .padding(.bottom, 14)
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(Tr("分享到"))
+                        .font(pf(20, .bold))
+                        .foregroundColor(C.label)
+                    Text(Tr("选择一种方式分享这条内容"))
+                        .font(pf(11.5))
+                        .foregroundColor(C.subLabel)
+                }
+                Spacer(minLength: 0)
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(C.subLabel)
+                        .frame(width: 34, height: 34)
+                        .background(C.cardBg, in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+            .padding(.bottom, 14)
 
-            HStack(alignment: .top, spacing: 0) {
-                iconButton("转发给朋友", "paperplane.fill", Color(hex: 0x19A47A)) {
-                    dismiss()
-                    onForward?()
-                }
-                iconButton("朋友圈", "camera.fill", C.green) {
-                    dismiss()
-                    onToMoments?()
-                }
-                iconButton("收藏", "star.fill", Color(hex: 0xE2A03C)) {
-                    dismiss()
-                    onFavorite?()
-                }
-                iconButton("复制链接", "link", Color(hex: 0x1180E0)) {
-                    UIPasteboard.general.string = link
-                    app.show(Tr("链接已复制，可以去聊天里粘贴"))
-                    dismiss()
-                }
-                iconButton("保存本地", "arrow.down.to.line", Color(hex: 0x8A8A8E)) {
-                    dismiss()
-                    onSaveLocal?()
+            SharePreviewCard {
+                HStack(spacing: 13) {
+                    RemoteImage(path: item.cover ?? "", icon: "play.rectangle.fill",
+                                mode: .fill, maxSide: 360)
+                        .frame(width: 76, height: 92)
+                        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(Tr("视频"))
+                            .font(pfStyled(size: 9, weight: .bold))
+                            .tracking(1.1)
+                            .foregroundColor(ShareSheetTheme.accent)
+                        Text(item.desc?.isEmpty == false ? item.desc! : Tr("来自星言的视频"))
+                            .font(pf(14.5, .semibold))
+                            .foregroundColor(C.label)
+                            .lineLimit(3)
+                        if let author = item.author?.name, !author.isEmpty {
+                            Text("@\(author)")
+                                .font(pf(10.5))
+                                .foregroundColor(C.subLabel)
+                        }
+                    }
+                    Spacer(minLength: 0)
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 16)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 8) {
+                    ShareActionTile(title: "转发给朋友",
+                                    subtitle: "星言好友",
+                                    symbol: "paperplane.fill",
+                                    tint: ShareSheetTheme.accent) {
+                        dismiss()
+                        onForward?()
+                    }
+                    ShareActionTile(title: "生活圈",
+                                    subtitle: "分享动态",
+                                    symbol: "camera.fill",
+                                    tint: ShareSheetTheme.secondaryAccent) {
+                        dismiss()
+                        onToMoments?()
+                    }
+                    ShareActionTile(title: "收藏",
+                                    subtitle: item.favorited == true ? "已收藏" : "稍后观看",
+                                    symbol: item.favorited == true ? "star.fill" : "star",
+                                    tint: Color(hex: 0xE2A03C)) {
+                        dismiss()
+                        onFavorite?()
+                    }
+                    ShareActionTile(title: "复制链接",
+                                    subtitle: "发送或粘贴",
+                                    symbol: "link",
+                                    tint: Color(hex: 0x2B8CF6)) {
+                        UIPasteboard.general.string = link
+                        app.show(Tr("链接已复制，可以去聊天里粘贴"))
+                        dismiss()
+                    }
+                    ShareActionTile(title: "保存本地",
+                                    subtitle: "下载内容",
+                                    symbol: "arrow.down.to.line.compact",
+                                    tint: Color(hex: 0x8A8A8E)) {
+                        dismiss()
+                        onSaveLocal?()
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .padding(.top, 18)
 
             Rectangle().fill(C.hairline).frame(height: 0.5)
-                .padding(.top, 18)
-                .padding(.horizontal, 0)
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
 
             VStack(spacing: 0) {
                 textRow("举报", "exclamationmark.bubble") { dismiss(); app.show(Tr("已提交举报，我们会尽快核实")) }
@@ -63,34 +125,18 @@ struct VideoShareSheet: View {
 
             Button { dismiss() } label: {
                 Text(Tr("取消"))
-                    .font(pf(16))
+                    .font(pf(16, .semibold))
                     .foregroundColor(C.label)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(C.cardBg)
             }
             .buttonStyle(.plain)
-            .padding(.top, 10)
-            Color.clear.frame(height: 6)
+            .padding(.top, 8)
         }
-        .background(C.pageBg.ignoresSafeArea())
-        .presentationDetents([.height(320)])
-    }
-
-    private func iconButton(_ title: String, _ symbol: String, _ color: Color, _ run: @escaping () -> Void) -> some View {
-        Button(action: run) {
-            VStack(spacing: 7) {
-                ZStack {
-                    Circle().fill(color.opacity(0.14)).frame(width: 50, height: 50)
-                    Image(systemName: symbol)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(color)
-                }
-                Text(Tr(title)).font(pf(11.5)).foregroundColor(C.label).lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
+        .background(ShareSheetTheme.page(scheme).ignoresSafeArea())
+        .presentationDragIndicator(.hidden)
+        .presentationDetents([.height(500), .large])
     }
 
     private func textRow(_ title: String, _ symbol: String, _ run: @escaping () -> Void) -> some View {

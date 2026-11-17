@@ -621,51 +621,105 @@ struct DDServiceSheet: View {
 struct DDShareSheet: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
     let product: DDProduct
     @State private var showForward = false
+    @State private var showSystemShare = false
 
     var body: some View {
         VStack(spacing: 0) {
-            DDSheetBar(title: Tr("分享商品"))
-            HStack(spacing: 10) {
-                DDThumb(em: product.em, size: 56, radius: 8, img: product.img)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(product.title).font(pf(14)).foregroundColor(DDColor.ink).lineLimit(2)
-                    DDPrice(value: product.price, size: 16)
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(Tr("分享商品"))
+                        .font(pf(20, .bold))
+                        .foregroundColor(ShareSheetTheme.ink(scheme))
+                    Text(Tr("把好物发送给朋友或更多应用"))
+                        .font(pf(11.5))
+                        .foregroundColor(ShareSheetTheme.secondaryInk(scheme))
+                }
+                Spacer(minLength: 0)
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(ShareSheetTheme.secondaryInk(scheme))
+                        .frame(width: 34, height: 34)
+                        .background(ShareSheetTheme.card(scheme), in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+            .padding(.bottom, 14)
+
+            SharePreviewCard {
+                HStack(spacing: 13) {
+                    DDThumb(em: product.em, size: 76, radius: 13, img: product.img)
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(Tr("商品"))
+                            .font(pfStyled(size: 9, weight: .bold))
+                            .tracking(1.1)
+                            .foregroundColor(ShareSheetTheme.accent)
+                        Text(product.title)
+                            .font(pf(14.5, .semibold))
+                            .foregroundColor(ShareSheetTheme.ink(scheme))
+                            .lineLimit(3)
+                        DDPrice(value: product.price, size: 15)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+            .padding(.horizontal, 16)
+
+            HStack(alignment: .top, spacing: 8) {
+                ShareActionTile(title: "转发给朋友",
+                                subtitle: "星言好友",
+                                symbol: "paperplane.fill",
+                                tint: ShareSheetTheme.accent) {
+                    showForward = true
+                }
+                ShareActionTile(title: "复制链接",
+                                subtitle: "发送或粘贴",
+                                symbol: "link",
+                                tint: ShareSheetTheme.secondaryAccent) {
+                    copyLink()
+                }
+                ShareActionTile(title: "系统分享",
+                                subtitle: "更多应用",
+                                symbol: "square.and.arrow.up",
+                                tint: Color(hex: 0x2B8CF6)) {
+                    showSystemShare = true
                 }
                 Spacer(minLength: 0)
             }
-            .padding(14)
-            HStack(spacing: 12) {
-                tile(Tr("转发给朋友"), "paperplane.fill") { showForward = true }
-                tile(Tr("复制链接"), "link") { copyLink() }
-            }
-            .padding(.horizontal, 14).padding(.bottom, max(14, L.safeBottom * 0.6))
-        }
-        .background(DDColor.page.ignoresSafeArea())
-        .ddLight()
-        .sheet(isPresented: $showForward) {
+            .padding(.horizontal, 16)
+            .padding(.top, 18)
 
+            Button { dismiss() } label: {
+                Text(Tr("取消"))
+                    .font(pf(16, .semibold))
+                    .foregroundColor(ShareSheetTheme.ink(scheme))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(ShareSheetTheme.card(scheme))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 18)
+        }
+        .background(ShareSheetTheme.page(scheme).ignoresSafeArea())
+        .presentationDragIndicator(.hidden)
+        .presentationDetents([.height(420), .large])
+        .sheet(isPresented: $showForward) {
             ForwardPickerView(items: [ForwardItem(kind: "mall", content: mallCardJSON)]) {
                 dismiss()
             }
             .environmentObject(app)
         }
-    }
-
-    private func tile(_ t: String, _ icon: String, _ act: @escaping () -> Void) -> some View {
-        Button(action: act) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 22)).foregroundColor(DDColor.ink)
-                Text(Tr(t)).font(pf(12.5)).foregroundColor(DDColor.sub)
-            }
-            .frame(maxWidth: .infinity).frame(height: 84)
-            .background(DDColor.card)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .contentShape(Rectangle())
+        .sheet(isPresented: $showSystemShare) {
+            ShareSheet(items: [
+                "https://aa.x8iu.com/#mall/" + product.id,
+                product.title
+            ])
         }
-        .buttonStyle(.plain)
     }
 
     private func copyLink() {

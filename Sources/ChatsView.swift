@@ -1576,7 +1576,7 @@ struct ChatsView: View {
                         plusMenu = true
                     }
                 } label: {
-                    Image(systemName: "line.3.horizontal")
+                    Image(systemName: "line.3.horizontal.decrease.circle")
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(ChatListVisual.ink)
                         .frame(width: 40, height: 40)
