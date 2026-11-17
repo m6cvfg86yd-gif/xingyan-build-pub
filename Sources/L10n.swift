@@ -93,6 +93,7 @@ enum L10n {
         "请输入密码": "Enter your password",
         "创建账号": "Create account",
         "自选星言号，或用手机号快速创建": "Choose a Star chat ID or create one with your phone number",
+        "用手机号快速创建，注册后可完善资料": "Create an account with your phone number and complete your profile afterward",
         "自选星言号": "Choose your ID",
         "3-24 位字母、数字或下划线": "3-24 letters, numbers, or underscores",
         "注册后可直接使用这个星言号登录": "You can use this ID to sign in after registration",

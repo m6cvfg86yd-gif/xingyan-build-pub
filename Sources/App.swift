@@ -3662,7 +3662,7 @@ struct RegisterSheet: View {
         case account, phone
     }
 
-    @State private var mode: Mode = .account
+    @State private var mode: Mode = .phone
     @State private var username = ""
     @State private var nickname = ""
     @State private var password = ""
@@ -3802,7 +3802,7 @@ struct RegisterSheet: View {
                 Text((Lang.isEnglish || Lang.isRussian) ? "Star chat" : "星言")
                     .font(pfStyled(size: 20, weight: .semibold))
                     .foregroundColor(C.label)
-                Text(Tr("自选星言号，或用手机号快速创建"))
+                Text(Tr("用手机号快速创建，注册后可完善资料"))
                     .font(pfStyled(size: 13))
                     .foregroundColor(C.subLabel)
                     .fixedSize(horizontal: false, vertical: true)
@@ -3815,12 +3815,8 @@ struct RegisterSheet: View {
 
     private var registrationModeTabs: some View {
         HStack(spacing: 24) {
-            registrationTab(Tr("自选星言号"), selected: mode == .account) {
-                withAnimation(.easeOut(duration: 0.18)) { mode = .account }
-                error = nil
-            }
-            registrationTab(Tr("手机号注册"), selected: mode == .phone) {
-                withAnimation(.easeOut(duration: 0.18)) { mode = .phone }
+            registrationTab(Tr("手机号注册"), selected: true) {
+                mode = .phone
                 error = nil
             }
             Spacer(minLength: 0)
