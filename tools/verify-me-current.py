@@ -43,5 +43,15 @@ require(
     "nativeStat(value:" in ME and "nativeMeItemRow(item)" in ME,
     "profile stats and feature rows must stay in native list rows",
 )
+for removed in (
+    "orbitMeTop",
+    "lightMeRows",
+    "darkMeRows",
+    "MeCardRowBackground",
+):
+    require(
+        removed not in ME,
+        f"the old Me page implementation must be deleted, not hidden: {removed}",
+    )
 
 print("me-current: passed")

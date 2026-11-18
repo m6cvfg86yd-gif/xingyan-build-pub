@@ -6944,6 +6944,49 @@ setInterval(() => {
 function findUserByName(username) {
   const key = String(username || '').toLowerCase();
   return db.users.find((u) => u.username.toLowerCase() === key) || null;
+}/** 登录凭证必须来自用户 owner 分片的完整记录，不能使用脱敏展示缓存。 */
+async function lookupCredentialUserByUsername(username) {
+  const key = String(username || '').trim().toLowerCase();
+  if (!key) return null;
+  const local = db.users.find((row) =>
+    row && String(row.username || '').toLowerCase() === key);
+  if (local) return local;
+  if (!chatRoutePlan) return null;
+  const ports = Array.from(new Set(chatOwnerPorts))
+    .filter((port) => port && port !== PORT);
+  const users = await Promise.all(ports.map((port) => new Promise((resolve) => {
+    const text = JSON.stringify({
+      planHash: chatRoutePlan.hash,
+      fileSha256: chatRoutePlan.fileHash,
+      username: key
+    });
+    const request = http.request({
+      host: '127.0.0.1',
+      port,
+      path: '/__shard/user-lookup',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(text),
+        'X-Shard-Relay': db.secret || ''
+      }
+    }, (response) => {
+      const chunks = [];
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', () => {
+        try {
+          const payload = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+          resolve(payload && payload.ok && payload.data ? payload.data.user : null);
+        } catch (_) {
+          resolve(null);
+        }
+      });
+    });
+    request.setTimeout(1800, () => request.destroy());
+    request.on('error', () => resolve(null));
+    request.end(text);
+  })));
+  return users.find(Boolean) || null;
 }
 
 /* 星言号滚动一年最多修改 2 次。优先使用 usernameChangeLog；
@@ -17167,13 +17210,20 @@ async function handleApi(req, res, pathname, query) {
   if (parts[0] === 'login' && method === 'POST') {
     const body = await readBody(req);
     const rawName = str(body.username, 24);
+    /*
+     * 用户缓存为了展示会移除 salt/passwordHash。登录必须去 owner shard
+     * 读取完整凭证记录，否则会出现“账号找到了但正确密码被判错”的问题。
+     */
+    const loginUser = rawName
+      ? await lookupCredentialUserByUsername(rawName)
+      : null;
     /* 滑动验证：**默认不弹**（正常登录一路过，跟微信一样）。
        票是一次性的（/api/slider/verify 滑对才发、用过即废）；
        只有 loginNeedsSlider() 判定有风险才回 428，
        客户端看到 details.needSlider 再把滑块「弹出来」。
        想整层关掉：data/security.json 里写 "sliderLogin": 0。 */
     if (!consumeSliderTicket(body.sliderTicket) && secCfg().sliderLogin) {
-      const guess = findUserByName(rawName);
+      const guess = loginUser;
       if (guess && !guess.banned && loginNeedsSlider(req, guess)) {
         return fail(res, 428, '请完成安全验证', { needSlider: true });
       }
@@ -17184,7 +17234,7 @@ async function handleApi(req, res, pathname, query) {
     /* 密码错误只锁当前账号，不做 IP 级连坐：一个账号输错不能把同一网络下其他账号一起锁住。 */
     const wait = loginBlocked(kUser);
     if (wait) return fail(res, 429, '密码错误次数太多，请 ' + Math.ceil(wait / 60) + ' 分钟后再试');
-    const user = findUserByName(rawName);
+    const user = loginUser;
     if (!user || !verifyPassword(user, String(body.password || ''))) {
       noteLoginFail(kUser);
       return fail(res, 401, '用户名或密码不正确');

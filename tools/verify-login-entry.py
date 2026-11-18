@@ -35,5 +35,14 @@ require(
     "knownDevice(user, req)" not in guard,
     "a reinstall must not force the slider for a correct username/password login",
 )
+require(
+    "await lookupCredentialUserByUsername(rawName)" in SERVER,
+    "username login must fetch the authoritative user record from its owner shard",
+)
+require(
+    "async function lookupCredentialUserByUsername" in SERVER
+    and "const local = db.users.find((row) =>" in SERVER,
+    "credential lookup must not return the stripped public user cache",
+)
 
 print("login-entry: passed")
