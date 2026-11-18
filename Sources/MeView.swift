@@ -323,14 +323,10 @@ struct MeView: View {
 
     private var nativeMeList: some View {
         List {
-            if scheme == .dark {
-                darkMeRows
-            } else {
-                lightMeRows
-            }
+            currentMeRows
         }
         .listStyle(.insetGrouped)
-        .listSectionSeparator(scheme == .dark ? .hidden : .visible)
+        .listSectionSeparator(.visible)
         .scrollContentBackground(.hidden)
         .background(mePageCanvasColor.ignoresSafeArea())
         .navigationTitle(Tr("我的"))
@@ -358,6 +354,114 @@ struct MeView: View {
                 }
                 .accessibilityLabel(Tr("设置"))
             }
+        }
+    }
+
+    @ViewBuilder
+    private var currentMeRows: some View {
+        Section {
+            NavigationLink(value: "profile") {
+                HStack(spacing: 13) {
+                    Avatar(path: app.me?.avatarPath ?? "",
+                           size: 58,
+                           radius: 29,
+                           circle: true,
+                           level: growth.shownLevel)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 6) {
+                            if teenOn {
+                                UmbrellaIcon(color: Color(hex: 0x3E9BF0), size: 14)
+                            }
+                            Text(app.me?.name ?? Tr("星言用户"))
+                                .font(pf(18, .semibold))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            MemberBadge(tier: app.me?.memberTier,
+                                        short: app.me?.memberShort,
+                                        color: app.me?.memberColor,
+                                        color2: app.me?.memberColor2,
+                                        height: 13)
+                                .fixedSize()
+                        }
+                        Text(Tr("星言号") + "：" + (app.me?.username ?? "-"))
+                            .font(pf(12.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        let bio = (app.me?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                        Text(bio.isEmpty ? Tr("点击编辑个人资料") : bio)
+                            .font(pf(12.5))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .buttonStyle(.plain)
+        }
+        .listRowBackground(C.meCardBg)
+
+        Section {
+            HStack(spacing: 0) {
+                nativeStat(value: "\(friendCount)", title: Tr("朋友")) {
+                    app.show(Tr("朋友列表请在通讯录查看"))
+                }
+                nativeStat(value: daysText, title: Tr("活跃天")) {
+                    path.append("level")
+                }
+                nativeStat(value: "\(app.me?.momentCount ?? 0)", title: Tr("动态")) {
+                    path.append("moments")
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .listRowBackground(C.meCardBg)
+
+        ForEach(grouped.indices, id: \.self) { gi in
+            Section {
+                ForEach(Array(grouped[gi].enumerated()), id: \.element.id) { _, item in
+                    NavigationLink(value: routeKey(for: item)) {
+                        nativeMeItemRow(item)
+                    }
+                }
+            } header: {
+                Text(meSectionTitle(grouped[gi]))
+                    .font(pf(12.5, .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(nil)
+            }
+            .listRowBackground(C.meCardBg)
+        }
+
+        if app.me?.ops == true {
+            Section {
+                NavigationLink(value: "manage") {
+                    nativeSettingsIconRow(Tr("用户管理"),
+                                          symbol: "person.2.badge.gearshape.fill",
+                                          color: .indigo)
+                }
+                NavigationLink(value: "faces") {
+                    nativeSettingsIconRow(Tr("人脸比对"),
+                                          symbol: "face.smiling",
+                                          color: C.green)
+                }
+            } header: {
+                Text(Tr("管理"))
+                    .font(pf(12.5, .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(nil)
+            }
+            .listRowBackground(C.meCardBg)
+        }
+    }
+
+    private func meSectionTitle(_ items: [DiscoverItem]) -> String {
+        switch meGroup(for: items.first ?? cardsItem(group: 5)) {
+        case 1: return Tr("服务")
+        case 2: return Tr("我的内容")
+        case 3: return Tr("生活圈")
+        case 4: return Tr("设置")
+        default: return Tr("更多")
         }
     }
 
@@ -724,7 +828,7 @@ struct MeView: View {
         let serviceOff = UIConfig.num("serviceShow", 1) <= 0
         for it in effectiveItems {
             if serviceOff, it.action == "service" { continue }
-            let g = it.group ?? 1
+            let g = meGroup(for: it)
             if last == nil || g != last! { out.append([]); last = g }
             out[out.count - 1].append(it)
         }
@@ -739,7 +843,7 @@ struct MeView: View {
         for item in items {
             if item.action == "shop" || item.action == "mall" {
                 if !hasCards && !insertedCards {
-                    out.append(cardsItem(group: item.group))
+                    out.append(cardsItem(group: 2))
                     insertedCards = true
                 }
                 continue
@@ -749,7 +853,31 @@ struct MeView: View {
         if !hasCards && !insertedCards {
             out.append(cardsItem(group: 2))
         }
-        return out
+        let priority: [String: Int] = [
+            "service": 0,
+            "favorites": 10,
+            "stickers": 11,
+            "works": 12,
+            "cards": 13,
+            "moments": 20,
+            "settings": 90
+        ]
+        return out.enumerated().sorted { lhs, rhs in
+            let lp = priority[lhs.element.action ?? ""] ?? 50
+            let rp = priority[rhs.element.action ?? ""] ?? 50
+            if lp != rp { return lp < rp }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
+    }
+
+    private func meGroup(for item: DiscoverItem) -> Int {
+        switch item.action ?? "" {
+        case "service": return 1
+        case "favorites", "stickers", "works", "cards": return 2
+        case "moments": return 3
+        case "settings": return 4
+        default: return item.group ?? 5
+        }
     }
 
     private func cardsItem(group: Int?) -> DiscoverItem {

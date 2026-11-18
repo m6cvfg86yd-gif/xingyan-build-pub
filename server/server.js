@@ -6173,7 +6173,7 @@ function secCfg() {
     autoBan: raw.autoBan === 0 ? 0 : 1,
     strictSearch: raw.strictSearch === 0 ? 0 : 1,
     allowRecharge: raw.allowRecharge === 1 ? 1 : 0,   // 用户自己「充值」默认关闭（等于自己印钱）
-    sliderLogin: raw.sliderLogin === 0 ? 0 : 1,       // 登录要不要先过滑动验证（默认要）
+    sliderLogin: raw.sliderLogin === 1 ? 1 : 0,       // 默认关闭；管理员显式写 1 才启用
     sessionDays: Number(raw.sessionDays) > 0 ? Number(raw.sessionDays) : 180,   // 用户登录态保留天数
     adminKey: String(raw.adminKey || ''),             // 后台入口暗号（?k=…）
     adminIps: Array.isArray(raw.adminIps) ? raw.adminIps.map(String) : []
@@ -25136,10 +25136,9 @@ function knownDevice(user, req) {
   } catch (e) { return true; }
 }
 
-/* 登录要不要弹滑动验证。跟微信一个思路：**默认不弹**，正常登录一路过；
-   只有出现风险信号才要求补一次验证：
-     ① 这台设备 / 这个出口 IP 从没登录过这个账号（新设备、异地登录）
-     ② 最近 10 分钟内这个账号（≥3 次）或这个 IP（≥5 次）密码错得多
+/* 登录要不要弹滑动验证。默认关闭，正常老用户直接密码登录；
+   只有管理员显式开启 sliderLogin 后，出现连续密码错误风险才要求补一次验证：
+      最近 10 分钟内这个账号（≥3 次）或这个 IP（≥5 次）密码错得多
    想整层关掉：data/security.json 里写 "sliderLogin": 0。 */
 function loginNeedsSlider(req, user) {
   try {
@@ -25150,10 +25149,6 @@ function loginNeedsSlider(req, user) {
     if (byUser && t - byUser.first <= LOGIN_WINDOW_MS && byUser.n >= 3) return true;
     const byIp = LOGIN_FAILS.get('ip:' + info.ip);
     if (byIp && t - byIp.first <= LOGIN_WINDOW_MS && byIp.n >= 5) return true;
-    /* 这台设备 / 这个 IP 从没见过 → 弹一次。
-       设备表为空（老账号第一次用新版）等于「还不知道」，这时候不弹，
-       免得所有老用户一升级就被要求验证。 */
-    if (!knownDevice(user, req)) return true;
   } catch (e) { /* 风控出问题不能挡住正常登录 */ }
   return false;
 }

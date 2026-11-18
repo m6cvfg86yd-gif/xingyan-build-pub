@@ -2986,9 +2986,31 @@ struct LoginView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
 
+                    Button { openWay(.password) } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "key.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(Tr("账号密码登录"))
+                                .font(pfStyled(size: 14.5, weight: .medium))
+                        }
+                        .foregroundColor(LoginTheme.ink(colorScheme))
+                        .frame(maxWidth: .infinity, minHeight: 46)
+                        .background {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(LoginTheme.cardBg(colorScheme).opacity(0.82))
+                        }
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(LoginTheme.ink(colorScheme).opacity(0.08), lineWidth: 0.7)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 10)
+
                     Button { showMoreWays = true } label: {
                         HStack(spacing: 4) {
-                            Text(Tr("更多登录方式"))
+                            Text(Tr("手机号与其他登录方式"))
                                 .font(pfStyled(size: 13.5))
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 10.5, weight: .semibold))
