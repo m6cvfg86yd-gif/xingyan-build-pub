@@ -13,44 +13,41 @@ def require(condition: bool, message: str) -> None:
 
 
 require(
-    "leadingSwipeActionsConfigurationForItemAt" in LIST,
-    "right swipe must use UICollectionView native leading actions",
+    "UISwipeActionsConfiguration" not in LIST,
+    "the unreliable system collection swipe callback must not remain",
 )
 require(
-    "trailingSwipeActionsConfigurationForItemAt" in LIST,
-    "left swipe must use UICollectionView native trailing actions",
+    "trailingSwipeActionsConfigurationForItemAt" not in LIST,
+    "left swipe must not depend on the system callback that fails in the custom cell",
 )
 require(
-    LIST.count("UIContextualAction(") >= 4,
-    "pin, unread, hide and delete must be native contextual actions",
+    "UIGestureRecognizerDelegate" in ROW,
+    "the row must arbitrate horizontal swipe against vertical scrolling in UIKit",
 )
 require(
-    LIST.count("performsFirstActionWithFullSwipe = false") == 2,
-    "native full-swipe must not mutate or delete rows accidentally",
+    "foreground.addGestureRecognizer(pan)" in ROW,
+    "the foreground must install a cell-level UIKit swipe recognizer",
 )
 require(
-    "foreground.addGestureRecognizer(pan)" not in ROW,
-    "custom row pan recognizer must not compete with the collection view",
+    "gestureRecognizerShouldBegin" in ROW,
+    "vertical scrolling must remain with the collection view",
 )
 require(
-    "gestureRecognizerShouldBegin" not in ROW,
-    "native rows must not veto UICollectionView's system swipe gesture",
+    "freezeEnclosingScroll()" in ROW and "restoreEnclosingScroll()" in ROW,
+    "horizontal swipes must temporarily own the gesture and restore scrolling",
 )
 require(
     "contextMenuConfigurationForItemAt" not in LIST,
     "chat rows must not keep the old long-press context menu",
 )
 require(
-    "collection.allowsSelection = true" in LIST,
-    "native row selection must remain enabled for taps without a child tap gesture",
-)
-require(
     "didSelectItemAt indexPath: IndexPath" in LIST,
     "opening a conversation must use UICollectionView native selection",
 )
 require(
-    "canEditItemAt indexPath: IndexPath" in LIST,
-    "native rows must explicitly allow system edit and swipe actions",
+    "shouldSelectItemAt indexPath: IndexPath" in LIST
+    and "dismissOpenSwipeActions()" in LIST,
+    "tapping an open row must close actions before opening the chat",
 )
 require(
     "collection.isDirectionalLockEnabled" not in LIST,

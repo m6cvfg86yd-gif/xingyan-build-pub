@@ -317,85 +317,21 @@ where Item.ID: Hashable {
         }
 
         func collectionView(_ collectionView: UICollectionView,
+                            shouldSelectItemAt indexPath: IndexPath) -> Bool {
+            guard let cell = collectionView.cellForItem(at: indexPath) as? NativeChatRowCell,
+                  cell.dismissOpenSwipeActions() else {
+                return true
+            }
+            return false
+        }
+
+        func collectionView(_ collectionView: UICollectionView,
                             didSelectItemAt indexPath: IndexPath) {
             collectionView.deselectItem(at: indexPath, animated: false)
             guard let id = dataSource?.itemIdentifier(for: indexPath),
                   let entry = lookup[id],
                   let configuration = nativeRow?(entry) else { return }
             configuration.onOpen()
-        }
-
-        func collectionView(_ collectionView: UICollectionView,
-                            canEditItemAt indexPath: IndexPath) -> Bool {
-            guard let id = dataSource?.itemIdentifier(for: indexPath),
-                  let entry = lookup[id] else { return false }
-            return nativeRow?(entry) != nil
-        }
-
-        func collectionView(
-            _ collectionView: UICollectionView,
-            leadingSwipeActionsConfigurationForItemAt indexPath: IndexPath
-        ) -> UISwipeActionsConfiguration? {
-            guard let id = dataSource?.itemIdentifier(for: indexPath),
-                  let entry = lookup[id],
-                  let configuration = nativeRow?(entry) else { return nil }
-            let pin = UIContextualAction(
-                style: .normal,
-                title: configuration.isPinned ? Tr("取消置顶") : Tr("置顶")
-            ) { _, _, completion in
-                configuration.onPin(!configuration.isPinned)
-                completion(true)
-            }
-            pin.image = UIImage(systemName: configuration.isPinned
-                                ? "pin.slash.fill" : "pin.fill")
-            pin.backgroundColor = UIColor(hex: 0x0A84FF)
-            let swipe = UISwipeActionsConfiguration(actions: [pin])
-            swipe.performsFirstActionWithFullSwipe = false
-            return swipe
-        }
-
-        func collectionView(
-            _ collectionView: UICollectionView,
-            trailingSwipeActionsConfigurationForItemAt indexPath: IndexPath
-        ) -> UISwipeActionsConfiguration? {
-            guard let id = dataSource?.itemIdentifier(for: indexPath),
-                  let entry = lookup[id],
-                  let configuration = nativeRow?(entry) else { return nil }
-            let unread = UIContextualAction(
-                style: .normal,
-                title: Tr("标为未读")
-            ) { _, _, completion in
-                configuration.onUnread()
-                completion(true)
-            }
-            unread.image = UIImage(systemName: "envelope.badge.fill")
-            unread.backgroundColor = UIColor(hex: 0x28986C)
-
-            let hide = UIContextualAction(
-                style: .normal,
-                title: Tr("不显示")
-            ) { _, _, completion in
-                configuration.onHide()
-                completion(true)
-            }
-            hide.image = UIImage(systemName: "eye.slash.fill")
-            hide.backgroundColor = UIColor(hex: 0x7B8087)
-
-            let delete = UIContextualAction(
-                style: .destructive,
-                title: Tr("删除")
-            ) { _, _, completion in
-                configuration.onDelete()
-                completion(true)
-            }
-            delete.image = UIImage(systemName: "trash.fill")
-            delete.backgroundColor = .systemRed
-
-            // UIKit lays trailing actions out from the screen edge toward the row.
-            // Delete stays closest to the edge; unread is the innermost action.
-            let swipe = UISwipeActionsConfiguration(actions: [delete, hide, unread])
-            swipe.performsFirstActionWithFullSwipe = false
-            return swipe
         }
 
         private func publishScrollState(_ active: Bool) {

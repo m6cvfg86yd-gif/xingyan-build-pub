@@ -73,7 +73,7 @@ struct NativeChatRowConfiguration {
     var isPinned: Bool
 }
 
-final class NativeChatRowCell: UICollectionViewCell {
+final class NativeChatRowCell: UICollectionViewCell, UIGestureRecognizerDelegate {
     private let foreground = UIView()
     private let avatarView = NativeChatAvatarView()
     private let titleLabel = UILabel()
@@ -97,6 +97,7 @@ final class NativeChatRowCell: UICollectionViewCell {
     private var cachedTimeSignature = ""
     private var cachedTimeWidth: CGFloat = 0
     private var avatarTap: UITapGestureRecognizer?
+    private weak var frozenScrollPan: UIPanGestureRecognizer?
 
     private let rowLeading: CGFloat = 16
     private let avatarSize: CGFloat = 50
@@ -122,6 +123,7 @@ final class NativeChatRowCell: UICollectionViewCell {
     }
 
     deinit {
+        frozenScrollPan?.isEnabled = true
         NotificationCenter.default.removeObserver(self)
     }
 
@@ -592,15 +594,49 @@ final class NativeChatRowCell: UICollectionViewCell {
     }
 
     private func setupGestures() {
-        // Row taps use UICollectionView's native selection path. Only the
-        // avatar keeps a child recognizer because some bots open a different
-        // destination than the conversation itself.
+        // Row taps use UICollectionView's native selection path. The swipe is
+        // owned by this UIKit cell so a custom Collection Cell cannot silently
+        // swallow UISwipeActionsConfiguration on newer iOS builds.
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleAvatarTap(_:)))
         tap.cancelsTouchesInView = true
         tap.delaysTouchesBegan = false
         avatarView.isUserInteractionEnabled = true
         avatarView.addGestureRecognizer(tap)
         avatarTap = tap
+
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+        pan.delegate = self
+        pan.cancelsTouchesInView = false
+        pan.delaysTouchesBegan = false
+        foreground.addGestureRecognizer(pan)
+    }
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+        let translation = pan.translation(in: foreground)
+        let velocity = pan.velocity(in: foreground)
+        let byTranslation = abs(translation.x) >= 4
+            && abs(translation.x) >= abs(translation.y) * 1.15
+        let byVelocity = abs(velocity.x) >= 32
+            && abs(velocity.x) >= abs(velocity.y) * 1.10
+        return byTranslation || byVelocity
+    }
+
+    private func freezeEnclosingScroll() {
+        var candidate: UIView? = superview
+        while let view = candidate {
+            if let scroll = view as? UIScrollView {
+                frozenScrollPan = scroll.panGestureRecognizer
+                scroll.panGestureRecognizer.isEnabled = false
+                return
+            }
+            candidate = view.superview
+        }
+    }
+
+    private func restoreEnclosingScroll() {
+        frozenScrollPan?.isEnabled = true
+        frozenScrollPan = nil
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -638,11 +674,15 @@ final class NativeChatRowCell: UICollectionViewCell {
     }
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
-        guard let configuration else { return }
+        guard let configuration else {
+            restoreEnclosingScroll()
+            return
+        }
         let translation = gesture.translation(in: foreground).x
         let velocity = gesture.velocity(in: foreground).x
         switch gesture.state {
         case .began:
+            freezeEnclosingScroll()
             startOffset = offset
             latestRawOffset = offset
             if dragDirection == 0 {
@@ -655,9 +695,9 @@ final class NativeChatRowCell: UICollectionViewCell {
             if dragDirection == 0, abs(translation) >= 2 {
                 dragDirection = translation < 0 ? -1 : 1
             }
-            if dragDirection < 0 {
+            if dragDirection < 0, startOffset <= 0 {
                 raw = min(0, raw)
-            } else if dragDirection > 0 {
+            } else if dragDirection > 0, startOffset >= 0 {
                 raw = max(0, raw)
             }
             latestRawOffset = raw
@@ -677,6 +717,7 @@ final class NativeChatRowCell: UICollectionViewCell {
                 y: 0
             )
         case .ended, .cancelled, .failed:
+            restoreEnclosingScroll()
             let raw = latestRawOffset
             let projected = raw + velocity * 0.14
             let pinBase = actionInset + actionWidth
@@ -747,6 +788,13 @@ final class NativeChatRowCell: UICollectionViewCell {
 
     private func closeActions() {
         open(offset: 0, animated: true)
+    }
+
+    @discardableResult
+    func dismissOpenSwipeActions() -> Bool {
+        guard offset != 0 else { return false }
+        closeActions()
+        return true
     }
 
     @objc private func handleSwipeElsewhere(_ note: Notification) {
