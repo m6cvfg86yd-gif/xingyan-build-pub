@@ -532,7 +532,12 @@ struct MeView: View {
     private func nativeMeItemRow(_ item: DiscoverItem) -> some View {
         let symbol = RowIcon.sf(action: item.action, label: item.label)
         let color = Color(hexString: item.color ?? "#4A90D9", fallback: 0x4A90D9)
-        return nativeSettingsIconRow(Tr(item.label), symbol: symbol, color: color)
+        return nativeSettingsIconRow(meEntryLabel(item), symbol: symbol, color: color)
+    }
+
+    private func meEntryLabel(_ item: DiscoverItem) -> String {
+        if item.action == "favorites" { return Tr("备忘录") }
+        return Tr(item.label)
     }
 
     private func nativeSettingsIconRow(_ title: String, symbol: String,

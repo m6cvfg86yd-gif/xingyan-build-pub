@@ -162,9 +162,9 @@ struct FavoritesView: View {
                 Image(systemName: "tray")
                     .font(.system(size: 30))
                     .foregroundStyle(.secondary)
-                Text(Tr("暂无收藏"))
+                Text(Tr("暂无备忘录"))
                     .font(pfStyled(size: 17, weight: .semibold))
-                Text(Tr("聊天中的收藏和你写的笔记会出现在这里"))
+                Text(Tr("聊天里收藏的内容和你写的备忘录会出现在这里"))
                     .font(pfStyled(size: 15))
                     .foregroundStyle(.secondary)
             }
@@ -212,7 +212,7 @@ struct FavoritesView: View {
             favoriteListContent
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(Tr("收藏"))
+        .navigationTitle(Tr("备忘录"))
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always),
                     prompt: Text(Tr("搜索")))
@@ -264,7 +264,7 @@ struct FavoritesView: View {
                 .environmentObject(app)
         }
 
-        .confirmationDialog(Tr("添加收藏"), isPresented: $showAddMenu, titleVisibility: .hidden) {
+        .confirmationDialog(Tr("添加备忘录"), isPresented: $showAddMenu, titleVisibility: .hidden) {
             Button(Tr("写笔记")) { showCompose = true }
             Button(Tr("拍照")) { showTakePhoto = true }
             Button(Tr("从相册选择")) { showPickPhoto = true }

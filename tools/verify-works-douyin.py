@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MISC = (ROOT / "Sources" / "MiscPages.swift").read_text(encoding="utf-8")
 FEED = (ROOT / "Sources" / "FeedView.swift").read_text(encoding="utf-8")
+ME = (ROOT / "Sources" / "MeView.swift").read_text(encoding="utf-8")
 
 
 def require(condition: bool, message: str) -> None:
@@ -32,4 +33,9 @@ require("mineFromAll" in MISC and "$0.author?.id == myId" in MISC,
         "the works page must recover the signed-in user's posts from the feed")
 require("errorState" in MISC and "loadError" in MISC,
         "failed works requests must show a retry state instead of a blank page")
+require('if item.action == "favorites" { return Tr("备忘录") }' in ME,
+        "the 11/17 Me page entry must be labelled Notes, not Favorites")
+require('.navigationTitle(Tr("备忘录"))' in MISC
+        and '.confirmationDialog(Tr("添加备忘录")' in MISC,
+        "the Notes destination must not fall back to the Favorites title")
 print("works-douyin: passed")
