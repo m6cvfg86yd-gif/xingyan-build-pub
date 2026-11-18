@@ -39,6 +39,7 @@ const {
 const { MessageReliabilityStore } = require('./lib/message-reliability');
 const { ShardAuthorityStore } = require('./lib/shard-authority-store');
 const { ShardAuthorityRuntime } = require('./lib/shard-authority-runtime');
+const { createE2EEFoundation } = require('./lib/e2ee-foundation');
 const { PaymentTokenVault } = require('./lib/payment-token-vault');
 const { PaymentDeviceEnrollment } = require('./lib/payment-device-enrollment');
 const { PaymentKeyRing } = require('./lib/payment-keyring');
@@ -59,6 +60,10 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, 'data');
 const MSG_DIR = path.join(DATA_DIR, 'messages');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+const e2eeFoundation = createE2EEFoundation({
+  dataDir: DATA_DIR,
+  enabled: process.env.E2EE_FOUNDATION_ENABLED === '1'
+});
 let shardShadow = null;
 let shardShadowAuditTimer = null;
 let messageReliability = null;
@@ -13797,6 +13802,86 @@ async function handleApi(req, res, pathname, query) {
      JS 的 TDZ 会让它前面那些接口（音乐点赞、状态点赞、注册…）一调用就报
      "Cannot access 'user' before initialization"。别往下挪。 */
   const user = currentUser(req);
+
+  if (parts[0] === 'e2ee') {
+    if (!e2eeFoundation.enabled) return fail(res, 404, 'Not Found');
+    if (!user) return fail(res, 401, '请先登录');
+    try {
+      const deviceId = clientInfo(req).deviceId;
+      if (parts[1] === 'status' && method === 'GET') {
+        ok(res, { enabled: true, protocolVersion: 1 });
+        return;
+      }
+      if (parts[1] === 'devices' && method === 'POST') {
+        const body = await readBody(req);
+        const bundle = e2eeFoundation.registerDevice(
+          user.id,
+          Object.assign({}, body, {
+            deviceId: body.deviceId || deviceId
+          })
+        );
+        ok(res, { device: bundle });
+        return;
+      }
+      if (parts[1] === 'bundle' && method === 'GET') {
+        ok(res, {
+          device: e2eeFoundation.bundle(
+            query.get('userId'),
+            query.get('deviceId')
+          )
+        });
+        return;
+      }
+      if (parts[1] === 'prekeys' && parts[2] === 'claim' && method === 'POST') {
+        const body = await readBody(req);
+        ok(res, {
+          device: e2eeFoundation.claimOneTimePreKey(
+            body.userId,
+            body.deviceId
+          )
+        });
+        return;
+      }
+      if (parts[1] === 'envelopes' && parts[2] === 'ack' && method === 'POST') {
+        const body = await readBody(req);
+        ok(res, {
+          removed: e2eeFoundation.acknowledgeEnvelopes(
+            user.id,
+            body.deviceId || deviceId,
+            body.ids
+          )
+        });
+        return;
+      }
+      if (parts[1] === 'envelopes' && method === 'POST') {
+        const body = await readBody(req);
+        ok(res, e2eeFoundation.putEnvelope(
+          user.id,
+          body.fromDeviceId || deviceId,
+          body
+        ));
+        return;
+      }
+      if (parts[1] === 'envelopes' && method === 'GET') {
+        ok(res, {
+          envelopes: e2eeFoundation.listEnvelopes(
+            user.id,
+            query.get('deviceId') || deviceId,
+            query.get('after')
+          )
+        });
+        return;
+      }
+      return fail(res, 404, 'Not Found');
+    } catch (error) {
+      const code = String((error && error.code) || '');
+      const status = code === 'device-not-found' ? 404
+        : code === 'envelope-too-large' ? 413
+          : /identity|device-limit/.test(code) ? 409
+            : 422;
+      return fail(res, status, String((error && error.message) || error), { code });
+    }
+  }
 
   if (parts[0] === 'payment' && parts[1] === 'provider'
       && parts[2] === 'webhook' && method === 'POST') {

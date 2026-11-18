@@ -45,6 +45,13 @@ jobs:
             Sources/*.swift 2>&1 | tee /tmp/ios-typecheck.log
           ! grep -q "error:" /tmp/ios-typecheck.log
 
+      - name: E2EE foundation self-test
+        run: |
+          set -o pipefail
+          xcrun swiftc -O Sources/E2EEProtocol.swift tools/e2ee-selftest.swift \
+            -o /tmp/e2ee-selftest
+          /tmp/e2ee-selftest
+
       - name: Upload compiler log on failure
         if: failure()
         uses: actions/upload-artifact@v4

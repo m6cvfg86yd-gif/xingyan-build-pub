@@ -48,8 +48,8 @@
     },
     {
       "path": "Sources/Keychain.swift",
-      "size": 1566,
-      "sha256": "eb7ee8dc834acee01af28933156e2a6218bb0ecdea3c85fba7e9503c54a2e451"
+      "size": 3176,
+      "sha256": "b78d21111700cec33510991589806a7d44365a298e0c52ef500aec2a6267b8bb"
     },
     {
       "path": "Sources/LocalStore.swift",
@@ -125,6 +125,16 @@
       "path": "Sources/StressTestConfiguration.swift",
       "size": 2011,
       "sha256": "167e9a9347ae20c5b7bd421df029e6ea9c20aa3bdb7c92dc9d555752e2436f54"
+    },
+    {
+      "path": "Sources/E2EEProtocol.swift",
+      "size": 19051,
+      "sha256": "e24b657f4354d0891444024a36288eeffcbc7318cad14e3f15e06f23b7efb2ed"
+    },
+    {
+      "path": "Sources/E2EEKeyStore.swift",
+      "size": 2126,
+      "sha256": "5790bcdf5031a3a435891e7bbce70d6a0678417f8e61e64eac96726d26f45800"
     }
   ]
 }

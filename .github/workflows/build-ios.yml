@@ -99,6 +99,7 @@ jobs:
           python3 tools/verify-phone-theme-previews.py
           python3 tools/verify-chat-prepend-anchor.py
           python3 tools/verify-message-receipts.py
+          python3 tools/verify-e2ee-foundation.py
           python3 tools/verify-chat-avatar-stability.py
           python3 tools/verify-chat-seamless-prefetch.py
           python3 tools/verify-group-avatar-three.py
@@ -116,6 +117,7 @@ jobs:
       - name: 聊天接口回归
         run: |
           node server/test/security-vault.test.js
+          node server/test/e2ee-foundation.test.js
           node server/test/chat-actions.test.js
           node server/test/media-object-routing.test.js
           node server/test/messages-since.test.js
@@ -175,6 +177,12 @@ jobs:
 
       - name: 校验核心模块
         run: bash tools/verify-core.sh
+
+      - name: E2EE foundation self-test
+        run: |
+          xcrun swiftc -O Sources/E2EEProtocol.swift tools/e2ee-selftest.swift \
+            -o /tmp/e2ee-selftest
+          /tmp/e2ee-selftest
 
       - name: 编译原生 App
         id: build
