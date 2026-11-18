@@ -128,8 +128,8 @@
     },
     {
       "path": "Sources/E2EEProtocol.swift",
-      "size": 19051,
-      "sha256": "e24b657f4354d0891444024a36288eeffcbc7318cad14e3f15e06f23b7efb2ed"
+      "size": 19036,
+      "sha256": "fc21bd10dc7e531b33ff38c5bc19ccd416e72ac3bd0ace5aab162728d0bf95e1"
     },
     {
       "path": "Sources/E2EEKeyStore.swift",

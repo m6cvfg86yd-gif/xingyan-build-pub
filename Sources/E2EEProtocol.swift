@@ -199,18 +199,18 @@ enum E2EEProtocol {
             peer.signedPreKey.publicKey,
             name: "peer-signed-prekey"
         )
-        var dh = [
+        var sharedSecrets = [
             try dh(identityPrivate, peerSignedPreKey),
             try dh(ephemeralPrivate, peerIdentity),
             try dh(ephemeralPrivate, peerSignedPreKey)
         ]
         if let oneTime = peerOneTimePreKey {
-            dh.append(try dh(
+            sharedSecrets.append(try dh(
                 ephemeralPrivate,
                 agreementPublic(oneTime.publicKey, name: "peer-one-time-prekey")
             ))
         }
-        let material = dh.dropFirst().reduce(dh[0]) { $0 + $1 }
+        let material = sharedSecrets.dropFirst().reduce(sharedSecrets[0]) { $0 + $1 }
         let keyMaterial = deriveX3DHKeys(material)
         let sessionId = base64URL(Data(SHA256.hash(data: material)))
         let session = E2EESessionState(
@@ -329,8 +329,7 @@ enum E2EEProtocol {
             signedPreKeyId: envelope.signedPreKeyId,
             oneTimePreKeyId: envelope.oneTimePreKeyId
         )
-        guard let nonce = data(base64URL: envelope.nonce),
-              let combined = data(base64URL: envelope.ciphertext) else {
+        guard let combined = data(base64URL: envelope.ciphertext) else {
             throw E2EEProtocolError.invalidEnvelope
         }
         do {
