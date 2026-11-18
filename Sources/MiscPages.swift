@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct FavoritesView: View {
@@ -1775,38 +1776,80 @@ struct WalletCardView: View {
 }
 
 struct WorksView: View {
+    @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var works: [FeedItem] = []
+    @State private var likedWorks: [FeedItem] = []
     @State private var playing: FeedItem?
     @State private var loading = true
+    @State private var tab = 0
+    @State private var loadError = ""
+    @Environment(\.colorScheme) private var scheme
 
-    private let cols = [GridItem(.flexible(), spacing: 3), GridItem(.flexible(), spacing: 3), GridItem(.flexible(), spacing: 3)]
+    private let cols = Array(
+        repeating: GridItem(.flexible(), spacing: 1.5),
+        count: 3
+    )
+
+    private var publicWorks: [FeedItem] {
+        works.filter { !isPrivate($0) }
+    }
+
+    private var privateWorks: [FeedItem] {
+        works.filter { isPrivate($0) }
+    }
+
+    private var visibleWorks: [FeedItem] {
+        switch tab {
+        case 1: return likedWorks
+        case 2: return privateWorks
+        default: return publicWorks
+        }
+    }
+
+    private var totalLikes: Int {
+        works.reduce(0) { $0 + max(0, $1.likes ?? 0) }
+    }
+
+    private var profileCover: String {
+        let custom = app.me?.momentCover ?? ""
+        if !custom.isEmpty { return custom }
+        if let cover = works.first(where: { !($0.cover ?? "").isEmpty })?.cover,
+           !cover.isEmpty {
+            return cover
+        }
+        return app.me?.avatarPath ?? ""
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            NavBar(title: Tr("作品"), back: { dismiss() })
-            if loading && works.isEmpty {
-                Spacer(); ProgressView(); Spacer()
-            } else if works.isEmpty {
-                VStack(spacing: 10) {
-                    Spacer()
-                    Image(systemName: "rectangle.stack").font(pf(34)).foregroundColor(C.subLabel)
-                    Text(Tr("还没有作品")).font(pf(15)).foregroundColor(C.subLabel)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: cols, spacing: 3) {
-                        ForEach(works) { w in
-                            Button { playing = w } label: { tile(w) }
-                                .buttonStyle(.plain)
+            topBar
+            ScrollView {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    profileHeader
+                    Section {
+                        if loading && works.isEmpty {
+                            loadingState
+                        } else if !loadError.isEmpty && works.isEmpty {
+                            errorState
+                        } else if visibleWorks.isEmpty {
+                            emptyState
+                        } else {
+                            LazyVGrid(columns: cols, spacing: 2) {
+                                ForEach(visibleWorks) { w in
+                                    Button { playing = w } label: { tile(w) }
+                                        .buttonStyle(.plain)
+                                }
+                            }
                         }
+                    } header: {
+                        tabs
                     }
-                    .padding(.bottom, 20)
                 }
-                .background(C.pageBg)
+                .padding(.bottom, 28)
             }
+            .background(C.pageBg)
+            .refreshable { await reload() }
         }
         .background(C.pageBg.ignoresSafeArea(edges: .bottom))
         .background(C.pageBg.ignoresSafeArea(edges: .top))
@@ -1814,47 +1857,362 @@ struct WorksView: View {
         .swipeBack { dismiss() }
         .hidesTabBar()
         .sheet(item: $playing) { w in
-            FeedPlayerSheet(item: w, all: works)
+            FeedPlayerSheet(item: w, all: visibleWorks)
+                .environmentObject(app)
         }
-        .task {
+        .task { await reload() }
+    }
 
-            let mine = (try? await API.shared.myFeedItems()) ?? []
-            works = mine.isEmpty ? ((try? await API.shared.feedItems()) ?? []).filter { $0.mine == true } : mine
-            loading = false
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundColor(C.label)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            Spacer(minLength: 0)
+            Text(Tr("我的作品"))
+                .font(pf(18, .semibold))
+                .foregroundColor(C.label)
+            Spacer(minLength: 0)
+            Menu {
+                Button(Tr("刷新")) {
+                    Task { await reload() }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(C.label)
+                    .frame(width: 44, height: 44)
+            }
+        }
+        .padding(.horizontal, 4)
+        .background(C.pageBg)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(C.hairline)
+                .frame(height: 0.5)
+        }
+        .zIndex(5)
+    }
+
+    private var profileHeader: some View {
+        VStack(spacing: 0) {
+            coverBanner
+
+            HStack(alignment: .top, spacing: 14) {
+                Avatar(path: app.me?.avatarPath ?? "",
+                       size: 88,
+                       radius: 44,
+                       circle: true,
+                       level: GrowthStore.shared.shownLevel)
+                    .overlay(Circle().stroke(C.pageBg, lineWidth: 4))
+                    .shadow(color: .black.opacity(scheme == .dark ? 0.42 : 0.16),
+                            radius: 12, y: 5)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(app.me?.name ?? Tr("星言用户"))
+                        .font(pf(23, .bold))
+                        .foregroundColor(C.label)
+                        .lineLimit(1)
+                    Text("@" + (app.me?.username ?? "—"))
+                        .font(pf(12.5, .medium))
+                        .foregroundColor(C.subLabel)
+                        .lineLimit(1)
+                }
+                .padding(.top, 12)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, -44)
+
+            HStack(spacing: 0) {
+                stat(metric(works.count), Tr("作品"))
+                statDivider
+                stat(metric(totalLikes), Tr("获赞"))
+                statDivider
+                stat(metric(likedWorks.count), Tr("喜欢"))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+
+            let bio = (app.me?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            Text(bio.isEmpty ? Tr("记录生活，也记录作品") : bio)
+                .font(pf(13.5))
+                .foregroundColor(C.subLabel)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 16)
+        }
+        .background(C.pageBg)
+    }
+
+    private var coverBanner: some View {
+        ZStack(alignment: .bottomTrailing) {
+            LinearGradient(
+                colors: [Color(hex: 0x202329), Color(hex: 0x0D0E10)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            if !profileCover.isEmpty {
+                RemoteImage(path: profileCover, mode: .fill, maxSide: 1600)
+                    .scaleEffect(1.08)
+                    .blur(radius: 0.5)
+            }
+            LinearGradient(
+                colors: [.black.opacity(0.02), .black.opacity(0.08), .black.opacity(0.62)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            let province = (app.me?.ipProvince ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !province.isEmpty {
+                Text(province)
+                    .font(pf(10.5, .medium))
+                    .foregroundColor(.white.opacity(0.78))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(.black.opacity(0.26), in: Capsule())
+                    .padding(12)
+                    .padding(.bottom, 46)
+            }
+        }
+        .frame(height: 208)
+        .clipped()
+    }
+
+    private func stat(_ value: String, _ title: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(value)
+                .font(pf(17, .bold))
+                .foregroundColor(C.label)
+            Text(title)
+                .font(pf(12.5))
+                .foregroundColor(C.subLabel)
+        }
+        .padding(.horizontal, 13)
+    }
+
+    private var statDivider: some View {
+        Rectangle()
+            .fill(C.hairline)
+            .frame(width: 0.5, height: 13)
+    }
+
+    private var tabs: some View {
+        HStack(spacing: 0) {
+            ForEach(Array([Tr("作品"), Tr("喜欢"), Tr("私密")].enumerated()), id: \.offset) { i, title in
+                Button {
+                    withAnimation(.easeOut(duration: 0.16)) { tab = i }
+                } label: {
+                    VStack(spacing: 7) {
+                        Text(title)
+                            .font(pf(14, tab == i ? .semibold : .regular))
+                            .foregroundColor(tab == i ? C.label : C.subLabel)
+                        Capsule()
+                            .fill(tab == i ? C.label : .clear)
+                            .frame(width: 28, height: 2)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(C.pageBg)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .background(C.pageBg)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(C.hairline)
+                .frame(height: 0.5)
         }
     }
 
+    private var loadingState: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text(Tr("正在加载作品"))
+                .font(pf(13))
+                .foregroundColor(C.subLabel)
+        }
+        .frame(maxWidth: .infinity, minHeight: 280)
+    }
+
+    private var errorState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 32, weight: .light))
+                .foregroundColor(C.subLabel)
+            Text(Tr("作品加载失败"))
+                .font(pf(15, .medium))
+                .foregroundColor(C.label)
+            Text(loadError)
+                .font(pf(12.5))
+                .foregroundColor(C.subLabel)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+            Button {
+                Task { await reload() }
+            } label: {
+                Text(Tr("重试"))
+                    .font(pf(14, .semibold))
+                    .foregroundColor(C.label)
+                    .padding(.horizontal, 20)
+                    .frame(height: 36)
+                    .background(C.fieldBg, in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 30)
+        .frame(maxWidth: .infinity, minHeight: 280)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: emptySymbol)
+                .font(.system(size: 34, weight: .light))
+                .foregroundColor(C.subLabel.opacity(0.9))
+            Text(emptyTitle)
+                .font(pf(15, .medium))
+                .foregroundColor(C.label)
+            Text(emptySubtitle)
+                .font(pf(12.5))
+                .foregroundColor(C.subLabel)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, minHeight: 280)
+        .padding(.horizontal, 30)
+    }
+
+    private var emptySymbol: String {
+        switch tab {
+        case 1: return "heart"
+        case 2: return "lock"
+        default: return "play.rectangle"
+        }
+    }
+
+    private var emptyTitle: String {
+        switch tab {
+        case 1: return Tr("还没有喜欢的作品")
+        case 2: return Tr("还没有私密作品")
+        default: return Tr("还没有作品")
+        }
+    }
+
+    private var emptySubtitle: String {
+        switch tab {
+        case 1: return Tr("你点过喜欢的作品会出现在这里")
+        case 2: return Tr("设为私密或草稿的作品会出现在这里")
+        default: return Tr("发布第一条作品后，会在这里按封面排列")
+        }
+    }
+
+    private func reload() async {
+        loading = true
+        loadError = ""
+
+        var mine: [FeedItem] = []
+        var all: [FeedItem] = []
+        var firstError = ""
+
+        do {
+            mine = try await API.shared.myFeedItems()
+        } catch {
+            firstError = error.localizedDescription
+        }
+        do {
+            all = try await API.shared.feedItems()
+        } catch {
+            if firstError.isEmpty { firstError = error.localizedDescription }
+        }
+
+        let myId = app.me?.id ?? ""
+        let mineFromAll = all.filter {
+            $0.mine == true || (!myId.isEmpty && $0.author?.id == myId)
+        }
+        var seen = Set<String>()
+        let merged = (mine + mineFromAll).filter { seen.insert($0.id).inserted }
+        works = merged.sorted(by: newestFirst)
+        likedWorks = all
+            .filter { $0.favorited == true }
+            .sorted(by: newestFirst)
+
+        if works.isEmpty, !firstError.isEmpty {
+            loadError = firstError
+        }
+        loading = false
+    }
+
+    private func newestFirst(_ lhs: FeedItem, _ rhs: FeedItem) -> Bool {
+        let left = lhs.createdAt ?? ""
+        let right = rhs.createdAt ?? ""
+        if left == right { return lhs.id > rhs.id }
+        return left > right
+    }
+
+    private func isPrivate(_ item: FeedItem) -> Bool {
+        let tag = ((item.tag ?? "") + " " + (item.desc ?? "")).lowercased()
+        return tag.contains("private") || tag.contains("draft")
+            || tag.contains("私密") || tag.contains("草稿")
+    }
+
+    private func metric(_ value: Int) -> String {
+        let n = max(0, value)
+        if n < 10_000 { return "\(n)" }
+        let wan = Double(n) / 10_000
+        return (wan >= 10 ? String(Int(wan.rounded())) : String(format: "%.1f", wan)) + "万"
+    }
+
     private func tile(_ w: FeedItem) -> some View {
-        ZStack {
-            if !(w.cover ?? "").isEmpty {
-                RemoteImage(path: w.cover ?? "")
-            } else {
-                LinearGradient(colors: [Color(hex: 0x2A2A2E), Color(hex: 0x141416)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
-            if (w.cover ?? "").isEmpty {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 26))
-                    .foregroundColor(.white.opacity(0.85))
-            }
-            VStack {
-                Spacer()
-                HStack(spacing: 4) {
-                    Image(systemName: "play.fill").font(.system(size: 10))
-                    Text("\(w.likes ?? 0)").font(pf(11.5, .medium))
-                    Spacer(minLength: 0)
-                    if w.mine == true {
-                        Text(Tr("我的")).font(pf(10.5)).padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Capsule().fill(C.green))
-                    }
+        ZStack(alignment: .topTrailing) {
+            ZStack(alignment: .bottomLeading) {
+                if !(w.cover ?? "").isEmpty {
+                    RemoteImage(path: w.cover ?? "", mode: .fill, maxSide: 720)
+                } else {
+                    LinearGradient(colors: [Color(hex: 0x26282D), Color(hex: 0x101113)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white.opacity(0.72))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 6).padding(.vertical, 4)
-                .background(LinearGradient(colors: [.clear, .black.opacity(0.55)], startPoint: .top, endPoint: .bottom))
+
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.52)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+
+                if !(w.cover ?? "").isEmpty {
+                    HStack(spacing: 3.5) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 9.5, weight: .semibold))
+                        Text(metric(w.likes ?? 0))
+                            .font(pf(11, .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 5)
+                    .padding(.bottom, 1)
+                }
+            }
+
+            if isPrivate(w) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(6)
+                    .background(.black.opacity(0.38), in: Circle())
+                    .padding(7)
             }
         }
-        .aspectRatio(1, contentMode: .fill)
-        .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+        .aspectRatio(3.0 / 4.0, contentMode: .fit)
+        .clipped()
         .contentShape(Rectangle())
     }
 }

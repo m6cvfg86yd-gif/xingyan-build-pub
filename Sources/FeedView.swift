@@ -31,6 +31,7 @@ struct FeedItem: Decodable, Identifiable, Hashable {
     var favorited: Bool?
     var favorites: Int?
     var author: FeedAuthor?
+    var createdAt: String?
     var likes: Int?
     var liked: Bool?
 
